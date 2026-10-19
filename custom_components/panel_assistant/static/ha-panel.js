@@ -26,6 +26,7 @@ var n = Object.freeze({
 			github: "GitHub",
 			unreachable: "unreachable",
 			restarting: "Restarting ({reason})",
+			restartingNext: "This panel will come back automatically. There is no need to refresh.",
 			not_loaded: "not loaded",
 			opening: "Opening {panel}…",
 			loadingHint: "Just a moment",
@@ -185,6 +186,7 @@ var n = Object.freeze({
 			github: "GitHub",
 			unreachable: "nedostupný",
 			restarting: "Restartování ({reason})",
+			restartingNext: "This panel will come back automatically. There is no need to refresh.",
 			not_loaded: "nenačtený",
 			opening: "Otevírání panelu {panel}…",
 			loadingHint: "Chvilku strpení",
@@ -344,6 +346,7 @@ var n = Object.freeze({
 			github: "GitHub",
 			unreachable: "nicht erreichbar",
 			restarting: "Neustart ({reason})",
+			restartingNext: "This panel will come back automatically. There is no need to refresh.",
 			not_loaded: "nicht geladen",
 			opening: "{panel} wird geöffnet…",
 			loadingHint: "Einen Moment bitte",
@@ -503,6 +506,7 @@ var n = Object.freeze({
 			github: "GitHub",
 			unreachable: "inaccesible",
 			restarting: "Reiniciando ({reason})",
+			restartingNext: "This panel will come back automatically. There is no need to refresh.",
 			not_loaded: "sin cargar",
 			opening: "Abriendo {panel}…",
 			loadingHint: "Un momento",
@@ -662,6 +666,7 @@ var n = Object.freeze({
 			github: "GitHub",
 			unreachable: "injoignable",
 			restarting: "Redémarrage ({reason})",
+			restartingNext: "This panel will come back automatically. There is no need to refresh.",
 			not_loaded: "non chargé",
 			opening: "Ouverture de {panel}…",
 			loadingHint: "Un instant",
@@ -821,6 +826,7 @@ var n = Object.freeze({
 			github: "GitHub",
 			unreachable: "non raggiungibile",
 			restarting: "Riavvio in corso ({reason})",
+			restartingNext: "This panel will come back automatically. There is no need to refresh.",
 			not_loaded: "non caricato",
 			opening: "Apertura di {panel}…",
 			loadingHint: "Un momento",
@@ -980,6 +986,7 @@ var n = Object.freeze({
 			github: "GitHub",
 			unreachable: "onbereikbaar",
 			restarting: "Opnieuw starten ({reason})",
+			restartingNext: "This panel will come back automatically. There is no need to refresh.",
 			not_loaded: "niet geladen",
 			opening: "{panel} openen…",
 			loadingHint: "Een ogenblik",
@@ -1139,6 +1146,7 @@ var n = Object.freeze({
 			github: "GitHub",
 			unreachable: "nieosiągalny",
 			restarting: "Ponowne uruchamianie ({reason})",
+			restartingNext: "This panel will come back automatically. There is no need to refresh.",
 			not_loaded: "niewczytany",
 			opening: "Otwieranie panelu {panel}…",
 			loadingHint: "Chwileczkę",
@@ -1298,6 +1306,7 @@ var n = Object.freeze({
 			github: "GitHub",
 			unreachable: "inacessível",
 			restarting: "Reiniciando ({reason})",
+			restartingNext: "This panel will come back automatically. There is no need to refresh.",
 			not_loaded: "não carregado",
 			opening: "Abrindo {panel}…",
 			loadingHint: "Só um momento",
@@ -1457,6 +1466,7 @@ var n = Object.freeze({
 			github: "GitHub",
 			unreachable: "недоступна",
 			restarting: "Перезапускається ({reason})",
+			restartingNext: "This panel will come back automatically. There is no need to refresh.",
 			not_loaded: "не завантажено",
 			opening: "Відкриття {panel}…",
 			loadingHint: "Зачекайте мить",
@@ -1616,6 +1626,7 @@ var n = Object.freeze({
 			github: "GitHub",
 			unreachable: "无法连接",
 			restarting: "正在重启（{reason}）",
+			restartingNext: "This panel will come back automatically. There is no need to refresh.",
 			not_loaded: "未加载",
 			opening: "正在打开 {panel}…",
 			loadingHint: "请稍候",
@@ -1929,14 +1940,15 @@ var ne = class extends HTMLElement {
       .menu-icon,.item-label,#backdrop{display:none}
       #add-label{display:inline}
       /* Loading and failure fill the pane as one shared card: a pill word, one line, a quiet next step. */
-      .state{flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:safe center;padding:20px}
+      .state{background:var(--bg);box-sizing:border-box;flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:safe center;padding:20px}
       .state .card{width:100%;max-width:520px;margin:0;display:flex;flex-direction:column;align-items:flex-start;gap:12px;color:var(--text)}
       .state .card p{margin:0;line-height:1.5}
       .state .title{font-size:1.5rem;font-weight:300;line-height:1.25;overflow-wrap:anywhere}
       .state .dim{color:var(--dim)}
       #pickles{width:180px;max-width:100%;height:180px;object-fit:contain;flex-shrink:0;align-self:center}
       #status{margin:0;padding:16px;color:var(--secondary-text-color,#727272)}
-      iframe{flex:1;border:0;width:100%;display:block;background:var(--card-background-color,#fff)}
+      iframe{flex:1;min-height:0;border:0;width:100%;display:block;background:var(--bg);color-scheme:light}
+      :host([theme="dark"]) iframe{color-scheme:dark}
       /* On a phone the header is one row like Home Assistant's own panels: menu button, picker, and a
          vertical ellipsis that opens the remaining links as a menu. The picker caption stays for screen readers. */
       [data-narrow] header{position:relative;flex-wrap:nowrap;gap:4px;padding:3px 4px}
@@ -1972,7 +1984,7 @@ var ne = class extends HTMLElement {
       <a id="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg><span class="item-label" data-message="integrationSettings"></span></a>
       </div>
       <div id="slot"></div>
-    </header><div id="failure" class="state" hidden><section class="card"><span id="failure-pill" class="pill dot"></span><img id="pickles" src="/panel_assistant/usb/pickles.svg" alt=""><p id="failure-status" class="title" role="status" aria-live="polite"></p><p id="pickles-story" data-message="picklesStory"></p><p id="next-step" class="dim"></p></section></div><p id="status" role="status" aria-live="polite"></p><div id="loading" class="state" hidden><section class="card"><span class="pill dot" data-message="pillOpening"></span><p id="loading-text" class="title" role="status" aria-live="polite"></p><p id="loading-hint" class="wiz-status dim" data-message="loadingHint"></p></section></div><iframe id="frame"></iframe></div>`;
+    </header><div id="failure" class="state" hidden><section class="card"><span id="failure-pill" class="pill dot"></span><img id="pickles" src="/panel_assistant/usb/pickles.svg" alt=""><p id="failure-status" class="title" role="status" aria-live="polite"></p><p id="pickles-story" data-message="picklesStory"></p><p id="next-step" class="dim"></p></section></div><p id="status" role="status" aria-live="polite"></p><div id="loading" class="state" hidden><section class="card"><span id="loading-pill" class="pill dot" data-message="pillOpening"></span><p id="loading-text" class="title" role="status" aria-live="polite"></p><p id="loading-hint" class="wiz-status dim" data-message="loadingHint"></p></section></div><iframe id="frame"></iframe></div>`;
 		let e = this.shadowRoot;
 		for (let t of e.querySelectorAll("[data-message]")) t.textContent = this.#e[t.dataset.message];
 		let t = e.querySelector("#menu");
@@ -1983,7 +1995,10 @@ var ne = class extends HTMLElement {
 		let n = e.querySelector("#overflow");
 		n.setAttribute("aria-label", this.#e.more), n.setAttribute("title", this.#e.more), n.hidden = !0, e.querySelector("#backdrop").hidden = !0, e.querySelector("#dot").hidden = !0, n.addEventListener("click", () => this.#b(!this.#y())), e.querySelector("#backdrop").addEventListener("click", () => this.#b(!1)), e.querySelector("#root").addEventListener("keydown", (e) => {
 			e.key === "Escape" && this.#y() && (this.#b(!1), n.focus?.());
-		}), e.querySelector("#frame").setAttribute("title", this.#e.frameTitle);
+		}), e.querySelector("#frame").setAttribute("title", this.#e.frameTitle), e.querySelector("#frame").addEventListener("load", () => {
+			let t = e.querySelector("#frame"), n = t.contentDocument;
+			t.dataset.ready = String(!!(t.getAttribute("src") && n && n.URL !== "about:blank" && !n.querySelector("meta[name=\"panel-assistant-wait\"]"))), this.#L();
+		});
 		let r = e.querySelector("#settings");
 		r.setAttribute("aria-label", this.#e.integrationSettings), r.setAttribute("title", this.#e.integrationSettings);
 		let i = e.querySelector("#github");
@@ -2172,7 +2187,7 @@ var ne = class extends HTMLElement {
 				r.getAttribute("src") === t.url ? e.reopen && this.#P({
 					type: S,
 					open: !0
-				}) : r.setAttribute("src", t.url), e.reopen = !1, this.#L();
+				}) : (delete r.dataset.ready, r.setAttribute("src", t.url)), e.reopen = !1, this.#L();
 			} else t.kind === "closed" && (this.#P({
 				type: S,
 				closed: !0
@@ -2197,7 +2212,8 @@ var ne = class extends HTMLElement {
 		this.#d = null, e && (e.state = "ended", e.unsubscribe?.then((e) => e()).catch(() => {}), this.#N());
 	}
 	#N() {
-		this.shadowRoot.querySelector("#frame").removeAttribute("src");
+		let e = this.shadowRoot.querySelector("#frame");
+		delete e.dataset.ready, e.removeAttribute("src");
 	}
 	#P(e) {
 		this.shadowRoot.querySelector("#frame").contentWindow?.postMessage(e, location.origin);
@@ -2278,7 +2294,7 @@ var ne = class extends HTMLElement {
 		let l = i.find((e) => e.entry_id === this.#u), u = e.querySelector("#device");
 		u.hidden = !l?.device_id, l?.device_id && u.setAttribute("href", `/config/devices/device/${encodeURIComponent(l.device_id)}`);
 		let d = this.#d, f = e.querySelector("#frame"), m = "", h = !1;
-		this.#C() ? this.#s === "loading" ? h = !0 : this.#s === "ready" ? d?.state === "closed" && d.entryId === l?.entry_id ? m = "closed" : l?.state === "restarting" ? m = "restarting" : l?.state === "unreachable" ? m = "unreachableBody" : l?.state === "not_loaded" ? m = "notLoadedBody" : d?.state === "failed" ? m = d.code === "not_loaded" ? "notLoadedBody" : "failed" : d?.state !== "open" && !f.getAttribute("src") && (h = !0) : m = this.#s : m = "admin";
+		this.#C() ? this.#s === "loading" ? h = !0 : this.#s === "ready" ? d?.state === "closed" && d.entryId === l?.entry_id ? m = "closed" : l?.state === "restarting" ? m = "restarting" : l?.state === "unreachable" ? m = "unreachableBody" : l?.state === "not_loaded" ? m = "notLoadedBody" : d?.state === "failed" ? m = d.code === "not_loaded" ? "notLoadedBody" : "failed" : f.dataset.ready !== "true" && (h = !0) : m = this.#s : m = "admin";
 		let g = e.querySelector("#status");
 		g.textContent = m === "restarting" ? s(this.#e.restarting, { reason: o("sidebarReason", t)[l.reason] }) : m ? this.#e[m] : "";
 		let _ = [
@@ -2297,11 +2313,11 @@ var ne = class extends HTMLElement {
 			notLoadedBody: "pillNotLoaded",
 			failed: "pillRetrying",
 			closed: "pillClosed"
-		}[m]] : "", g.hidden = !m || _;
-		let v = e.querySelector("#loading");
-		v.hidden = !h;
-		let y = e.querySelector("#loading-text");
-		y.hidden = !l, h && (y.textContent = l ? j(l.title, t) : ""), f.hidden = !f.getAttribute("src");
+		}[m]] : "", g.hidden = !m || _ || m === "restarting";
+		let v = e.querySelector("#loading"), y = m === "restarting";
+		v.hidden = !h && !y;
+		let b = e.querySelector("#loading-text");
+		b.hidden = !l, (h || y) && (b.textContent = y ? g.textContent : l ? j(l.title, t) : ""), e.querySelector("#loading-hint").textContent = l && (h || y) ? n.restartingNext : n.loadingHint, e.querySelector("#loading-pill").textContent = y ? o("sidebarReason", t)[l.reason] : n.pillOpening, f.hidden = !!m || h || f.dataset.ready !== "true";
 	}
 };
 customElements.get("panel-assistant-sidebar") || customElements.define("panel-assistant-sidebar", ne);
@@ -2335,10 +2351,10 @@ Object.freeze({
 	[N]: Object.freeze(["io.panelassistant.android/io.github.maxlyth.hapaneld.input.PanelAccessibilityService"]),
 	[P]: Object.freeze(["io.panelassistant.android/.input.PanelAccessibilityService", "io.panelassistant.android/io.panelassistant.android.input.PanelAccessibilityService"])
 }), Object.freeze({ [P]: Object.freeze([ae[N]]) });
-var F = 262144, oe = 2147483647, se = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/, ce = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-(?:rc|preview)[1-9][0-9]*$/, le = /^build-([1-9][0-9]{0,9})(-successor)?$/, I = (e, t) => typeof t == "string" && t.length <= 64 && e.exec(t)?.[0] === t, L = (e) => I(se, e), R = (e) => I(ce, e), z = (e) => L(e) || R(e);
+var F = 262144, oe = 2147483647, se = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/, ce = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-(?:rc|preview)[1-9][0-9]*$/, I = /^build-([1-9][0-9]{0,9})(-successor)?$/, L = (e, t) => typeof t == "string" && t.length <= 64 && e.exec(t)?.[0] === t, le = (e) => L(se, e), R = (e) => L(ce, e), z = (e) => le(e) || R(e);
 function ue(e) {
-	if (!I(le, e)) return null;
-	let t = Number(le.exec(e)[1]);
+	if (!L(I, e)) return null;
+	let t = Number(I.exec(e)[1]);
 	return t <= oe ? t : null;
 }
 var B = (e) => ue(e) !== null, de = (e) => Array.from(new Uint8Array(e), (e) => e.toString(16).padStart(2, "0")).join(""), fe = (e = crypto) => de(e.getRandomValues(/* @__PURE__ */ new Uint8Array(16))), V = (e, t) => typeof t == "string" && e.exec(t)?.[0] === t, H = (e, t) => typeof e == "object" && !!e && !Array.isArray(e) && Object.keys(e).length === t.length && t.every((t) => Object.hasOwn(e, t)), U = "/api/panel_assistant/usb/release", pe = "/api/panel_assistant/usb/handover", me = "/api/panel_assistant/usb/adb_key", he = 35e3, ge = /(?:[0-9]{1,3}\.){3}[0-9]{1,3}/, _e = /[a-z_]{1,48}/, W = 67108864, ve = 18e5, G = [
@@ -2618,7 +2634,7 @@ function Te(e) {
 		tag: e.tag,
 		prerelease: e.prerelease,
 		name: e.name
-	})) : ($(H(e, ["tag", "prerelease"]) && typeof e.prerelease == "boolean" && (e.prerelease ? R(e.tag) : L(e.tag)) && !t.has(e.tag) && ++n <= be), t.add(e.tag), Object.freeze({
+	})) : ($(H(e, ["tag", "prerelease"]) && typeof e.prerelease == "boolean" && (e.prerelease ? R(e.tag) : le(e.tag)) && !t.has(e.tag) && ++n <= be), t.add(e.tag), Object.freeze({
 		tag: e.tag,
 		prerelease: e.prerelease
 	}))));

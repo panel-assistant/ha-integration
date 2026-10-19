@@ -38,6 +38,8 @@ Pairs with the 1.0.0-preview1 panel app. The panel app is published first, becau
 
 ### Changed
 
+- **A themed wait while a panel restarts.** The sidebar fills the pane with a waiting card during a reboot, update or recovery, follows Home Assistant’s light or dark choice, and returns to the panel on its own without a blank white frame.
+
 - **MQTT is gone.** Panel Assistant no longer offers a transport choice: every panel talks to Home Assistant over its native connection.
 - **The sidebar works for a panel Panel Assistant cannot reach.** The sidebar no longer fetches a panel's pages from the panel. It shows the panel's own pages and passes their requests over the connection the panel keeps to Home Assistant, so a panel Panel Assistant cannot reach directly, for example on another network segment or behind a firewall, can still be viewed and configured from the sidebar, and while the panel restarts the sidebar retries on its own. A panel needs this release's panel app for its pages to open in the sidebar; until it updates, the sidebar shows that it could not be opened.
 - **Visit reaches a panel Panel Assistant cannot.** On a panel's device page, Visit opens the panel in the sidebar whenever Panel Assistant can reach it. When it cannot, Visit opens the panel's own page at its last known address instead, from a browser on the panel's network, so you can put right whatever disconnected it; Visit returns to the sidebar once the panel answers. Panel Assistant also looks for a disconnected panel at the addresses its last connection reported, not only at the one it stored.

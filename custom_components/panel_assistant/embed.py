@@ -400,10 +400,14 @@ def _respond(status: int, **fields: Any) -> web.Response:
 RETRY_SECONDS: Final = 3
 
 
-def _retry() -> web.Response:
+def _retry(session: EmbedSession) -> web.Response:
     return _respond(
         503,
-        body=f'<!doctype html><meta http-equiv="refresh" content="{RETRY_SECONDS}">',
+        body=(
+            '<!doctype html><meta name="panel-assistant-wait" content="true">'
+            f'<meta name="color-scheme" content="{session.theme}">'
+            f'<meta http-equiv="refresh" content="{RETRY_SECONDS}">'
+        ),
         content_type="text/html",
         headers={"Retry-After": str(RETRY_SECONDS)},
     )
@@ -496,7 +500,7 @@ class EmbedView(HomeAssistantView):
     ) -> web.Response:
         panel = live_ui_session(self.hass, entry.entry_id)
         if panel is None:
-            return _retry()
+            return _retry(session)
         args: dict[str, Any] = {"embed": session.embed_header}
         for key in ("lang", "ha_lang"):
             if (value := request.query.get(key)) and _valid_language(value):
@@ -512,7 +516,7 @@ class EmbedView(HomeAssistantView):
                 {"user": session.user_id, "connection": session.relay_id},
             )
         except HomeAssistantError:
-            return _retry()
+            return _retry(session)
         if data is None and isinstance(outcome.result, str):
             data = outcome.result.encode()
         if data is None or (outcome.outcome != OUTCOME_APPLIED and not outcome.status):

@@ -836,16 +836,18 @@ async def test_a_page_comes_over_the_session_with_its_base_rewritten(
     assert not panel.requests
 
 
+@pytest.mark.parametrize("theme", ["light", "dark"])
 async def test_a_page_asked_for_while_the_panel_session_is_down_asks_again(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
     hass_client_no_auth: Any,
     entry: MockConfigEntry,
     live: SessionPanel,
+    theme: str,
 ) -> None:
     """An open sidebar is not left blank while the panel restarts after an update."""
     ws = await hass_ws_client(hass)
-    _, url = await _open_session(ws, entry.entry_id)
+    _, url = await _open_session(ws, entry.entry_id, theme=theme)
     browser = await hass_client_no_auth()
     assert (await browser.get(url)).status == 200
     assert live.task is not None
@@ -857,7 +859,10 @@ async def test_a_page_asked_for_while_the_panel_session_is_down_asks_again(
 
     assert response.status == 503
     assert response.content_type == "text/html"
-    assert '<meta http-equiv="refresh" content="3">' in await response.text()
+    document = await response.text()
+    assert '<meta http-equiv="refresh" content="3">' in document
+    assert '<meta name="panel-assistant-wait" content="true">' in document
+    assert f'<meta name="color-scheme" content="{theme}">' in document
 
 
 async def test_each_panel_is_served_the_bundle_of_its_own_build(

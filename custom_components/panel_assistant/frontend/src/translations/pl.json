@@ -12,6 +12,7 @@
     "github": "GitHub",
     "unreachable": "nieosiągalny",
     "restarting": "Ponowne uruchamianie ({reason})",
+    "restartingNext": "This panel will come back automatically. There is no need to refresh.",
     "not_loaded": "niewczytany",
     "opening": "Otwieranie panelu {panel}…",
     "loadingHint": "Chwileczkę",
