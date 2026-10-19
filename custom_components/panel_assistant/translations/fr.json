@@ -667,6 +667,9 @@
       "dashboard_idle_return": {
         "name": "Retour à l’accueil si inactif"
       },
+      "screen_off_timeout": {
+        "name": "Délai de mise en veille de l’écran"
+      },
       "volume": {
         "name": "Volume"
       }

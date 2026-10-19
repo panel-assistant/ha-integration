@@ -281,6 +281,9 @@
       "dashboard_idle_return": {
         "name": "Voltar ao início por inatividade"
       },
+      "screen_off_timeout": {
+        "name": "Tempo limite da tela"
+      },
       "volume": {
         "name": "Volume"
       }

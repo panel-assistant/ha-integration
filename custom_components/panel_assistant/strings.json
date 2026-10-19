@@ -281,6 +281,9 @@
       "dashboard_idle_return": {
         "name": "Idle return to home"
       },
+      "screen_off_timeout": {
+        "name": "Screen timeout"
+      },
       "volume": {
         "name": "Volume"
       }

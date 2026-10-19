@@ -60,6 +60,7 @@ EXTRA_OBSERVATIONS = [
     {"channel": "auto_sleep_activity", "state": "known", "value": False},
     {"channel": "dashboard_idle_return", "state": "known", "value": 15},
     {"channel": "dashboard_theme", "state": "known", "value": "ambient"},
+    {"channel": "screen_off_timeout", "state": "known", "value": 300},
     {"channel": "diag_boot", "state": "known", "value": "2026-09-14T08:00:00+00:00"},
     {"channel": "media", "state": "known", "value": {"state": "idle", "muted": False}},
     {"channel": "relay1", "state": "known", "value": True},
@@ -298,6 +299,9 @@ async def test_every_type_renders_under_the_native_unique_id(
         1440,
     )
     assert idle.attributes["unit_of_measurement"] == "min"
+    timeout = state("screen_off_timeout")
+    assert (timeout.state, timeout.attributes["mode"]) == ("300", "box")
+    assert timeout.attributes["unit_of_measurement"] == "s"
     assert state("navigate").state == "/"
     assert state("proximity").state == "on"
     assert state("temperature").state == "21.5"

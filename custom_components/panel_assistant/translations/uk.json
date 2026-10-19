@@ -667,6 +667,9 @@
       "dashboard_idle_return": {
         "name": "Повернення на головну після простою"
       },
+      "screen_off_timeout": {
+        "name": "Час вимкнення екрана"
+      },
       "volume": {
         "name": "Гучність"
       }

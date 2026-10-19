@@ -667,6 +667,9 @@
       "dashboard_idle_return": {
         "name": "Ritorno a Home per inattività"
       },
+      "screen_off_timeout": {
+        "name": "Spegnimento schermo"
+      },
       "volume": {
         "name": "Volume"
       }

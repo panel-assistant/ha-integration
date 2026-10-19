@@ -667,6 +667,9 @@
       "dashboard_idle_return": {
         "name": "闲置后返回主仪表盘"
       },
+      "screen_off_timeout": {
+        "name": "屏幕超时"
+      },
       "volume": {
         "name": "音量"
       }

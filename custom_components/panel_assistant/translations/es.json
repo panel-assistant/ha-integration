@@ -667,6 +667,9 @@
       "dashboard_idle_return": {
         "name": "Volver a Inicio por inactividad"
       },
+      "screen_off_timeout": {
+        "name": "Tiempo de espera de la pantalla"
+      },
       "volume": {
         "name": "Volumen"
       }

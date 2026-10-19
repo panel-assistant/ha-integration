@@ -667,6 +667,9 @@
       "dashboard_idle_return": {
         "name": "Bei Inaktivität zum Start"
       },
+      "screen_off_timeout": {
+        "name": "Bildschirm-Timeout"
+      },
       "volume": {
         "name": "Lautstärke"
       }

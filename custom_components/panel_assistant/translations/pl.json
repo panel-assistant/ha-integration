@@ -667,6 +667,9 @@
       "dashboard_idle_return": {
         "name": "Powrót do strony gł. po bezczynności"
       },
+      "screen_off_timeout": {
+        "name": "Wygaszanie ekranu"
+      },
       "volume": {
         "name": "Głośność"
       }

@@ -223,7 +223,7 @@
       }
     }
   ],
-  "sourceRevision": "451cfd096bedf0aec2c48c55804a02d9d7189a9c",
+  "sourceRevision": "fca29b1a8b1eb1c557e36ca16a3d0e8173df775c",
   "channelDescriptors": [
     {
       "entity_category": null,
@@ -991,6 +991,24 @@
       "translation_key": "screen",
       "step": null,
       "enabled_default": true,
+      "state_class": null,
+      "family": null,
+      "force_update": false
+    },
+    {
+      "entity_category": "config",
+      "unique_suffix": "screen_off_timeout",
+      "max": 2147483,
+      "channel": "screen_off_timeout",
+      "index": null,
+      "platform": "number",
+      "unit": "s",
+      "min": 10,
+      "options": null,
+      "device_class": null,
+      "translation_key": "screen_off_timeout",
+      "step": 1,
+      "enabled_default": false,
       "state_class": null,
       "family": null,
       "force_update": false

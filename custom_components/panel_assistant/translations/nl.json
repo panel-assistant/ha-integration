@@ -667,6 +667,9 @@
       "dashboard_idle_return": {
         "name": "Terug naar startpunt bij inactiviteit"
       },
+      "screen_off_timeout": {
+        "name": "Time-out voor scherm"
+      },
       "volume": {
         "name": "Volume"
       }

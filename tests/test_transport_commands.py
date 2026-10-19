@@ -277,6 +277,7 @@ async def test_entry_writes_keep_the_session(
         ("select", "cpu_governor", "select_option", {"option": "auto"}, "auto"),
         ("select", "dashboard_theme", "select_option", {"option": "dark"}, "dark"),
         ("number", "dashboard_idle_return", "set_value", {"value": 15}, 15),
+        ("number", "screen_off_timeout", "set_value", {"value": 300}, 300),
         ("text", "navigate", "set_value", {"value": "/x"}, "/x"),
         ("button", "reboot", "press", {}, None),
     ],
