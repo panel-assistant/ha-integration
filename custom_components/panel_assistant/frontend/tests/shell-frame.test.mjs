@@ -133,3 +133,70 @@ test('preflight root ladder and admission', () => {
     error => error.code === 'root_state_ambiguous');
   assert.equal(parsePreflight(preflightBody(LADDER[0][0], true), nonce, descriptor).rootMode, 'rootless');
 });
+
+// A root_su panel whose `su 0` waits on stdin, as Magisk's does, and whose
+// next forms answer the delegated proof.
+function hangingSuZeroAdb(hangs = ['su 0']) {
+  const forms = [];
+  const adb = { async createSocket(command) {
+    const n = command.match(/BEGIN:([a-f0-9]{32})/)[1];
+    let body;
+    if (command.includes('HAPANELD_POSTURE_BEGIN:')) {
+      body = postureBody(n, { ...IDENTITY, ...LADDER[2][0] });
+    } else if (command.includes('HAPANELD_PREFLIGHT_BEGIN:')) {
+      body = preflightBody(LADDER[2][0]).replaceAll(nonce, n);
+    } else {
+      const form = command.split('; ')[1].split(" '")[0];
+      forms.push(form);
+      if (hangs.includes(form)) return { readable: new ReadableStream(), close: async () => {} };
+      const values = { UID: '0', BASE0: 'readable', BASE1: 'readable', BASE2: 'readable',
+        ...Object.fromEntries(RESIDUE_PROBES.map((_, i) => [`RESIDUE${i}`, 'absent'])) };
+      body = [`HAPANELD_DELEGATE_BEGIN:${n}`, `HAPANELD_SU_BEGIN:${n}`,
+        ...Object.entries(values).flatMap(([key, value]) =>
+          [`HAPANELD_SU_${key}_BEGIN:${n}`, value, `HAPANELD_SU_${key}_END:${n}:0`]),
+        `HAPANELD_SU_END:${n}`, `HAPANELD_DELEGATE_END:${n}:0`, ''].join('\n');
+    }
+    return { readable: new ReadableStream({ start(c) { c.enqueue(new TextEncoder().encode(body)); c.close(); } }),
+      close: async () => {} };
+  } };
+  return { adb, forms };
+}
+
+function suReceipt() {
+  const target = { model: 'Test panel', serial: 'serial', primaryAbi: 'arm64-v8a', androidSdk: 33,
+    rootMode: 'root_su', usbVendorId: 1, usbProductId: 2, usbSerial: 'usb' };
+  const artifact = { apkSize: 1, apkSha256: 'a'.repeat(64), packageId: PACKAGE_ID,
+    launchComponent: LAUNCH_COMPONENTS[PACKAGE_ID][1], minSdk: 24,
+    supportedAbis: ['arm64-v8a', 'armeabi-v7a'] };
+  return { receipt: { phase: 'prepared', target, artifact },
+    release: { kind: 'authenticated-apk-bytes', descriptor: artifact } };
+}
+
+test('USB install proves root through the next su form when su 0 hangs', async () => {
+  const { adb, forms } = hangingSuZeroAdb();
+  const { receipt, release } = suReceipt();
+  const ports = createUsbTransactionPorts({ adb, usbDevice, authenticate: async () => release,
+    quarantine: () => {} });
+  await ports.authenticate();
+  const result = await ports.inspect(receipt, release);
+  assert.equal(result.clean, true);
+  assert.deepEqual(forms, ['su 0', 'su 0 sh -c']);
+});
+
+test('USB install reports a silent panel when no su form answers', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { adb, forms } = hangingSuZeroAdb(['su 0', 'su 0 sh -c', 'su root', 'su root sh -c', 'su -c']);
+  const { receipt, release } = suReceipt();
+  const ports = createUsbTransactionPorts({ adb, usbDevice, authenticate: async () => release,
+    quarantine: () => {} });
+  await ports.authenticate();
+  let settled = false;
+  const run = ports.inspect(receipt, release).finally(() => { settled = true; });
+  run.catch(() => {});
+  while (!settled) {
+    await new Promise(resolve => setImmediate(resolve));
+    t.mock.timers.tick(3000);
+  }
+  await assert.rejects(run, error => error.code === 'shell_timeout');
+  assert.equal(forms.length, 5);
+});

@@ -1,6 +1,6 @@
 import { buildPreflight, parsePreflight, PreflightError } from './preflight.mjs';
 import { SU_PREFIXES, buildDelegatedProof, parseDelegatedProof } from './delegated-proof.mjs';
-import { readShell } from './shell-session.mjs';
+import { ShellSessionError, readShell } from './shell-session.mjs';
 import { newNonce } from './shared.mjs';
 
 
@@ -18,13 +18,25 @@ export async function inspectCleanTarget(adb, descriptor, ensureCurrent = () => 
   const initial = await inventory();
   if (initial.rootMode !== 'root_su') return initial;
   let proved = false;
+  let answered = false;
   for (const prefix of SU_PREFIXES) {
     ensureCurrent();
     const nonce = newNonce();
-    const body = await readShell(adb, buildDelegatedProof(prefix, nonce));
+    let body;
+    try {
+      body = await readShell(adb, buildDelegatedProof(prefix, nonce));
+    } catch (error) {
+      // Some su dialects wait on stdin for a form they do not take (Magisk's
+      // `su 0 '<cmd>'`); the next form may still answer.
+      if (error instanceof ShellSessionError && error.code === 'shell_timeout') continue;
+      throw error;
+    }
+    answered = true;
     ensureCurrent();
     if (parseDelegatedProof(body, nonce)) { proved = true; break; }
   }
+  // No form answering at all means the panel itself is not answering.
+  if (!answered) throw new ShellSessionError('shell_timeout');
   if (!proved) throw new PreflightError('root_state_ambiguous');
   const final = await inventory();
   for (const key of ['model', 'serial', 'primaryAbi', 'androidSdk', 'rootMode']) {
