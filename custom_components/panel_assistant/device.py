@@ -168,6 +168,7 @@ def async_refresh_panel_device(
     device = registry.async_get_device_by_identifier((DOMAIN, entry_id), entry_id)
     if device is None:
         return
+    connections = info.get("connections", UNDEFINED)
     # A field the card leaves out keeps its registered value.
     registry.async_update_device(
         device.id,
@@ -179,7 +180,9 @@ def async_refresh_panel_device(
         hw_version=info.get("hw_version", UNDEFINED),
         serial_number=info.get("serial_number", UNDEFINED),
         # Replaced, not merged, so an address the panel no longer has stops linking.
-        new_connections=info.get("connections", UNDEFINED),
+        # Only when changed: Home Assistant announces any replacement as an update,
+        # and every dashboard refetches the whole device registry on each one.
+        new_connections=UNDEFINED if connections == device.connections else connections,
         # Replace links registered by earlier versions as well.
         configuration_url=info.get("configuration_url", UNDEFINED),
     )
