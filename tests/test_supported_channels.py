@@ -8,6 +8,7 @@ actions, which a transient loss of the root helper must not erase.
 from copy import deepcopy
 from typing import Any
 
+import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
@@ -103,13 +104,15 @@ async def test_a_session_omitting_a_channel_deletes_nothing(
     assert registry.entities.get_entry(relay2.id) == relay2
 
 
-async def test_a_native_born_reboot_survives_a_later_unsupported_hello(
+@pytest.mark.parametrize("channel", ["reboot", "back"])
+async def test_a_native_born_action_survives_a_later_unsupported_hello(
     hass: HomeAssistant,
     hass_read_only_user: Any,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
+    channel: str,
 ) -> None:
-    """Transient helper loss also preserves an action created without MQTT."""
+    """A transient loss of the action's route keeps the button, unavailable."""
     await _setup(hass, hass_read_only_user.id)
     registry = er.async_get(hass)
     with panel_patches():
@@ -117,22 +120,22 @@ async def test_a_native_born_reboot_survives_a_later_unsupported_hello(
             hass,
             hass_ws_client,
             hass_read_only_access_token,
-            _hello([next(d for d in DESCRIPTORS if d["channel"] == "reboot")]),
+            _hello([next(d for d in DESCRIPTORS if d["channel"] == channel)]),
         )
-        entity_id = registry.async_get_entity_id("button", DOMAIN, f"{DID}_reboot")
+        entity_id = registry.async_get_entity_id("button", DOMAIN, f"{DID}_{channel}")
         assert entity_id is not None
         created = registry.async_get(entity_id)
         assert created is not None
-        registry.async_update_entity(entity_id, name="My native reboot")
+        registry.async_update_entity(entity_id, name="My native button")
         await _hello_on_new_socket(
             hass,
             hass_ws_client,
             hass_read_only_access_token,
-            _hello([]) | {"unsupported": ["reboot"]},
+            _hello([]) | {"unsupported": [channel]},
         )
     kept = registry.entities.get_entry(created.id)
     assert kept is not None
-    assert (kept.entity_id, kept.name) == (entity_id, "My native reboot")
+    assert (kept.entity_id, kept.name) == (entity_id, "My native button")
     state = hass.states.get(entity_id)
     assert state is not None and state.state == STATE_UNAVAILABLE
     with panel_patches():
@@ -140,29 +143,31 @@ async def test_a_native_born_reboot_survives_a_later_unsupported_hello(
             hass,
             hass_ws_client,
             hass_read_only_access_token,
-            _hello([next(d for d in DESCRIPTORS if d["channel"] == "reboot")]),
+            _hello([next(d for d in DESCRIPTORS if d["channel"] == channel)]),
         )
     recovered = registry.entities.get_entry(created.id)
     assert recovered is not None
-    assert (recovered.entity_id, recovered.name) == (entity_id, "My native reboot")
+    assert (recovered.entity_id, recovered.name) == (entity_id, "My native button")
 
 
-async def test_a_first_unsupported_reboot_creates_no_native_button(
+@pytest.mark.parametrize("channel", ["reboot", "back"])
+async def test_a_first_unsupported_action_creates_no_native_button(
     hass: HomeAssistant,
     hass_read_only_user: Any,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
+    channel: str,
 ) -> None:
-    """A rootless first hello cannot invent a reboot action."""
+    """A first hello stating the action unsupported creates no button."""
     entry = await _setup(hass, hass_read_only_user.id)
     await _hello_on_new_socket(
         hass,
         hass_ws_client,
         hass_read_only_access_token,
-        _hello([]) | {"unsupported": ["reboot"]},
+        _hello([]) | {"unsupported": [channel]},
     )
     assert (
-        er.async_get(hass).async_get_entity_id("button", DOMAIN, f"{DID}_reboot")
+        er.async_get(hass).async_get_entity_id("button", DOMAIN, f"{DID}_{channel}")
         is None
     )
     assert entry.state is ConfigEntryState.LOADED

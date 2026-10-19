@@ -277,6 +277,8 @@ async def test_entry_writes_keep_the_session(
         ("select", "cpu_governor", "select_option", {"option": "auto"}, "auto"),
         ("text", "navigate", "set_value", {"value": "/x"}, "/x"),
         ("button", "reboot", "press", {}, None),
+        ("button", "dashboard", "press", {}, None),
+        ("button", "back", "press", {}, None),
     ],
 )
 async def test_each_platform_sends_its_typed_value(

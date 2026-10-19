@@ -627,6 +627,12 @@
       },
       "launcher": {
         "name": "Launcher"
+      },
+      "dashboard": {
+        "name": "Mostra la plancia"
+      },
+      "back": {
+        "name": "Indietro"
       }
     },
     "event": {

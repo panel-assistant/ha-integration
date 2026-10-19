@@ -627,6 +627,12 @@
       },
       "launcher": {
         "name": "启动器"
+      },
+      "dashboard": {
+        "name": "显示仪表盘"
+      },
+      "back": {
+        "name": "返回"
       }
     },
     "event": {

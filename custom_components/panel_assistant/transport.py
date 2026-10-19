@@ -148,7 +148,9 @@ def async_remove_unsupported_channels(
         item = registry.async_get(entity_id)
         if item is None or item.config_entry_id != entry.entry_id:
             continue
-        if channel in {"reboot", "reload"}:
+        # Their routes come and go (a root probe that timed out, an accessibility
+        # service not yet bound after an update), so the entity is kept, unavailable.
+        if channel in {"reboot", "reload", "back"}:
             continue
         registry.async_remove(entity_id)
         removed.add(unique_id)

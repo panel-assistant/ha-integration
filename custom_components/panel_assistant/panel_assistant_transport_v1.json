@@ -78,6 +78,22 @@
       "attributes": []
     },
     {
+      "channel": "dashboard",
+      "family": null,
+      "platform": "button",
+      "translation_key": "dashboard",
+      "unique_suffix": "dashboard",
+      "attributes": []
+    },
+    {
+      "channel": "back",
+      "family": null,
+      "platform": "button",
+      "translation_key": "back",
+      "unique_suffix": "back",
+      "attributes": []
+    },
+    {
       "channel": "button",
       "family": null,
       "platform": "event",

@@ -622,6 +622,12 @@
       },
       "launcher": {
         "name": "Launcher"
+      },
+      "dashboard": {
+        "name": "Pokaż pulpit"
+      },
+      "back": {
+        "name": "Wstecz"
       }
     },
     "camera": {

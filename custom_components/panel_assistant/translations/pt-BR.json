@@ -241,6 +241,12 @@
       },
       "launcher": {
         "name": "Inicializador"
+      },
+      "dashboard": {
+        "name": "Mostrar dashboard"
+      },
+      "back": {
+        "name": "Voltar"
       }
     },
     "event": {
