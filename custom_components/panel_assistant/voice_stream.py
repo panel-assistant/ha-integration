@@ -580,15 +580,17 @@ class VoiceStream:
             push = group.start_stream()
             fmt = AudioFormat(sample_rate=rate, bit_depth=16, channels=1)
             step = rate * SLICE_MS // 1000 * 2
-            start_us: int | None = None
+            end_us = 0
             for offset in range(0, len(pcm), step):
-                push.prepare_audio(pcm[offset : offset + step], fmt)
+                part = pcm[offset : offset + step]
+                push.prepare_audio(part, fmt)
                 at = await push.commit_audio()
-                if start_us is None:
-                    start_us = at
+                if offset == 0:
                     started.set_result(None)
+                # A late producer can move this slice's start forward. End on
+                # the assigned timeline, including a partial final slice.
+                end_us = at + len(part) // 2 * 1_000_000 // rate
                 await push.sleep_to_limit_buffer(MAX_AHEAD_US)
-            end_us = (start_us or 0) + len(pcm) // 2 * 1_000_000 // rate
             # stream/end makes players clear their buffers, so wait on the
             # server's clock until the last sample has played.
             await asyncio.sleep(max(0, end_us - push.now_us()) / 1e6)

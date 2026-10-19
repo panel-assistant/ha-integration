@@ -33,6 +33,7 @@ from aiosendspin.noise import (
     b64url_decode,
     psk_id_for,
 )
+from aiosendspin.server.push_stream import PushStream
 from homeassistant.components.assist_pipeline import PipelineEvent, PipelineEventType
 from homeassistant.components.assist_satellite import AssistSatelliteEntity
 from homeassistant.const import CONF_ADDRESS
@@ -725,6 +726,78 @@ async def test_a_granted_panel_connects_pairs_and_plays_inside_its_session(
     _heard_in_order(wire, speaker, 0, stream_id)
     # Speech at its own rate, whole.
     assert speaker.seconds(0) == _whole(_pcm("speech"))
+
+
+@LINGERING
+@pytest.mark.parametrize("kind", ["reply", "announcement"])
+async def test_late_audio_finishes_on_its_rescheduled_timeline(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    base: str,
+    wires: list[tuple[Wire, Speaker]],
+    pipeline: FakePipeline,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+    kind: str,
+) -> None:
+    """A producer pause must not clear the reply's future-timestamped tail."""
+    panel, wire, speaker = await _voice_panel(
+        hass, hass_ws_client, hass_read_only_access_token, wires
+    )
+    service = async_get_voice_stream(hass)
+    assert service is not None
+    # Include a partial final slice, as real speech clips do.
+    monkeypatch.setitem(CLIPS, "late", _clip(8.05))
+    url = f"{base}/test_voice_stream/late"
+    sleep_to_limit = PushStream.sleep_to_limit_buffer
+    commits = 0
+
+    async def delayed(push: PushStream, limit: int) -> None:
+        nonlocal commits
+        await sleep_to_limit(push, limit)
+        commits += 1
+        if commits == 55:
+            await asyncio.sleep(3)
+
+    remaining: list[int] = []
+    ended = speaker._ended
+
+    def record_end(socket: PanelSocket) -> None:
+        ts, size, _ = speaker.streams[-1].chunks[-1]
+        remaining.append(
+            ts
+            + size * 1_000_000 // speaker.bytes_per_second
+            - service.server.clock.now_us()
+        )
+        ended(socket)
+
+    monkeypatch.setattr(PushStream, "sleep_to_limit_buffer", delayed)
+    monkeypatch.setattr(speaker, "_ended", record_end)
+    if kind == "reply":
+        pipeline.events[-2] = PipelineEvent(
+            PipelineEventType.TTS_END, {"tts_output": {"url": url}}
+        )
+        run_id, handler = await _run(panel, "hey_jarvis")
+        await panel.client.send_bytes(bytes([handler]))
+        events = await _turn_events(panel, run_id)
+        assert events[-2]["stream"] is True
+    else:
+        call = _announce(
+            hass, _satellite(hass, entry), base, media_id=url, preannounce=False
+        )
+        assert (await _event(panel))["stream"] is True
+        async with asyncio.timeout(15):
+            await call
+    await _until(lambda: speaker.ends == 1, 15)
+    assert commits == 81
+    assert speaker.seconds(0) == _whole(_pcm("late"))
+    assert len(remaining) == 1
+    assert remaining[0] <= 0, (
+        f"stream/end cleared {remaining[0] / 1000:.1f} ms of audio"
+    )
+    await _until(lambda: bool(wire.ends))
+    assert wire.ends[-1]["outcome"] == "played"
 
 
 @LINGERING
