@@ -49,7 +49,7 @@ VOICE_SCHEMAS = {
 }
 
 _HA_VECTOR_REVISION = "502dc6575cdd214a3cc0890ea3594e60758c8b97"
-_ANDROID_PRODUCER_REVISION = "fca29b1a8b1eb1c557e36ca16a3d0e8173df775c"
+_ANDROID_PRODUCER_REVISION = "18e815d10cb587791a6ae99f62a2967e67fc0cf4"
 
 
 def test_shared_vectors_name_the_ha_source_revision_vendored_by_android() -> None:
