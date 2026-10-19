@@ -789,6 +789,9 @@
     "health_update_failed": {
       "message": "Impossible de lire l'état du panneau"
     },
+    "health_address_retired": {
+      "message": "L'adresse du panneau a changé pendant la lecture de son état"
+    },
     "update_unavailable": { "message": "La mise à jour Panel Assistant demandée n'est pas disponible" },
     "update_busy": { "message": "Le panneau est occupé par une autre opération" },
     "update_approval_required": { "message": "Approuvez cette mise à jour sur le panneau, puis réessayez" },

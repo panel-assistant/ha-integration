@@ -789,6 +789,9 @@
     "health_update_failed": {
       "message": "无法读取面板健康状态"
     },
+    "health_address_retired": {
+      "message": "读取面板健康状态时，面板地址已更改"
+    },
     "update_unavailable": { "message": "请求的 Panel Assistant 更新不可用" },
     "update_busy": { "message": "面板正在执行其他操作" },
     "update_approval_required": { "message": "请在面板上批准此更新，然后重试" },

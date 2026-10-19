@@ -789,6 +789,9 @@
     "health_update_failed": {
       "message": "Не вдається зчитати стан панелі"
     },
+    "health_address_retired": {
+      "message": "Адреса панелі змінилася під час зчитування її стану"
+    },
     "update_unavailable": {
       "message": "Запитане оновлення Panel Assistant недоступне"
     },

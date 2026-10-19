@@ -789,6 +789,9 @@
     "health_update_failed": {
       "message": "Kan de status van het paneel niet uitlezen"
     },
+    "health_address_retired": {
+      "message": "Het adres van het paneel is gewijzigd terwijl de status werd uitgelezen"
+    },
     "update_unavailable": {
       "message": "De gevraagde update van Panel Assistant is niet beschikbaar"
     },

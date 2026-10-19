@@ -984,7 +984,7 @@ async def test_update_entity_health_reconciles_failed_build_without_diagnostics(
     client.address = "panel.local"
     client.async_get_version_code.side_effect = CannotConnectError
     entity._offer.feed.async_refresh = AsyncMock()
-    entity._offer.release.async_refresh = AsyncMock()
+    entity._offer.release.async_request_refresh = AsyncMock()
     entity._async_refresh_route = AsyncMock()
     client.async_get_health = AsyncMock(
         return_value=replace(

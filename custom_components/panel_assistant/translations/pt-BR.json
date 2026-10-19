@@ -789,6 +789,9 @@
     "health_update_failed": {
       "message": "Não foi possível ler o estado de funcionamento do painel"
     },
+    "health_address_retired": {
+      "message": "O endereço do painel mudou enquanto seu estado de funcionamento era lido"
+    },
     "update_unavailable": {
       "message": "A atualização solicitada do Panel Assistant está indisponível"
     },

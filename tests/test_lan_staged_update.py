@@ -720,6 +720,66 @@ async def test_refreshing_the_update_reads_the_latest_release_again(
     await entity.async_update()
 
     assert str(release._LATEST_RELEASE_URL) in github.requests
+    assert entity._offer.release is not None
+    await entity._offer.release.async_shutdown()
+
+
+async def test_polling_every_panel_reads_the_shared_release_once(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, trust: None, key: Any
+) -> None:
+    """Refreshing eight panels every 5 s for a minute, as a rollout waiting for
+    a build does, costs one release read, not one per panel or per poll."""
+    github = _GitHub(key)
+    entity, _ = await _entity(hass, monkeypatch, github)
+    release_check = entity._offer.release
+    assert release_check is not None
+    panels = [entity] + [
+        HaPaneldUpdateEntity(
+            f"entry-{index}",
+            entity.coordinator,
+            entity._update_coordinator,
+            None,
+            release=release_check,
+        )
+        for index in range(7)
+    ]
+    for index, panel in enumerate(panels[1:]):
+        panel.hass = hass
+        panel.entity_id = f"update.panel_{index}_ha_paneld"
+        panel.async_write_ha_state = MagicMock()
+    github.requests.clear()
+
+    now = dt_util.utcnow()
+    for poll in range(12):
+        async_fire_time_changed(hass, now + timedelta(seconds=5 * poll))
+        await asyncio.gather(*(panel.async_update() for panel in panels))
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert github.requests.count(str(release._LATEST_RELEASE_URL)) == 1
+    await release_check.async_shutdown()
+
+
+async def test_a_refused_release_listing_names_githubs_answer(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A rate-limited listing logs the status GitHub answered with."""
+    github = _GitHub(key)
+    entity, _ = await _entity(hass, monkeypatch, github)
+    release_check = entity._offer.release
+    assert release_check is not None
+    github._responses[str(release._LATEST_RELEASE_URL)] = _Response(
+        403, b'{"message":"API rate limit exceeded"}', release._LATEST_RELEASE_URL
+    )
+
+    await release_check.async_refresh()
+
+    assert not release_check.last_update_success
+    assert "could not be authenticated: HTTP 403" in str(release_check.last_exception)
+    assert "could not be authenticated: HTTP 403" in caplog.text
 
 
 async def test_a_release_home_assistant_cannot_download_is_left_to_the_panel(

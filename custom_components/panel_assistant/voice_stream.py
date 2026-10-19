@@ -366,10 +366,17 @@ class VoiceStream:
             self._server, wsock_client=cast(ClientWebSocketResponse, socket)
         )
         task = self._hass.async_create_background_task(
-            connection.handle_client(), f"{DOMAIN} voice stream connection"
+            self._async_serve(connection), f"{DOMAIN} voice stream connection"
         )
         self._links.add(task)
         task.add_done_callback(self._links.discard)
+
+    @staticmethod
+    async def _async_serve(connection: SendspinConnection) -> None:
+        # A session that ends while the server is still answering the player's
+        # handshake leaves nothing to report: the panel dials again.
+        with suppress(ConnectionResetError):
+            await connection.handle_client()
 
     @callback
     def detach(self, token: str) -> None:

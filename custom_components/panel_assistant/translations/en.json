@@ -789,6 +789,9 @@
     "health_update_failed": {
       "message": "Unable to read panel health"
     },
+    "health_address_retired": {
+      "message": "The panel's address changed while its health was being read"
+    },
     "update_unavailable": {
       "message": "The requested Panel Assistant update is unavailable"
     },

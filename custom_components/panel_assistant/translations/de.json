@@ -789,6 +789,9 @@
     "health_update_failed": {
       "message": "Der Funktionsstatus des Panels konnte nicht gelesen werden"
     },
+    "health_address_retired": {
+      "message": "Die Adresse des Panels hat sich geändert, während sein Funktionsstatus gelesen wurde"
+    },
     "update_unavailable": { "message": "Das angeforderte Panel Assistant-Update ist nicht verfügbar" },
     "update_busy": { "message": "Das Panel ist mit einem anderen Vorgang beschäftigt" },
     "update_approval_required": { "message": "Genehmige dieses Update auf dem Panel und versuche es erneut" },
