@@ -97,9 +97,10 @@ test('a panel that already runs the app gets nothing installed, only Panel Assis
   assert.doesNotMatch(result.support, /Stopped/);
 });
 
-test('when network ADB cannot be turned on, the owner is told the panel already has the app', () => {
+test('when network ADB cannot be turned on, the owner is told to keep it plugged in and try again', () => {
   const result = journey({ key: 'PA_KEY', runsTheApp: true, networkAdb: 'failed' });
+  assert.deepEqual(result.order, ['authenticate', 'networkAdb']);
   assert.equal(result.done, false);
   assert.equal(result.error, true);
-  assert.match(result.text, /already has the app/);
+  assert.match(result.text, /press Try again/);
 });

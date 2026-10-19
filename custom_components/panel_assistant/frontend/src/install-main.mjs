@@ -344,8 +344,9 @@ async function reconnect() {
   support('networkAdb', outcome);
   finished = true;
   if (outcome === 'failed') {
-    // The session may already be gone with adbd, so say it directly.
-    message('error-text', 'installErrorNotClean', 'errors');
+    // The session may already be gone with adbd, so say it directly. Home
+    // Assistant cannot reach this panel, so the way on is another attempt.
+    message('error-text', 'installErrorConnection', 'errors');
     show('error');
     return;
   }
