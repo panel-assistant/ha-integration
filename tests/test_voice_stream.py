@@ -1286,6 +1286,40 @@ def _listener(
 
 
 @LINGERING
+async def test_withdrawn_waiting_announcement_preserves_newer_speech(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    wires: list[tuple[Wire, Speaker]],
+) -> None:
+    """Cancellation while admission waits cannot preempt an active reply."""
+    voice_stream = async_get_voice_stream(hass)
+    assert voice_stream is not None
+    _, _, speaker = await _voice_panel(
+        hass, hass_ws_client, hass_read_only_access_token, wires
+    )
+    told: list[str] = []
+    outcomes: list[str] = []
+    await voice_stream._async_start(
+        [_listener(speaker, told, outcomes)], _pcm("long"), NATIVE_RATE
+    )
+    await _until(lambda: bool(speaker.streams and speaker.streams[0].chunks))
+    waiting_members = [Listener(speaker.client_id, lambda _: False)]
+    async with voice_stream._start_lock:
+        waiting = asyncio.create_task(
+            voice_stream._async_start(waiting_members, _pcm("speech"), NATIVE_RATE)
+        )
+        await asyncio.sleep(0)
+        waiting_members.clear()  # async_announce withdraws this exact membership
+    assert await waiting == set()
+    assert outcomes == []
+    await speaker.ended(1)
+    assert outcomes == ["played"]
+    assert speaker.seconds(0) == _whole(_pcm("long"))
+
+
+@LINGERING
 async def test_overlapping_replacements_leave_the_newest_playing_whole(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,

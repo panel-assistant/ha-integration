@@ -521,34 +521,37 @@ class VoiceStream:
         return await self._hass.async_add_executor_job(decode_clips, clips)
 
     async def _async_start(
-        self, listeners: Iterable[Listener], pcm: bytes, rate: int
+        self, listeners: list[Listener], pcm: bytes, rate: int
     ) -> set[str]:
         """Start one stream to the listeners whose panels are ready.
 
         Each is told to play before the stream sends anything. Return the
         client ids of the panels it plays to.
         """
-        listeners = [
-            listener
-            for listener in listeners
-            if listener.client_id is not None and self.ready(listener.client_id)
-        ]
         if not listeners or not pcm:
             return set()
         async with self._start_lock:
+            eligible = [
+                listener
+                for listener in listeners
+                if listener.client_id is not None and self.ready(listener.client_id)
+            ]
             # Take these panels off what they were playing first, so its end
             # reaches each of them before the new stream does.
-            for listener in listeners:
+            for listener in eligible:
+                if not any(member is listener for member in listeners):
+                    continue
                 assert listener.client_id is not None
                 if (old := self._playing.get(listener.client_id)) is not None:
                     await self._async_leave(old, listener.client_id, OUTCOME_PREEMPTED)
             stream = _Stream(secrets.token_urlsafe(12))
-            for listener in listeners:
+            for listener in eligible:
                 cid = listener.client_id
                 assert cid is not None
                 socket = self._by_client.get(cid)
                 if (
-                    cid in stream.members
+                    not any(member is listener for member in listeners)
+                    or cid in stream.members
                     or socket is None
                     or not self.ready(cid)
                     or not listener.play(stream.stream_id)
