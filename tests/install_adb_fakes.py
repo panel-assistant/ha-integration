@@ -8,6 +8,7 @@ sent.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import re
 from collections.abc import AsyncIterator, Iterator
@@ -327,10 +328,15 @@ def _su_output(
     return ("\n".join(lines) + "\n").encode()
 
 
+# An output the device never sends: the shell stays open until the caller
+# gives up, as Magisk's `su 0 '<cmd>'` does while it waits on stdin.
+HANG = object()
+
+
 class FakeDevice:
     def __init__(
         self,
-        outputs: list[bytes | BaseException],
+        outputs: list[bytes | BaseException | object],
         *,
         maxdata: object = 64 * 1024,
         connect_error: BaseException | None = None,
@@ -363,8 +369,11 @@ class FakeDevice:
         self.commands.append(command)
         self.shell_kwargs.append(kwargs)
         output = next(self.outputs)
+        if output is HANG:
+            await asyncio.Event().wait()
         if isinstance(output, BaseException):
             raise output
+        assert isinstance(output, bytes)
         yield output
 
     async def push(self, *args: Any, **kwargs: Any) -> None:
