@@ -516,6 +516,7 @@ def _answers_as_itself(entry: ConfigEntry) -> bool:
 def _adopt_reinstalled(hass: HomeAssistant, entry: ConfigEntry, did: str) -> bool:
     """Take the reinstalled panel's identity, unless an update holds the panel."""
     from .panel_operations import claim_panel_operation, release_panel_operation
+    from .transport_binding import async_unbind_user
 
     if not claim_panel_operation(hass, entry.entry_id):
         # An update or a removal is changing the panel's app and proves the
@@ -525,6 +526,8 @@ def _adopt_reinstalled(hass: HomeAssistant, entry: ConfigEntry, did: str) -> boo
     try:
         if not adopt_moved_identity(hass, entry, did):
             return _reject_health(hass, entry)
+        # A reinstalled app binds the account it now signs in as, on every route.
+        async_unbind_user(hass, entry)
     finally:
         release_panel_operation(hass, entry.entry_id)
     _LOGGER.info(

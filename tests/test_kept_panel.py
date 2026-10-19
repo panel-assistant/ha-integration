@@ -39,20 +39,8 @@ CLEAN = _probe(
 )
 
 
-@pytest.mark.parametrize("route", ["address", "discovery"])
-async def test_kept_panel_installs_into_its_original_entry(
-    hass: HomeAssistant,
-    route: str,
-    hass_read_only_user: Any,
-    hass_admin_user: Any,
-    hass_ws_client: WsClientFactory,
-    hass_access_token: str,
-) -> None:
-    """A kept panel reinstalled under another account binds that account.
-
-    The entry stays loaded through the keep step, as production leaves it, and
-    the reinstalled panel's own hello during setup is what binds it.
-    """
+async def _keep_loaded_panel(hass: HomeAssistant, user_id: str) -> tuple[Any, Any, Any]:
+    """Keep the real entry, device and renamed entity after removing the app."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="My panel",
@@ -61,7 +49,7 @@ async def test_kept_panel_installs_into_its_original_entry(
             CONF_ADDRESS: "panel.local",
             "installation_identity": True,
             "legacy_did": LINK,
-            CONF_TRANSPORT_USER_ID: hass_read_only_user.id,
+            CONF_TRANSPORT_USER_ID: user_id,
         },
     )
     entry.add_to_hass(hass)
@@ -98,6 +86,24 @@ async def test_kept_panel_installs_into_its_original_entry(
         kept = await hass.config_entries.options.async_configure(removal["flow_id"], {})
     assert kept["reason"] == "removed_entry_kept"
     assert entry.state is config_entries.ConfigEntryState.LOADED
+    return entry, device, entity
+
+
+@pytest.mark.parametrize("route", ["address", "discovery", "poll_before_finalization"])
+async def test_kept_panel_installs_into_its_original_entry(
+    hass: HomeAssistant,
+    route: str,
+    hass_read_only_user: Any,
+    hass_admin_user: Any,
+    hass_ws_client: WsClientFactory,
+    hass_access_token: str,
+) -> None:
+    """A kept panel reinstalled under another account binds that account.
+
+    The entry stays loaded through the keep step, as production leaves it, and
+    the reinstalled panel's own hello during setup is what binds it.
+    """
+    entry, device, entity = await _keep_loaded_panel(hass, hass_read_only_user.id)
     # Outside a reinstall, another account asking for the kept panel is still
     # a takeover for an administrator to confirm.
     issue = f"panel_user_mismatch_{entry.entry_id}"
@@ -105,7 +111,7 @@ async def test_kept_panel_installs_into_its_original_entry(
     response = await _send(client, _hello(did=OLD))
     assert response["error"]["code"] == "panel_user_mismatch"
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue) is not None
-    assert entry.data[CONF_TRANSPORT_USER_ID] == hass_read_only_user.id
+    assert entry.data.get(CONF_TRANSPORT_USER_ID) == hass_read_only_user.id
     receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
     manager = _manager_for(receipt)
     executor = InstallExecutor(hass, manager)
@@ -160,7 +166,7 @@ async def test_kept_panel_installs_into_its_original_entry(
             AsyncMock(return_value=True),
         ),
     ):
-        if route == "address":
+        if route != "discovery":
             form = await _start_step(hass, "add_panel")
             choose = await hass.config_entries.flow.async_configure(
                 form["flow_id"], {CONF_ADDRESS: "panel.local"}
@@ -192,6 +198,14 @@ async def test_kept_panel_installs_into_its_original_entry(
             receipt, phase=InstallPhase.HEALTHY_UNCLAIMED
         )
         await hass.async_block_till_done()
+        if route == "poll_before_finalization":
+            with _panel(health):
+                await entry.runtime_data.coordinator.async_refresh()
+            await hass.async_block_till_done()
+            client = await hass_ws_client(hass, hass_access_token)
+            response = await _send(client, _hello(did=NEW))
+            assert response["success"], response
+            assert entry.data.get(CONF_TRANSPORT_USER_ID) == hass_admin_user.id
         with _final_proof(manager, health=AsyncMock(return_value=health)):
             result = await hass.config_entries.flow.async_configure(progress["flow_id"])
             if result.get("type") is FlowResultType.SHOW_PROGRESS_DONE:
@@ -202,6 +216,8 @@ async def test_kept_panel_installs_into_its_original_entry(
             assert result["step_id"] == "panel_setup"
             assert result["url"] == "http://192.168.1.23:8888/setup"
             assert not executor.is_finalizer_active(receipt.job_id)
+            if route == "poll_before_finalization":
+                assert entry.data.get(CONF_TRANSPORT_USER_ID) == hass_admin_user.id
             # The reinstalled panel signs in as another account and says hello.
             client = await hass_ws_client(hass, hass_access_token)
             response = await _send(client, _hello(did=NEW))
@@ -215,7 +231,7 @@ async def test_kept_panel_installs_into_its_original_entry(
             )
         assert result["type"] is FlowResultType.ABORT
         assert result["reason"] == "reinstall_successful"
-        assert entry.data[CONF_TRANSPORT_USER_ID] == hass_admin_user.id
+        assert entry.data.get(CONF_TRANSPORT_USER_ID) == hass_admin_user.id
     await hass.async_block_till_done()
     assert hass.config_entries.async_entries(DOMAIN) == [entry]
     assert entry.unique_id == NEW
@@ -232,6 +248,66 @@ async def test_kept_panel_installs_into_its_original_entry(
         == entry.entry_id
     )
     assert not executor.is_finalizer_active(receipt.job_id)
+
+
+@pytest.mark.parametrize("route", ["usb", "poll"])
+async def test_kept_panel_reinstall_binds_its_new_account(
+    hass: HomeAssistant,
+    route: str,
+    hass_read_only_user: Any,
+    hass_admin_user: Any,
+    hass_ws_client: WsClientFactory,
+    hass_access_token: str,
+) -> None:
+    """USB registration and the loaded entry's poll share reinstall admission."""
+    from custom_components.panel_assistant.config_flow import SOURCE_USB_INSTALL
+
+    entry, device, entity = await _keep_loaded_panel(hass, hass_read_only_user.id)
+    client = await hass_ws_client(hass, hass_access_token)
+    issue = f"panel_user_mismatch_{entry.entry_id}"
+    response = await _send(client, _hello(did=OLD))
+    assert response["error"]["code"] == "panel_user_mismatch"
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue) is not None
+    assert entry.data.get(CONF_TRANSPORT_USER_ID) == hass_read_only_user.id
+    health = replace(
+        HEALTH, discovery_id=NEW, legacy_discovery_id=LINK, installation_identity=True
+    )
+    with (
+        _panel(health),
+        patch(
+            "homeassistant.config_entries.ConfigEntries.async_reload",
+            AsyncMock(return_value=True),
+        ),
+    ):
+        if route == "usb":
+            result = await hass.config_entries.flow.async_init(
+                DOMAIN,
+                context={"source": SOURCE_USB_INSTALL},
+                data={CONF_ADDRESS: "panel.local"},
+            )
+            assert result["type"] is FlowResultType.ABORT
+            assert result["reason"] == "already_configured"
+        else:
+            await entry.runtime_data.coordinator.async_refresh()
+        await hass.async_block_till_done()
+        assert entry.unique_id == NEW
+        response = await _send(client, _hello(did=NEW))
+        assert response["success"], response
+        assert entry.data.get(CONF_TRANSPORT_USER_ID) == hass_admin_user.id
+        assert ir.async_get(hass).async_get_issue(DOMAIN, issue) is None
+        # Repeated accepted health must not forget the newly signed-in account.
+        await entry.runtime_data.coordinator.async_refresh()
+        assert entry.data.get(CONF_TRANSPORT_USER_ID) == hass_admin_user.id
+    assert hass.config_entries.async_entries(DOMAIN) == [entry]
+    preserved = er.async_get(hass).async_get(entity.entity_id)
+    assert preserved is not None
+    assert (preserved.id, preserved.unique_id, preserved.name, preserved.device_id) == (
+        entity.id,
+        f"{NEW}_wifi",
+        "My Wi-Fi",
+        device.id,
+    )
+    assert dr.async_get(hass).async_get(device.id) is not None
 
 
 @pytest.mark.parametrize("link", [None, "d" * 64])
@@ -278,7 +354,7 @@ async def test_reinstall_does_not_give_an_unlinked_panel_the_kept_history(
     assert hass.config_entries.async_entries(DOMAIN) == [entry]
     assert entry.unique_id == OLD
     assert er.async_get(hass).async_get(entity.entity_id) == entity
-    assert entry.data[CONF_TRANSPORT_USER_ID] == "kept-panel-user"
+    assert entry.data.get(CONF_TRANSPORT_USER_ID) == "kept-panel-user"
     manager.async_transition.assert_not_awaited()
     assert not executor.is_finalizer_active(receipt.job_id)
 

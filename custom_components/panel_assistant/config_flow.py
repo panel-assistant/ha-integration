@@ -135,7 +135,6 @@ from .transport_binding import (
     async_binding_request,
     async_confirmable_user,
     async_discard_binding_request,
-    async_unbind_user,
 )
 from .update_policy import prereleases_allowed
 
@@ -1294,9 +1293,6 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 and retained.data.get(CONF_ADDRESS) == receipt.target.address
                 and accept_health(self.hass, retained, result.health)
             ):
-                # A reinstall is the owner's own install: the panel binds the
-                # account it signs in as next, as a new panel does.
-                async_unbind_user(self.hass, retained)
                 await executor.async_consume_finalization(
                     receipt.job_id, self.flow_id, retained.entry_id
                 )

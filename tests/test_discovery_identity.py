@@ -132,16 +132,25 @@ async def test_reinstalled_panel_keeps_original_entry_and_history(
                 assert original.unique_id == OTHER_DID
                 assert original.data[CONF_ADDRESS] == _NEW
         await hass.async_block_till_done()
+        assert CONF_TRANSPORT_USER_ID not in original.data
+        client = await hass_ws_client(hass, hass_read_only_access_token)
+        response = await _send(client, _hello(did=OTHER_DID, addresses=[_NEW]))
+        assert response["success"], response
+        await hass.async_block_till_done()
     assert hass.config_entries.async_entries(DOMAIN) == [original]
     assert original.unique_id == OTHER_DID
     assert original.data[CONF_ADDRESS] == address
     assert original.data[CONF_LEGACY_DID] == _LINK
     assert original.data[CONF_TRANSPORT_USER_ID] == hass_read_only_user.id
     assert not hass.config_entries.flow.async_progress_by_handler(DOMAIN)
-    assert {
-        item.id: (item.entity_id, item.device_id)
-        for item in er.async_entries_for_config_entry(registry, original.entry_id)
-    } == entities
+    # A live hello can add newly advertised entities; every original row survives.
+    assert (
+        entities.items()
+        <= {
+            item.id: (item.entity_id, item.device_id)
+            for item in er.async_entries_for_config_entry(registry, original.entry_id)
+        }.items()
+    )
 
 
 @pytest.mark.parametrize("hold", ["connected", "reachable", "operation"])
