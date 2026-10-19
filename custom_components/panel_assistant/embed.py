@@ -312,7 +312,7 @@ def ws_embed_panels(
     """List the panels attached to Home Assistant, by display name."""
     entries = sorted(
         hass.config_entries.async_entries(DOMAIN),
-        key=lambda entry: (entry.title.casefold(), entry.entry_id),
+        key=lambda entry: (panel_display_name(hass, entry).casefold(), entry.entry_id),
     )
     connection.send_result(
         msg["id"],

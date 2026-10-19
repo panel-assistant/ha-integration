@@ -374,29 +374,25 @@ async def test_panels_list_by_device_name_falling_back_to_title(
     reply = await _receive(client)
     assert reply["success"], reply
     assert [(p["title"], p["state"]) for p in reply["result"]["panels"]] == [
-        # No panel_assistant_device.name in STATUS, so this falls back within the device
-        # to health.panel_id -- still nicer than the raw entry.title "attic" here.
+        ("alpha", "reachable"),
+        # The device name is shown rather than the setup-time title "attic".
         ("attic-unit", "unreachable"),
         ("Bedroom", "not_loaded"),
-        # entry fixture's own panel_id ("alpha") reads the same either way.
-        ("alpha", "reachable"),
     ]
-    assert set(reply["result"]["panels"][2]) == {
+    assert set(reply["result"]["panels"][0]) == {
         "entry_id",
         "title",
         "state",
         "device_id",
     }
-    # "attic" did finish loading (then went unreachable), so it has a device.
-    assert reply["result"]["panels"][0]["device_id"] is not None
-    # "Bedroom" never finished loading, so no device -- and no device page -- exists.
-    assert reply["result"]["panels"][1]["device_id"] is None
+    assert reply["result"]["panels"][1]["device_id"] is not None
+    assert reply["result"]["panels"][2]["device_id"] is None
 
     device_registry = dr.async_get(hass)
     device = device_registry.async_get_device_by_identifier(
         (DOMAIN, entry.entry_id), config_entry_id=entry.entry_id
     )
-    assert reply["result"]["panels"][2]["device_id"] == device.id
+    assert reply["result"]["panels"][0]["device_id"] == device.id
     device_registry.async_update_device(device.id, name_by_user="Custom Name")
     await client.send_json_auto_id({"type": "panel_assistant/embed_panels"})
     reply = await _receive(client)
@@ -405,6 +401,62 @@ async def test_panels_list_by_device_name_falling_back_to_title(
         p for p in reply["result"]["panels"] if p["entry_id"] == entry.entry_id
     )
     assert renamed["title"] == "Custom Name"
+
+
+@pytest.mark.parametrize("names", [("Alpha", "Zulu"), ("alpha", "Alpha")])
+async def test_panels_list_sorts_owner_names_with_entry_id_ties(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    entry: MockConfigEntry,
+    names: tuple[str, str],
+) -> None:
+    """The sidebar's default and list order follow the names the owner sees."""
+    hass.config_entries.async_update_entry(entry, title="zz-host")
+    other = MockConfigEntry(
+        domain=DOMAIN,
+        title="aa-host",
+        entry_id="0" * 26,
+        data={CONF_ADDRESS: "127.0.0.1:1"},
+    )
+    other.add_to_hass(hass)
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(
+                return_value=PanelHealth(
+                    version="1.0.0-preview1",
+                    panel_id="aa-host",
+                    build="1000",
+                    config_hash="1a2b3c4d",
+                    discovery_id="c" * 64,
+                    protocol=(5, 5),
+                )
+            ),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=STATUS),
+        ),
+    ):
+        await _load_entry(hass, other)
+    registry = dr.async_get(hass)
+    for panel, name in zip((entry, other), names, strict=True):
+        device = registry.async_get_device_by_identifier(
+            (DOMAIN, panel.entry_id), config_entry_id=panel.entry_id
+        )
+        assert device is not None
+        registry.async_update_device(device.id, name_by_user=name)
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "panel_assistant/embed_panels"})
+    reply = await _receive(client)
+    assert reply["success"], reply
+    expected = sorted(
+        zip((entry.entry_id, other.entry_id), names, strict=True),
+        key=lambda panel: (panel[1].casefold(), panel[0]),
+    )
+    assert [
+        (panel["entry_id"], panel["title"]) for panel in reply["result"]["panels"]
+    ] == expected
 
 
 @pytest.mark.parametrize(
