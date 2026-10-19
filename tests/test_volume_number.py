@@ -45,6 +45,15 @@ def _volume_number(hass: HomeAssistant, did: str = DID) -> str | None:
     return er.async_get(hass).async_get_entity_id("number", DOMAIN, f"{did}_volume")
 
 
+def _volume_states(hass: HomeAssistant) -> list[str]:
+    # The panel's other numbers, such as its idle return, are not the volume.
+    return [
+        state.entity_id
+        for state in hass.states.async_all("number")
+        if state.entity_id.endswith("_volume")
+    ]
+
+
 def _issue(hass: HomeAssistant, entry: MockConfigEntry) -> ir.IssueEntry | None:
     return ir.async_get(hass).async_get_issue(
         DOMAIN, f"volume_number_removed_{entry.entry_id}"
@@ -61,7 +70,7 @@ async def test_a_panel_with_a_speaker_has_no_volume_number(
     panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
 
     assert _volume_number(hass) is None
-    assert hass.states.async_all("number") == []
+    assert _volume_states(hass) == []
     await _observe(hass, panel, "volume", 35)
     assert hass.states.get(_player(hass)).attributes[ATTR_MEDIA_VOLUME_LEVEL] == 0.35
     command = await _sent(hass, panel, "volume_set", {"volume_level": 0.42})
@@ -140,7 +149,7 @@ async def test_the_hello_removes_the_volume_number_an_earlier_version_added(
     await hass.async_block_till_done()
     await _connect(hass, hass_ws_client, hass_read_only_access_token)
     assert _volume_number(hass) is None
-    assert hass.states.async_all("number") == []
+    assert _volume_states(hass) == []
 
 
 async def test_a_volume_number_of_another_entry_is_left_alone(

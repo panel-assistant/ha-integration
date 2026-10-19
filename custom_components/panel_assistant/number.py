@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any
+
 from homeassistant.components.number import (
     DEFAULT_MAX_VALUE,
     DEFAULT_MIN_VALUE,
@@ -13,7 +16,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HaPaneldConfigEntry
+from .contract import catalogue_entry
 from .native import NativeEntity, async_setup_native_platform
+from .transport_sessions import PanelSession
 
 
 async def async_setup_entry(
@@ -28,9 +33,19 @@ async def async_setup_entry(
 
 
 class NativeNumber(NativeEntity, NumberEntity):
-    """A bounded panel setting, such as volume."""
+    """A bounded panel setting, such as volume or minutes idle before going home.
 
-    _attr_mode = NumberMode.SLIDER
+    A slider unless the catalogue asks for a box: a wide range of whole minutes
+    cannot be set to one value by dragging.
+    """
+
+    def __init__(
+        self, entry_id: str, session: PanelSession, descriptor: Mapping[str, Any]
+    ) -> None:
+        """Take the input mode Home Assistant shows from the catalogue."""
+        super().__init__(entry_id, session, descriptor)
+        entry = catalogue_entry(descriptor)
+        self._attr_mode = NumberMode((entry or {}).get("mode", NumberMode.SLIDER))
 
     @property
     def native_min_value(self) -> float:

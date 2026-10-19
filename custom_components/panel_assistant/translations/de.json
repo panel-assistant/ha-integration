@@ -670,6 +670,12 @@
       }
     },
     "number": {
+      "dashboard_idle_return": {
+        "name": "Bei Inaktivität zum Start"
+      },
+      "screen_off_timeout": {
+        "name": "Bildschirm-Timeout"
+      },
       "volume": {
         "name": "Lautstärke"
       }
@@ -688,6 +694,15 @@
           "performance": "Leistung",
           "efficiency": "Effizienz",
           "auto": "Automatisch"
+        }
+      },
+      "dashboard_theme": {
+        "name": "Dashboard-Theme",
+        "state": {
+          "follow": "Home Assistant folgen",
+          "dark": "Dunkel",
+          "light": "Hell",
+          "ambient": "Umgebungslicht"
         }
       },
       "navbar": {

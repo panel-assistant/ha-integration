@@ -144,24 +144,26 @@
           "update_channel",
           "webview_auto_update"
         ],
-        "channels": [{
-          "entity_category": null,
-          "unique_suffix": "relay1",
-          "max": null,
-          "channel": "relay1",
-          "index": 1,
-          "platform": "switch",
-          "unit": null,
-          "min": null,
-          "options": null,
-          "device_class": null,
-          "translation_key": "relay",
-          "step": null,
-          "enabled_default": true,
-          "state_class": null,
-          "family": "relay",
-          "force_update": false
-        }],
+        "channels": [
+          {
+            "entity_category": null,
+            "unique_suffix": "relay1",
+            "max": null,
+            "channel": "relay1",
+            "index": 1,
+            "platform": "switch",
+            "unit": null,
+            "min": null,
+            "options": null,
+            "device_class": null,
+            "translation_key": "relay",
+            "step": null,
+            "enabled_default": true,
+            "state_class": null,
+            "family": "relay",
+            "force_update": false
+          }
+        ],
         "contract_digest": "36a0c4c8b3135c74f89d16444ba61cacaa0d7ab3752b4b1fe42a7166b8032f61",
         "id": 1,
         "type": "panel_assistant/hello",
@@ -223,7 +225,7 @@
       }
     }
   ],
-  "sourceRevision": "0a3afceff878174712254d28e5761df9e3566916",
+  "sourceRevision": "60689d2033357aa288b8d1a7891d79ffc662778c",
   "channelDescriptors": [
     {
       "entity_category": null,
@@ -459,6 +461,47 @@
       "force_update": false
     },
     {
+      "entity_category": "config",
+      "unique_suffix": "dashboard_idle_return",
+      "max": 1440,
+      "channel": "dashboard_idle_return",
+      "index": null,
+      "platform": "number",
+      "unit": "min",
+      "min": 0,
+      "options": null,
+      "device_class": null,
+      "translation_key": "dashboard_idle_return",
+      "step": 1,
+      "enabled_default": false,
+      "state_class": null,
+      "family": null,
+      "force_update": false
+    },
+    {
+      "entity_category": "config",
+      "unique_suffix": "dashboard_theme",
+      "max": null,
+      "channel": "dashboard_theme",
+      "index": null,
+      "platform": "select",
+      "unit": null,
+      "min": null,
+      "options": [
+        "follow",
+        "dark",
+        "light",
+        "ambient"
+      ],
+      "device_class": null,
+      "translation_key": "dashboard_theme",
+      "step": null,
+      "enabled_default": false,
+      "state_class": null,
+      "family": null,
+      "force_update": false
+    },
+    {
       "entity_category": "diagnostic",
       "unique_suffix": "diag_boot",
       "max": null,
@@ -537,7 +580,7 @@
       "channel": "diag_soc_temp",
       "index": null,
       "platform": "sensor",
-      "unit": "°C",
+      "unit": "\u00b0C",
       "min": null,
       "options": null,
       "device_class": "temperature",
@@ -961,7 +1004,7 @@
       "channel": "room_temp",
       "index": null,
       "platform": "sensor",
-      "unit": "°C",
+      "unit": "\u00b0C",
       "min": null,
       "options": null,
       "device_class": "temperature",
@@ -986,6 +1029,24 @@
       "translation_key": "screen",
       "step": null,
       "enabled_default": true,
+      "state_class": null,
+      "family": null,
+      "force_update": false
+    },
+    {
+      "entity_category": "config",
+      "unique_suffix": "screen_off_timeout",
+      "max": 2147483,
+      "channel": "screen_off_timeout",
+      "index": null,
+      "platform": "number",
+      "unit": "s",
+      "min": 10,
+      "options": null,
+      "device_class": null,
+      "translation_key": "screen_off_timeout",
+      "step": 1,
+      "enabled_default": false,
       "state_class": null,
       "family": null,
       "force_update": false
@@ -1039,7 +1100,7 @@
       "channel": "temperature",
       "index": null,
       "platform": "sensor",
-      "unit": "°C",
+      "unit": "\u00b0C",
       "min": null,
       "options": null,
       "device_class": "temperature",
@@ -1205,22 +1266,24 @@
       "force_update": false
     }
   ],
-  "installDescriptors": [{
-    "schema": "io.panelassistant.android.install.v1",
-    "releaseTag": "v1.2.3-rc1",
-    "databaseCompatibility": "hapaneld-db:v1:ha-paneld.db:11:14",
-    "supportedAbis": [
-      "arm64-v8a",
-      "armeabi-v7a"
-    ],
-    "apkName": "panel-assistant-v1.2.3-rc1-manual-setup-required.apk.bin",
-    "packageId": "io.panelassistant.android",
-    "versionName": "1.2.3-rc1",
-    "versionCode": 701,
-    "launchComponent": "io.panelassistant.android/io.panelassistant.android.MainActivity",
-    "minSdk": 26,
-    "apkSha256": "48c0c1ac3eb738792ec63151e674be740a40d53dc4f33675bc2c8b5c2c51b45b",
-    "apkSize": 19,
-    "signerCertificateSha256": "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
-  }]
+  "installDescriptors": [
+    {
+      "schema": "io.panelassistant.android.install.v1",
+      "releaseTag": "v1.2.3-rc1",
+      "databaseCompatibility": "hapaneld-db:v1:ha-paneld.db:11:14",
+      "supportedAbis": [
+        "arm64-v8a",
+        "armeabi-v7a"
+      ],
+      "apkName": "panel-assistant-v1.2.3-rc1-manual-setup-required.apk.bin",
+      "packageId": "io.panelassistant.android",
+      "versionName": "1.2.3-rc1",
+      "versionCode": 701,
+      "launchComponent": "io.panelassistant.android/io.panelassistant.android.MainActivity",
+      "minSdk": 26,
+      "apkSha256": "48c0c1ac3eb738792ec63151e674be740a40d53dc4f33675bc2c8b5c2c51b45b",
+      "apkSize": 19,
+      "signerCertificateSha256": "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
+    }
+  ]
 }

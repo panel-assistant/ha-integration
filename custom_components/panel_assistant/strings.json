@@ -284,6 +284,12 @@
       }
     },
     "number": {
+      "dashboard_idle_return": {
+        "name": "Idle return to home"
+      },
+      "screen_off_timeout": {
+        "name": "Screen timeout"
+      },
       "volume": {
         "name": "Volume"
       }
@@ -302,6 +308,15 @@
           "performance": "Performance",
           "efficiency": "Efficiency",
           "auto": "Auto"
+        }
+      },
+      "dashboard_theme": {
+        "name": "Dashboard theme",
+        "state": {
+          "follow": "Follow Home Assistant",
+          "dark": "Dark",
+          "light": "Light",
+          "ambient": "Ambient"
         }
       },
       "navbar": {

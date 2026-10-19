@@ -670,6 +670,12 @@
       }
     },
     "number": {
+      "dashboard_idle_return": {
+        "name": "Retour à l’accueil si inactif"
+      },
+      "screen_off_timeout": {
+        "name": "Délai de mise en veille de l’écran"
+      },
       "volume": {
         "name": "Volume"
       }
@@ -688,6 +694,15 @@
           "performance": "Performance",
           "efficiency": "Efficacité",
           "auto": "Automatique"
+        }
+      },
+      "dashboard_theme": {
+        "name": "Thème du tableau de bord",
+        "state": {
+          "follow": "Comme dans Home Assistant",
+          "dark": "Sombre",
+          "light": "Clair",
+          "ambient": "Lumière ambiante"
         }
       },
       "navbar": {

@@ -670,6 +670,12 @@
       }
     },
     "number": {
+      "dashboard_idle_return": {
+        "name": "闲置后返回主仪表盘"
+      },
+      "screen_off_timeout": {
+        "name": "屏幕超时"
+      },
       "volume": {
         "name": "音量"
       }
@@ -688,6 +694,15 @@
           "performance": "性能",
           "efficiency": "能效",
           "auto": "自动"
+        }
+      },
+      "dashboard_theme": {
+        "name": "仪表盘主题",
+        "state": {
+          "follow": "跟随 Home Assistant",
+          "dark": "深色",
+          "light": "浅色",
+          "ambient": "环境"
         }
       },
       "navbar": {

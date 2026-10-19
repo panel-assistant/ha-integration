@@ -284,6 +284,12 @@
       }
     },
     "number": {
+      "dashboard_idle_return": {
+        "name": "Návrat domů při nečinnosti"
+      },
+      "screen_off_timeout": {
+        "name": "Časový limit obrazovky"
+      },
       "volume": {
         "name": "Hlasitost"
       }
@@ -302,6 +308,15 @@
           "performance": "Výkon",
           "efficiency": "Úspornost",
           "auto": "Automaticky"
+        }
+      },
+      "dashboard_theme": {
+        "name": "Vzhled ovládacího panelu",
+        "state": {
+          "follow": "Podle Home Assistant",
+          "dark": "Tmavý",
+          "light": "Světlý",
+          "ambient": "Okolní světlo"
         }
       },
       "navbar": {

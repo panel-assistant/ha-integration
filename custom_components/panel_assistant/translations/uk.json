@@ -670,6 +670,12 @@
       }
     },
     "number": {
+      "dashboard_idle_return": {
+        "name": "Повернення на головну після простою"
+      },
+      "screen_off_timeout": {
+        "name": "Час вимкнення екрана"
+      },
       "volume": {
         "name": "Гучність"
       }
@@ -688,6 +694,15 @@
           "auto": "Автоматично",
           "efficiency": "Ефективність",
           "performance": "Продуктивність"
+        }
+      },
+      "dashboard_theme": {
+        "name": "Тема інформаційної панелі",
+        "state": {
+          "follow": "Як у Home Assistant",
+          "dark": "Темна",
+          "light": "Світла",
+          "ambient": "За освітленням"
         }
       },
       "navbar": {

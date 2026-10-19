@@ -155,6 +155,24 @@
       "attributes": []
     },
     {
+      "channel": "dashboard_idle_return",
+      "family": null,
+      "platform": "number",
+      "translation_key": "dashboard_idle_return",
+      "unique_suffix": "dashboard_idle_return",
+      "attributes": [],
+      "mode": "box"
+    },
+    {
+      "channel": "screen_off_timeout",
+      "family": null,
+      "platform": "number",
+      "translation_key": "screen_off_timeout",
+      "unique_suffix": "screen_off_timeout",
+      "attributes": [],
+      "mode": "box"
+    },
+    {
       "channel": "volume",
       "family": null,
       "platform": "number",
@@ -180,6 +198,14 @@
       "platform": "select",
       "translation_key": "cpu_governor",
       "unique_suffix": "cpu_governor",
+      "attributes": []
+    },
+    {
+      "channel": "dashboard_theme",
+      "family": null,
+      "platform": "select",
+      "translation_key": "dashboard_theme",
+      "unique_suffix": "dashboard_theme",
       "attributes": []
     },
     {
