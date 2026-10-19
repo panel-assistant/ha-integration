@@ -1704,3 +1704,62 @@ async def test_late_subscription_is_unsubscribed_on_its_original_session(
         while session.late:  # noqa: ASYNC110 - observe final protocol settlement
             await asyncio.sleep(0.001)
     assert not session.ui_relays
+
+
+async def test_timed_out_subscription_cleanup_survives_late_map_eviction(
+    hass, hass_ws_client, entry, live, monkeypatch
+):
+    monkeypatch.setattr(ui_relay, "ANSWER_GRACE_SECONDS", 0)
+    release = asyncio.Event()
+    remote = set()
+
+    async def subscribe(event):
+        await release.wait()
+        remote.add(event["command_id"])
+        return await _subscribed(event)
+
+    async def unsubscribe(event):
+        remote.discard(event["args"]["subscription"])
+        return await _applied(event)
+
+    live.answers.update({"subscribe": subscribe, "unsubscribe": unsubscribe})
+    browser = await hass_ws_client(hass)
+    for index in range(18):
+        await browser.send_json_auto_id(
+            {
+                "type": "panel_assistant/ui",
+                "entry_id": entry.entry_id,
+                "request": {
+                    "kind": "manage",
+                    "command_id": f"old-{index}",
+                    "op": "subscribe",
+                    "args": {"family": "perf"},
+                    "deadline_ms": 25,
+                },
+            }
+        )
+        # The immediate subscription result and eventual failure share the socket.
+    results = 0
+    async with asyncio.timeout(5):
+        while results < 18:
+            message = await _receive(browser)
+            if (
+                message.get("type") == "event"
+                and message.get("event", {}).get("outcome") == "failed"
+            ):
+                results += 1
+    from custom_components.panel_assistant.transport_sessions import async_get_sessions
+
+    session = async_get_sessions(hass).get(entry.entry_id)
+    assert len(session.late) == 16
+    release.set()
+    async with asyncio.timeout(5):
+        while (  # noqa: ASYNC110 - bounded protocol-observation fixture
+            len([event for event in live.events if event.get("op") == "unsubscribe"])
+            < 18
+        ):
+            await asyncio.sleep(0.001)
+    await hass.async_block_till_done()
+    assert not remote
+    assert not session.ui_relays
+    await browser.close()
