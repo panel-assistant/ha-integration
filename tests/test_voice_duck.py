@@ -319,6 +319,43 @@ async def test_a_level_set_before_a_player_goes_off_is_kept(
     assert len(speaker.changes) == 2
 
 
+async def test_a_turn_as_a_gone_player_returns_keeps_its_old_level(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=False)
+    await _turn(panel)
+    await hass.async_block_till_done()
+    _gone(speaker, "off")
+    await _played(hass, panel)
+
+    # "Turn on the TV", then the wake word before its volume is back.
+    gate = asyncio.Event()
+    set_level = speaker.async_set_volume_level
+
+    async def slow(volume: float) -> None:
+        await gate.wait()
+        await set_level(volume)
+
+    speaker.async_set_volume_level = slow  # type: ignore[method-assign]
+    _back(speaker)
+    await _turn(panel)
+    gate.set()
+    await hass.async_block_till_done()
+    assert speaker.level < LEVEL
+
+    await _played(hass, panel)
+    assert speaker.level == LEVEL
+
+
 async def test_the_next_conversation_returns_to_the_level_set_in_between(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,

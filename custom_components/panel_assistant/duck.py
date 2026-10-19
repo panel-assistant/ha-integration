@@ -74,6 +74,10 @@ class _Ducked:
     # The newest call to the player; each call waits for the one before it to
     # land, so a late restore can never overtake a later duck.
     last: asyncio.Task[None] | None = None
+    # Its restore waits for a player that is off or gone to report a level;
+    # the record stays meanwhile, so a turn starting as it comes back queues
+    # behind that restore instead of taking the lowered level as its own.
+    waiting: bool = False
 
 
 # Every ducked player, shared by the panels in an area: a player goes back
@@ -268,6 +272,7 @@ class RoomDuck:
             if (
                 not held.holders
                 and held.last is asyncio.current_task()
+                and not held.waiting
                 and ducked.get(entity_id) is held
             ):
                 del ducked[entity_id]
@@ -280,9 +285,12 @@ class RoomDuck:
         it off is kept.
         """
 
+        held.waiting = True
+
         @callback
         def _changed(_event: Any) -> None:
             unsubscribe()
+            held.waiting = False
             self._call(entity_id, held, held.level, mute=False, restoring=True)
 
         unsubscribe = async_track_state_change_event(self._hass, [entity_id], _changed)
