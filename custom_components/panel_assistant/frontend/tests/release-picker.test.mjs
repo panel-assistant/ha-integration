@@ -295,7 +295,7 @@ test('the page says the install is finished once the installer hands the panel o
   assert.equal(f.element('status').textContent, HA_INSTALL_MESSAGES.installed);
   assert.equal(f.element('status').hidden, false);
   assert.equal(f.element('start').hidden, true);
-  assert.equal(f.element('release').hidden, true);
+  assert.equal(f.element('versions').hidden, true);
   f.panel.disconnectedCallback();
 });
 

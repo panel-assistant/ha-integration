@@ -133,7 +133,7 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
     // Finished: nothing is left on this page, so it offers no second install.
     const installed = this.#status === 'installed';
     this.shadowRoot.querySelector('#start').hidden = installed;
-    this.shadowRoot.querySelector('#release').hidden = installed;
+    this.shadowRoot.querySelector('#versions').hidden = installed;
     this.shadowRoot.querySelector('#start').disabled = !allowed || !configured || Boolean(this.#transfer) || !selected;
     this.shadowRoot.querySelector('#cancel').disabled = !this.#transfer;
     this.shadowRoot.querySelector('#release').disabled = Boolean(this.#transfer) || this.#catalogState !== 'ready';
