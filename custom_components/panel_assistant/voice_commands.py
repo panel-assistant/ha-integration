@@ -264,6 +264,19 @@ def _panels_called(
     ]
 
 
+@callback
+def panel_exposed(hass: HomeAssistant, entry_id: str, assistant: str) -> bool:
+    """Whether any of the panel's entities is exposed to ``assistant``."""
+    from homeassistant.components.homeassistant.exposed_entities import (
+        async_should_expose,
+    )
+
+    return any(
+        async_should_expose(hass, assistant, entity.entity_id)
+        for entity in er.async_entries_for_config_entry(er.async_get(hass), entry_id)
+    )
+
+
 def _stepped(percent: int, direction: int) -> int:
     return max(0, min(100, percent + direction * STEP_PERCENT))
 
@@ -277,11 +290,13 @@ async def async_run_command(
     satellite_id: str | None = None,
     page: str | None = None,
     panel: str | None = None,
+    assistant: str | None = None,
 ) -> tuple[bool, str]:
     """Act on the named panel, else the one that heard the request.
 
     Returns whether it was done and what to say, in the request's language.
-    Sentence triggers and the AI agent tools both come here.
+    Sentence triggers and the AI agent tools both come here; a tool names its
+    ``assistant``, which may act only on a panel exposed to it.
     """
     grammars = hass.data[DATA_GRAMMARS]
     replies: dict[str, str] = _grammar(grammars, language)["responses"]
@@ -295,7 +310,11 @@ async def async_run_command(
         entry_id: str | None = named[0]
     else:
         entry_id = _panel_entry_id(hass, device_id, satellite_id)
-    if entry_id is None:
+    if entry_id is None or (
+        assistant is not None and not panel_exposed(hass, entry_id, assistant)
+    ):
+        if panel:
+            return False, replies["panel_unknown"].format(panel=panel)
         return False, replies["not_a_panel"]
     session = async_get_sessions(hass).get(entry_id)
     if session is None:

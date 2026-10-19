@@ -184,3 +184,43 @@ async def test_bad_arguments_reach_the_agent_as_an_error(
     )
     assert blank["success"] is False
     await panel.nothing_sent()
+
+
+async def test_an_agent_acts_only_on_a_panel_exposed_to_it(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+) -> None:
+    """Another panel being exposed offers the tools; a panel that is not exposed
+    is not acted on, named or as the requester."""
+    from homeassistant.config_entries import ConfigEntryState
+    from homeassistant.helpers import device_registry as dr
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    entry, panel, device_id = await _ready(
+        hass, hass_ws_client, hass_read_only_user, hass_read_only_access_token, "en"
+    )
+    dr.async_get(hass).async_update_device(device_id, name_by_user="Private")
+    registry = er.async_get(hass)
+    for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+        async_expose_entity(hass, "conversation", entity.entity_id, False)
+    public = MockConfigEntry(domain=DOMAIN, title="Public")
+    public.add_to_hass(hass)
+    public.mock_state(hass, ConfigEntryState.LOADED)
+    screen = registry.async_get_or_create(
+        "light", DOMAIN, "public_screen", config_entry=public
+    )
+    async_expose_entity(hass, "conversation", screen.entity_id, True)
+
+    english = voice_grammar.load_grammar("en")["responses"]
+    for heard, args, reply in (
+        (None, {"panel": "Private"}, english["panel_unknown"].format(panel="Private")),
+        (device_id, {}, english["not_a_panel"]),
+    ):
+        api = await llm.async_get_api(hass, llm.LLM_API_ASSIST, _context(heard))
+        result = await api.async_call_tool(
+            llm.ToolInput(tool_name="panel_assistant__launcher", tool_args=args)
+        )
+        assert result == {"success": False, "speech": reply}
+    await panel.nothing_sent()

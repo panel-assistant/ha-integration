@@ -13,15 +13,13 @@ from __future__ import annotations
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.components.homeassistant.exposed_entities import async_should_expose
 from homeassistant.components.llm import LLMTools
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.llm import LLM_API_ASSIST, LLMContext, Tool, ToolInput
 from homeassistant.util.json import JsonObjectType
 
 from .const import DOMAIN
-from .voice_commands import async_run_command
+from .voice_commands import async_run_command, panel_exposed
 
 PANEL = vol.Optional(
     "panel",
@@ -63,6 +61,7 @@ class PanelCommandTool(Tool):
             device_id=llm_context.device_id,
             page=args.get("page"),
             panel=args.get("panel"),
+            assistant=llm_context.assistant,
         )
         return {"success": done, "speech": speech}
 
@@ -74,11 +73,9 @@ def async_get_tools(
     """The panel commands, for the Assist API, while a panel is exposed to it."""
     if api_id != LLM_API_ASSIST:
         return None
-    registry = er.async_get(hass)
     exposed = any(
-        async_should_expose(hass, llm_context.assistant, entity.entity_id)
+        panel_exposed(hass, entry.entry_id, llm_context.assistant)
         for entry in hass.config_entries.async_loaded_entries(DOMAIN)
-        for entity in er.async_entries_for_config_entry(registry, entry.entry_id)
     )
     if not exposed:
         return None
