@@ -31,6 +31,7 @@ Pairs with the 1.0.0-preview1 panel app, which Panel Assistant offers to every p
 - **A fuller device card.** The panel's device shows its firmware, Android release and serial number, and a device another integration made for the same hardware, such as the Shelly integration's for a Shelly Wall Display, shows as linked on the device page.
 - **A warning for a panel that uses another Home Assistant.** When you add a panel that is connected to a different Home Assistant, Panel Assistant tells you instead of adding it silently.
 - **The room goes quiet while you talk to a panel.** When a panel starts listening, Panel Assistant turns down every other media player playing in the panel's Home Assistant area to a third of its volume, and mutes one that can only mute, such as some TVs. They stay down through any follow-up question and go back to exactly their volume when the conversation ends, unless someone changed a player's volume in the meantime. The panel's own player still pauses for the conversation.
+- **Dashboard theme, idle return and screen timeout in Home Assistant.** Each panel offers a Dashboard theme select (Follow Home Assistant, Dark, Light or Ambient) and numbers for its idle return to home, in minutes, and Android's screen timeout, in seconds, which is the screensaver delay on a TV, so an automation can change them. Each follows the panel both ways and starts disabled. The screen timeout is available only while Prevent idle dim is off, because Prevent idle dim holds it at never.
 
 ### Changed
 
