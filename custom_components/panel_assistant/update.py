@@ -413,7 +413,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         if self._offer.feed is not None:
             await self._offer.feed.async_refresh()
         if self._offer.release is not None:
-            await self._offer.release.async_refresh()
+            # One release catalogue serves every panel: a fleet-wide refresh
+            # reads it once, not once per panel against GitHub's rate limit.
+            await self._offer.release.async_request_refresh()
 
     def _awaiting_confirmation(self) -> bool:
         """The panel's own installer waits for a tap on Install."""

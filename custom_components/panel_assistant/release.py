@@ -461,7 +461,7 @@ async def _async_fetch_bounded(
                         continue
 
                     if response.status != 200:
-                        raise ReleaseResolutionError
+                        raise ReleaseResolutionError(f"HTTP {response.status}")
 
                     content_length = response.content_length
                     if content_length is not None and content_length > maximum_bytes:

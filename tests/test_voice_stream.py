@@ -9,6 +9,7 @@ would hear.
 
 import asyncio
 import base64
+import gc
 import math
 from array import array
 from collections.abc import AsyncIterator, Callable, Iterator
@@ -972,6 +973,42 @@ async def test_a_panels_sendspin_connection_ends_with_its_session(
     await _until(lambda: not voice_stream.ready(speaker.client_id))
     client = voice_stream.server.get_client(speaker.client_id)
     assert client is None or not client.is_connected
+
+
+@LINGERING
+async def test_a_session_ending_mid_handshake_leaves_no_task_error(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    wires: list[tuple[Wire, Speaker]],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A session that ends before the server answers its player's first frame
+    ends that connection quietly, with no unretrieved task exception."""
+    panel, wire, speaker = await _voice_panel(
+        hass, hass_ws_client, hass_read_only_access_token, wires, connect=False
+    )
+    voice_stream = async_get_voice_stream(hass)
+    assert voice_stream is not None
+    feed = voice_stream.feed
+
+    def feed_then_end(token: str, data: bytes, *, text: bool) -> None:
+        # The session ends as the player's handshake reaches the server.
+        feed(token, data, text=text)
+        voice_stream.detach(token)
+
+    with patch.object(voice_stream, "feed", feed_then_end):
+        dialling = asyncio.ensure_future(
+            speaker.connect(wire, panel.result[CAPABILITY])
+        )
+        await _until(lambda: not voice_stream._links)
+    dialling.cancel()
+    await asyncio.gather(dialling, return_exceptions=True)
+
+    gc.collect()
+    await asyncio.sleep(0)
+    assert "never retrieved" not in caplog.text
 
 
 # ---------------------------------------------------------------------------

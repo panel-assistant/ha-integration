@@ -765,6 +765,9 @@
     "health_update_failed": {
       "message": "Nie można odczytać stanu panelu"
     },
+    "health_address_retired": {
+      "message": "Adres panelu zmienił się podczas odczytu jego stanu"
+    },
     "update_unavailable": {
       "message": "Żądana aktualizacja Panel Assistant jest niedostępna"
     },

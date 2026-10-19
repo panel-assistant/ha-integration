@@ -765,6 +765,9 @@
     "health_update_failed": {
       "message": "Nelze přečíst stav panelu"
     },
+    "health_address_retired": {
+      "message": "Adresa panelu se změnila během čtení jeho stavu"
+    },
     "update_unavailable": {
       "message": "Požadovaná aktualizace Panel Assistant není dostupná"
     },

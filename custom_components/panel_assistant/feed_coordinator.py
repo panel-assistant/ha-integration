@@ -231,12 +231,13 @@ class StableReleaseCoordinator(DataUpdateCoordinator[ReleaseArtifact | None]):
                 async_get_clientsession(self.hass)
             )
         except ReleaseResolutionError as err:
-            _LOGGER.warning(
-                "The recent releases could not be authenticated", exc_info=True
-            )
-            raise UpdateFailed(
-                "The recent releases could not be authenticated"
-            ) from err
+            # GitHub's answer, when it refused the listing, says why: a rate
+            # limit reads differently from a release that failed its checks.
+            reason = "The recent releases could not be authenticated"
+            if str(err):
+                reason = f"{reason}: {err}"
+            _LOGGER.warning(reason, exc_info=True)
+            raise UpdateFailed(reason) from err
         authenticated: dict[tuple[str, str], ReleaseArtifact] = {}
         for bundle in candidates:
             artifact = bundle.artifact
