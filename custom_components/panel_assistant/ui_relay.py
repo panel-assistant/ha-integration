@@ -709,8 +709,8 @@ class BundleStore:
             for entry in self._hass.config_entries.async_loaded_entries(DOMAIN)
             if (build := self._build(entry)) is not None
         }
-        for build in set(self._bundles) - kept:
-            del self._bundles[build]
+        for key in set(self._bundles) - kept:
+            del self._bundles[key]
 
     async def async_file(
         self, entry: ConfigEntry, session: PanelSession, path: str

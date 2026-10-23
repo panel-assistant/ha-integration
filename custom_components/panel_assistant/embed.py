@@ -413,6 +413,9 @@ def _retry(session: EmbedSession) -> web.Response:
         503,
         body=(
             '<!doctype html><meta name="panel-assistant-wait" content="true">'
+            # The sidebar cannot read a sandboxed document, so this one says so
+            # while it parses, before its load event reaches the sidebar.
+            '<script>parent.postMessage({type:"panel-assistant-wait"},"*")</script>'
             f'<meta name="color-scheme" content="{session.theme}">'
             f'<meta http-equiv="refresh" content="{RETRY_SECONDS}">'
         ),

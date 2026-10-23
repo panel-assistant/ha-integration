@@ -868,6 +868,11 @@ async def test_a_page_asked_for_while_the_panel_session_is_down_asks_again(
     document = await response.text()
     assert '<meta http-equiv="refresh" content="3">' in document
     assert '<meta name="panel-assistant-wait" content="true">' in document
+    # The sidebar cannot read the sandboxed document, so it says what it is.
+    assert (
+        '<script>parent.postMessage({type:"panel-assistant-wait"},"*")</script>'
+        in document
+    )
     assert f'<meta name="color-scheme" content="{theme}">' in document
 
 

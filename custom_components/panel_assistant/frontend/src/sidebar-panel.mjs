@@ -14,6 +14,8 @@ const GH_ICON = 'M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.
 
 export const SELECTION_KEY = 'panel_assistant.sidebar.entry';
 export const RELAY_TYPE = 'panel-assistant-ui';
+// What the embed view's retry document posts: the panel is not back yet.
+const WAIT_TYPE = 'panel-assistant-wait';
 export const ADD_PANEL_PATH = '/config/integrations/dashboard/add?domain=panel_assistant';
 export const SETTINGS_PATH = '/config/integrations/integration/panel_assistant';
 const STATES = new Set(['reachable', 'unreachable', 'not_loaded', 'restarting']);
@@ -71,7 +73,16 @@ export class PanelAssistantSidebar extends HTMLElement {
   // Set when the panel's session closed the relayed subscriptions: the page reopens them
   // once the list shows the panel reachable again.
   #relaysClosed = false;
-  #onMessage = event => this.#relayFrame(event);
+  #onMessage = event => {
+    const frame = this.shadowRoot.querySelector('#frame');
+    if (event.data?.type === WAIT_TYPE && event.source && event.source === frame.contentWindow) {
+      // Posted while the document parses, so it arrives before that document's load.
+      this.#frameWaiting = true;
+      frame.dataset.ready = 'false';
+      this.#render();
+    } else this.#relayFrame(event);
+  };
+  #frameWaiting = false;
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
@@ -177,11 +188,12 @@ export class PanelAssistantSidebar extends HTMLElement {
     root.querySelector('#frame').setAttribute('title', this.#messages.frameTitle);
     root.querySelector('#frame').addEventListener('load', () => {
       const frame = root.querySelector('#frame');
-      const page = frame.contentDocument;
       // The embed token can open before the panel returns. Its self-refreshing
       // retry document is not a usable page, and stays behind the shared Notice.
-      frame.dataset.ready = String(Boolean(frame.getAttribute('src') && page &&
-        page.URL !== 'about:blank' && !page.querySelector('meta[name="panel-assistant-wait"]')));
+      // Every embed document is sandboxed, so the sidebar cannot read it; the retry
+      // document says it is one, and its message may come before or after this load.
+      frame.dataset.ready = String(Boolean(frame.getAttribute('src')) && !this.#frameWaiting);
+      this.#frameWaiting = false;
       this.#render();
     });
     const settings = root.querySelector('#settings');

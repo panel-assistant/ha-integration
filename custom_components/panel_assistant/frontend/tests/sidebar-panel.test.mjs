@@ -148,7 +148,8 @@ test('panel titles render as text and the first panel opens a session', async ()
   assert.equal($('#frame').getAttribute('src'), url(TOKEN));
   assert.equal($('#status').hidden, true);
   assert.equal($('#loading').hidden, false, 'a URL does not mean the panel page has loaded');
-  $('#frame').contentDocument = { URL: 'http://ha.example' + url(TOKEN), querySelector: () => null };
+  // A sandboxed document is cross-origin to the sidebar, which cannot read it.
+  $('#frame').contentDocument = null;
   $('#frame').fire('load');
   assert.equal($('#loading').hidden, true, 'the waiting view clears when the panel document loads');
 });
@@ -890,11 +891,14 @@ for (const reason of ['reboot', 'update', 'recovery']) test(`${reason} keeps the
   subs[0].callback({ kind: 'opened', url: url(TOKEN) });
   const frame = $('#frame');
   assert.equal($('#loading').hidden, false, 'the returning document is still loading');
-  frame.contentDocument = { URL: 'http://ha.example' + url(TOKEN), querySelector: () => ({}) };
+  frame.contentDocument = null;
+  frame.contentWindow = frameWindow();
+  // The retry document says what it is while it parses, before its load.
+  fromWindow(frameWindow(), { type: 'panel-assistant-wait' });
+  fromWindow(frame.contentWindow, { type: 'panel-assistant-wait' });
   frame.fire('load');
   assert.equal(frame.hidden, true, 'a self-refreshing 503 remains behind the waiting view');
   assert.equal($('#loading').hidden, false);
-  frame.contentDocument = { URL: 'http://ha.example' + url(TOKEN), querySelector: () => null };
   frame.fire('load');
   assert.equal(frame.hidden, false);
   assert.equal($('#loading').hidden, true, 'the real page returns without refreshing the sidebar');
