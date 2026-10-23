@@ -4,6 +4,7 @@ import asyncio
 import base64
 import dataclasses
 import hashlib
+import json
 import threading
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -576,3 +577,115 @@ async def test_two_imports_of_one_name_at_once_keep_the_earlier_copy_replaceable
     # The copy kept first stays one the newer model may replace on a panel.
     assert earlier is not None
     assert last["replaces"] == [hashlib.sha256(earlier).hexdigest()], imports
+
+
+@pytest.mark.parametrize("arena", [2147483647, 1048577, -1])
+async def test_an_oversized_arena_is_not_retained_or_distributed(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    entry: MockConfigEntry,  # noqa: F811
+    panels: tuple[SessionPanel, SessionPanel, MockConfigEntry],
+    arena: int,
+) -> None:
+    kitchen, hall, _ = panels
+    kitchen.answers["voice.wake_words.set"] = _installed
+    hall.answers["voice.wake_words.import"] = _installed
+    manifest = json.loads(MANIFEST)
+    manifest["micro"]["tensor_arena_size"] = arena
+    admin = await hass_ws_client(hass)
+    reply = await _ui(
+        admin,
+        entry.entry_id,
+        {
+            "kind": "manage",
+            "command_id": "arena",
+            "op": "voice.wake_words.set",
+            "args": {
+                "name": "hey_pickle.json",
+                "manifest": json.dumps(manifest),
+                "model": base64.b64encode(MODEL).decode(),
+            },
+        },
+    )
+    assert reply["result"]["outcome"] == "applied", reply
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert not _imports(hall)
+    from homeassistant.helpers.storage import Store
+
+    stored = await Store(
+        hass, wake_words.STORAGE_VERSION, wake_words.STORAGE_KEY
+    ).async_load()
+    assert not stored or not stored.get("words")
+
+
+@pytest.mark.parametrize("arena", [0, 1048576])
+async def test_bounded_arena_is_shared_through_the_sidebar(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    entry: MockConfigEntry,  # noqa: F811
+    panels: tuple[SessionPanel, SessionPanel, MockConfigEntry],
+    arena: int,
+) -> None:
+    kitchen, hall, _ = panels
+    kitchen.answers["voice.wake_words.set"] = _installed
+    hall.answers["voice.wake_words.import"] = _installed
+    manifest = json.loads(MANIFEST)
+    manifest["micro"]["tensor_arena_size"] = arena
+    admin = await hass_ws_client(hass)
+    reply = await _ui(
+        admin,
+        entry.entry_id,
+        {
+            "kind": "manage",
+            "command_id": "bounded",
+            "op": "voice.wake_words.set",
+            "args": {
+                "name": "hey_pickle.json",
+                "manifest": json.dumps(manifest),
+                "model": base64.b64encode(MODEL).decode(),
+            },
+        },
+    )
+    assert reply["result"]["outcome"] == "applied", reply
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert len(_imports(hall)) == 1
+    assert (
+        json.loads(_imports(hall)[0]["args"]["manifest"])["micro"]["tensor_arena_size"]
+        == arena
+    )
+
+
+async def test_retained_oversized_arena_is_not_redistributed_after_restart(
+    hass: HomeAssistant,
+    panels: tuple[SessionPanel, SessionPanel, MockConfigEntry],
+) -> None:
+    from homeassistant.helpers.storage import Store
+
+    _, hall, _ = panels
+    from pathlib import Path
+
+    model_dir = Path(hass.config.path(".storage", f"{DOMAIN}.wake_word_models"))
+    await hass.async_add_executor_job(
+        lambda: model_dir.mkdir(parents=True, exist_ok=True)
+    )
+    (model_dir / f"{hashlib.sha256(MODEL).hexdigest()}.tflite").write_bytes(MODEL)
+    manifest = json.loads(MANIFEST)
+    manifest["micro"]["tensor_arena_size"] = 2147483647
+    await Store(hass, wake_words.STORAGE_VERSION, wake_words.STORAGE_KEY).async_save(
+        {
+            "words": [
+                {
+                    "id": "hey_pickle",
+                    "phrase": "Hey Pickle",
+                    "manifest": json.dumps(manifest),
+                    "sha256": hashlib.sha256(MODEL).hexdigest(),
+                    "earlier": [],
+                }
+            ]
+        }
+    )
+    hass.data[DOMAIN].pop("shared_wake_words", None)
+    hall.answers["voice.wake_words.import"] = _installed
+    await _report(hall)
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert not _imports(hall)

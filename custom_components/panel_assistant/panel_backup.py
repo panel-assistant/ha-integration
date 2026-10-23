@@ -136,3 +136,10 @@ async def async_store_panel_backup(
         _write_backup, directory, name, prefix, data, receipt.as_dict()
     )
     return receipt
+
+
+def delete_panel_backups(directory: Path, entry_id: str) -> None:
+    """Delete only this removed entry's archives and receipts, including orphans."""
+    for artifact in directory.glob(f"{entry_id}-*.zip*"):
+        if artifact.name.endswith((".zip", ".zip.json")):
+            artifact.unlink(missing_ok=True)

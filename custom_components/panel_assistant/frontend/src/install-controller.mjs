@@ -193,7 +193,9 @@ export function createInstallController({ store, ports, locks = globalThis.navig
         const granted = await grantPermissions();
         if (granted?.permissionsVerified !== true) fail('permissions_unverified');
         installed = true;
-        return Object.freeze({ receipt, permissions: granted });
+        return Object.freeze({ receipt, permissions: granted,
+          // An already installed app keeps its local security choices, including ADB off.
+          adopted: selected.adopt || ['installed', 'launching', 'healthy'].includes(selected.receipt?.phase) });
       } finally { busy = false; }
     },
     // Sizing health is provisional on vendors whose next native resume stops

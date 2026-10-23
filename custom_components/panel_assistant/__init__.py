@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from pathlib import Path
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
@@ -55,6 +56,7 @@ from .install_executor import (
 )
 from .lifecycle import async_setup_lifecycle
 from .native import CONF_NATIVE_ENTITIES, NATIVE_ONLY_PLATFORMS
+from .panel_backup import delete_panel_backups
 from .removed_panels import (
     async_forget_removed_panel,
     async_load_removed_panels,
@@ -364,6 +366,9 @@ async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
     if (voice_stream := async_get_voice_stream(hass)) is not None:
         await voice_stream.async_revoke(entry.entry_id)
     await async_remember_removed_panel(hass, entry)
+    await hass.async_add_executor_job(
+        delete_panel_backups, Path(hass.config.path(DOMAIN, "backups")), entry.entry_id
+    )
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> None:

@@ -21,6 +21,7 @@ import asyncio
 import base64
 import binascii
 import hashlib
+import json
 import logging
 import os
 import re
@@ -82,6 +83,15 @@ class SharedWakeWord:
     earlier: tuple[str, ...] = ()
 
 
+def _bounded_arena(manifest: str) -> bool:
+    """Mirror the panel's 0..1 MiB arena bound before retaining native input."""
+    try:
+        arena = json.loads(manifest).get("micro", {}).get("tensor_arena_size", 0)
+        return isinstance(arena, int) and 0 <= arena <= 1048576
+    except AttributeError, TypeError, ValueError:
+        return False
+
+
 def issue_id(entry_id: str, wake_word_id: str) -> str:
     """One issue per panel and shared wake word."""
     return f"{ISSUE_PREFIX}_{entry_id}_{wake_word_id}"
@@ -124,7 +134,7 @@ class SharedWakeWords:
                         )
                     except KeyError, TypeError:
                         continue
-                    if WAKE_WORD_ID.match(word.id):
+                    if WAKE_WORD_ID.match(word.id) and _bounded_arena(word.manifest):
                         self._words[word.id] = word
             return self._words
 
@@ -151,6 +161,7 @@ class SharedWakeWords:
             or not isinstance(phrase, str)
             or not isinstance(manifest, str)
             or len(manifest.encode()) > MAX_MANIFEST_BYTES
+            or not _bounded_arena(manifest)
             or not isinstance(encoded, str)
         ):
             return
