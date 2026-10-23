@@ -1424,11 +1424,12 @@
           },
           "authorize_adb": {
             "title": "Autoriser les mises à jour sur {panel}",
-            "description": "Sélectionnez « Envoyer », puis appuyez sur « Autoriser » dans la demande « Autoriser le débogage ? » du panneau. Cette autorisation donne à cette instance de Home Assistant un accès général au shell ADB du panneau tant que le débogage réseau reste activé.\n\nSélectionnez ensuite à nouveau « Envoyer ». Vous pourrez retirer cette autorisation plus tard dans les paramètres pour les développeurs du panneau."
+            "description": "Sélectionnez Valider, puis regardez l’écran de {panel} : cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**. Android peut décrire Home Assistant comme un ordinateur."
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre.",
+          "authorize_adb": "Regardez l’écran de {panel} : cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**. Android peut décrire Home Assistant comme un ordinateur.\n\nL'opération se poursuivra d'elle-même dès que le panneau l'aura autorisé."
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1566,11 +1567,12 @@
           },
           "authorize_adb": {
             "title": "Autoriser les mises à jour sur {panel}",
-            "description": "Sélectionnez « Envoyer », puis appuyez sur « Autoriser » dans la demande « Autoriser le débogage ? » du panneau. Cette autorisation donne à cette instance de Home Assistant un accès général au shell ADB du panneau tant que le débogage réseau reste activé.\n\nSélectionnez ensuite à nouveau « Envoyer ». Vous pourrez retirer cette autorisation plus tard dans les paramètres pour les développeurs du panneau."
+            "description": "Sélectionnez Valider, puis regardez l’écran de {panel} : cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**. Android peut décrire Home Assistant comme un ordinateur."
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre.",
+          "authorize_adb": "Regardez l’écran de {panel} : cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**. Android peut décrire Home Assistant comme un ordinateur.\n\nL'opération se poursuivra d'elle-même dès que le panneau l'aura autorisé."
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1607,7 +1609,7 @@
         "step": {
           "authorize_adb": {
             "title": "Autoriser les mises à jour sur {panel}",
-            "description": "Sélectionnez « Envoyer », puis appuyez sur « Autoriser » dans la demande « Autoriser le débogage ? » du panneau. Cette autorisation donne à cette instance de Home Assistant un accès général au shell ADB du panneau tant que le débogage réseau reste activé.\n\nSélectionnez ensuite à nouveau « Envoyer ». Vous pourrez retirer cette autorisation plus tard dans les paramètres pour les développeurs du panneau."
+            "description": "Sélectionnez Valider, puis regardez l’écran de {panel} : cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**. Android peut décrire Home Assistant comme un ordinateur."
           }
         },
         "error": {
@@ -1627,6 +1629,9 @@
         },
         "abort": {
           "entry_removed": "Ce panneau a été supprimé."
+        },
+        "progress": {
+          "authorize_adb": "Regardez l’écran de {panel} : cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**. Android peut décrire Home Assistant comme un ordinateur.\n\nL'opération se poursuivra d'elle-même dès que le panneau l'aura autorisé."
         }
       }
     },
@@ -1656,8 +1661,8 @@
         "submit": "Terminé"
       },
       "authorize_adb": {
-        "title": "Autoriser les mises à jour sur {panel}",
-        "description": "Sélectionnez « Envoyer », puis appuyez sur « Autoriser » dans la demande « Autoriser le débogage ? » du panneau. Cette autorisation donne à cette instance de Home Assistant un accès général au shell ADB du panneau tant que le débogage réseau reste activé.\n\nSélectionnez ensuite à nouveau « Envoyer ». Vous pourrez retirer cette autorisation plus tard dans les paramètres pour les développeurs du panneau."
+        "title": "Autoriser Home Assistant sur le panneau",
+        "description": "Sélectionnez Valider, puis regardez l’écran de {panel} : cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**. Android peut décrire Home Assistant comme un ordinateur."
       },
       "updates": {
         "title": "Mises à jour du panneau",
@@ -1712,6 +1717,9 @@
       "removed_entry_deleted": "Panel Assistant a été retiré et le panneau supprimé de Home Assistant.",
       "removed_entry_kept": "Panel Assistant a été retiré. Le panneau reste dans Home Assistant jusqu'à ce que vous le supprimiez.",
       "panel_connected": "Le panneau est configuré et connecté à Home Assistant."
+    },
+    "progress": {
+      "authorize_adb": "Regardez l’écran de {panel} : cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**. Android peut décrire Home Assistant comme un ordinateur.\n\nL'opération se poursuivra d'elle-même dès que le panneau l'aura autorisé."
     }
   }
 }

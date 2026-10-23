@@ -2643,7 +2643,7 @@ function Ee(e) {
 		prerelease: e.prerelease
 	}))));
 }
-async function De(e, { signal: t, timeoutMs: n = 15e3 } = {}) {
+async function De(e, { signal: t, timeoutMs: n = 725e3 } = {}) {
 	let r = new AbortController(), i = () => r.abort();
 	t?.addEventListener("abort", i, { once: !0 }), t?.aborted && i();
 	let a = setTimeout(i, n), o, s = new Promise((e, t) => {

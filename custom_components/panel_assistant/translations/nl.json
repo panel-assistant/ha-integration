@@ -1452,11 +1452,12 @@
           },
           "authorize_adb": {
             "title": "Updates op {panel} toestaan",
-            "description": "Kies ‘Verzenden’ en tik daarna op ‘Toestaan’ bij de vraag ‘Foutopsporing toestaan?’ op het paneel. Hiermee krijgt deze Home Assistant-instantie algemene ADB-shelltoegang tot het paneel zolang foutopsporing via het netwerk ingeschakeld blijft.\n\nKies daarna opnieuw ‘Verzenden’. Je kunt deze toestemming later intrekken in de ontwikkelaarsinstellingen van het paneel."
+            "description": "Klik op ‘Verzenden’ en kijk dan naar het scherm van {panel}: vink **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**. Android kan Home Assistant een computer noemen."
           }
         },
         "progress": {
-          "retrying": "Paneel controleren en veilig opnieuw proberen."
+          "retrying": "Paneel controleren en veilig opnieuw proberen.",
+          "authorize_adb": "Kijk naar het scherm van {panel}: vink **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**. Android kan Home Assistant een computer noemen.\n\nDit gaat vanzelf verder zodra het paneel het toestaat."
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1594,11 +1595,12 @@
           },
           "authorize_adb": {
             "title": "Updates op {panel} toestaan",
-            "description": "Kies ‘Verzenden’ en tik daarna op ‘Toestaan’ bij de vraag ‘Foutopsporing toestaan?’ op het paneel. Hiermee krijgt deze Home Assistant-instantie algemene ADB-shelltoegang tot het paneel zolang foutopsporing via het netwerk ingeschakeld blijft.\n\nKies daarna opnieuw ‘Verzenden’. Je kunt deze toestemming later intrekken in de ontwikkelaarsinstellingen van het paneel."
+            "description": "Klik op ‘Verzenden’ en kijk dan naar het scherm van {panel}: vink **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**. Android kan Home Assistant een computer noemen."
           }
         },
         "progress": {
-          "retrying": "Paneel controleren en veilig opnieuw proberen."
+          "retrying": "Paneel controleren en veilig opnieuw proberen.",
+          "authorize_adb": "Kijk naar het scherm van {panel}: vink **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**. Android kan Home Assistant een computer noemen.\n\nDit gaat vanzelf verder zodra het paneel het toestaat."
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1635,7 +1637,7 @@
         "step": {
           "authorize_adb": {
             "title": "Updates op {panel} toestaan",
-            "description": "Kies ‘Verzenden’ en tik daarna op ‘Toestaan’ bij de vraag ‘Foutopsporing toestaan?’ op het paneel. Hiermee krijgt deze Home Assistant-instantie algemene ADB-shelltoegang tot het paneel zolang foutopsporing via het netwerk ingeschakeld blijft.\n\nKies daarna opnieuw ‘Verzenden’. Je kunt deze toestemming later intrekken in de ontwikkelaarsinstellingen van het paneel."
+            "description": "Klik op ‘Verzenden’ en kijk dan naar het scherm van {panel}: vink **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**. Android kan Home Assistant een computer noemen."
           }
         },
         "error": {
@@ -1655,6 +1657,9 @@
         },
         "abort": {
           "entry_removed": "Dit paneel is verwijderd."
+        },
+        "progress": {
+          "authorize_adb": "Kijk naar het scherm van {panel}: vink **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**. Android kan Home Assistant een computer noemen.\n\nDit gaat vanzelf verder zodra het paneel het toestaat."
         }
       }
     },
@@ -1684,8 +1689,8 @@
         "submit": "Klaar"
       },
       "authorize_adb": {
-        "title": "Updates op {panel} toestaan",
-        "description": "Kies ‘Verzenden’ en tik daarna op ‘Toestaan’ bij de vraag ‘Foutopsporing toestaan?’ op het paneel. Hiermee krijgt deze Home Assistant-instantie algemene ADB-shelltoegang tot het paneel zolang foutopsporing via het netwerk ingeschakeld blijft.\n\nKies daarna opnieuw ‘Verzenden’. Je kunt deze toestemming later intrekken in de ontwikkelaarsinstellingen van het paneel."
+        "title": "Geef Home Assistant toestemming op het paneel",
+        "description": "Klik op ‘Verzenden’ en kijk dan naar het scherm van {panel}: vink **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**. Android kan Home Assistant een computer noemen."
       },
       "updates": {
         "title": "Paneelupdates",
@@ -1740,6 +1745,9 @@
       "removed_entry_deleted": "Panel Assistant is weggehaald en het paneel is uit Home Assistant gewist.",
       "removed_entry_kept": "Panel Assistant is weggehaald. Het paneel blijft in Home Assistant tot je het wist.",
       "panel_connected": "Het paneel is ingesteld en verbonden met Home Assistant."
+    },
+    "progress": {
+      "authorize_adb": "Kijk naar het scherm van {panel}: vink **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**. Android kan Home Assistant een computer noemen.\n\nDit gaat vanzelf verder zodra het paneel het toestaat."
     }
   }
 }

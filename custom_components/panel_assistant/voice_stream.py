@@ -263,11 +263,13 @@ class SessionSocket:
         return was_open
 
     @callback
-    def close_now(self) -> None:
+    def close_now(self, *, notify: bool = True) -> None:
         """End the connection now, waking a pending receive."""
         if self._closed:
             return
         self._closed = True
+        if notify:
+            self._send({"kind": "sendspin_closed"})
         while True:
             try:
                 self._inbox.put_nowait(WSMessage(WSMsgType.CLOSED, None, ""))
@@ -384,7 +386,7 @@ class VoiceStream:
         socket = self._by_token.pop(token, None)
         if socket is None:
             return
-        socket.close_now()
+        socket.close_now(notify=False)
         if self._by_client.get(socket.client_id) is socket:
             del self._by_client[socket.client_id]
 
@@ -394,15 +396,24 @@ class VoiceStream:
         socket = self._by_token.get(token)
         if socket is None:
             return
-        if socket.closed:
-            # The server ended the last connection; the panel is dialling again.
-            fresh = SessionSocket(socket.client_id, socket.send_event)
-            self._by_token[token] = fresh
-            if self._by_client.get(socket.client_id) is socket:
-                self._by_client[socket.client_id] = fresh
-            self._link(fresh)
-            socket = fresh
+        # Only an explicit ordered reset may replace a closed connection. A frame
+        # already in flight from its old player is not a fresh Noise handshake.
         socket.feed(data, text=text)
+
+    async def async_reset(self, token: str) -> None:
+        """End this player's interrupted speech before accepting its next handshake."""
+        socket = self._by_token.get(token)
+        if socket is None:
+            return
+        async with self._start_lock:
+            socket.close_now(notify=False)
+            stream = self._playing.get(socket.client_id)
+            member = None if stream is None else stream.members.get(socket.client_id)
+            if stream is not None and member is not None and member.socket is socket:
+                await self._async_leave(stream, socket.client_id, OUTCOME_FAILED)
+            # A session ending during cleanup must never acquire another link.
+            if self._by_token.get(token) is socket:
+                self.attach(token, socket.client_id, socket._send)
 
     async def async_stop_stream(self, token: str, stream_id: str) -> None:
         """Take a session's panel off the stream it names, at its own request."""
@@ -455,7 +466,27 @@ class VoiceStream:
                 self._async_run_batch(key, batch), f"{DOMAIN} voice announcement"
             )
         batch.members.append(listener)
-        return listener.client_id in await asyncio.shield(batch.done)
+        try:
+            return listener.client_id in await asyncio.shield(batch.done)
+        except asyncio.CancelledError:
+            batch.members[:] = [
+                member for member in batch.members if member is not listener
+            ]
+            raise
+
+    async def async_withdraw(self, listener: Listener) -> None:
+        """Withdraw this listener while preserving other members and newer speech."""
+        async with self._start_lock:
+            cid = listener.client_id
+            stream = self._playing.get(cid) if cid is not None else None
+            member = (
+                stream.members.get(cid)
+                if stream is not None and cid is not None
+                else None
+            )
+            if member is not None and member.listener is listener:
+                assert stream is not None and cid is not None
+                await self._async_leave(stream, cid, OUTCOME_PREEMPTED)
 
     async def _async_run_batch(self, key: Hashable, batch: _Batch) -> None:
         streamed: set[str] = set()
@@ -501,34 +532,37 @@ class VoiceStream:
         return await self._hass.async_add_executor_job(decode_clips, clips)
 
     async def _async_start(
-        self, listeners: Iterable[Listener], pcm: bytes, rate: int
+        self, listeners: list[Listener], pcm: bytes, rate: int
     ) -> set[str]:
         """Start one stream to the listeners whose panels are ready.
 
         Each is told to play before the stream sends anything. Return the
         client ids of the panels it plays to.
         """
-        listeners = [
-            listener
-            for listener in listeners
-            if listener.client_id is not None and self.ready(listener.client_id)
-        ]
         if not listeners or not pcm:
             return set()
         async with self._start_lock:
+            eligible = [
+                listener
+                for listener in listeners
+                if listener.client_id is not None and self.ready(listener.client_id)
+            ]
             # Take these panels off what they were playing first, so its end
             # reaches each of them before the new stream does.
-            for listener in listeners:
+            for listener in eligible:
+                if not any(member is listener for member in listeners):
+                    continue
                 assert listener.client_id is not None
                 if (old := self._playing.get(listener.client_id)) is not None:
                     await self._async_leave(old, listener.client_id, OUTCOME_PREEMPTED)
             stream = _Stream(secrets.token_urlsafe(12))
-            for listener in listeners:
+            for listener in eligible:
                 cid = listener.client_id
                 assert cid is not None
                 socket = self._by_client.get(cid)
                 if (
-                    cid in stream.members
+                    not any(member is listener for member in listeners)
+                    or cid in stream.members
                     or socket is None
                     or not self.ready(cid)
                     or not listener.play(stream.stream_id)
@@ -580,15 +614,17 @@ class VoiceStream:
             push = group.start_stream()
             fmt = AudioFormat(sample_rate=rate, bit_depth=16, channels=1)
             step = rate * SLICE_MS // 1000 * 2
-            start_us: int | None = None
+            end_us = 0
             for offset in range(0, len(pcm), step):
-                push.prepare_audio(pcm[offset : offset + step], fmt)
+                part = pcm[offset : offset + step]
+                push.prepare_audio(part, fmt)
                 at = await push.commit_audio()
-                if start_us is None:
-                    start_us = at
+                if offset == 0:
                     started.set_result(None)
+                # A late producer can move this slice's start forward. End on
+                # the assigned timeline, including a partial final slice.
+                end_us = at + len(part) // 2 * 1_000_000 // rate
                 await push.sleep_to_limit_buffer(MAX_AHEAD_US)
-            end_us = (start_us or 0) + len(pcm) // 2 * 1_000_000 // rate
             # stream/end makes players clear their buffers, so wait on the
             # server's clock until the last sample has played.
             await asyncio.sleep(max(0, end_us - push.now_us()) / 1e6)
@@ -612,27 +648,39 @@ class VoiceStream:
             stream.outcome = outcome
             task.cancel()
             await asyncio.wait({task})
-            return
-        client = self._server.get_client(cid)
-        if stream.group is not None and client is not None:
-            await stream.group.remove_client(client)  # stream/end to it alone
+        else:
+            client = self._server.get_client(cid)
+            if stream.group is not None and client is not None:
+                await stream.group.remove_client(client)  # stream/end to it alone
+        # Cancellation may have interrupted the task's final drain. Complete its
+        # terminal delivery here too; _async_end claims each member only once.
         await self._async_end(stream, cid, outcome)
 
     async def _async_end(self, stream: _Stream, cid: str, outcome: str) -> None:
         """Tell one panel its stream ended, once the stream's end has reached it."""
+        member = stream.members.get(cid)
+        if member is None:
+            return
+        if (
+            not member.socket.closed
+            and (client := self._server.get_client(cid)) is not None
+        ):
+            with suppress(TimeoutError):
+                async with asyncio.timeout(DRAIN_TIMEOUT):
+                    await client.wait_role_drained("player")
+        # Keep the member discoverable during drain, then claim completion
+        # without yielding so reset/preemption cannot lose or duplicate its end.
         member = stream.members.pop(cid, None)
         if member is None:
             return
         if self._playing.get(cid) is stream:
             del self._playing[cid]
-        if (client := self._server.get_client(cid)) is not None:
-            with suppress(TimeoutError):
-                async with asyncio.timeout(DRAIN_TIMEOUT):
-                    await client.wait_role_drained("player")
         socket = member.socket
         if socket.closed:
             outcome = OUTCOME_FAILED
-        elif socket.stream_id == stream.stream_id:
+        if socket.stream_id == stream.stream_id and self._by_client.get(cid) is socket:
+            # The audio link may be closed while its parent session still holds
+            # a delayed play. Cache its failure there before reset is acknowledged.
             socket.send_event(
                 {
                     "kind": EVENT_VOICE_STREAM_END,

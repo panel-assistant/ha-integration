@@ -1424,11 +1424,12 @@
           },
           "authorize_adb": {
             "title": "Permitir actualizaciones en {panel}",
-            "description": "Selecciona «Enviar» y después pulsa «Permitir» en la pregunta «¿Permitir depuración?» del panel. Al permitirlo, esta instancia de Home Assistant obtiene acceso general al shell de ADB del panel mientras la depuración por red siga activada.\n\nDespués, selecciona «Enviar» de nuevo. Puedes retirar este permiso más tarde en los ajustes de desarrollador del panel."
+            "description": "Selecciona Enviar y mira la pantalla de {panel}: marca **Permitir siempre desde este ordenador** y toca **Permitir**. Android puede describir Home Assistant como un ordenador."
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura."
+          "retrying": "Comprobando el panel y reintentando de forma segura.",
+          "authorize_adb": "Mira la pantalla de {panel}: marca **Permitir siempre desde este ordenador** y toca **Permitir**. Android puede describir Home Assistant como un ordenador.\n\nEl proceso continuará por sí solo cuando el panel lo permita."
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1566,11 +1567,12 @@
           },
           "authorize_adb": {
             "title": "Permitir actualizaciones en {panel}",
-            "description": "Selecciona «Enviar» y después pulsa «Permitir» en la pregunta «¿Permitir depuración?» del panel. Al permitirlo, esta instancia de Home Assistant obtiene acceso general al shell de ADB del panel mientras la depuración por red siga activada.\n\nDespués, selecciona «Enviar» de nuevo. Puedes retirar este permiso más tarde en los ajustes de desarrollador del panel."
+            "description": "Selecciona Enviar y mira la pantalla de {panel}: marca **Permitir siempre desde este ordenador** y toca **Permitir**. Android puede describir Home Assistant como un ordenador."
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura."
+          "retrying": "Comprobando el panel y reintentando de forma segura.",
+          "authorize_adb": "Mira la pantalla de {panel}: marca **Permitir siempre desde este ordenador** y toca **Permitir**. Android puede describir Home Assistant como un ordenador.\n\nEl proceso continuará por sí solo cuando el panel lo permita."
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1607,7 +1609,7 @@
         "step": {
           "authorize_adb": {
             "title": "Permitir actualizaciones en {panel}",
-            "description": "Selecciona «Enviar» y después pulsa «Permitir» en la pregunta «¿Permitir depuración?» del panel. Al permitirlo, esta instancia de Home Assistant obtiene acceso general al shell de ADB del panel mientras la depuración por red siga activada.\n\nDespués, selecciona «Enviar» de nuevo. Puedes retirar este permiso más tarde en los ajustes de desarrollador del panel."
+            "description": "Selecciona Enviar y mira la pantalla de {panel}: marca **Permitir siempre desde este ordenador** y toca **Permitir**. Android puede describir Home Assistant como un ordenador."
           }
         },
         "error": {
@@ -1627,6 +1629,9 @@
         },
         "abort": {
           "entry_removed": "Este panel se ha eliminado."
+        },
+        "progress": {
+          "authorize_adb": "Mira la pantalla de {panel}: marca **Permitir siempre desde este ordenador** y toca **Permitir**. Android puede describir Home Assistant como un ordenador.\n\nEl proceso continuará por sí solo cuando el panel lo permita."
         }
       }
     },
@@ -1656,8 +1661,8 @@
         "submit": "Listo"
       },
       "authorize_adb": {
-        "title": "Permitir actualizaciones en {panel}",
-        "description": "Selecciona «Enviar» y después pulsa «Permitir» en la pregunta «¿Permitir depuración?» del panel. Al permitirlo, esta instancia de Home Assistant obtiene acceso general al shell de ADB del panel mientras la depuración por red siga activada.\n\nDespués, selecciona «Enviar» de nuevo. Puedes retirar este permiso más tarde en los ajustes de desarrollador del panel."
+        "title": "Permitir Home Assistant en el panel",
+        "description": "Selecciona Enviar y mira la pantalla de {panel}: marca **Permitir siempre desde este ordenador** y toca **Permitir**. Android puede describir Home Assistant como un ordenador."
       },
       "updates": {
         "title": "Actualizaciones del panel",
@@ -1712,6 +1717,9 @@
       "removed_entry_deleted": "Se ha quitado Panel Assistant y se ha eliminado el panel de Home Assistant.",
       "removed_entry_kept": "Se ha quitado Panel Assistant. El panel se queda en Home Assistant hasta que lo elimines.",
       "panel_connected": "El panel está configurado y conectado a Home Assistant."
+    },
+    "progress": {
+      "authorize_adb": "Mira la pantalla de {panel}: marca **Permitir siempre desde este ordenador** y toca **Permitir**. Android puede describir Home Assistant como un ordenador.\n\nEl proceso continuará por sí solo cuando el panel lo permita."
     }
   }
 }

@@ -1452,11 +1452,12 @@
           },
           "authorize_adb": {
             "title": "Allow updates on {panel}",
-            "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt. Allowing gives this Home Assistant general ADB shell access to the panel while network debugging stays on.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
+            "description": "Select Submit, then look at the screen of {panel}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer."
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely."
+          "retrying": "Checking the panel and retrying safely.",
+          "authorize_adb": "Look at the screen of {panel}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer.\n\nThis carries on by itself once the panel allows it."
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1594,11 +1595,12 @@
           },
           "authorize_adb": {
             "title": "Allow updates on {panel}",
-            "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt. Allowing gives this Home Assistant general ADB shell access to the panel while network debugging stays on.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
+            "description": "Select Submit, then look at the screen of {panel}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer."
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely."
+          "retrying": "Checking the panel and retrying safely.",
+          "authorize_adb": "Look at the screen of {panel}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer.\n\nThis carries on by itself once the panel allows it."
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1635,7 +1637,7 @@
         "step": {
           "authorize_adb": {
             "title": "Allow updates on {panel}",
-            "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt. Allowing gives this Home Assistant general ADB shell access to the panel while network debugging stays on.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
+            "description": "Select Submit, then look at the screen of {panel}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer."
           }
         },
         "error": {
@@ -1655,6 +1657,9 @@
         },
         "abort": {
           "entry_removed": "This panel has been removed."
+        },
+        "progress": {
+          "authorize_adb": "Look at the screen of {panel}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer.\n\nThis carries on by itself once the panel allows it."
         }
       }
     },
@@ -1684,8 +1689,8 @@
         "submit": "Done"
       },
       "authorize_adb": {
-        "title": "Allow updates on {panel}",
-        "description": "Select Submit, then tap Allow on the panel's \"Allow debugging?\" prompt. Allowing gives this Home Assistant general ADB shell access to the panel while network debugging stays on.\n\nThen select Submit again. You can withdraw this later in the panel's developer settings."
+        "title": "Allow Home Assistant on the panel",
+        "description": "Select Submit, then look at the screen of {panel}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer."
       },
       "updates": {
         "title": "Panel updates",
@@ -1740,6 +1745,9 @@
       "removed_entry_deleted": "Panel Assistant was removed and the panel was deleted from Home Assistant.",
       "removed_entry_kept": "Panel Assistant was removed. The panel stays in Home Assistant until you delete it.",
       "panel_connected": "The panel is set up and connected to Home Assistant."
+    },
+    "progress": {
+      "authorize_adb": "Look at the screen of {panel}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer.\n\nThis carries on by itself once the panel allows it."
     }
   }
 }

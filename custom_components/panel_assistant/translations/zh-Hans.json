@@ -1424,11 +1424,12 @@
           },
           "authorize_adb": {
             "title": "允许更新 {panel}",
-            "description": "选择“提交”，然后在面板的“允许调试？”提示中点按“允许”。允许后，只要网络调试保持开启，此 Home Assistant 就拥有对面板的一般 ADB shell 访问权限。\n\n然后再次选择“提交”。稍后可在面板的开发者设置中撤销此权限。"
+            "description": "选择“提交”，然后查看 {panel} 的屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。"
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全地重试。"
+          "retrying": "正在检查面板并安全地重试。",
+          "authorize_adb": "请查看 {panel} 的屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。\n\n面板允许后，将自动继续。"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1566,11 +1567,12 @@
           },
           "authorize_adb": {
             "title": "允许更新 {panel}",
-            "description": "选择“提交”，然后在面板的“允许调试？”提示中点按“允许”。允许后，只要网络调试保持开启，此 Home Assistant 就拥有对面板的一般 ADB shell 访问权限。\n\n然后再次选择“提交”。稍后可在面板的开发者设置中撤销此权限。"
+            "description": "选择“提交”，然后查看 {panel} 的屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。"
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全地重试。"
+          "retrying": "正在检查面板并安全地重试。",
+          "authorize_adb": "请查看 {panel} 的屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。\n\n面板允许后，将自动继续。"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1607,7 +1609,7 @@
         "step": {
           "authorize_adb": {
             "title": "允许更新 {panel}",
-            "description": "选择“提交”，然后在面板的“允许调试？”提示中点按“允许”。允许后，只要网络调试保持开启，此 Home Assistant 就拥有对面板的一般 ADB shell 访问权限。\n\n然后再次选择“提交”。稍后可在面板的开发者设置中撤销此权限。"
+            "description": "选择“提交”，然后查看 {panel} 的屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。"
           }
         },
         "error": {
@@ -1627,6 +1629,9 @@
         },
         "abort": {
           "entry_removed": "此面板已被移除。"
+        },
+        "progress": {
+          "authorize_adb": "请查看 {panel} 的屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。\n\n面板允许后，将自动继续。"
         }
       }
     },
@@ -1656,8 +1661,8 @@
         "submit": "完成"
       },
       "authorize_adb": {
-        "title": "允许更新 {panel}",
-        "description": "选择“提交”，然后在面板的“允许调试？”提示中点按“允许”。允许后，只要网络调试保持开启，此 Home Assistant 就拥有对面板的一般 ADB shell 访问权限。\n\n然后再次选择“提交”。稍后可在面板的开发者设置中撤销此权限。"
+        "title": "在面板上允许 Home Assistant",
+        "description": "选择“提交”，然后查看 {panel} 的屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。"
       },
       "updates": {
         "title": "面板更新",
@@ -1712,6 +1717,9 @@
       "removed_entry_deleted": "已移除 Panel Assistant，并已从 Home Assistant 删除该面板。",
       "removed_entry_kept": "已移除 Panel Assistant。在您删除之前，面板会保留在 Home Assistant 中。",
       "panel_connected": "面板已设置完成，并已连接到 Home Assistant。"
+    },
+    "progress": {
+      "authorize_adb": "请查看 {panel} 的屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。\n\n面板允许后，将自动继续。"
     }
   }
 }

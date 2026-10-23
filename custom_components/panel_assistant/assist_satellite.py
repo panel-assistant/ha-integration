@@ -107,6 +107,8 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         self._reply: asyncio.Task[None] | None = None
         # The turn's reply was streamed, so its drain finished it.
         self._reply_streamed = False
+        self._reply_run: VoiceRun | None = None
+        self._url_reply_session: str | None = None
         # Announcements the panel has not finished, with the session each was
         # sent on: one that ends first cannot finish it.
         self._announcements: dict[str, tuple[str, asyncio.Future[bool]]] = {}
@@ -165,6 +167,11 @@ class PanelAssistSatellite(AssistSatelliteEntity):
     def _session_changed(self) -> None:
         session = self._session
         self._fail_announcements(None if session is None else session.token)
+        if self._url_reply_session is not None and (
+            session is None or session.token != self._url_reply_session
+        ):
+            self._continue_conversation = False
+            self.tts_response_finished()
         self.async_write_ha_state()
         self._sync_timers()
         self._schedule_colors()
@@ -338,6 +345,8 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         """Run one conversation turn from the panel's audio."""
         voice = self._voice
         self._run = run
+        self._reply_run = run
+        self._url_reply_session = None
         self._reply_streamed = False
         self._continue_conversation = False
         cancelled = False
@@ -429,7 +438,8 @@ class PanelAssistSatellite(AssistSatelliteEntity):
                         ),
                         f"{self.entity_id}_voice_reply",
                     )
-                else:
+                elif session is not None:
+                    self._url_reply_session = session.token
                     run.send(play)
         elif event.type is PipelineEventType.ERROR:
             run.send({"kind": "error", "code": str(data.get("code", "error"))})
@@ -442,6 +452,7 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         A streamed reply is finished when its stream drains: the panel does
         not report it played.
         """
+        session = self._session
         voice_stream = async_get_voice_stream(self.hass)
         try:
             source = async_process_play_media_url(self.hass, url)
@@ -449,6 +460,8 @@ class PanelAssistSatellite(AssistSatelliteEntity):
             source = None
 
         def _play(stream_id: str) -> bool:
+            if self._reply_run is not run or self._session is not session:
+                return False
             self._reply_streamed = True
             run.send(play | {"stream": True, "stream_id": stream_id})
             return True
@@ -457,18 +470,29 @@ class PanelAssistSatellite(AssistSatelliteEntity):
             client_id,
             _play,
             listen_after=play["continue_conversation"],
-            ended=lambda _outcome: self.tts_response_finished(),
+            ended=lambda _outcome: (
+                self.tts_response_finished()
+                if self._session is session and self._reply_run is run
+                else None
+            ),
         )
         if (
-            voice_stream is None
-            or source is None
-            or not await voice_stream.async_play_reply(listener, source)
+            (
+                voice_stream is None
+                or source is None
+                or not await voice_stream.async_play_reply(listener, source)
+            )
+            and self._session is session
+            and session is not None
         ):
+            self._url_reply_session = session.token
             run.send(play)
 
     @callback
     def tts_response_finished(self) -> None:
         """The turn's reply has played: hold the room for a follow-up, or let go."""
+        self._url_reply_session = None
+        self._reply_run = None
         self._duck.end(follow_up=self._continue_conversation)
         super().tts_response_finished()
 
@@ -526,7 +550,7 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         # and the announcement is finished when the stream ends for it.
 
         def _play(stream_id: str) -> bool:
-            if self._session is not session:
+            if self._session is not session or future.done():
                 return False
             session.connection.send_message(
                 event_message(
@@ -541,23 +565,26 @@ class PanelAssistSatellite(AssistSatelliteEntity):
                 future.set_result(outcome != OUTCOME_FAILED)
 
         voice_stream = async_get_voice_stream(self.hass)
-        streamed = voice_stream is not None and await voice_stream.async_announce(
-            (
-                None if self._context is None else self._context.id,
-                announcement.original_media_id,
-                # Signed once per entity, so the signature can differ.
-                None if preannounce is None else str(URL(preannounce).with_query(None)),
-            ),
-            Listener(session.voice_stream_client_id, _play, listen_after, _ended),
-            (preannounce, announcement.media_id)
-            if preannounce
-            else (announcement.media_id,),
-        )
-        if not streamed:
-            session.connection.send_message(
-                event_message(session.subscription_id, event)
-            )
+        listener = Listener(session.voice_stream_client_id, _play, listen_after, _ended)
         try:
+            streamed = voice_stream is not None and await voice_stream.async_announce(
+                (
+                    None if self._context is None else self._context.id,
+                    announcement.original_media_id,
+                    # Signed once per entity, so the signature can differ.
+                    None
+                    if preannounce is None
+                    else str(URL(preannounce).with_query(None)),
+                ),
+                listener,
+                (preannounce, announcement.media_id)
+                if preannounce
+                else (announcement.media_id,),
+            )
+            if not streamed:
+                session.connection.send_message(
+                    event_message(session.subscription_id, event)
+                )
             async with asyncio.timeout(ANNOUNCE_TIMEOUT):
                 played = await future
         except TimeoutError as err:
@@ -566,6 +593,10 @@ class PanelAssistSatellite(AssistSatelliteEntity):
             ) from err
         finally:
             self._announcements.pop(announce_id, None)
+            if not future.done():
+                future.cancel()
+            if voice_stream is not None:
+                await voice_stream.async_withdraw(listener)
         if not played:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,

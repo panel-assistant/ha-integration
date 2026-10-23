@@ -339,3 +339,18 @@ test('a replaced install\'s late handover answer does not report the new one fin
   f.element('cancel').listeners.click();
   f.panel.disconnectedCallback();
 });
+
+
+test('a valid catalogue arriving after fifteen seconds still enables Start', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let answer;
+  const f = fixture(() => new Promise(resolve => { answer = resolve; }));
+  t.mock.timers.tick(18000);
+  await tick();
+  assert.equal(f.element('catalog-status').textContent, HA_INSTALL_MESSAGES.loading);
+  assert.equal(f.element('start').disabled, true);
+  answer(response([stable]));
+  await tick();
+  assert.equal(f.element('start').disabled, false);
+  f.panel.disconnectedCallback();
+});

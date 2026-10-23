@@ -1770,3 +1770,116 @@ async def test_an_upload_reaches_the_panel_as_its_own_download(
         "code": "invalid_value",
     }
     assert len([e for e in live.events if e.get("op") == "install.apk"]) == 1
+
+
+@pytest.mark.parametrize(
+    "mode", ["left_before_on_time_answer", "left_before_timeout", "left_after_timeout"]
+)
+async def test_late_subscription_is_unsubscribed_on_its_original_session(
+    hass, hass_ws_client, entry, live, monkeypatch, mode
+):
+    from custom_components.panel_assistant.transport_sessions import async_get_sessions
+
+    monkeypatch.setattr(ui_relay, "ANSWER_GRACE_SECONDS", 0)
+    go = asyncio.Event()
+
+    async def delayed(event):
+        await go.wait()
+        return await _subscribed(event)
+
+    live.answers.update({"subscribe": delayed, "unsubscribe": _applied})
+    browser = await hass_ws_client(hass)
+    deadline = 10000 if mode == "left_before_on_time_answer" else 25
+    await browser.send_json_auto_id(
+        {
+            "type": "panel_assistant/ui",
+            "entry_id": entry.entry_id,
+            "request": {
+                "kind": "manage",
+                "command_id": "independent",
+                "op": "subscribe",
+                "args": {"family": "perf"},
+                "deadline_ms": deadline,
+            },
+        }
+    )
+    assert (await _receive(browser))["success"]
+    request = await live.event("subscribe")
+    session = async_get_sessions(hass).get(entry.entry_id)
+    assert session is not None
+    if mode.startswith("left_before"):
+        await browser.close()
+    if mode != "left_before_on_time_answer":
+        async with asyncio.timeout(3):
+            while not session.late:  # noqa: ASYNC110 - production timeout state has no event hook
+                await asyncio.sleep(0.001)
+        if mode == "left_after_timeout":
+            assert (await _receive(browser))["event"]["outcome"] == "failed"
+            await browser.close()
+    go.set()
+    ended = await live.event("unsubscribe")
+    assert ended["args"]["subscription"] == request["command_id"]
+    assert ended["origin"] == request["origin"]
+    async with asyncio.timeout(3):
+        while session.late:  # noqa: ASYNC110 - observe final protocol settlement
+            await asyncio.sleep(0.001)
+    assert not session.ui_relays
+
+
+async def test_timed_out_subscription_cleanup_survives_late_map_eviction(
+    hass, hass_ws_client, entry, live, monkeypatch
+):
+    monkeypatch.setattr(ui_relay, "ANSWER_GRACE_SECONDS", 0)
+    release = asyncio.Event()
+    remote = set()
+
+    async def subscribe(event):
+        await release.wait()
+        remote.add(event["command_id"])
+        return await _subscribed(event)
+
+    async def unsubscribe(event):
+        remote.discard(event["args"]["subscription"])
+        return await _applied(event)
+
+    live.answers.update({"subscribe": subscribe, "unsubscribe": unsubscribe})
+    browser = await hass_ws_client(hass)
+    for index in range(18):
+        await browser.send_json_auto_id(
+            {
+                "type": "panel_assistant/ui",
+                "entry_id": entry.entry_id,
+                "request": {
+                    "kind": "manage",
+                    "command_id": f"old-{index}",
+                    "op": "subscribe",
+                    "args": {"family": "perf"},
+                    "deadline_ms": 25,
+                },
+            }
+        )
+        # The immediate subscription result and eventual failure share the socket.
+    results = 0
+    async with asyncio.timeout(5):
+        while results < 18:
+            message = await _receive(browser)
+            if (
+                message.get("type") == "event"
+                and message.get("event", {}).get("outcome") == "failed"
+            ):
+                results += 1
+    from custom_components.panel_assistant.transport_sessions import async_get_sessions
+
+    session = async_get_sessions(hass).get(entry.entry_id)
+    assert len(session.late) == 16
+    release.set()
+    async with asyncio.timeout(5):
+        while (  # noqa: ASYNC110 - bounded protocol-observation fixture
+            len([event for event in live.events if event.get("op") == "unsubscribe"])
+            < 18
+        ):
+            await asyncio.sleep(0.001)
+    await hass.async_block_till_done()
+    assert not remote
+    assert not session.ui_relays
+    await browser.close()
