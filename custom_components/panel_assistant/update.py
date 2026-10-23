@@ -375,7 +375,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
 
     def _refresh_installed_code(self) -> None:
         """Read the running build number once per install, never per poll."""
-        if not self.coordinator.reachable:
+        # The address can answer before any snapshot has been read.
+        if not self.coordinator.reachable or self.coordinator.data is None:
             return
         health = self.coordinator.data.health
         if health.version_code is not None:
