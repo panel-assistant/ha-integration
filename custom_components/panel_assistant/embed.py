@@ -85,8 +85,16 @@ PAGES: Final = {
 }
 # The bundle's files outside ``assets/``.
 BUNDLE_FILES: Final = frozenset({"info.js", "info.css", "icon.svg", "favicon.svg"})
+# Every document here comes from a panel's session, which a non-administrator
+# account may hold, so it runs with an opaque origin and never reaches Home
+# Assistant's frontend. The header, not the frame, carries the sandbox: it holds
+# for a top-level visit and for any document the frame navigates to. Each token
+# is one the panel's pages use: dialogs, downloads, new-tab links and forms.
 SECURITY_HEADERS: Final = {
-    "Content-Security-Policy": "frame-ancestors 'self'",
+    "Content-Security-Policy": (
+        "frame-ancestors 'self'; sandbox allow-scripts allow-forms allow-downloads "
+        "allow-modals allow-popups allow-popups-to-escape-sandbox"
+    ),
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "SAMEORIGIN",
     "Referrer-Policy": "no-referrer",
@@ -400,10 +408,17 @@ def _respond(status: int, **fields: Any) -> web.Response:
 RETRY_SECONDS: Final = 3
 
 
-def _retry() -> web.Response:
+def _retry(session: EmbedSession) -> web.Response:
     return _respond(
         503,
-        body=f'<!doctype html><meta http-equiv="refresh" content="{RETRY_SECONDS}">',
+        body=(
+            '<!doctype html><meta name="panel-assistant-wait" content="true">'
+            # The sidebar cannot read a sandboxed document, so this one says so
+            # while it parses, before its load event reaches the sidebar.
+            '<script>parent.postMessage({type:"panel-assistant-wait"},"*")</script>'
+            f'<meta name="color-scheme" content="{session.theme}">'
+            f'<meta http-equiv="refresh" content="{RETRY_SECONDS}">'
+        ),
         content_type="text/html",
         headers={"Retry-After": str(RETRY_SECONDS)},
     )
@@ -430,6 +445,9 @@ class EmbedView(HomeAssistantView):
     name = "api:panel_assistant:embed"
     # The token is the credential, checked on every request below.
     requires_auth = False
+    # A sandboxed page's requests come from origin "null", so its downloads and
+    # uploads are cross-origin; the token, not the origin, admits them.
+    cors_allowed = True
 
     def __init__(self, hass: HomeAssistant) -> None:
         """Initialize the view."""
@@ -496,7 +514,7 @@ class EmbedView(HomeAssistantView):
     ) -> web.Response:
         panel = live_ui_session(self.hass, entry.entry_id)
         if panel is None:
-            return _retry()
+            return _retry(session)
         args: dict[str, Any] = {"embed": session.embed_header}
         for key in ("lang", "ha_lang"):
             if (value := request.query.get(key)) and _valid_language(value):
@@ -512,7 +530,7 @@ class EmbedView(HomeAssistantView):
                 {"user": session.user_id, "connection": session.relay_id},
             )
         except HomeAssistantError:
-            return _retry()
+            return _retry(session)
         if data is None and isinstance(outcome.result, str):
             data = outcome.result.encode()
         if data is None or (outcome.outcome != OUTCOME_APPLIED and not outcome.status):

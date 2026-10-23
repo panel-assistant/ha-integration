@@ -12,6 +12,7 @@
     "github": "GitHub",
     "unreachable": "nedostupný",
     "restarting": "Restartování ({reason})",
+    "restartingNext": "This panel will come back automatically. There is no need to refresh.",
     "not_loaded": "nenačtený",
     "opening": "Otevírání panelu {panel}…",
     "loadingHint": "Chvilku strpení",

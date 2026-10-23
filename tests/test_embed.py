@@ -63,6 +63,12 @@ HELLO: dict[str, Any] = {
     "capabilities": RELAY,
     "channels": [],
 }
+# What every embed response tells the browser: framed only by Home Assistant, and
+# run with an opaque origin, never Home Assistant's own.
+ISOLATED = (
+    "frame-ancestors 'self'; sandbox allow-scripts allow-forms allow-downloads "
+    "allow-modals allow-popups allow-popups-to-escape-sandbox"
+)
 PAGE = (
     '<!doctype html><html><head><base href="/"><title>x</title></head>'
     '<body data-ui-relay><a href="configure">c</a><base href="/"></body></html>'
@@ -819,7 +825,7 @@ async def test_a_page_comes_over_the_session_with_its_base_rewritten(
 
     assert response.status == 200
     assert response.content_type == "text/html"
-    assert response.headers["Content-Security-Policy"] == "frame-ancestors 'self'"
+    assert response.headers["Content-Security-Policy"] == ISOLATED
     assert response.headers["X-Content-Type-Options"] == "nosniff"
     # Only the first base element, the page's own, is pointed at the view.
     assert await response.text() == PAGE.replace(
@@ -836,16 +842,18 @@ async def test_a_page_comes_over_the_session_with_its_base_rewritten(
     assert not panel.requests
 
 
+@pytest.mark.parametrize("theme", ["light", "dark"])
 async def test_a_page_asked_for_while_the_panel_session_is_down_asks_again(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
     hass_client_no_auth: Any,
     entry: MockConfigEntry,
     live: SessionPanel,
+    theme: str,
 ) -> None:
     """An open sidebar is not left blank while the panel restarts after an update."""
     ws = await hass_ws_client(hass)
-    _, url = await _open_session(ws, entry.entry_id)
+    _, url = await _open_session(ws, entry.entry_id, theme=theme)
     browser = await hass_client_no_auth()
     assert (await browser.get(url)).status == 200
     assert live.task is not None
@@ -857,7 +865,15 @@ async def test_a_page_asked_for_while_the_panel_session_is_down_asks_again(
 
     assert response.status == 503
     assert response.content_type == "text/html"
-    assert '<meta http-equiv="refresh" content="3">' in await response.text()
+    document = await response.text()
+    assert '<meta http-equiv="refresh" content="3">' in document
+    assert '<meta name="panel-assistant-wait" content="true">' in document
+    # The sidebar cannot read the sandboxed document, so it says what it is.
+    assert (
+        '<script>parent.postMessage({type:"panel-assistant-wait"},"*")</script>'
+        in document
+    )
+    assert f'<meta name="color-scheme" content="{theme}">' in document
 
 
 async def test_each_panel_is_served_the_bundle_of_its_own_build(
@@ -968,6 +984,115 @@ async def test_a_panel_answering_a_newer_build_is_fetched_once(
     _set_build(entry, "2000")
     assert await (await browser.get(url + "info.js")).read() == b"new"
     assert len([e for e in live.events if e["op"] == "bundle"]) == 1
+
+
+async def test_a_panel_answering_another_panels_build_never_serves_that_panel(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client: Any,
+    hass_client_no_auth: Any,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    session_panels: list[SessionPanel],
+    entry: MockConfigEntry,
+    live: SessionPanel,
+) -> None:
+    """A session's bundle serves only its own panel, whatever build it names."""
+    other_did = "e" * 64
+    other = MockConfigEntry(
+        domain=DOMAIN, title="Hall", data={CONF_ADDRESS: "127.0.0.1:1"}
+    )
+    other.add_to_hass(hass)
+    with patch(
+        "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+        AsyncMock(
+            return_value=dataclasses.replace(
+                HEALTH, panel_id="beta", build="2000", discovery_id=other_did
+            )
+        ),
+    ):
+        await _load_entry(hass, other)
+    other_panel = await _connect_panel(
+        hass,
+        hass_ws_client,
+        hass_client,
+        session_panels,
+        other,
+        hass_read_only_user.id,
+        hass_read_only_access_token,
+        HELLO | {"did": other_did},
+    )
+    other_panel.answers["bundle"] = _bundle(other_panel, {"info.js": b"honest"})
+
+    async def claims_2000(event: dict[str, Any]) -> dict[str, Any]:
+        reference = await live.upload(event, _zip({"info.js": b"planted"}))
+        return {"outcome": "applied", "result": {"blob": reference, "build": "2000"}}
+
+    live.answers["bundle"] = claims_2000
+    ws = await hass_ws_client(hass)
+    _, first = await _open_session(ws, entry.entry_id)
+    _, second = await _open_session(ws, other.entry_id)
+    browser = await hass_client_no_auth()
+
+    assert await (await browser.get(second + "info.js")).read() == b"honest"
+    assert await (await browser.get(first + "info.js")).read() == b"planted"
+    assert await (await browser.get(second + "info.js")).read() == b"honest"
+
+
+async def test_every_embed_response_runs_with_an_opaque_origin_and_transfers_still_work(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    hass_admin_user: Any,
+    entry: MockConfigEntry,
+    live: SessionPanel,
+) -> None:
+    """The panel's pages cannot reach Home Assistant's origin, yet move files.
+
+    The live session is held by a non-administrator, so its pages are not trusted
+    with the administrator's origin. A sandboxed document's requests carry
+    ``Origin: null``, so a download and an upload need cross-origin answers.
+    """
+    live.answers["bundle"] = _bundle(live, {"info.js": b"one"})
+    ws = await hass_ws_client(hass)
+    _, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+    blobs = async_get_blobs(hass)
+    download, _ = blobs.download(
+        entry.entry_id, b"export", "application/zip", hass_admin_user.id
+    )
+    upload, _ = blobs.upload(entry.entry_id, 1024, hass_admin_user.id)
+    null = {"Origin": "null"}
+
+    page = await browser.get(url, headers=null)
+    bundle_file = await browser.get(url + "info.js", headers=null)
+    missing = await browser.get(url + "nothing", headers=null)
+    got = await browser.get(f"{url}blob/{download}", headers=null)
+    preflight = await browser.options(
+        f"{url}blob/{upload}",
+        headers=null
+        | {
+            "Access-Control-Request-Method": "PUT",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    put = await browser.put(
+        f"{url}blob/{upload}",
+        data=b"app",
+        headers=null | {"Content-Type": "application/zip"},
+    )
+
+    for response in (page, bundle_file, missing, got, put):
+        assert response.headers["Content-Security-Policy"] == ISOLATED
+    sandbox = ISOLATED.split("sandbox ", 1)[1].split()
+    assert "allow-same-origin" not in sandbox
+    assert {"allow-scripts", "allow-downloads"} <= set(sandbox)
+    assert (got.status, await got.read()) == (200, b"export")
+    assert preflight.status == 200
+    assert "PUT" in preflight.headers["Access-Control-Allow-Methods"]
+    assert put.status == 200
+    for response in (got, preflight, put):
+        assert response.headers["Access-Control-Allow-Origin"] in ("*", "null")
 
 
 async def test_a_bundle_gets_two_minutes_and_a_failed_one_is_not_asked_again_at_once(
