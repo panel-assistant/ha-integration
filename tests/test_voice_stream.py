@@ -1588,13 +1588,18 @@ async def test_a_slow_earlier_batch_leaves_the_next_window_coalescing(
     speech = (f"{base}/test_voice_stream/speech",)
     told: list[str] = []
 
-    with patch.object(voice_stream_module, "COALESCE_WINDOW", 0.5):
+    with patch.object(voice_stream_module, "COALESCE_WINDOW", 0.05):
         earlier = asyncio.ensure_future(
             voice_stream.async_announce(
                 "same", _listener(a, told), (f"{base}/test_voice_stream/chime",)
             )
         )
-        await asyncio.sleep(0.6)  # its window has closed; its clip is still held
+        await asyncio.sleep(0)
+        opened = voice_stream._batches["same"]
+        # Its window has closed; its clip is still held.
+        await _until(lambda: voice_stream._batches.get("same") is not opened)
+    # The next window only bounds a hang: c joins it however late it starts.
+    with patch.object(voice_stream_module, "COALESCE_WINDOW", 3.0):
         later_b = asyncio.ensure_future(
             voice_stream.async_announce("same", _listener(b, told), speech)
         )
@@ -1605,7 +1610,7 @@ async def test_a_slow_earlier_batch_leaves_the_next_window_coalescing(
         later_c = asyncio.ensure_future(
             voice_stream.async_announce("same", _listener(c, told), speech)
         )
-        async with asyncio.timeout(5):
+        async with asyncio.timeout(10):
             assert await later_b
             assert await later_c
 

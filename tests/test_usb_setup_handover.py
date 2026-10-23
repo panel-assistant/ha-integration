@@ -541,9 +541,11 @@ async def test_a_slow_entry_setup_never_holds_the_handover_past_its_deadline(
     """
     monkeypatch.setattr(delivery, "_HANDOVER_TIMEOUT", 0.5)
     setup_done = asyncio.Event()
+    # Setup finishes only when the test says so, after the handover has answered.
+    release = asyncio.Event()
 
     async def _slow_setup(*_args: Any) -> bool:
-        await asyncio.sleep(1.0)
+        await release.wait()
         setup_done.set()
         return True
 
@@ -554,22 +556,22 @@ async def test_a_slow_entry_setup_never_holds_the_handover_past_its_deadline(
             "privileged_sizing": False,
         }
     )
-    loop = asyncio.get_running_loop()
     with (
         caplog.at_level(logging.INFO, logger=delivery.__name__),
         patch("custom_components.panel_assistant.async_setup_entry", _slow_setup),
         patch(f"{_CLIENT}.async_get_display", recommends),
     ):
-        started = loop.time()
-        status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
-        answered = loop.time() - started
+        # Only a handover that waits for the setup reaches this bound.
+        async with asyncio.timeout(10):
+            status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
         assert status == 200
-        assert answered < 0.9
+        assert not setup_done.is_set()
         assert body == {
             "outcome": "handed_over",
             "registration": "in_progress",
             "display": {"density": 216, "font_scale": 1.0},
         }
+        release.set()
         await asyncio.wait_for(setup_done.wait(), 5)
         await hass.async_block_till_done()
 
