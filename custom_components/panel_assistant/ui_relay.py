@@ -680,17 +680,23 @@ def _unzip(data: bytes) -> dict[str, bytes] | None:
 
 
 class BundleStore:
-    """The page bundles of the builds loaded panels report, in memory."""
+    """The page bundles of the builds loaded panels report, in memory.
+
+    Keyed by entry and build: a bundle comes from one panel's session and serves
+    only that panel, so a session naming another panel's build cannot replace it.
+    """
 
     def __init__(self, hass: HomeAssistant) -> None:
         self._hass = hass
-        self._bundles: dict[str, dict[str, bytes]] = {}
-        self._fetching: dict[str, asyncio.Task[dict[str, bytes] | None]] = {}
+        self._bundles: dict[tuple[str, str], dict[str, bytes]] = {}
+        self._fetching: dict[
+            tuple[str, str], asyncio.Task[dict[str, bytes] | None]
+        ] = {}
         # A panel that answered another build than its entry reports (it was
         # updated since the last poll), by entry: (reported, answered).
         self._answered: dict[str, tuple[str, str]] = {}
         # When a fetch of a build last failed (monotonic seconds).
-        self._failed: dict[str, float] = {}
+        self._failed: dict[tuple[str, str], float] = {}
 
     def _build(self, entry: ConfigEntry) -> str | None:
         """Return the build whose bundle serves the entry's pages now."""
@@ -706,12 +712,12 @@ class BundleStore:
 
     def _prune(self) -> None:
         kept = {
-            build
+            (entry.entry_id, build)
             for entry in self._hass.config_entries.async_loaded_entries(DOMAIN)
             if (build := self._build(entry)) is not None
         }
-        for build in set(self._bundles) - kept:
-            del self._bundles[build]
+        for key in set(self._bundles) - kept:
+            del self._bundles[key]
 
     async def async_file(
         self, entry: ConfigEntry, session: PanelSession, path: str
@@ -722,10 +728,11 @@ class BundleStore:
         if reported is None or build is None:
             return None
         self._prune()
-        files = self._bundles.get(build)
+        files = self._bundles.get((entry.entry_id, build))
         if files is None:
-            fetch = self._fetching.get(reported)
-            failed = self._failed.get(reported)
+            key = (entry.entry_id, reported)
+            fetch = self._fetching.get(key)
+            failed = self._failed.get(key)
             if (
                 fetch is None
                 and failed is not None
@@ -733,11 +740,11 @@ class BundleStore:
             ):
                 return None
             if fetch is None:
-                fetch = self._fetching[reported] = self._hass.async_create_task(
+                fetch = self._fetching[key] = self._hass.async_create_task(
                     self._fetch(entry.entry_id, session, reported),
                     f"{DOMAIN} fetch page bundle",
                 )
-                fetch.add_done_callback(lambda _: self._fetching.pop(reported, None))
+                fetch.add_done_callback(lambda _: self._fetching.pop(key, None))
             files = await asyncio.shield(fetch)
         return None if files is None else files.get(path)
 
@@ -746,9 +753,9 @@ class BundleStore:
     ) -> dict[str, bytes] | None:
         files = await self._fetch_once(entry_id, session, build)
         if files is None:
-            self._failed[build] = time.monotonic()
+            self._failed[(entry_id, build)] = time.monotonic()
         else:
-            self._failed.pop(build, None)
+            self._failed.pop((entry_id, build), None)
         return files
 
     async def _fetch_once(
@@ -777,7 +784,7 @@ class BundleStore:
             return None
         files = await self._hass.async_add_executor_job(_unzip, data)
         if files is not None:
-            self._bundles[answered] = files
+            self._bundles[(entry_id, answered)] = files
             if answered != build:
                 self._answered[entry_id] = (build, answered)
             self._prune()
