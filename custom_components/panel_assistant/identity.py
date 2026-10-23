@@ -15,7 +15,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 
 from .client import PanelHealth, is_valid_discovery_id
-from .const import CONF_CUTOVER, DOMAIN
+from .const import CONF_CUTOVER, DOMAIN, help_url
 
 CONF_INSTALL_IDENTITY = "installation_identity"
 CONF_PREVIOUS_IDENTITY = "previous_installation_identity"
@@ -358,11 +358,15 @@ def _reject_health(
         placeholders = {
             "panel": panel_display_name(hass, entry),
             "address": entry.data[CONF_ADDRESS],
+            "integration_url": "/config/integrations/integration/panel_assistant",
         }
         if shared_with:
             placeholders["others"] = ", ".join(
                 panel_display_name(hass, other) for other in shared_with
             )
+        translation_key = (
+            "panel_link_shared" if shared_with else "panel_identity_mismatch"
+        )
         ir.async_create_issue(
             hass,
             DOMAIN,
@@ -370,9 +374,8 @@ def _reject_health(
             is_fixable=False,
             is_persistent=False,
             severity=ir.IssueSeverity.ERROR,
-            translation_key="panel_link_shared"
-            if shared_with
-            else "panel_identity_mismatch",
+            translation_key=translation_key,
+            learn_more_url=help_url("repair", issue=translation_key),
             translation_placeholders=placeholders,
         )
     _withdraw_authority(hass, entry)
@@ -453,9 +456,12 @@ def accept_health(hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth) 
             is_persistent=False,
             severity=ir.IssueSeverity.WARNING,
             translation_key=ISSUE_IDENTITY,
+            learn_more_url=help_url("repair", issue=ISSUE_IDENTITY),
             translation_placeholders={
                 "panel": panel_display_name(hass, entry),
                 "address": entry.data[CONF_ADDRESS],
+                "integration_url": "/config/integrations/integration/panel_assistant",
+                "learn_more_url": help_url("repair", issue=ISSUE_IDENTITY),
             },
             data={
                 "entry_id": entry.entry_id,

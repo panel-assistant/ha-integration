@@ -88,8 +88,15 @@ def async_reconcile_update_route_issue(
         is_persistent=True,
         severity=ir.IssueSeverity.WARNING,
         translation_key=ISSUE_NO_UPDATE_ROUTE,
-        translation_placeholders={"panel": panel_display_name(hass, entry)},
+        translation_placeholders={
+            "panel": panel_display_name(hass, entry),
+            "recovery_url": help_url(
+                "repair", issue=ISSUE_NO_UPDATE_ROUTE, **help_parameters(status)
+            ),
+        },
         # The topic names the situation, never a remedy: restoring ADB is the
         # answer on one panel family and the wrong one on the next.
-        learn_more_url=help_url("panel-cannot-update", **help_parameters(status)),
+        learn_more_url=help_url(
+            "repair", issue=ISSUE_NO_UPDATE_ROUTE, **help_parameters(status)
+        ),
     )

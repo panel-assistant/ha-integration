@@ -20,7 +20,7 @@ from homeassistant.helpers.storage import Store
 from .build import INTEGRATION_BUILD
 from .build_feed import parse_build_request
 from .client import is_newer_stable_version, is_version_at_least
-from .const import DOMAIN, INTEGRATION_VERSION
+from .const import DOMAIN, INTEGRATION_VERSION, help_url
 from .device import panel_display_name
 
 if TYPE_CHECKING:
@@ -77,7 +77,12 @@ def async_request_adb_authorization(hass: HomeAssistant, entry_id: str) -> None:
         is_persistent=True,
         severity=ir.IssueSeverity.WARNING,
         translation_key=ISSUE_ADB_AUTHORIZATION,
-        translation_placeholders={"panel": panel_display_name(hass, entry)},
+        learn_more_url=help_url("repair", issue=ISSUE_ADB_AUTHORIZATION),
+        translation_placeholders={
+            "panel": panel_display_name(hass, entry),
+            "approval_url": help_url("repair", issue=ISSUE_ADB_AUTHORIZATION),
+            "learn_more_url": help_url("repair", issue=ISSUE_ADB_AUTHORIZATION),
+        },
         data={"entry_id": entry_id},
     )
 
@@ -205,7 +210,14 @@ def _issue(
         is_persistent=True,
         severity=ir.IssueSeverity.ERROR,
         translation_key=translation_key,
-        translation_placeholders={"panel": panel},
+        learn_more_url=help_url("repair", issue=translation_key),
+        translation_placeholders={
+            "panel": panel,
+            "repair_url": help_url("repair", issue=translation_key),
+            "learn_more_url": help_url("repair", issue=translation_key),
+            "guide_url": help_url("support-report"),
+            "approval_url": help_url("repair", issue="adb_update_authorization"),
+        },
         data={"key": issue_id, **({"entry_id": entry_id} if entry_id else {})},
     )
 

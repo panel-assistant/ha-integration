@@ -50,6 +50,7 @@ from .const import (
     CONF_TRANSPORT_USER_ID,
     DOMAIN,
     INTEGRATION_VERSION,
+    help_url,
 )
 from .const import (
     PROTOCOL_MAX as PROTOCOL_MAX,
@@ -242,7 +243,11 @@ def async_raise_merged_identity_issue(
         is_persistent=False,
         severity=ir.IssueSeverity.ERROR,
         translation_key=ISSUE_MERGED_PANEL_IDENTITY,
-        translation_placeholders={"panels": panels},
+        learn_more_url=help_url("repair", issue=ISSUE_MERGED_PANEL_IDENTITY),
+        translation_placeholders={
+            "panels": panels,
+            "integration_url": "/config/integrations/integration/panel_assistant",
+        },
     )
 
 

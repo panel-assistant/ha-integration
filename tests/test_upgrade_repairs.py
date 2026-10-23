@@ -25,6 +25,7 @@ from custom_components.panel_assistant.const import (
     CONF_TRANSPORT_USER_ID,
     DOMAIN,
 )
+from tests.test_repair_links import assert_repair_links
 
 from .test_transport import DID, HEALTH, STATUS, WsClientFactory, _hello, _send
 
@@ -165,7 +166,8 @@ async def test_a_panel_never_moved_off_mqtt_is_refused_until_its_device_goes(
     assert entry.state is ConfigEntryState.SETUP_ERROR
     issue = _issue(hass, f"mqtt_panel_needs_090_{entry.entry_id}")
     assert issue is not None
-    assert issue.translation_placeholders == {"panel": "alpha"}
+    assert_repair_links(issue)
+    assert {"panel": "alpha"}.items() <= issue.translation_placeholders.items()
     assert er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id) == []
     response = await _hello_response(hass, hass_ws_client, hass_read_only_access_token)
     assert response["error"]["code"] == "unknown_panel"
@@ -249,11 +251,12 @@ async def test_an_older_panel_is_refused_and_told_it_needs_app_1_0_0_preview1(
     assert entry.state is ConfigEntryState.LOADED
     issue = _issue(hass, issue_id)
     assert issue is not None
-    assert issue.translation_placeholders == {
+    assert_repair_links(issue)
+    assert {
         "panel": "alpha",
         "version": "0.9.11",
         "required_version": "1.0.0-preview1",
-    }
+    }.items() <= issue.translation_placeholders.items()
     response = await _hello_response(
         hass,
         hass_ws_client,

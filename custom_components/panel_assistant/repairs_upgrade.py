@@ -34,6 +34,7 @@ from .const import (
     CONF_CUTOVER,
     DOMAIN,
     REQUIRED_APP_VERSION,
+    help_url,
 )
 from .device import panel_display_name
 from .transport_sessions import async_get_sessions
@@ -88,7 +89,11 @@ def async_evaluate_old_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
         is_persistent=False,
         severity=ir.IssueSeverity.ERROR,
         translation_key=ISSUE_OLD_APP_NEEDS_090,
-        translation_placeholders={"panel": panel_display_name(hass, entry)},
+        learn_more_url=help_url("repair", issue=ISSUE_OLD_APP_NEEDS_090),
+        translation_placeholders={
+            "panel": panel_display_name(hass, entry),
+            "recovery_url": help_url("repair", issue=ISSUE_OLD_APP_NEEDS_090),
+        },
     )
 
 
@@ -125,10 +130,12 @@ def async_evaluate_app_too_old(hass: HomeAssistant, entry: ConfigEntry) -> None:
         is_persistent=False,
         severity=ir.IssueSeverity.WARNING,
         translation_key=ISSUE_PANEL_APP_TOO_OLD,
+        learn_more_url=help_url("repair", issue=ISSUE_PANEL_APP_TOO_OLD),
         translation_placeholders={
             "panel": panel_display_name(hass, entry),
             "version": health.version,
             "required_version": REQUIRED_APP_VERSION,
+            "updates_url": "/config/updates",
         },
     )
 
@@ -183,7 +190,11 @@ def async_raise_needs_090(hass: HomeAssistant, entry: ConfigEntry) -> None:
         is_persistent=False,
         severity=ir.IssueSeverity.ERROR,
         translation_key=ISSUE_MQTT_PANEL_NEEDS_090,
-        translation_placeholders={"panel": panel_display_name(hass, entry)},
+        learn_more_url=help_url("repair", issue=ISSUE_MQTT_PANEL_NEEDS_090),
+        translation_placeholders={
+            "panel": panel_display_name(hass, entry),
+            "recovery_url": help_url("repair", issue=ISSUE_MQTT_PANEL_NEEDS_090),
+        },
     )
 
 

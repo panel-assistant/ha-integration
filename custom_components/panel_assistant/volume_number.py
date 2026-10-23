@@ -22,7 +22,7 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.start import async_at_started
 
-from .const import DOMAIN
+from .const import DOMAIN, help_url
 from .transport_sessions import signal_native_removed
 
 ISSUE_VOLUME_NUMBER_REMOVED: Final = "volume_number_removed"
@@ -66,10 +66,13 @@ def async_retire_volume_number(
             is_persistent=True,
             severity=ir.IssueSeverity.WARNING,
             translation_key=ISSUE_VOLUME_NUMBER_REMOVED,
+            learn_more_url=help_url("repair", issue=ISSUE_VOLUME_NUMBER_REMOVED),
             translation_placeholders={
                 "panel": panel_display_name(hass, entry),
                 "entity": item.entity_id,
                 "users": ", ".join(users),
+                "automations_url": "/config/automation/dashboard",
+                "scripts_url": "/config/script/dashboard",
             },
             data={"entry_id": entry.entry_id},
         )

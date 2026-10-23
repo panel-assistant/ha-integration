@@ -39,6 +39,7 @@ from tests import test_install_jobs as job_fixtures
 from tests.test_feed_update import _build
 from tests.test_install_failure_repairs import _authorization_failure
 from tests.test_install_jobs import Clock
+from tests.test_repair_links import assert_repair_links
 
 emulate_home_assistant_store_file = job_fixtures.emulate_home_assistant_store_file
 
@@ -68,7 +69,9 @@ async def test_update_repair_names_the_home_assistant_panel_even_after_rename(
     async_refresh_update_failure_name(hass, entry.entry_id)
     issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
     assert issue is not None
-    assert issue.translation_placeholders == {"panel": "Kitchen display"}
+    assert {
+        "panel": "Kitchen display"
+    }.items() <= issue.translation_placeholders.items()
 
     await async_record_update_failure(
         hass, entry.entry_id, entry.title, "0.9.11", RuntimeError("update failed")
@@ -270,6 +273,7 @@ async def test_update_repair_retries_via_home_assistant_and_clears_on_success(
         if domain == DOMAIN
     )
     assert issue.translation_key == "installer_failure_update"
+    assert_repair_links(issue)
     assert issue.data == {"key": issue.issue_id}
     assert "download timed out" in await panel_repairs.async_support_report(
         hass, issue.issue_id
@@ -552,7 +556,8 @@ async def test_update_retry_on_a_panel_already_current_clears_without_installing
 
 
 @pytest.mark.parametrize(
-    "language", ["en", "de", "es", "fr", "it", "nl", "pl", "uk", "zh-Hans"]
+    "language",
+    ["en", "cs", "de", "es", "fr", "it", "nl", "pl", "pt-BR", "uk", "zh-Hans"],
 )
 async def test_every_localized_failure_opens_a_labeled_repair_flow(
     hass: HomeAssistant, repairs_ready: None, language: str
@@ -581,7 +586,6 @@ async def test_every_localized_failure_opens_a_labeled_repair_flow(
         assert strings[f"{prefix}.fix_flow.step.init.menu_options.retry"]
         assert strings[f"{prefix}.fix_flow.step.init.menu_options.clear_error"]
         description = strings[f"{prefix}.fix_flow.step.support_report.description"]
-        assert description.startswith("### [")
         assert "]({guide_url})" in description
         assert "]({issue_url})" in description
         assert "\n\n{report}" in description

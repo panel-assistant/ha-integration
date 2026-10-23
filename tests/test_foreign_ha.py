@@ -30,6 +30,7 @@ from custom_components.panel_assistant.transport_binding import (
     async_raise_binding_issue,
     async_record_binding_request,
 )
+from tests.test_repair_links import assert_repair_links
 
 from .config_flow_helpers import (
     DISCOVERY_HEALTH,
@@ -357,9 +358,10 @@ async def test_adoption_completes_and_links_only_positive_evidence_to_device(
         assert result["description"] == "another_home_assistant"
         assert issue is not None
         assert issue.translation_key == "another_home_assistant"
+        assert_repair_links(issue)
         assert issue.data == {"entry_id": entry.entry_id}
         assert issue.is_persistent is False
-        assert issue.translation_placeholders == {"panel": entry.title}
+        assert {"panel": entry.title}.items() <= issue.translation_placeholders.items()
     else:
         assert result.get("description") != "another_home_assistant"
         assert issue is None

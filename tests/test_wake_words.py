@@ -18,6 +18,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant import wake_words
 from custom_components.panel_assistant.const import DOMAIN
+from tests.test_repair_links import assert_repair_links
 
 from .test_embed import (  # noqa: F401  (fixtures)
     HEALTH,
@@ -261,6 +262,7 @@ async def test_an_owners_own_model_of_the_same_name_is_kept_and_reported(
     issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
     assert issue is not None
     assert issue.translation_key == "wake_word_kept"
+    assert_repair_links(issue)
     assert issue.translation_placeholders["wake_word"] == "Hey Pickle"
     # The owner imports the shared model on that panel too: the issue goes.
     await _report(hall, _word(MODEL))
@@ -328,6 +330,7 @@ async def test_a_panel_that_refuses_the_model_raises_a_repair_and_is_not_asked_a
     )
     assert issue is not None
     assert issue.translation_key == "wake_word_refused"
+    assert_repair_links(issue)
     assert issue.translation_placeholders["reason"] == (
         "the model was not accepted by the wake-word engine"
     )
