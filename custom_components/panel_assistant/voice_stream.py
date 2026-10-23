@@ -406,6 +406,7 @@ class VoiceStream:
         if socket is None:
             return
         async with self._start_lock:
+            socket.close_now(notify=False)
             stream = self._playing.get(socket.client_id)
             member = None if stream is None else stream.members.get(socket.client_id)
             if stream is not None and member is not None and member.socket is socket:
@@ -624,23 +625,33 @@ class VoiceStream:
             stream.outcome = outcome
             task.cancel()
             await asyncio.wait({task})
-            return
-        client = self._server.get_client(cid)
-        if stream.group is not None and client is not None:
-            await stream.group.remove_client(client)  # stream/end to it alone
+        else:
+            client = self._server.get_client(cid)
+            if stream.group is not None and client is not None:
+                await stream.group.remove_client(client)  # stream/end to it alone
+        # Cancellation may have interrupted the task's final drain. Complete its
+        # terminal delivery here too; _async_end claims each member only once.
         await self._async_end(stream, cid, outcome)
 
     async def _async_end(self, stream: _Stream, cid: str, outcome: str) -> None:
         """Tell one panel its stream ended, once the stream's end has reached it."""
+        member = stream.members.get(cid)
+        if member is None:
+            return
+        if (
+            not member.socket.closed
+            and (client := self._server.get_client(cid)) is not None
+        ):
+            with suppress(TimeoutError):
+                async with asyncio.timeout(DRAIN_TIMEOUT):
+                    await client.wait_role_drained("player")
+        # Keep the member discoverable during drain, then claim completion
+        # without yielding so reset/preemption cannot lose or duplicate its end.
         member = stream.members.pop(cid, None)
         if member is None:
             return
         if self._playing.get(cid) is stream:
             del self._playing[cid]
-        if (client := self._server.get_client(cid)) is not None:
-            with suppress(TimeoutError):
-                async with asyncio.timeout(DRAIN_TIMEOUT):
-                    await client.wait_role_drained("player")
         socket = member.socket
         if socket.closed:
             outcome = OUTCOME_FAILED

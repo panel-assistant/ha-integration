@@ -1099,6 +1099,8 @@ async def test_a_panels_sendspin_connection_ends_with_its_session(
 
 
 @LINGERING
+@pytest.mark.parametrize("at_drain", [False, True])
+@pytest.mark.parametrize("server_closed", [False, True])
 async def test_a_closed_player_recovers_inside_the_same_session(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
@@ -1106,39 +1108,58 @@ async def test_a_closed_player_recovers_inside_the_same_session(
     entry: MockConfigEntry,  # noqa: F811
     wires: list[tuple[Wire, Speaker]],
     base: str,
+    monkeypatch: pytest.MonkeyPatch,
+    at_drain: bool,
+    server_closed: bool,
 ) -> None:
     """An audio-only disconnect recovers without replaying the interrupted speech."""
     panel, wire, speaker = await _voice_panel(
         hass, hass_ws_client, hass_read_only_access_token, wires
     )
-    interrupted = _announce(
-        hass,
-        _satellite(hass, entry),
-        base,
-        media_id=f"{base}/test_voice_stream/long",
-        preannounce=False,
-    )
-    await _event(panel)
-    await _until(lambda: bool(speaker.streams and speaker.streams[0].chunks))
     voice_stream = async_get_voice_stream(hass)
     assert voice_stream is not None
     client = voice_stream.server.get_client(speaker.client_id)
     assert client is not None and client.connection is not None
-    await client.connection.disconnect(retry_connection=False)
-    async with asyncio.timeout(1):
-        await _until(
-            lambda: any(
-                (m.get("event") or {}).get("kind") == "sendspin_closed"
-                for m in wire.timeline
+    draining = asyncio.Event()
+    wait_drained = client.wait_role_drained
+
+    async def hold_first_drain(role: str) -> None:
+        if not draining.is_set():
+            draining.set()
+            await asyncio.Future()
+        await wait_drained(role)
+
+    if at_drain:
+        monkeypatch.setattr(client, "wait_role_drained", hold_first_drain)
+    clip = "speech" if at_drain else "long"
+    interrupted = _announce(
+        hass,
+        _satellite(hass, entry),
+        base,
+        media_id=f"{base}/test_voice_stream/{clip}",
+        preannounce=False,
+    )
+    await _event(panel)
+    await _until(lambda: bool(speaker.streams and speaker.streams[0].chunks))
+    if at_drain:
+        async with asyncio.timeout(5):
+            await draining.wait()
+    if server_closed:
+        await client.connection.disconnect(retry_connection=False)
+        async with asyncio.timeout(1):
+            await _until(
+                lambda: any(
+                    (m.get("event") or {}).get("kind") == "sendspin_closed"
+                    for m in wire.timeline
+                )
             )
-        )
-    assert next(
-        m["event"]
-        for m in wire.timeline
-        if (m.get("event") or {}).get("kind") == "sendspin_closed"
-    ) == {"kind": "sendspin_closed"}
-    # This is an old encrypted message already in flight before the close event.
-    await wire.send_frame(b"old-ciphertext", text=False)
+        assert next(
+            m["event"]
+            for m in wire.timeline
+            if (m.get("event") or {}).get("kind") == "sendspin_closed"
+        ) == {"kind": "sendspin_closed"}
+        # An old encrypted message already in flight before the close event.
+        await wire.send_frame(b"old-ciphertext", text=False)
     await speaker.close()
     request = {"type": "panel_assistant/voice_stream_reset", "session": panel.token}
     await panel.client.send_json_auto_id(request)
@@ -1279,6 +1300,7 @@ async def test_a_reply_streams_to_the_answering_panel_only(
 
 
 @LINGERING
+@pytest.mark.parametrize("at_drain", [False, True])
 async def test_a_newer_media_announcement_ends_the_older_stream_first(
     hass: HomeAssistant,
     native: MockConfigEntry,  # noqa: F811
@@ -1286,6 +1308,8 @@ async def test_a_newer_media_announcement_ends_the_older_stream_first(
     hass_read_only_access_token: str,
     base: str,
     wires: list[tuple[Wire, Speaker]],
+    monkeypatch: pytest.MonkeyPatch,
+    at_drain: bool,
 ) -> None:
     """The old stream's end reaches the panel before the new stream's play."""
     speaker = Speaker()
@@ -1302,6 +1326,21 @@ async def test_a_newer_media_announcement_ends_the_older_stream_first(
     await panel.sync(hass)
     await speaker.connect(wire, hello["result"][CAPABILITY])
     await _ready(hass, speaker)
+    voice_stream = async_get_voice_stream(hass)
+    assert voice_stream is not None
+    player = voice_stream.server.get_client(speaker.client_id)
+    assert player is not None
+    draining = asyncio.Event()
+    wait_drained = player.wait_role_drained
+
+    async def hold_first_drain(role: str) -> None:
+        if not draining.is_set():
+            draining.set()
+            await asyncio.Future()
+        await wait_drained(role)
+
+    if at_drain:
+        monkeypatch.setattr(player, "wait_role_drained", hold_first_drain)
     from .test_media_player import _player
 
     async def announce(name: str) -> dict[str, Any]:
@@ -1324,11 +1363,15 @@ async def test_a_newer_media_announcement_ends_the_older_stream_first(
         _voice_stream_event_conforms(value)
         return value
 
-    first = await announce("long")
+    clip = "speech" if at_drain else "long"
+    first = await announce(clip)
     await _until(lambda: bool(speaker.streams and speaker.streams[0].chunks))
+    if at_drain:
+        async with asyncio.timeout(5):
+            await draining.wait()
     assert first == {
         "action": "play",
-        "url": f"{base}/test_voice_stream/long",
+        "url": f"{base}/test_voice_stream/{clip}",
         "announce": True,
         "stream": True,
         "stream_id": first["stream_id"],
@@ -1347,7 +1390,10 @@ async def test_a_newer_media_announcement_ends_the_older_stream_first(
     )
     _heard_in_order(wire, speaker, 0, first["stream_id"])
     _heard_in_order(wire, speaker, 1, second["stream_id"])
-    assert speaker.seconds(0) < 6.0  # of 8 s
+    if at_drain:
+        assert speaker.seconds(0) == _whole(_pcm("speech"))
+    else:
+        assert speaker.seconds(0) < 6.0  # of 8 s
     assert speaker.seconds(1) == _whole(_pcm("speech"))
 
 
