@@ -2,17 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 1.0.0-rc1
 
-This is an early preview of Panel Assistant 1.0, the Home Assistant integration, for people who want to try it before the release candidates and tell me what breaks. It is not a release contender: read the caveats below before you install it, expect rough edges, and please open an issue with the panel model and what you saw. The story of 1.0 is that MQTT and the move from the old panel app are gone for good, so this release only manages panels that 0.9.0 has already moved. In exchange Panel Assistant and the panel now talk over one connection for everything: the sidebar, updates, voice and settings, which is what makes most of the changes below possible. A lot changed; I have listed what you will notice rather than every commit.
+This is the first release candidate of Panel Assistant 1.0, the Home Assistant integration. Read the caveats below before you install it, and please open an issue with the panel model and what you saw. The story of 1.0 is that MQTT and the move from the old panel app are gone for good, so this release only manages panels that 0.9.0 has already moved. In exchange Panel Assistant and the panel now talk over one connection for everything: the sidebar, updates, voice and settings, which is what makes most of the changes below possible. A lot changed; I have listed what you will notice rather than every commit.
 
-Pairs with the 1.0.0-preview1 panel app. The panel app is published first, because Panel Assistant offers a panel only an app release that is on GitHub; each panel is offered the update once that release is out.
+Pairs with the 1.0.0-rc1 panel app. The panel app is published first, because Panel Assistant offers a panel only an app release that is on GitHub; each panel is offered the update once that release is out.
 
 ### Before you install
 
-- **This is a preview, not a release candidate.** HACS shows it only with Show beta versions turned on for Panel Assistant. Once 1.0.0-rc1 is published the preview releases are removed from GitHub; an installed preview keeps working and HACS offers the release candidate as a normal update.
+- **This is a release candidate.** HACS shows it with Show beta versions turned on for Panel Assistant. Please report any problems before the stable release.
 - **Every panel must already be on 0.9.0's panel app.** Install Panel Assistant 0.9.0 first and let it move every panel off MQTT and the old app; 1.0 does neither. A panel still on the old app is refused, with a Repair asking you to go through 0.9.0 first.
-- **Panel Assistant 1.0 and the 1.0 panel app go together.** This release speaks only the 1.0 panel app's connection. Every panel is offered the preview app once its release is published; a panel on an older app is told it needs the update, which Panel Assistant delivers over the panel's approved ADB connection, so a panel without one needs reconnecting by USB first.
+- **Panel Assistant 1.0 and the 1.0 panel app go together.** This release speaks only the 1.0 panel app's connection. Every panel is offered the release candidate app once its release is published; a panel on an older app is told it needs the update, which Panel Assistant delivers over the panel's approved ADB connection, so a panel without one needs reconnecting by USB first.
 - **There is no way back to 0.9 for a panel.** Android does not install an older build over a newer one.
 - **Going back to Panel Assistant 0.9.0 means restoring a backup.** Make a Home Assistant backup before you install 1.0. While no panel runs the 1.0 app yet, restoring it brings 0.9.0 back; a panel already on the 1.0 app stays out of reach until Panel Assistant is on 1.0 again. Do not redownload 0.9.0 in HACS over 1.0: 1.0 removes a setting 0.9.0 relies on, and 0.9.0 would then hand panels it already moved back to MQTT.
 - **Two entities are gone.** The separate camera snapshot image entity is removed; use the panel's camera entity. On a panel with a speaker the separate volume number is removed; use the media player's volume. A Repair names any automation or script that still uses either.
