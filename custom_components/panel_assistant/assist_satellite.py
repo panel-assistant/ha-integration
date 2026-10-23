@@ -435,9 +435,7 @@ class PanelAssistSatellite(AssistSatelliteEntity):
                 ):
                     self._reply_session = session.token
                     self._reply = self.hass.async_create_task(
-                        self._async_stream_reply(
-                            run, play, tts_output["url"], session.voice_stream_client_id
-                        ),
+                        self._async_stream_reply(run, play, tts_output["url"], session),
                         f"{self.entity_id}_voice_reply",
                     )
                 elif session is not None:
@@ -447,14 +445,13 @@ class PanelAssistSatellite(AssistSatelliteEntity):
             run.send({"kind": "error", "code": str(data.get("code", "error"))})
 
     async def _async_stream_reply(
-        self, run: VoiceRun, play: dict[str, Any], url: str, client_id: str | None
+        self, run: VoiceRun, play: dict[str, Any], url: str, session: PanelSession
     ) -> None:
         """Stream the reply to this panel alone, or send it by URL as before.
 
         A streamed reply is finished when its stream drains: the panel does
         not report it played.
         """
-        session = self._session
         voice_stream = async_get_voice_stream(self.hass)
         try:
             source = async_process_play_media_url(self.hass, url)
@@ -469,25 +466,18 @@ class PanelAssistSatellite(AssistSatelliteEntity):
             return True
 
         listener = Listener(
-            client_id,
+            session.voice_stream_client_id,
             _play,
             listen_after=play["continue_conversation"],
             ended=lambda _outcome: (
-                self.tts_response_finished()
-                if self._session is session and self._reply_run is run
-                else None
+                self.tts_response_finished() if self._reply_run is run else None
             ),
         )
         if (
-            (
-                voice_stream is None
-                or source is None
-                or not await voice_stream.async_play_reply(listener, source)
-            )
-            and self._session is session
-            and session is not None
-        ):
-            self._reply_session = session.token
+            voice_stream is None
+            or source is None
+            or not await voice_stream.async_play_reply(listener, source)
+        ) and self._session is session:
             run.send(play)
 
     @callback

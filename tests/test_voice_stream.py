@@ -114,8 +114,6 @@ CLIPS = {
     "speech": _clip(0.5),
     "mp3": _clip(0.5, "mp3"),
     "long": _clip(8.0),
-    # Outlasts a session drop and reconnect, which settle the turn first.
-    "reply": _clip(3.0),
     "narrow": _clip(0.5, rate=16_000),
 }
 

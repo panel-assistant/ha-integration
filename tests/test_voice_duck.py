@@ -694,7 +694,7 @@ async def test_session_loss_settles_streamed_reply_and_restores_room(
     by_url = pipeline.events[-2]
     pipeline.events[-2] = PipelineEvent(
         PipelineEventType.TTS_END,
-        {"tts_output": {"url": f"{base}/test_voice_stream/reply"}},
+        {"tts_output": {"url": f"{base}/test_voice_stream/long"}},
     )
     run_id, handler = await _run(panel, "hey_jarvis")
     await panel.client.send_bytes(bytes([handler]))
@@ -721,7 +721,7 @@ async def test_session_loss_settles_streamed_reply_and_restores_room(
     assert speaker.level < LEVEL
     # The cut-off stream ends later and cannot end the newer turn.
     voice_stream = async_get_voice_stream(hass)
-    await _until(lambda: not voice_stream._playing, 10)
+    await _until(lambda: not voice_stream._playing, 15)
     await hass.async_block_till_done()
     assert hass.states.get(satellite).state == "responding"
     assert speaker.level < LEVEL
@@ -749,13 +749,13 @@ async def test_session_loss_while_a_streamed_reply_is_prepared_settles_it(
     _reply(pipeline, follow_up=True)
     pipeline.events[-2] = PipelineEvent(
         PipelineEventType.TTS_END,
-        {"tts_output": {"url": f"{base}/test_voice_stream/reply"}},
+        {"tts_output": {"url": f"{base}/test_voice_stream/long"}},
     )
     view: _ClipView = hass.data[_ClipView.name]
-    view.held["reply"] = release = asyncio.Event()
+    view.held["long"] = release = asyncio.Event()
     _, handler = await _run(panel, "hey_jarvis")
     await panel.client.send_bytes(bytes([handler]))
-    await _until(lambda: "reply" in _fetched(hass))
+    await _until(lambda: "long" in _fetched(hass))
     assert hass.states.get(satellite).state == "responding"
     assert speaker.level < LEVEL
 
