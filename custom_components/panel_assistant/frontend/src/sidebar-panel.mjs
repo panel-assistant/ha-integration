@@ -479,8 +479,10 @@ export class PanelAssistantSidebar extends HTMLElement {
     frame.removeAttribute('src');
   }
 
+  // The frame's pages run with an opaque origin (the embed view's sandbox header), which no target origin
+  // but '*' names; the message goes to this frame's own window only.
   #postToFrame(message) {
-    this.shadowRoot.querySelector('#frame').contentWindow?.postMessage(message, location.origin);
+    this.shadowRoot.querySelector('#frame').contentWindow?.postMessage(message, '*');
   }
 
   // Ends every relayed subscription; after a reconnect they are already gone and must not be ended.
@@ -500,10 +502,10 @@ export class PanelAssistantSidebar extends HTMLElement {
     const session = this.#session;
     if (!source || event.data?.type !== RELAY_TYPE || !request || typeof request !== 'object') return;
     // A page the frame is leaving ends its subscriptions as it goes, and by the time they arrive the browser
-    // names no source for them. Only those are taken from a gone page of this origin: they can end nothing but
+    // names no source for them. Only those are taken from a gone page of the frame: they can end nothing but
     // this sidebar's own subscriptions, and left unread they would hold the panel's subscriptions until the
-    // panel refuses new ones.
-    const leaving = event.source === null && event.origin === location.origin && request.op === 'unsubscribe';
+    // panel refuses new ones. The frame's sandboxed pages have the opaque origin "null".
+    const leaving = event.source === null && event.origin === 'null' && request.op === 'unsubscribe';
     if (event.source !== source && !leaving) return;
     const generation = this.#relayGeneration;
     const post = frame => { if (!leaving && generation === this.#relayGeneration) this.#postToFrame({ type: RELAY_TYPE, frame }); };

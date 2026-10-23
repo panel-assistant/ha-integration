@@ -753,7 +753,8 @@ test('the shared card follows Home Assistant light or dark, and each failure nam
 function frameWindow() {
   return { posted: [], postMessage(message, origin) { this.posted.push([message, origin]); } };
 }
-function fromWindow(source, data, origin = 'http://ha.example') {
+// The frame's pages are sandboxed, so what they post names the opaque origin "null".
+function fromWindow(source, data, origin = 'null') {
   const event = new Event('message');
   Object.assign(event, { source, data, origin });
   window.dispatchEvent(event);
@@ -788,7 +789,7 @@ test('the relay answers its own frame only and ignores every other source', asyn
   fromWindow(target, { type: RELAY_TYPE, frame: request }); await tick();
   assert.deepEqual(relayed.map(call => call.message), [{ type: 'panel_assistant/ui', entry_id: 'one', request }]);
   relayed[0].resolve({ command_id: 'r1', outcome: 'applied', result: { cpu: 1 } }); await tick();
-  assert.deepEqual(target.posted, [[{ type: RELAY_TYPE, frame: { command_id: 'r1', outcome: 'applied', result: { cpu: 1 } } }, 'http://ha.example']]);
+  assert.deepEqual(target.posted, [[{ type: RELAY_TYPE, frame: { command_id: 'r1', outcome: 'applied', result: { cpu: 1 } } }, '*']]);
 
   // A request the relay rejects still answers, so the page's request fails rather than hangs.
   fromWindow(target, { type: RELAY_TYPE, frame: { ...request, command_id: 'r2' } }); await tick();
@@ -811,6 +812,7 @@ test('a page that is being left still ends its subscriptions, and nothing else i
   assert.equal(target.posted.length, posted, 'the answer would reach the next page, which never asked');
 
   fromWindow(null, unsubscribe('s2'), 'http://elsewhere.example');
+  fromWindow(null, unsubscribe('s2'), 'http://ha.example');
   fromWindow(null, { type: RELAY_TYPE, frame: { kind: 'manage', command_id: 'r9', op: 'perf', args: {} } });
   await tick();
   assert.equal(subs[2].unsubscribed, 0, 'another origin ends nothing');

@@ -2216,7 +2216,7 @@ var ne = class extends HTMLElement {
 		delete e.dataset.ready, e.removeAttribute("src");
 	}
 	#P(e) {
-		this.shadowRoot.querySelector("#frame").contentWindow?.postMessage(e, location.origin);
+		this.shadowRoot.querySelector("#frame").contentWindow?.postMessage(e, "*");
 	}
 	#F(e) {
 		this.#g++, this.#_ = !1;
@@ -2226,7 +2226,7 @@ var ne = class extends HTMLElement {
 	#I(e) {
 		let t = this.shadowRoot.querySelector("#frame").contentWindow, n = e.data?.frame, r = this.#d;
 		if (!t || e.data?.type !== "panel-assistant-ui" || !n || typeof n != "object") return;
-		let i = e.source === null && e.origin === location.origin && n.op === "unsubscribe";
+		let i = e.source === null && e.origin === "null" && n.op === "unsubscribe";
 		if (e.source !== t && !i) return;
 		let a = this.#g, o = (e) => {
 			!i && a === this.#g && this.#P({
