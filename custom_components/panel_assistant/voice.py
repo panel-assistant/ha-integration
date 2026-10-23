@@ -91,6 +91,7 @@ COMMAND_VOICE_CONFIGURATION: Final = f"{DOMAIN}/voice_configuration"
 COMMAND_VOICE_RUN: Final = f"{DOMAIN}/voice_run"
 COMMAND_VOICE_PLAYED: Final = f"{DOMAIN}/voice_played"
 COMMAND_VOICE_STREAM_FRAME: Final = f"{DOMAIN}/voice_stream_frame"
+COMMAND_VOICE_STREAM_RESET: Final = f"{DOMAIN}/voice_stream_reset"
 COMMAND_VOICE_STREAM_STOP: Final = f"{DOMAIN}/voice_stream_stop"
 EVENT_VOICE_ANNOUNCE: Final = "voice_announce"
 EVENT_VOICE_COLORS: Final = "voice_colors"
@@ -276,6 +277,14 @@ VOICE_STREAM_FRAME_SCHEMA: Final = vol.Schema(
         vol.Required("frame"): _sendspin_frame,
         # Whether the Sendspin message was a text message.
         vol.Required("text"): bool,
+    },
+    extra=vol.REMOVE_EXTRA,
+)
+
+VOICE_STREAM_RESET_SCHEMA: Final = vol.Schema(
+    {
+        vol.Required("type"): COMMAND_VOICE_STREAM_RESET,
+        vol.Required("session"): _session_token,
     },
     extra=vol.REMOVE_EXTRA,
 )
@@ -561,6 +570,20 @@ def ws_voice_stream_frame(
     connection.send_result(msg["id"], {})
 
 
+@websocket_command(vol.All(VOICE_STREAM_RESET_SCHEMA))
+@async_response
+async def ws_voice_stream_reset(
+    hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Acknowledge the boundary between an old player and its next handshake."""
+    if (found := _stream_session(hass, connection, msg)) is None:
+        return
+    voice_stream, token = found
+    await voice_stream.async_reset(token)
+    # No await after attach: this result precedes frames from the fresh link.
+    connection.send_result(msg["id"], {})
+
+
 @websocket_command(vol.All(VOICE_STREAM_STOP_SCHEMA))
 @async_response
 async def ws_voice_stream_stop(
@@ -582,6 +605,7 @@ def async_setup_voice(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_voice_played)
     websocket_api.async_register_command(hass, ws_voice_stream_frame)
     websocket_api.async_register_command(hass, ws_voice_stream_stop)
+    websocket_api.async_register_command(hass, ws_voice_stream_reset)
 
 
 def satellite_unique_id(entry_id: str) -> str:

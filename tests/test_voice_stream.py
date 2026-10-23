@@ -33,6 +33,7 @@ from aiosendspin.noise import (
     b64url_decode,
     psk_id_for,
 )
+from aiosendspin.server.push_stream import PushStream
 from homeassistant.components.assist_pipeline import PipelineEvent, PipelineEventType
 from homeassistant.components.assist_satellite import AssistSatelliteEntity
 from homeassistant.const import CONF_ADDRESS
@@ -675,6 +676,7 @@ async def test_a_session_without_the_grant_cannot_send_frames(
     for message in (
         {"type": "panel_assistant/voice_stream_frame", "frame": "AA==", "text": False},
         {"type": "panel_assistant/voice_stream_stop", "stream_id": "abc"},
+        {"type": "panel_assistant/voice_stream_reset"},
     ):
         await client.send_json_auto_id(message | {"session": token})
         answer = await _receive(client)
@@ -725,6 +727,78 @@ async def test_a_granted_panel_connects_pairs_and_plays_inside_its_session(
     _heard_in_order(wire, speaker, 0, stream_id)
     # Speech at its own rate, whole.
     assert speaker.seconds(0) == _whole(_pcm("speech"))
+
+
+@LINGERING
+@pytest.mark.parametrize("kind", ["reply", "announcement"])
+async def test_late_audio_finishes_on_its_rescheduled_timeline(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    base: str,
+    wires: list[tuple[Wire, Speaker]],
+    pipeline: FakePipeline,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+    kind: str,
+) -> None:
+    """A producer pause must not clear the reply's future-timestamped tail."""
+    panel, wire, speaker = await _voice_panel(
+        hass, hass_ws_client, hass_read_only_access_token, wires
+    )
+    service = async_get_voice_stream(hass)
+    assert service is not None
+    # Include a partial final slice, as real speech clips do.
+    monkeypatch.setitem(CLIPS, "late", _clip(8.05))
+    url = f"{base}/test_voice_stream/late"
+    sleep_to_limit = PushStream.sleep_to_limit_buffer
+    commits = 0
+
+    async def delayed(push: PushStream, limit: int) -> None:
+        nonlocal commits
+        await sleep_to_limit(push, limit)
+        commits += 1
+        if commits == 55:
+            await asyncio.sleep(3)
+
+    remaining: list[int] = []
+    ended = speaker._ended
+
+    def record_end(socket: PanelSocket) -> None:
+        ts, size, _ = speaker.streams[-1].chunks[-1]
+        remaining.append(
+            ts
+            + size * 1_000_000 // speaker.bytes_per_second
+            - service.server.clock.now_us()
+        )
+        ended(socket)
+
+    monkeypatch.setattr(PushStream, "sleep_to_limit_buffer", delayed)
+    monkeypatch.setattr(speaker, "_ended", record_end)
+    if kind == "reply":
+        pipeline.events[-2] = PipelineEvent(
+            PipelineEventType.TTS_END, {"tts_output": {"url": url}}
+        )
+        run_id, handler = await _run(panel, "hey_jarvis")
+        await panel.client.send_bytes(bytes([handler]))
+        events = await _turn_events(panel, run_id)
+        assert events[-2]["stream"] is True
+    else:
+        call = _announce(
+            hass, _satellite(hass, entry), base, media_id=url, preannounce=False
+        )
+        assert (await _event(panel))["stream"] is True
+        async with asyncio.timeout(15):
+            await call
+    await _until(lambda: speaker.ends == 1, 15)
+    assert commits == 81
+    assert speaker.seconds(0) == _whole(_pcm("late"))
+    assert len(remaining) == 1
+    assert remaining[0] <= 0, (
+        f"stream/end cleared {remaining[0] / 1000:.1f} ms of audio"
+    )
+    await _until(lambda: bool(wire.ends))
+    assert wire.ends[-1]["outcome"] == "played"
 
 
 @LINGERING
@@ -1025,6 +1099,98 @@ async def test_a_panels_sendspin_connection_ends_with_its_session(
 
 
 @LINGERING
+@pytest.mark.parametrize("at_drain", [False, True])
+@pytest.mark.parametrize("server_closed", [False, True])
+async def test_a_closed_player_recovers_inside_the_same_session(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    wires: list[tuple[Wire, Speaker]],
+    base: str,
+    monkeypatch: pytest.MonkeyPatch,
+    at_drain: bool,
+    server_closed: bool,
+) -> None:
+    """An audio-only disconnect recovers without replaying the interrupted speech."""
+    panel, wire, speaker = await _voice_panel(
+        hass, hass_ws_client, hass_read_only_access_token, wires
+    )
+    voice_stream = async_get_voice_stream(hass)
+    assert voice_stream is not None
+    client = voice_stream.server.get_client(speaker.client_id)
+    assert client is not None and client.connection is not None
+    draining = asyncio.Event()
+    wait_drained = client.wait_role_drained
+
+    async def hold_first_drain(role: str) -> None:
+        if not draining.is_set():
+            draining.set()
+            await asyncio.Future()
+        await wait_drained(role)
+
+    if at_drain:
+        monkeypatch.setattr(client, "wait_role_drained", hold_first_drain)
+    clip = "speech" if at_drain else "long"
+    interrupted = _announce(
+        hass,
+        _satellite(hass, entry),
+        base,
+        media_id=f"{base}/test_voice_stream/{clip}",
+        preannounce=False,
+    )
+    await _event(panel)
+    await _until(lambda: bool(speaker.streams and speaker.streams[0].chunks))
+    if at_drain:
+        async with asyncio.timeout(5):
+            await draining.wait()
+    if server_closed:
+        await client.connection.disconnect(retry_connection=False)
+        async with asyncio.timeout(1):
+            await _until(
+                lambda: any(
+                    (m.get("event") or {}).get("kind") == "sendspin_closed"
+                    for m in wire.timeline
+                )
+            )
+        assert next(
+            m["event"]
+            for m in wire.timeline
+            if (m.get("event") or {}).get("kind") == "sendspin_closed"
+        ) == {"kind": "sendspin_closed"}
+        # An old encrypted message already in flight before the close event.
+        await wire.send_frame(b"old-ciphertext", text=False)
+    await speaker.close()
+    request = {"type": "panel_assistant/voice_stream_reset", "session": panel.token}
+    await panel.client.send_json_auto_id(request)
+    async with asyncio.timeout(1):
+        while (reset := await panel.client.receive_json()).get("id") != request["id"]:
+            pass
+    assert reset["success"], reset
+    assert len(wire.ends) == 1 and wire.ends[0]["outcome"] == "failed"
+    assert wire.end_index(wire.ends[0]["stream_id"]) < wire.timeline.index(reset)
+    assert interrupted.done(), (
+        "reset must settle the interrupted announcement before acknowledging"
+    )
+    assert isinstance(interrupted.exception(), HomeAssistantError)
+    await speaker.connect(wire, panel.result[CAPABILITY])
+    await _ready(hass, speaker)
+    await _announce(
+        hass,
+        _satellite(hass, entry),
+        base,
+        media_id=f"{base}/test_voice_stream/speech",
+        preannounce=False,
+    )
+    await speaker.ended(1)
+    assert len(speaker.streams) == 2, "only interrupted speech and the new announcement"
+    assert speaker.seconds(1) == _whole(_pcm("speech"))
+    assert not any(
+        (m.get("event") or {}).get("kind") == "session_closed" for m in wire.timeline
+    )
+
+
+@LINGERING
 async def test_a_session_ending_mid_handshake_leaves_no_task_error(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
@@ -1134,6 +1300,7 @@ async def test_a_reply_streams_to_the_answering_panel_only(
 
 
 @LINGERING
+@pytest.mark.parametrize("at_drain", [False, True])
 async def test_a_newer_media_announcement_ends_the_older_stream_first(
     hass: HomeAssistant,
     native: MockConfigEntry,  # noqa: F811
@@ -1141,6 +1308,8 @@ async def test_a_newer_media_announcement_ends_the_older_stream_first(
     hass_read_only_access_token: str,
     base: str,
     wires: list[tuple[Wire, Speaker]],
+    monkeypatch: pytest.MonkeyPatch,
+    at_drain: bool,
 ) -> None:
     """The old stream's end reaches the panel before the new stream's play."""
     speaker = Speaker()
@@ -1157,6 +1326,21 @@ async def test_a_newer_media_announcement_ends_the_older_stream_first(
     await panel.sync(hass)
     await speaker.connect(wire, hello["result"][CAPABILITY])
     await _ready(hass, speaker)
+    voice_stream = async_get_voice_stream(hass)
+    assert voice_stream is not None
+    player = voice_stream.server.get_client(speaker.client_id)
+    assert player is not None
+    draining = asyncio.Event()
+    wait_drained = player.wait_role_drained
+
+    async def hold_first_drain(role: str) -> None:
+        if not draining.is_set():
+            draining.set()
+            await asyncio.Future()
+        await wait_drained(role)
+
+    if at_drain:
+        monkeypatch.setattr(player, "wait_role_drained", hold_first_drain)
     from .test_media_player import _player
 
     async def announce(name: str) -> dict[str, Any]:
@@ -1179,11 +1363,15 @@ async def test_a_newer_media_announcement_ends_the_older_stream_first(
         _voice_stream_event_conforms(value)
         return value
 
-    first = await announce("long")
+    clip = "speech" if at_drain else "long"
+    first = await announce(clip)
     await _until(lambda: bool(speaker.streams and speaker.streams[0].chunks))
+    if at_drain:
+        async with asyncio.timeout(5):
+            await draining.wait()
     assert first == {
         "action": "play",
-        "url": f"{base}/test_voice_stream/long",
+        "url": f"{base}/test_voice_stream/{clip}",
         "announce": True,
         "stream": True,
         "stream_id": first["stream_id"],
@@ -1202,7 +1390,10 @@ async def test_a_newer_media_announcement_ends_the_older_stream_first(
     )
     _heard_in_order(wire, speaker, 0, first["stream_id"])
     _heard_in_order(wire, speaker, 1, second["stream_id"])
-    assert speaker.seconds(0) < 6.0  # of 8 s
+    if at_drain:
+        assert speaker.seconds(0) == _whole(_pcm("speech"))
+    else:
+        assert speaker.seconds(0) < 6.0  # of 8 s
     assert speaker.seconds(1) == _whole(_pcm("speech"))
 
 
