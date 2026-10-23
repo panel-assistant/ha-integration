@@ -12,7 +12,7 @@
     "github": "GitHub",
     "unreachable": "nedostupný",
     "restarting": "Restartování ({reason})",
-    "restartingNext": "This panel will come back automatically. There is no need to refresh.",
+    "restartingNext": "Tento panel bude automaticky znovu dostupný. Stránku není třeba obnovovat.",
     "not_loaded": "nenačtený",
     "opening": "Otevírání panelu {panel}…",
     "loadingHint": "Chvilku strpení",

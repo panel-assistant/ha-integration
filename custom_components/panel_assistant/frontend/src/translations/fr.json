@@ -12,7 +12,7 @@
     "github": "GitHub",
     "unreachable": "injoignable",
     "restarting": "Redémarrage ({reason})",
-    "restartingNext": "This panel will come back automatically. There is no need to refresh.",
+    "restartingNext": "Ce panneau reviendra automatiquement. Il n’est pas nécessaire d’actualiser la page.",
     "not_loaded": "non chargé",
     "opening": "Ouverture de {panel}…",
     "loadingHint": "Un instant",

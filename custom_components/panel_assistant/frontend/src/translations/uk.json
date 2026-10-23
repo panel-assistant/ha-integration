@@ -12,7 +12,7 @@
     "github": "GitHub",
     "unreachable": "недоступна",
     "restarting": "Перезапускається ({reason})",
-    "restartingNext": "This panel will come back automatically. There is no need to refresh.",
+    "restartingNext": "Ця панель повернеться автоматично. Оновлювати сторінку не потрібно.",
     "not_loaded": "не завантажено",
     "opening": "Відкриття {panel}…",
     "loadingHint": "Зачекайте мить",

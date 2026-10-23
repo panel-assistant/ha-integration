@@ -12,7 +12,7 @@
     "github": "GitHub",
     "unreachable": "onbereikbaar",
     "restarting": "Opnieuw starten ({reason})",
-    "restartingNext": "This panel will come back automatically. There is no need to refresh.",
+    "restartingNext": "Dit paneel komt automatisch terug. Je hoeft de pagina niet te vernieuwen.",
     "not_loaded": "niet geladen",
     "opening": "{panel} openen…",
     "loadingHint": "Een ogenblik",

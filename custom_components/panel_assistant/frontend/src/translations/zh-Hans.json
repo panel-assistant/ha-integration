@@ -12,7 +12,7 @@
     "github": "GitHub",
     "unreachable": "无法连接",
     "restarting": "正在重启（{reason}）",
-    "restartingNext": "This panel will come back automatically. There is no need to refresh.",
+    "restartingNext": "此面板会自动重新显示，无需刷新。",
     "not_loaded": "未加载",
     "opening": "正在打开 {panel}…",
     "loadingHint": "请稍候",
