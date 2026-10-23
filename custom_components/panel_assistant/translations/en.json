@@ -929,7 +929,7 @@
         "step": {
           "set_up_proximity": {
             "title": "Set up proximity on {panel}",
-            "description": "Until its proximity sensor is set up, {panel} cannot wake on a wave. Setup takes about a minute and needs you in front of the panel. Open Panel Assistant in the sidebar and choose {panel}. On its Configure page, under Presence & wake, select Set up proximity on panel, then follow the instructions on the panel's screen. You can also start it on the panel itself with Open proximity setup on its dashboard. When the panel says the calibration is saved, return here and select Submit."
+            "description": "Until its proximity sensor is set up, {panel} cannot wake on a wave. Setup takes about a minute and needs you in front of the panel. Open Panel Assistant in the sidebar and choose {panel}. On its [Configure page]({configure_url}), under Presence & wake, select Set up proximity on panel, then follow the instructions on the panel's screen. You can also start it on the panel itself with Open proximity setup on its dashboard. When the panel says the calibration is saved, return here and select Submit."
           }
         },
         "error": {

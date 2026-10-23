@@ -901,7 +901,7 @@
         "step": {
           "set_up_proximity": {
             "title": "Näherung auf {panel} einrichten",
-            "description": "Bis sein Näherungssensor eingerichtet ist, kann {panel} nicht durch Winken aufgeweckt werden. Die Einrichtung dauert etwa eine Minute und erfordert, dass du dich vor dem Panel befindest. Öffne Panel Assistant in der Seitenleiste und wähle {panel}. Wähle auf seiner Seite „Konfiguration“ unter „Anwesenheit & Aufwecken“ die Option „Näherung auf dem Panel einrichten“ und folge dann den Anweisungen auf dem Bildschirm des Panels. Du kannst die Einrichtung auch direkt am Panel über „Näherungssensor einrichten“ auf dessen Dashboard starten. Wenn das Panel meldet, dass die Kalibrierung gespeichert ist, kehre hierher zurück und wähle „OK“."
+            "description": "Bis sein Näherungssensor eingerichtet ist, kann {panel} nicht durch Winken aufgeweckt werden. Die Einrichtung dauert etwa eine Minute und erfordert, dass du dich vor dem Panel befindest. Öffne Panel Assistant in der Seitenleiste und wähle {panel}. Wähle auf seiner [Seite „Konfiguration“]({configure_url}) unter „Anwesenheit & Aufwecken“ die Option „Näherung auf dem Panel einrichten“ und folge dann den Anweisungen auf dem Bildschirm des Panels. Du kannst die Einrichtung auch direkt am Panel über „Näherungssensor einrichten“ auf dessen Dashboard starten. Wenn das Panel meldet, dass die Kalibrierung gespeichert ist, kehre hierher zurück und wähle „OK“."
           }
         },
         "error": {

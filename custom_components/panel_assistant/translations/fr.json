@@ -901,7 +901,7 @@
         "step": {
           "set_up_proximity": {
             "title": "Configurer la proximité sur {panel}",
-            "description": "Tant que son capteur de proximité n’est pas configuré, {panel} ne peut pas se réveiller d’un geste de la main. La configuration prend environ une minute et vous devez vous tenir devant le panneau. Ouvrez Panel Assistant dans la barre latérale et choisissez {panel}. Sur sa page Configurer, sous Présence et réveil, sélectionnez Configurer la proximité sur le panneau, puis suivez les instructions à l’écran du panneau. Vous pouvez aussi la lancer sur le panneau lui-même avec Ouvrir la configuration de proximité sur son tableau de bord. Quand le panneau indique que l’étalonnage est enregistré, revenez ici et sélectionnez Valider."
+            "description": "Tant que son capteur de proximité n’est pas configuré, {panel} ne peut pas se réveiller d’un geste de la main. La configuration prend environ une minute et vous devez vous tenir devant le panneau. Ouvrez Panel Assistant dans la barre latérale et choisissez {panel}. Sur sa [page Configurer]({configure_url}), sous Présence et réveil, sélectionnez Configurer la proximité sur le panneau, puis suivez les instructions à l’écran du panneau. Vous pouvez aussi la lancer sur le panneau lui-même avec Ouvrir la configuration de proximité sur son tableau de bord. Quand le panneau indique que l’étalonnage est enregistré, revenez ici et sélectionnez Valider."
           }
         },
         "error": {

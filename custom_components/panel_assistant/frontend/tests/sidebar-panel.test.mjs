@@ -277,6 +277,63 @@ test('an unknown device route uses the existing remembered-panel fallback', asyn
   store.clear();
 });
 
+const CARD = 'cfg-proximity-learning';
+
+test('a Repair link opens its panel at the Configure card once; a reconnect keeps the page', async () => {
+  store.set(SELECTION_KEY, 'one');
+  const hass = fakeHass();
+  const { $, subs } = await mount(hass, false, `/two/configure/${CARD}`);
+  assert.equal(subs[0].message.entry_id, 'two');
+  subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  assert.equal($('#frame').getAttribute('src'), `${url(TOKEN)}configure#${CARD}`);
+  hass.connection.listeners.get('ready')(); await tick();
+  subs[1].callback({ kind: 'opened', url: url(TOKEN) });
+  assert.equal($('#frame').getAttribute('src'), `${url(TOKEN)}configure#${CARD}`, 'a resumed session keeps the page');
+  subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
+  assert.equal($('#frame').getAttribute('src'), url(TOKEN2), 'a later session opens the first page');
+  store.clear();
+});
+
+test('a Repair link to the panel already shown reopens it at the card', async () => {
+  const { panel, $, subs } = await mount(fakeHass(), false, '/one');
+  subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  panel.route = { path: `/one/configure/${CARD}` }; await tick();
+  assert.equal(subs[0].unsubscribed, 1);
+  assert.equal(subs[1].message.entry_id, 'one');
+  subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
+  assert.equal($('#frame').getAttribute('src'), `${url(TOKEN2)}configure#${CARD}`);
+  store.clear();
+});
+
+test('a Repair link falls back safely: unknown panel, another choice, unreachable panel, malformed route', async () => {
+  store.set(SELECTION_KEY, 'two');
+  let mounted = await mount(fakeHass(), false, `/missing/configure/${CARD}`);
+  assert.equal(mounted.subs[0].message.entry_id, 'two');
+  mounted.subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  assert.equal(mounted.$('#frame').getAttribute('src'), url(TOKEN), 'an unknown panel opens the remembered one at its first page');
+  store.clear();
+
+  mounted = await mount(fakeHass(), false, `/one/configure/${CARD}`);
+  mounted.$('#panels').fire('change', { target: { value: 'two' } }); await tick();
+  mounted.subs[1].callback({ kind: 'opened', url: url(TOKEN) });
+  assert.equal(mounted.$('#frame').getAttribute('src'), url(TOKEN), 'another panel chosen by hand opens at its first page');
+
+  const hass = fakeHass({ panels: [row('one', 'unreachable')] });
+  mounted = await mount(hass, false, `/one/configure/${CARD}`);
+  assert.equal(mounted.subs.length, 0);
+  assert.equal(mounted.$('#status').textContent, SIDEBAR_MESSAGES.unreachableBody);
+  hass.panels = [row('one')]; intervals[0].fn(); await tick();
+  mounted.subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  assert.equal(mounted.$('#frame').getAttribute('src'), `${url(TOKEN)}configure#${CARD}`, 'the link waits for the panel to be reachable');
+
+  for (const [path, suffix] of [['/one/logs/x', ''], ['/one/configure/%22x', 'configure'], ['/one/configure', 'configure']]) {
+    mounted = await mount(fakeHass(), false, path);
+    mounted.subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+    assert.equal(mounted.$('#frame').getAttribute('src'), url(TOKEN) + suffix, path);
+  }
+  store.clear();
+});
+
 test('language or theme changes reopen without resume; other hass updates do not', async () => {
   const hass = fakeHass();
   const { panel, subs } = await mount(hass);

@@ -929,7 +929,7 @@
         "step": {
           "set_up_proximity": {
             "title": "Nabijheid instellen op {panel}",
-            "description": "Totdat de nabijheidssensor is ingesteld, kan {panel} niet ontwaken door te zwaaien. Het instellen duurt ongeveer een minuut en vereist dat je je voor het paneel bevindt. Open Panel Assistant in de zijbalk en kies {panel}. Selecteer op de pagina 'Configureren' ervan, onder 'Aanwezigheid & wekken', 'Nabijheid instellen op paneel' en volg daarna de instructies op het scherm van het paneel. Je kunt het instellen ook op het paneel zelf starten met 'Nabijheidsinstelling openen' op het dashboard ervan. Wanneer het paneel meldt dat de kalibratie is opgeslagen, keer je hier terug en selecteer je 'Verzenden'."
+            "description": "Totdat de nabijheidssensor is ingesteld, kan {panel} niet ontwaken door te zwaaien. Het instellen duurt ongeveer een minuut en vereist dat je je voor het paneel bevindt. Open Panel Assistant in de zijbalk en kies {panel}. Selecteer op de [pagina 'Configureren']({configure_url}) ervan, onder 'Aanwezigheid & wekken', 'Nabijheid instellen op paneel' en volg daarna de instructies op het scherm van het paneel. Je kunt het instellen ook op het paneel zelf starten met 'Nabijheidsinstelling openen' op het dashboard ervan. Wanneer het paneel meldt dat de kalibratie is opgeslagen, keer je hier terug en selecteer je 'Verzenden'."
           }
         },
         "error": {

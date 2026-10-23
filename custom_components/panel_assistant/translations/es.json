@@ -901,7 +901,7 @@
         "step": {
           "set_up_proximity": {
             "title": "Configurar la proximidad en {panel}",
-            "description": "Mientras su sensor de proximidad no esté configurado, {panel} no puede activarse con un gesto de la mano. La configuración tarda alrededor de un minuto y necesitas estar delante del panel. Abre Panel Assistant en la barra lateral y elige {panel}. En su página Configurar, en Presencia y activación, selecciona Configurar proximidad en el panel y sigue las instrucciones en la pantalla del panel. También puedes iniciarla en el propio panel con Abrir configuración de proximidad en su panel de control. Cuando el panel indique que la calibración se ha guardado, vuelve aquí y selecciona Enviar."
+            "description": "Mientras su sensor de proximidad no esté configurado, {panel} no puede activarse con un gesto de la mano. La configuración tarda alrededor de un minuto y necesitas estar delante del panel. Abre Panel Assistant en la barra lateral y elige {panel}. En su [página Configurar]({configure_url}), en Presencia y activación, selecciona Configurar proximidad en el panel y sigue las instrucciones en la pantalla del panel. También puedes iniciarla en el propio panel con Abrir configuración de proximidad en su panel de control. Cuando el panel indique que la calibración se ha guardado, vuelve aquí y selecciona Enviar."
           }
         },
         "error": {

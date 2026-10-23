@@ -929,7 +929,7 @@
         "step": {
           "set_up_proximity": {
             "title": "Nastavení detekce přiblížení na panelu {panel}",
-            "description": "Dokud není nastaven jeho senzor přiblížení, {panel} se nemůže probudit mávnutím. Nastavení trvá asi minutu a vyžaduje vaši přítomnost před panelem. Otevřete Panel Assistant v postranním panelu a vyberte {panel}. Na jeho stránce Konfigurovat v části Přítomnost a probuzení vyberte Nastavit detekci přiblížení na panelu a pak postupujte podle pokynů na obrazovce panelu. Nastavení můžete spustit také přímo na panelu pomocí Otevřít nastavení detekce přiblížení na jeho ovládacím panelu. Až panel oznámí, že je kalibrace uložena, vraťte se sem a vyberte Odeslat."
+            "description": "Dokud není nastaven jeho senzor přiblížení, {panel} se nemůže probudit mávnutím. Nastavení trvá asi minutu a vyžaduje vaši přítomnost před panelem. Otevřete Panel Assistant v postranním panelu a vyberte {panel}. Na jeho [stránce Konfigurovat]({configure_url}) v části Přítomnost a probuzení vyberte Nastavit detekci přiblížení na panelu a pak postupujte podle pokynů na obrazovce panelu. Nastavení můžete spustit také přímo na panelu pomocí Otevřít nastavení detekce přiblížení na jeho ovládacím panelu. Až panel oznámí, že je kalibrace uložena, vraťte se sem a vyberte Odeslat."
           }
         },
         "error": {

@@ -929,7 +929,7 @@
         "step": {
           "set_up_proximity": {
             "title": "Configurar a proximidade em {panel}",
-            "description": "Enquanto o sensor de proximidade não estiver configurado, {panel} não pode despertar com um aceno. A configuração leva cerca de um minuto e você precisa ficar na frente do painel. Abra o Panel Assistant na barra lateral e escolha {panel}. Na página Configurar, em Presença e despertar, selecione Configurar proximidade no painel e siga as instruções na tela do painel. Você também pode iniciá-la no próprio painel com Abrir configuração de proximidade no dashboard dele. Quando o painel informar que a calibração foi salva, volte aqui e selecione Enviar."
+            "description": "Enquanto o sensor de proximidade não estiver configurado, {panel} não pode despertar com um aceno. A configuração leva cerca de um minuto e você precisa ficar na frente do painel. Abra o Panel Assistant na barra lateral e escolha {panel}. Na [página Configurar]({configure_url}), em Presença e despertar, selecione Configurar proximidade no painel e siga as instruções na tela do painel. Você também pode iniciá-la no próprio painel com Abrir configuração de proximidade no dashboard dele. Quando o painel informar que a calibração foi salva, volte aqui e selecione Enviar."
           }
         },
         "error": {

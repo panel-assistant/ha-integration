@@ -901,7 +901,7 @@
         "step": {
           "set_up_proximity": {
             "title": "Configura la prossimità su {panel}",
-            "description": "Finché il sensore di prossimità non è configurato, {panel} non può riattivarsi con un gesto della mano. La configurazione richiede circa un minuto e devi stare davanti al pannello. Apri Panel Assistant nella barra laterale e scegli {panel}. Nella sua pagina Configura, in Presenza e riattivazione, seleziona Configura prossimità sul pannello, quindi segui le istruzioni sullo schermo del pannello. Puoi avviarla anche dal pannello stesso con Apri configurazione di prossimità sulla sua plancia. Quando il pannello indica che la calibrazione è salvata, torna qui e seleziona Invia."
+            "description": "Finché il sensore di prossimità non è configurato, {panel} non può riattivarsi con un gesto della mano. La configurazione richiede circa un minuto e devi stare davanti al pannello. Apri Panel Assistant nella barra laterale e scegli {panel}. Nella sua [pagina Configura]({configure_url}), in Presenza e riattivazione, seleziona Configura prossimità sul pannello, quindi segui le istruzioni sullo schermo del pannello. Puoi avviarla anche dal pannello stesso con Apri configurazione di prossimità sulla sua plancia. Quando il pannello indica che la calibrazione è salvata, torna qui e seleziona Invia."
           }
         },
         "error": {

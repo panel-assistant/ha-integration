@@ -929,7 +929,7 @@
         "step": {
           "set_up_proximity": {
             "title": "Konfiguracja czujnika zbliżeniowego na panelu {panel}",
-            "description": "Dopóki czujnik zbliżeniowy nie zostanie skonfigurowany, {panel} nie może wybudzić się po machnięciu. Konfiguracja trwa około minuty i wymaga twojej obecności przed panelem. Otwórz Panel Assistant na pasku bocznym i wybierz {panel}. Na jego stronie „Konfiguracja” w sekcji „Obecność i wybudzanie” wybierz „Skonfiguruj czujnik zbliżeniowy na panelu”, a następnie postępuj zgodnie z instrukcjami na ekranie panelu. Możesz też rozpocząć konfigurację na samym panelu, używając opcji „Otwórz ustawienia zbliżenia” na jego pulpicie. Gdy panel poinformuje, że kalibracja została zapisana, wróć tutaj i wybierz „Zatwierdź”."
+            "description": "Dopóki czujnik zbliżeniowy nie zostanie skonfigurowany, {panel} nie może wybudzić się po machnięciu. Konfiguracja trwa około minuty i wymaga twojej obecności przed panelem. Otwórz Panel Assistant na pasku bocznym i wybierz {panel}. Na jego [stronie „Konfiguracja”]({configure_url}) w sekcji „Obecność i wybudzanie” wybierz „Skonfiguruj czujnik zbliżeniowy na panelu”, a następnie postępuj zgodnie z instrukcjami na ekranie panelu. Możesz też rozpocząć konfigurację na samym panelu, używając opcji „Otwórz ustawienia zbliżenia” na jego pulpicie. Gdy panel poinformuje, że kalibracja została zapisana, wróć tutaj i wybierz „Zatwierdź”."
           }
         },
         "error": {

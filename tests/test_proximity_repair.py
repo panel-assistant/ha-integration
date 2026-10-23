@@ -143,7 +143,12 @@ async def test_the_repair_completes_only_on_a_fresh_calibrated_read(
         flow = await response.json()
         assert flow["type"] == "form"
         assert flow["step_id"] == "set_up_proximity"
-        assert flow["description_placeholders"] == {"panel": "Kitchen display"}
+        # The step links straight to the panel's Presence & wake card in the sidebar.
+        assert flow["description_placeholders"] == {
+            "panel": "Kitchen display",
+            "configure_url": f"/panel-assistant/{entry.entry_id}"
+            "/configure/cfg-proximity-learning",
+        }
         if after == "unreadable":
             status.side_effect = InvalidResponseError
         else:
@@ -170,7 +175,9 @@ async def test_proximity_repair_has_translated_guidance(
     strings = await async_get_translations(hass, language, "issues", {DOMAIN})
     prefix = f"component.{DOMAIN}.issues.panel_proximity_setup"
     assert "{panel}" in strings[f"{prefix}.title"]
-    assert "{panel}" in strings[f"{prefix}.fix_flow.step.set_up_proximity.description"]
+    description = strings[f"{prefix}.fix_flow.step.set_up_proximity.description"]
+    assert "{panel}" in description
+    assert "]({configure_url})" in description
     for error in (
         "proximity_not_calibrated",
         "proximity_calibrating",

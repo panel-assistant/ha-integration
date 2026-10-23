@@ -43,6 +43,15 @@ export function embedToken(url) {
   return typeof url === 'string' ? url.match(/^\/api\/panel_assistant\/embed\/([A-Za-z0-9_-]{43})\/$/)?.[1] ?? null : null;
 }
 
+// A route `/<entry>/<page>/<anchor>` opens that panel at one of its pages, scrolled to the element
+// the anchor names (a Repair's link to a settings card). Anything else after the entry is ignored.
+const ROUTE_PAGES = new Set(['configure']);
+export function routeTarget(path) {
+  const [entryId = '', page, anchor] = typeof path === 'string' ? path.slice(1).split('/') : [];
+  if (!ROUTE_PAGES.has(page)) return { entryId, suffix: '' };
+  return { entryId, suffix: /^[A-Za-z0-9_-]{1,64}$/.test(anchor ?? '') ? `${page}#${anchor}` : page };
+}
+
 export { versionText };
 
 // The selected panel's title, safely interpolated (textContent, never markup) into the loading copy.
@@ -66,7 +75,7 @@ function writeSelection(entryId) {
 export class PanelAssistantSidebar extends HTMLElement {
   get #messages() { return frontendMessages('sidebar', this.#hass?.language); }
   #hass; #panel; #route; #narrow = false; #connection; #panels = null; #listState = 'loading'; #listGeneration = 0;
-  #signature = ''; #selected = null; #session = null; #timer = null; #alerts = null;
+  #signature = ''; #selected = null; #deepLink = null; #frameUrl = null; #session = null; #timer = null; #alerts = null;
   #onReady = () => this.#reconnected();
   // Relayed subscriptions by the page's command ID; a new generation drops late answers.
   #relays = new Map(); #relayGeneration = 0;
@@ -252,7 +261,10 @@ export class PanelAssistantSidebar extends HTMLElement {
   set route(value) {
     const previous = this.#route?.path;
     this.#route = value;
-    if (previous !== value?.path) this.#choose(value?.path?.slice(1));
+    if (previous === value?.path) return;
+    const target = routeTarget(value?.path);
+    this.#deepLink = target.suffix ? target : null;
+    this.#choose(target.entryId);
   }
   get narrow() { return this.#narrow; }
   set narrow(value) {
@@ -376,7 +388,7 @@ export class PanelAssistantSidebar extends HTMLElement {
     this.#panels = panels;
     this.#listState = panels.length ? 'ready' : 'empty';
     if (!panels.some(panel => panel.entry_id === this.#selected)) {
-      const requested = this.#route?.path?.slice(1);
+      const requested = routeTarget(this.#route?.path).entryId;
       const stored = panels.some(panel => panel.entry_id === requested) ? requested : readSelection();
       this.#selected = panels.some(panel => panel.entry_id === stored) ? stored : panels[0]?.entry_id ?? null;
     }
@@ -390,7 +402,11 @@ export class PanelAssistantSidebar extends HTMLElement {
   }
 
   #choose(entryId) {
-    if (!this.#panels?.some(panel => panel.entry_id === entryId) || entryId === this.#selected) return;
+    // A deep link belongs to its route's panel; choosing another panel drops it.
+    if (this.#deepLink?.entryId !== entryId) this.#deepLink = null;
+    if (!this.#panels?.some(panel => panel.entry_id === entryId)) return;
+    // A deep link to the panel already shown reopens it there.
+    if (entryId === this.#selected && !this.#deepLink) return;
     this.#selected = entryId;
     writeSelection(entryId);
     this.#endSession();
@@ -445,10 +461,14 @@ export class PanelAssistantSidebar extends HTMLElement {
       session.state = 'open';
       const frame = this.shadowRoot.querySelector('#frame');
       // A new URL reloads the page; the same one keeps it, so it is told to reopen what closed.
-      if (frame.getAttribute('src') !== event.url) {
+      if (this.#frameUrl !== event.url) {
         delete frame.dataset.ready;
         this.#frameWaiting = false;
-        frame.setAttribute('src', event.url);
+        this.#frameUrl = event.url;
+        // A deep link for this panel opens its page once; later sessions open the panel's first page.
+        const suffix = this.#deepLink?.entryId === session.entryId ? this.#deepLink.suffix : '';
+        if (suffix) this.#deepLink = null;
+        frame.setAttribute('src', event.url + suffix);
       }
       else if (session.reopen) this.#postToFrame({ type: RELAY_TYPE, open: true });
       session.reopen = false;
@@ -491,6 +511,7 @@ export class PanelAssistantSidebar extends HTMLElement {
     delete frame.dataset.ready;
     // A retry document left before its load never consumes its wait message.
     this.#frameWaiting = false;
+    this.#frameUrl = null;
     frame.removeAttribute('src');
   }
 

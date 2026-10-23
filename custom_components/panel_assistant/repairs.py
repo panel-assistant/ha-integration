@@ -28,7 +28,7 @@ from .client import (
 from .config_flow import AdbAuthorization, async_authorize_adb_form
 from .const import CONF_TRANSPORT_USER_ID, DOMAIN, update_unique_id
 from .coordinator import HaPaneldDataUpdateCoordinator, PanelSnapshot
-from .device import panel_display_name
+from .device import PROXIMITY_SETUP_ANCHOR, panel_display_name, sidebar_url
 from .identity import (
     ISSUE_IDENTITY,
     can_confirm_identity,
@@ -658,7 +658,12 @@ class ProximitySetupFlow(RepairsFlow):
         return self.async_show_form(
             step_id="set_up_proximity",
             data_schema=vol.Schema({}),
-            description_placeholders={"panel": panel_display_name(self.hass, entry)},
+            description_placeholders={
+                "panel": panel_display_name(self.hass, entry),
+                "configure_url": sidebar_url(
+                    self._entry_id, "configure", PROXIMITY_SETUP_ANCHOR
+                ),
+            },
             errors=errors,
         )
 
