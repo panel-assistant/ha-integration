@@ -29,6 +29,8 @@ from pytest_homeassistant_custom_component.common import (
     setup_test_component_platform,
 )
 
+from custom_components.panel_assistant.voice_stream import async_get_voice_stream
+
 from .test_transport import OTHER_DID, WsClientFactory, _receive
 from .test_voice import (  # noqa: F401  (fixtures)
     FakePipeline,
@@ -41,7 +43,16 @@ from .test_voice import (  # noqa: F401  (fixtures)
     entry,
     pipeline,
 )
-from .test_voice_stream import _second_entry
+from .test_voice_stream import (  # noqa: F401  (fixtures)
+    LINGERING,
+    _ClipView,
+    _fetched,
+    _second_entry,
+    _until,
+    _voice_panel,
+    base,
+    wires,
+)
 
 LEVEL = 0.6
 MUTE_ONLY = MediaPlayerEntityFeature.VOLUME_MUTE | MediaPlayerEntityFeature.VOLUME_STEP
@@ -656,4 +667,104 @@ async def test_session_loss_settles_url_reply_and_restores_room(
     assert hass.states.get(satellite).state == "responding"
     assert speaker.level < LEVEL
     await _played(hass, replacement)
+    assert speaker.level == LEVEL
+
+
+@LINGERING
+@pytest.mark.parametrize("follow_up", [False, True])
+@pytest.mark.parametrize("loss", ["disconnect", "supersede"])
+async def test_session_loss_settles_streamed_reply_and_restores_room(
+    hass,
+    hass_ws_client,
+    hass_read_only_access_token,
+    entry,  # noqa: F811
+    pipeline,  # noqa: F811
+    base,  # noqa: F811
+    wires,  # noqa: F811
+    follow_up,
+    loss,
+):
+    """A streamed reply cut off by its session settles then, not at its drain."""
+    token = hass_read_only_access_token
+    panel, wire, _ = await _voice_panel(hass, hass_ws_client, token, wires)
+    satellite = _satellite(hass, entry)
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=follow_up)
+    by_url = pipeline.events[-2]
+    pipeline.events[-2] = PipelineEvent(
+        PipelineEventType.TTS_END,
+        {"tts_output": {"url": f"{base}/test_voice_stream/reply"}},
+    )
+    run_id, handler = await _run(panel, "hey_jarvis")
+    await panel.client.send_bytes(bytes([handler]))
+    events = await _turn_events(panel, run_id)
+    assert events[-2]["stream"] is True
+    assert hass.states.get(satellite).state == "responding"
+    assert speaker.level < LEVEL
+    if loss == "disconnect":
+        await panel.client.close()
+        await wire.socket.close()
+        await hass.async_block_till_done()
+        assert speaker.level == LEVEL
+
+    # The panel comes back, without its player yet, and answers by URL.
+    replacement, _, _ = await _voice_panel(
+        hass, hass_ws_client, token, wires, connect=False
+    )
+    assert hass.states.get(satellite).state == "idle"
+    assert speaker.level == LEVEL
+    _reply(pipeline, follow_up=False)
+    pipeline.events[-2] = by_url
+    await _turn(replacement)
+    assert hass.states.get(satellite).state == "responding"
+    assert speaker.level < LEVEL
+    # The cut-off stream ends later and cannot end the newer turn.
+    voice_stream = async_get_voice_stream(hass)
+    await _until(lambda: not voice_stream._playing, 10)
+    await hass.async_block_till_done()
+    assert hass.states.get(satellite).state == "responding"
+    assert speaker.level < LEVEL
+    await _played(hass, replacement)
+    assert hass.states.get(satellite).state == "idle"
+    assert speaker.level == LEVEL
+
+
+@LINGERING
+async def test_session_loss_while_a_streamed_reply_is_prepared_settles_it(
+    hass,
+    hass_ws_client,
+    hass_read_only_access_token,
+    entry,  # noqa: F811
+    pipeline,  # noqa: F811
+    base,  # noqa: F811
+    wires,  # noqa: F811
+):
+    """A reply still being fetched for streaming belongs to its session too."""
+    token = hass_read_only_access_token
+    panel, wire, _ = await _voice_panel(hass, hass_ws_client, token, wires)
+    satellite = _satellite(hass, entry)
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=True)
+    pipeline.events[-2] = PipelineEvent(
+        PipelineEventType.TTS_END,
+        {"tts_output": {"url": f"{base}/test_voice_stream/reply"}},
+    )
+    view: _ClipView = hass.data[_ClipView.name]
+    view.held["reply"] = release = asyncio.Event()
+    _, handler = await _run(panel, "hey_jarvis")
+    await panel.client.send_bytes(bytes([handler]))
+    await _until(lambda: "reply" in _fetched(hass))
+    assert hass.states.get(satellite).state == "responding"
+    assert speaker.level < LEVEL
+
+    await panel.client.close()
+    await wire.socket.close()
+    await hass.async_block_till_done()
+    assert speaker.level == LEVEL
+    release.set()
+    await _voice_panel(hass, hass_ws_client, token, wires, connect=False)
+    await hass.async_block_till_done()
+    assert hass.states.get(satellite).state == "idle"
     assert speaker.level == LEVEL

@@ -108,7 +108,8 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         # The turn's reply was streamed, so its drain finished it.
         self._reply_streamed = False
         self._reply_run: VoiceRun | None = None
-        self._url_reply_session: str | None = None
+        # The session the turn's reply went to: its end settles the reply.
+        self._reply_session: str | None = None
         # Announcements the panel has not finished, with the session each was
         # sent on: one that ends first cannot finish it.
         self._announcements: dict[str, tuple[str, asyncio.Future[bool]]] = {}
@@ -167,8 +168,8 @@ class PanelAssistSatellite(AssistSatelliteEntity):
     def _session_changed(self) -> None:
         session = self._session
         self._fail_announcements(None if session is None else session.token)
-        if self._url_reply_session is not None and (
-            session is None or session.token != self._url_reply_session
+        if self._reply_session is not None and (
+            session is None or session.token != self._reply_session
         ):
             self._continue_conversation = False
             self.tts_response_finished()
@@ -346,7 +347,7 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         voice = self._voice
         self._run = run
         self._reply_run = run
-        self._url_reply_session = None
+        self._reply_session = None
         self._reply_streamed = False
         self._continue_conversation = False
         cancelled = False
@@ -432,6 +433,7 @@ class PanelAssistSatellite(AssistSatelliteEntity):
                     and voice_stream is not None
                     and voice_stream.ready(session.voice_stream_client_id)
                 ):
+                    self._reply_session = session.token
                     self._reply = self.hass.async_create_task(
                         self._async_stream_reply(
                             run, play, tts_output["url"], session.voice_stream_client_id
@@ -439,7 +441,7 @@ class PanelAssistSatellite(AssistSatelliteEntity):
                         f"{self.entity_id}_voice_reply",
                     )
                 elif session is not None:
-                    self._url_reply_session = session.token
+                    self._reply_session = session.token
                     run.send(play)
         elif event.type is PipelineEventType.ERROR:
             run.send({"kind": "error", "code": str(data.get("code", "error"))})
@@ -485,13 +487,13 @@ class PanelAssistSatellite(AssistSatelliteEntity):
             and self._session is session
             and session is not None
         ):
-            self._url_reply_session = session.token
+            self._reply_session = session.token
             run.send(play)
 
     @callback
     def tts_response_finished(self) -> None:
         """The turn's reply has played: hold the room for a follow-up, or let go."""
-        self._url_reply_session = None
+        self._reply_session = None
         self._reply_run = None
         self._duck.end(follow_up=self._continue_conversation)
         super().tts_response_finished()

@@ -58,7 +58,7 @@ Pairs with the 1.0.0-rc1 panel app. The panel app is published first, because Pa
 
 ### Fixed
 
-- Losing a panel connection settles its pending URL voice reply and releases room audio. Stopping an announcement during preparation withdraws that listener while other panels continue.
+- Losing a panel connection mid reply ends the turn at once: the voice assistant no longer shows Responding after the panel reconnects, and ducked room speakers get their volume back, whether the reply was streamed or sent by URL. Stopping an announcement during preparation withdraws that listener while other panels continue.
 - Sidebar subscriptions clean up when their reply arrives late. The USB release picker waits for bounded signature verification instead of giving up after fifteen seconds.
 - With the matching panel app update, synchronised speech recovers when its audio connection closes, without disconnecting panel controls or replaying interrupted speech. Recovery also settles speech whose final audio is still draining, so it cannot leave the panel waiting indefinitely.
 - Spoken replies and announcements keep their rescheduled final audio after a delay producing the stream.
