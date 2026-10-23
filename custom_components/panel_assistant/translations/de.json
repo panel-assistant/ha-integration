@@ -1424,11 +1424,12 @@
           },
           "authorize_adb": {
             "title": "Updates auf {panel} erlauben",
-            "description": "Wähle „Absenden“ und tippe dann in der Frage „Debugging zulassen?“ auf dem Panel auf „Zulassen“. Dadurch erhält diese Home Assistant-Instanz allgemeinen ADB-Shell-Zugriff auf das Panel, solange das Netzwerk-Debugging aktiviert bleibt.\n\nWähle dann erneut „Absenden“. Du kannst diese Erlaubnis später in den Entwicklereinstellungen des Panels widerrufen."
+            "description": "Wähle „Absenden“ und sieh dann auf den Bildschirm von {panel}: Setze das Häkchen bei **Immer von diesem Computer aus zulassen** und tippe auf **Zulassen**. Android bezeichnet Home Assistant möglicherweise als Computer."
           }
         },
         "progress": {
-          "retrying": "Das Panel wird geprüft und der Vorgang sicher wiederholt."
+          "retrying": "Das Panel wird geprüft und der Vorgang sicher wiederholt.",
+          "authorize_adb": "Sieh auf den Bildschirm von {panel}: Setze das Häkchen bei **Immer von diesem Computer aus zulassen** und tippe auf **Zulassen**. Android bezeichnet Home Assistant möglicherweise als Computer.\n\nSobald das Panel es zulässt, geht es von selbst weiter."
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1566,11 +1567,12 @@
           },
           "authorize_adb": {
             "title": "Updates auf {panel} erlauben",
-            "description": "Wähle „Absenden“ und tippe dann in der Frage „Debugging zulassen?“ auf dem Panel auf „Zulassen“. Dadurch erhält diese Home Assistant-Instanz allgemeinen ADB-Shell-Zugriff auf das Panel, solange das Netzwerk-Debugging aktiviert bleibt.\n\nWähle dann erneut „Absenden“. Du kannst diese Erlaubnis später in den Entwicklereinstellungen des Panels widerrufen."
+            "description": "Wähle „Absenden“ und sieh dann auf den Bildschirm von {panel}: Setze das Häkchen bei **Immer von diesem Computer aus zulassen** und tippe auf **Zulassen**. Android bezeichnet Home Assistant möglicherweise als Computer."
           }
         },
         "progress": {
-          "retrying": "Das Panel wird geprüft und der Vorgang sicher wiederholt."
+          "retrying": "Das Panel wird geprüft und der Vorgang sicher wiederholt.",
+          "authorize_adb": "Sieh auf den Bildschirm von {panel}: Setze das Häkchen bei **Immer von diesem Computer aus zulassen** und tippe auf **Zulassen**. Android bezeichnet Home Assistant möglicherweise als Computer.\n\nSobald das Panel es zulässt, geht es von selbst weiter."
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1607,7 +1609,7 @@
         "step": {
           "authorize_adb": {
             "title": "Updates auf {panel} erlauben",
-            "description": "Wähle „Absenden“ und tippe dann in der Frage „Debugging zulassen?“ auf dem Panel auf „Zulassen“. Dadurch erhält diese Home Assistant-Instanz allgemeinen ADB-Shell-Zugriff auf das Panel, solange das Netzwerk-Debugging aktiviert bleibt.\n\nWähle dann erneut „Absenden“. Du kannst diese Erlaubnis später in den Entwicklereinstellungen des Panels widerrufen."
+            "description": "Wähle „Absenden“ und sieh dann auf den Bildschirm von {panel}: Setze das Häkchen bei **Immer von diesem Computer aus zulassen** und tippe auf **Zulassen**. Android bezeichnet Home Assistant möglicherweise als Computer."
           }
         },
         "error": {
@@ -1627,6 +1629,9 @@
         },
         "abort": {
           "entry_removed": "Dieses Panel wurde entfernt."
+        },
+        "progress": {
+          "authorize_adb": "Sieh auf den Bildschirm von {panel}: Setze das Häkchen bei **Immer von diesem Computer aus zulassen** und tippe auf **Zulassen**. Android bezeichnet Home Assistant möglicherweise als Computer.\n\nSobald das Panel es zulässt, geht es von selbst weiter."
         }
       }
     },
@@ -1656,8 +1661,8 @@
         "submit": "Fertig"
       },
       "authorize_adb": {
-        "title": "Updates auf {panel} erlauben",
-        "description": "Wähle „Absenden“ und tippe dann in der Frage „Debugging zulassen?“ auf dem Panel auf „Zulassen“. Dadurch erhält diese Home Assistant-Instanz allgemeinen ADB-Shell-Zugriff auf das Panel, solange das Netzwerk-Debugging aktiviert bleibt.\n\nWähle dann erneut „Absenden“. Du kannst diese Erlaubnis später in den Entwicklereinstellungen des Panels widerrufen."
+        "title": "Home Assistant auf dem Panel zulassen",
+        "description": "Wähle „Absenden“ und sieh dann auf den Bildschirm von {panel}: Setze das Häkchen bei **Immer von diesem Computer aus zulassen** und tippe auf **Zulassen**. Android bezeichnet Home Assistant möglicherweise als Computer."
       },
       "updates": {
         "title": "Panel-Updates",
@@ -1712,6 +1717,9 @@
       "removed_entry_deleted": "Panel Assistant wurde entfernt und das Panel aus Home Assistant gelöscht.",
       "removed_entry_kept": "Panel Assistant wurde entfernt. Das Panel bleibt in Home Assistant, bis du es löschst.",
       "panel_connected": "Das Panel ist eingerichtet und mit Home Assistant verbunden."
+    },
+    "progress": {
+      "authorize_adb": "Sieh auf den Bildschirm von {panel}: Setze das Häkchen bei **Immer von diesem Computer aus zulassen** und tippe auf **Zulassen**. Android bezeichnet Home Assistant möglicherweise als Computer.\n\nSobald das Panel es zulässt, geht es von selbst weiter."
     }
   }
 }

@@ -1424,11 +1424,12 @@
           },
           "authorize_adb": {
             "title": "Consenti aggiornamenti su {panel}",
-            "description": "Seleziona «Invia», quindi tocca «Consenti» nella richiesta «Consentire il debug?» sul pannello. Il consenso fornisce a questa istanza di Home Assistant un accesso generale alla shell ADB del pannello finché il debug di rete rimane attivo.\n\nQuindi seleziona di nuovo «Invia». Potrai revocare questo consenso in seguito nelle impostazioni sviluppatore del pannello."
+            "description": "Seleziona Invia, poi guarda lo schermo di {panel}: seleziona **Consenti sempre da questo computer**, poi tocca **Consenti**. Android potrebbe descrivere Home Assistant come un computer."
           }
         },
         "progress": {
-          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza."
+          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza.",
+          "authorize_adb": "Guarda lo schermo di {panel}: seleziona **Consenti sempre da questo computer**, poi tocca **Consenti**. Android potrebbe descrivere Home Assistant come un computer.\n\nL'operazione prosegue da sola quando il pannello lo consente."
         },
         "error": {
           "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
@@ -1566,11 +1567,12 @@
           },
           "authorize_adb": {
             "title": "Consenti aggiornamenti su {panel}",
-            "description": "Seleziona «Invia», quindi tocca «Consenti» nella richiesta «Consentire il debug?» sul pannello. Il consenso fornisce a questa istanza di Home Assistant un accesso generale alla shell ADB del pannello finché il debug di rete rimane attivo.\n\nQuindi seleziona di nuovo «Invia». Potrai revocare questo consenso in seguito nelle impostazioni sviluppatore del pannello."
+            "description": "Seleziona Invia, poi guarda lo schermo di {panel}: seleziona **Consenti sempre da questo computer**, poi tocca **Consenti**. Android potrebbe descrivere Home Assistant come un computer."
           }
         },
         "progress": {
-          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza."
+          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza.",
+          "authorize_adb": "Guarda lo schermo di {panel}: seleziona **Consenti sempre da questo computer**, poi tocca **Consenti**. Android potrebbe descrivere Home Assistant come un computer.\n\nL'operazione prosegue da sola quando il pannello lo consente."
         },
         "error": {
           "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
@@ -1607,7 +1609,7 @@
         "step": {
           "authorize_adb": {
             "title": "Consenti aggiornamenti su {panel}",
-            "description": "Seleziona «Invia», quindi tocca «Consenti» nella richiesta «Consentire il debug?» sul pannello. Il consenso fornisce a questa istanza di Home Assistant un accesso generale alla shell ADB del pannello finché il debug di rete rimane attivo.\n\nQuindi seleziona di nuovo «Invia». Potrai revocare questo consenso in seguito nelle impostazioni sviluppatore del pannello."
+            "description": "Seleziona Invia, poi guarda lo schermo di {panel}: seleziona **Consenti sempre da questo computer**, poi tocca **Consenti**. Android potrebbe descrivere Home Assistant come un computer."
           }
         },
         "error": {
@@ -1627,6 +1629,9 @@
         },
         "abort": {
           "entry_removed": "Questo pannello è stato rimosso."
+        },
+        "progress": {
+          "authorize_adb": "Guarda lo schermo di {panel}: seleziona **Consenti sempre da questo computer**, poi tocca **Consenti**. Android potrebbe descrivere Home Assistant come un computer.\n\nL'operazione prosegue da sola quando il pannello lo consente."
         }
       }
     },
@@ -1656,8 +1661,8 @@
         "submit": "Fatto"
       },
       "authorize_adb": {
-        "title": "Consenti aggiornamenti su {panel}",
-        "description": "Seleziona «Invia», quindi tocca «Consenti» nella richiesta «Consentire il debug?» sul pannello. Il consenso fornisce a questa istanza di Home Assistant un accesso generale alla shell ADB del pannello finché il debug di rete rimane attivo.\n\nQuindi seleziona di nuovo «Invia». Potrai revocare questo consenso in seguito nelle impostazioni sviluppatore del pannello."
+        "title": "Consenti Home Assistant sul pannello",
+        "description": "Seleziona Invia, poi guarda lo schermo di {panel}: seleziona **Consenti sempre da questo computer**, poi tocca **Consenti**. Android potrebbe descrivere Home Assistant come un computer."
       },
       "updates": {
         "title": "Aggiornamenti del pannello",
@@ -1712,6 +1717,9 @@
       "removed_entry_deleted": "Panel Assistant è stato rimosso e il pannello è stato eliminato da Home Assistant.",
       "removed_entry_kept": "Panel Assistant è stato rimosso. Il pannello resta in Home Assistant finché non lo elimini.",
       "panel_connected": "Il pannello è configurato e connesso a Home Assistant."
+    },
+    "progress": {
+      "authorize_adb": "Guarda lo schermo di {panel}: seleziona **Consenti sempre da questo computer**, poi tocca **Consenti**. Android potrebbe descrivere Home Assistant come un computer.\n\nL'operazione prosegue da sola quando il pannello lo consente."
     }
   }
 }
