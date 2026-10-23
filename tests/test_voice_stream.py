@@ -676,6 +676,7 @@ async def test_a_session_without_the_grant_cannot_send_frames(
     for message in (
         {"type": "panel_assistant/voice_stream_frame", "frame": "AA==", "text": False},
         {"type": "panel_assistant/voice_stream_stop", "stream_id": "abc"},
+        {"type": "panel_assistant/voice_stream_reset"},
     ):
         await client.send_json_auto_id(message | {"session": token})
         answer = await _receive(client)
@@ -1095,6 +1096,77 @@ async def test_a_panels_sendspin_connection_ends_with_its_session(
     await _until(lambda: not voice_stream.ready(speaker.client_id))
     client = voice_stream.server.get_client(speaker.client_id)
     assert client is None or not client.is_connected
+
+
+@LINGERING
+async def test_a_closed_player_recovers_inside_the_same_session(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    wires: list[tuple[Wire, Speaker]],
+    base: str,
+) -> None:
+    """An audio-only disconnect recovers without replaying the interrupted speech."""
+    panel, wire, speaker = await _voice_panel(
+        hass, hass_ws_client, hass_read_only_access_token, wires
+    )
+    interrupted = _announce(
+        hass,
+        _satellite(hass, entry),
+        base,
+        media_id=f"{base}/test_voice_stream/long",
+        preannounce=False,
+    )
+    await _event(panel)
+    await _until(lambda: bool(speaker.streams and speaker.streams[0].chunks))
+    voice_stream = async_get_voice_stream(hass)
+    assert voice_stream is not None
+    client = voice_stream.server.get_client(speaker.client_id)
+    assert client is not None and client.connection is not None
+    await client.connection.disconnect(retry_connection=False)
+    async with asyncio.timeout(1):
+        await _until(
+            lambda: any(
+                (m.get("event") or {}).get("kind") == "sendspin_closed"
+                for m in wire.timeline
+            )
+        )
+    assert next(
+        m["event"]
+        for m in wire.timeline
+        if (m.get("event") or {}).get("kind") == "sendspin_closed"
+    ) == {"kind": "sendspin_closed"}
+    # This is an old encrypted message already in flight before the close event.
+    await wire.send_frame(b"old-ciphertext", text=False)
+    await speaker.close()
+    request = {"type": "panel_assistant/voice_stream_reset", "session": panel.token}
+    await panel.client.send_json_auto_id(request)
+    async with asyncio.timeout(1):
+        while (reset := await panel.client.receive_json()).get("id") != request["id"]:
+            pass
+    assert reset["success"], reset
+    assert len(wire.ends) == 1 and wire.ends[0]["outcome"] == "failed"
+    assert wire.end_index(wire.ends[0]["stream_id"]) < wire.timeline.index(reset)
+    assert interrupted.done(), (
+        "reset must settle the interrupted announcement before acknowledging"
+    )
+    assert isinstance(interrupted.exception(), HomeAssistantError)
+    await speaker.connect(wire, panel.result[CAPABILITY])
+    await _ready(hass, speaker)
+    await _announce(
+        hass,
+        _satellite(hass, entry),
+        base,
+        media_id=f"{base}/test_voice_stream/speech",
+        preannounce=False,
+    )
+    await speaker.ended(1)
+    assert len(speaker.streams) == 2, "only interrupted speech and the new announcement"
+    assert speaker.seconds(1) == _whole(_pcm("speech"))
+    assert not any(
+        (m.get("event") or {}).get("kind") == "session_closed" for m in wire.timeline
+    )
 
 
 @LINGERING

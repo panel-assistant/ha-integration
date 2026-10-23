@@ -263,11 +263,13 @@ class SessionSocket:
         return was_open
 
     @callback
-    def close_now(self) -> None:
+    def close_now(self, *, notify: bool = True) -> None:
         """End the connection now, waking a pending receive."""
         if self._closed:
             return
         self._closed = True
+        if notify:
+            self._send({"kind": "sendspin_closed"})
         while True:
             try:
                 self._inbox.put_nowait(WSMessage(WSMsgType.CLOSED, None, ""))
@@ -384,7 +386,7 @@ class VoiceStream:
         socket = self._by_token.pop(token, None)
         if socket is None:
             return
-        socket.close_now()
+        socket.close_now(notify=False)
         if self._by_client.get(socket.client_id) is socket:
             del self._by_client[socket.client_id]
 
@@ -394,15 +396,23 @@ class VoiceStream:
         socket = self._by_token.get(token)
         if socket is None:
             return
-        if socket.closed:
-            # The server ended the last connection; the panel is dialling again.
-            fresh = SessionSocket(socket.client_id, socket.send_event)
-            self._by_token[token] = fresh
-            if self._by_client.get(socket.client_id) is socket:
-                self._by_client[socket.client_id] = fresh
-            self._link(fresh)
-            socket = fresh
+        # Only an explicit ordered reset may replace a closed connection. A frame
+        # already in flight from its old player is not a fresh Noise handshake.
         socket.feed(data, text=text)
+
+    async def async_reset(self, token: str) -> None:
+        """End this player's interrupted speech before accepting its next handshake."""
+        socket = self._by_token.get(token)
+        if socket is None:
+            return
+        async with self._start_lock:
+            stream = self._playing.get(socket.client_id)
+            member = None if stream is None else stream.members.get(socket.client_id)
+            if stream is not None and member is not None and member.socket is socket:
+                await self._async_leave(stream, socket.client_id, OUTCOME_FAILED)
+            # A session ending during cleanup must never acquire another link.
+            if self._by_token.get(token) is socket:
+                self.attach(token, socket.client_id, socket._send)
 
     async def async_stop_stream(self, token: str, stream_id: str) -> None:
         """Take a session's panel off the stream it names, at its own request."""
@@ -634,7 +644,9 @@ class VoiceStream:
         socket = member.socket
         if socket.closed:
             outcome = OUTCOME_FAILED
-        elif socket.stream_id == stream.stream_id:
+        if socket.stream_id == stream.stream_id and self._by_client.get(cid) is socket:
+            # The audio link may be closed while its parent session still holds
+            # a delayed play. Cache its failure there before reset is acknowledged.
             socket.send_event(
                 {
                     "kind": EVENT_VOICE_STREAM_END,

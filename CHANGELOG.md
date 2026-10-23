@@ -56,6 +56,7 @@ Pairs with the 1.0.0-preview1 panel app. The panel app is published first, becau
 
 ### Fixed
 
+- With the matching panel app update, synchronised speech recovers when its audio connection closes, without disconnecting panel controls or replaying interrupted speech.
 - Spoken replies and announcements keep their rescheduled final audio after a delay producing the stream.
 
 - **Installs and updates no longer fail on Magisk-rooted panels whose `su 0` waits for input.** Panel Assistant checks root on a su-rooted panel by trying each form of the `su` command in turn, but a form that never answered stopped the whole check, so on a Magisk panel, whose `su 0` waits for input, an install or update failed as unreachable. A form that does not answer within a few seconds now gives way to the next one, over the network and in the USB installer.
