@@ -16,7 +16,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from homeassistant.core import HomeAssistant
 from yarl import URL
 
-from custom_components.panel_assistant import release, update_policy
+from custom_components.panel_assistant import release_catalog, update_policy
 from custom_components.panel_assistant.adb_protocol import AdbRootMode, LaunchOutcome
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.install_adb import async_launch_installed_app
@@ -50,7 +50,6 @@ from .test_release import (  # noqa: F401
     _canonical_descriptor,
     _descriptor_document,
     _install_test_key,
-    _metadata_response,
     _signature,
     signing_key,
 )
@@ -114,7 +113,8 @@ def _release_0_9_10(signing_key: rsa.RSAPrivateKey) -> FakeSession:  # noqa: F81
             {"name": name, "browser_download_url": f"{ROOT}/{name}"} for name in bodies
         ],
     }
-    responses = {str(release._LATEST_RELEASE_URL): _metadata_response(document)}
+    api = URL(f"{release_catalog.ANDROID_RELEASES_API}/tags/{TAG}")
+    responses = {str(api): FakeResponse(200, json.dumps(document).encode(), api)}
     responses |= {
         f"{ROOT}/{name}": FakeResponse(200, body, URL(f"{ROOT}/{name}"))
         for name, body in bodies.items()
@@ -157,9 +157,9 @@ async def test_a_0_9_10_release_installs_and_starts_by_its_moved_classes(
     """Release, plan, durable job, resumed worker and ADB, end to end."""
     _install_test_key(monkeypatch, signing_key)
 
-    bundle = await release.async_resolve_install_bundle(
-        _release_0_9_10(signing_key)  # type: ignore[arg-type]
-    )
+    session = _release_0_9_10(signing_key)
+    monkeypatch.setattr(release_catalog, "async_get_clientsession", lambda _: session)
+    bundle = await release_catalog.async_resolve_install_bundle_choice(hass, TAG)
 
     resolved = bundle.artifact
     assert resolved.apk_name == NEW_APP_APK

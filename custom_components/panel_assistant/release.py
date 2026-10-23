@@ -777,46 +777,6 @@ def _parse_install_descriptor(
     )
 
 
-async def async_resolve_stable_release(session: ClientSession) -> ReleaseArtifact:
-    """Resolve and authenticate the latest stable ha-paneld APK metadata.
-
-    The APK itself is deliberately not downloaded. The returned digest is trusted
-    only after the exact checksum bytes have passed detached RSA verification.
-    """
-    artifact, _ = await _async_resolve_release(session, _LATEST_RELEASE_URL)
-    return artifact
-
-
-async def async_resolve_rc_release(session: ClientSession, tag: str) -> ReleaseArtifact:
-    """Authenticate one explicitly requested RC; never fall back or select latest."""
-    if not is_rc_release_tag(tag):
-        raise ReleaseResolutionError
-    url = URL(f"{ANDROID_RELEASES_API}/tags/{tag}")
-    artifact, _ = await _async_resolve_release(session, url, expected_rc_tag=tag)
-    return artifact
-
-
-async def async_resolve_install_bundle(
-    session: ClientSession, *, rc_tag: str | None = None
-) -> InstallReleaseBundle:
-    """Retain signed bytes for a stable or explicitly selected RC installation.
-
-    This only resolves metadata; it neither downloads the APK nor creates a job.
-    Unlike legacy release inspection, browser installation requires a descriptor.
-    """
-    url = _LATEST_RELEASE_URL
-    if rc_tag is not None:
-        if not is_rc_release_tag(rc_tag):
-            raise ReleaseResolutionError
-        url = URL(f"{ANDROID_RELEASES_API}/tags/{rc_tag}")
-    artifact, metadata = await _async_resolve_release(
-        session, url, expected_rc_tag=rc_tag
-    )
-    if metadata is None:
-        raise ReleaseResolutionError
-    return InstallReleaseBundle(artifact=artifact, metadata=metadata)
-
-
 async def _async_authenticated_checksum(
     session: ClientSession, assets: dict[str, URL], apk_name: str
 ) -> tuple[str, bytes, bytes]:

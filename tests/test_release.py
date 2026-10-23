@@ -1,4 +1,4 @@
-"""Tests for authenticated stable ha-paneld release resolution."""
+"""Shared production release parser and authenticated HTTP behavior."""
 
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ from custom_components.panel_assistant import (
     install_artifacts,
     release,
 )
+from custom_components.panel_assistant import release_catalog as catalog
 from custom_components.panel_assistant.app_identity import (
     LAUNCH_COMPONENTS,
     LEGACY_PACKAGE_ID,
@@ -27,7 +28,6 @@ from custom_components.panel_assistant.app_identity import (
 from custom_components.panel_assistant.client import is_valid_panel_version
 from custom_components.panel_assistant.release import (
     ReleaseResolutionError,
-    async_resolve_stable_release,
 )
 
 from .http_fakes import FakeContent, FakeResponse, FakeSession
@@ -194,7 +194,7 @@ async def test_rc_resolves_only_exact_requested_tag_and_signed_descriptor(
     """Opt-in authenticates exact RC bytes, not latest or an APK download."""
     _install_test_key(monkeypatch, signing_key)
     session = _rc_session(signing_key)
-    artifact = await release.async_resolve_rc_release(session, "v0.9.7-rc3")  # type: ignore[arg-type]
+    artifact = (await catalog._async_release_choice(session, "v0.9.7-rc3")).artifact  # type: ignore[arg-type]
     assert artifact.tag == "v0.9.7-rc3"
     assert artifact.version == "0.9.7-rc3"
     assert artifact.descriptor is not None
@@ -220,7 +220,6 @@ async def test_rc_resolves_only_exact_requested_tag_and_signed_descriptor(
         True,
         3,
         "",
-        "v0.9.7",
         "0.9.7-rc3",
         "v0.9.7-rc0",
         "v0.9.7-rc03",
@@ -238,10 +237,10 @@ async def test_rc_resolves_only_exact_requested_tag_and_signed_descriptor(
         "v0.9.7-rc" + "3" * 60,
     ],
 )
-async def test_rc_invalid_selection_makes_no_request(tag: Any) -> None:
+async def test_invalid_install_selection_makes_no_request(tag: Any) -> None:
     session = FakeSession({})
     with pytest.raises(ReleaseResolutionError):
-        await release.async_resolve_rc_release(session, tag)  # type: ignore[arg-type]
+        await catalog._async_release_choice(session, tag)  # type: ignore[arg-type]
     assert session.requests == []
 
 
@@ -297,7 +296,7 @@ async def test_rc_refuses_tag_or_release_flag_substitution(
         release._parse_release_metadata(body, expected_rc_tag="v0.9.7-rc3")
     session.responses[api] = FakeResponse(200, body, URL(api))
     with pytest.raises(ReleaseResolutionError):
-        await release.async_resolve_rc_release(session, "v0.9.7-rc3")  # type: ignore[arg-type]
+        await catalog._async_release_choice(session, "v0.9.7-rc3")  # type: ignore[arg-type]
     assert [url for url, _kwargs in session.requests] == [api]
 
 
@@ -355,7 +354,7 @@ async def test_rc_failures_do_not_fall_back_or_bypass_proof(
             200, _signature(signing_key, body), URL(descriptor_url + ".sig")
         )
     with pytest.raises(ReleaseResolutionError):
-        await release.async_resolve_rc_release(session, "v0.9.7-rc3")  # type: ignore[arg-type]
+        await catalog._async_release_choice(session, "v0.9.7-rc3")  # type: ignore[arg-type]
     urls = [url for url, _kwargs in session.requests]
     assert urls[0] == api
     assert str(release._LATEST_RELEASE_URL) not in urls
@@ -418,7 +417,9 @@ async def test_resolves_signed_stable_release_without_downloading_apk(
     _install_test_key(monkeypatch, signing_key)
     session = _successful_session(signing_key)
 
-    artifact = await async_resolve_stable_release(session)  # type: ignore[arg-type]
+    artifact, _ = await release._async_resolve_release(
+        session, release._LATEST_RELEASE_URL
+    )  # type: ignore[arg-type]
 
     assert artifact.tag == _TAG
     assert artifact.version == _VERSION
@@ -455,7 +456,9 @@ async def test_resolves_cross_bound_signed_install_descriptor_without_apk_downlo
     _install_test_key(monkeypatch, signing_key)
     session = _successful_session(signing_key, descriptor=_canonical_descriptor())
 
-    artifact = await async_resolve_stable_release(session)  # type: ignore[arg-type]
+    artifact, _ = await release._async_resolve_release(
+        session, release._LATEST_RELEASE_URL
+    )  # type: ignore[arg-type]
 
     assert artifact.descriptor == release.InstallDescriptor(
         schema="io.github.maxlyth.hapaneld.install.v1",
@@ -523,7 +526,7 @@ async def test_rejects_noncanonical_or_nonstable_tags(tag: str) -> None:
     )
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
     assert len(session.requests) == 1
 
 
@@ -587,7 +590,7 @@ async def test_rejects_malformed_release_documents(body: bytes) -> None:
     )
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(("draft", "prerelease"), [(True, False), (False, True)])
@@ -604,7 +607,7 @@ async def test_rejects_release_flags_that_are_not_stable(
     )
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
@@ -629,7 +632,7 @@ async def test_rejects_release_with_any_required_asset_missing(
     )
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize("present_name", [_DESCRIPTOR_NAME, f"{_DESCRIPTOR_NAME}.sig"])
@@ -654,7 +657,7 @@ async def test_rejects_incomplete_install_descriptor_pair(present_name: str) -> 
     )
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
     assert len(session.requests) == 1
 
 
@@ -676,7 +679,7 @@ async def test_rejects_noncanonical_install_descriptor_asset_url(
     )
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 async def test_rejects_duplicate_install_descriptor_asset() -> None:
@@ -692,7 +695,7 @@ async def test_rejects_duplicate_install_descriptor_asset() -> None:
     )
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize("missing_index", [0, 1, 2])
@@ -746,7 +749,7 @@ async def test_rejects_wrongly_named_asset_triplet() -> None:
     )
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
@@ -774,7 +777,7 @@ async def test_rejects_required_asset_with_noncanonical_url(
     )
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 async def test_rejects_duplicate_required_asset() -> None:
@@ -790,7 +793,7 @@ async def test_rejects_duplicate_required_asset() -> None:
     )
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 async def test_rejects_invalid_checksum_signature(
@@ -801,7 +804,7 @@ async def test_rejects_invalid_checksum_signature(
     session = _successful_session(signing_key, signature=b"x" * 256)
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 async def test_rejects_invalid_install_descriptor_signature_before_parsing(
@@ -821,7 +824,7 @@ async def test_rejects_invalid_install_descriptor_signature_before_parsing(
     )
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
@@ -861,7 +864,7 @@ async def test_rejects_signed_noncanonical_or_malformed_descriptor(
     session = _successful_session(signing_key, descriptor=descriptor)
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
@@ -910,7 +913,7 @@ async def test_rejects_signed_descriptor_outside_closed_contract(
     session = _successful_session(signing_key, descriptor=descriptor)
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize("change", ["missing", "unknown"])
@@ -931,7 +934,7 @@ async def test_rejects_signed_descriptor_with_nonexact_field_set(
     )
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
@@ -956,7 +959,7 @@ async def test_rejects_signed_but_malformed_checksum_record(
     session = _successful_session(signing_key, checksum=checksum)
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
@@ -985,7 +988,7 @@ async def test_rejects_oversized_responses(
     session.responses[request_url].content = FakeContent(body)
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
@@ -1018,7 +1021,7 @@ async def test_rejects_oversized_install_descriptor_responses(
     session.responses[request_url].content = FakeContent(body)
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 async def test_rejects_wrong_install_descriptor_signature_size(
@@ -1033,7 +1036,7 @@ async def test_rejects_wrong_install_descriptor_signature_size(
     )
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 async def test_rejects_excessive_declared_content_length() -> None:
@@ -1044,7 +1047,7 @@ async def test_rejects_excessive_declared_content_length() -> None:
     session = FakeSession({str(release._LATEST_RELEASE_URL): response})
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
     assert response.content.yielded_chunks == 0
 
 
@@ -1057,7 +1060,7 @@ async def test_stream_limit_stops_before_a_second_excessive_chunk() -> None:
     session = FakeSession({str(release._LATEST_RELEASE_URL): response})
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
     assert response.content.yielded_chunks == 1
 
 
@@ -1068,7 +1071,7 @@ async def test_rejects_nonbyte_response_chunks() -> None:
     session = FakeSession({str(release._LATEST_RELEASE_URL): response})
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 async def test_rejects_wrong_signature_size(
@@ -1079,7 +1082,7 @@ async def test_rejects_wrong_signature_size(
     session = _successful_session(signing_key, signature=b"short")
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 async def test_rejects_non_rsa_embedded_key(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1098,7 +1101,7 @@ async def test_rejects_non_rsa_embedded_key(monkeypatch: pytest.MonkeyPatch) -> 
     )
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
@@ -1129,7 +1132,7 @@ async def test_rejects_untrusted_release_asset_redirect(
     checksum_response.headers = CIMultiDict({"Location": location})
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
     assert [url for url, _kwargs in session.requests] == [
         str(release._LATEST_RELEASE_URL),
         _CHECKSUM_URL,
@@ -1171,7 +1174,9 @@ async def test_accepts_bounded_github_release_asset_redirect(
         URL(redirected_url),
     )
 
-    artifact = await async_resolve_stable_release(session)  # type: ignore[arg-type]
+    artifact, _ = await release._async_resolve_release(
+        session, release._LATEST_RELEASE_URL
+    )  # type: ignore[arg-type]
 
     assert artifact.sha256 == _SHA256
     assert [url for url, _kwargs in session.requests] == [
@@ -1200,7 +1205,9 @@ async def test_accepts_trusted_relative_release_redirect(
         URL(redirected_url),
     )
 
-    artifact = await async_resolve_stable_release(session)  # type: ignore[arg-type]
+    artifact, _ = await release._async_resolve_release(
+        session, release._LATEST_RELEASE_URL
+    )  # type: ignore[arg-type]
 
     assert artifact.sha256 == _SHA256
     assert redirected_url in {url for url, _kwargs in session.requests}
@@ -1227,7 +1234,7 @@ async def test_rejects_more_than_three_redirects(
         current_url = redirect_url
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
     requested_urls = [url for url, _kwargs in session.requests]
     assert requested_urls == [
         str(release._LATEST_RELEASE_URL),
@@ -1253,7 +1260,7 @@ async def test_rejects_missing_or_malformed_redirect_location(
     )
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
     assert [url for url, _kwargs in session.requests] == [
         str(release._LATEST_RELEASE_URL),
         _CHECKSUM_URL,
@@ -1276,7 +1283,7 @@ async def test_rejects_multiple_redirect_locations(
     )
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
     assert [url for url, _kwargs in session.requests] == [
         str(release._LATEST_RELEASE_URL),
         _CHECKSUM_URL,
@@ -1291,7 +1298,7 @@ async def test_rejects_metadata_redirect() -> None:
     session = FakeSession({str(release._LATEST_RELEASE_URL): response})
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
     assert [url for url, _kwargs in session.requests] == [
         str(release._LATEST_RELEASE_URL)
     ]
@@ -1304,7 +1311,7 @@ async def test_rejects_unexpected_response_history() -> None:
     session = FakeSession({str(release._LATEST_RELEASE_URL): response})
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
@@ -1335,7 +1342,7 @@ async def test_rejects_duplicate_keys_and_nonstandard_numbers(body: bytes) -> No
     )
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 def test_duplicate_key_is_rejected_in_otherwise_valid_document() -> None:
@@ -1366,7 +1373,7 @@ async def test_rejects_non_success_status(status: int) -> None:
     )
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize("error", [TimeoutError(), ClientConnectionError()])
@@ -1375,7 +1382,7 @@ async def test_maps_bounded_transport_failures(error: Exception) -> None:
     session = FakeSession({}, error=error)
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 _OLD_APK_NAME = f"ha-paneld-{_TAG}-manual-setup-required.apk"
@@ -1440,7 +1447,9 @@ async def test_a_release_carrying_both_apks_resolves_the_successor(
     session.responses[str(release._LATEST_RELEASE_URL)] = _metadata_response(document)
     _serve_old_app_proof(session, signing_key)
 
-    artifact = await async_resolve_stable_release(session)  # type: ignore[arg-type]
+    artifact, _ = await release._async_resolve_release(
+        session, release._LATEST_RELEASE_URL
+    )  # type: ignore[arg-type]
 
     assert artifact.apk_name == _APK_NAME
     assert artifact.apk_url == _APK_URL
@@ -1461,7 +1470,7 @@ async def test_a_release_carrying_only_the_old_apps_apk_is_not_resolved(
     _serve_old_app_proof(session, signing_key)
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 async def test_a_successor_apk_without_its_own_proof_is_not_resolved(
@@ -1480,7 +1489,7 @@ async def test_a_successor_apk_without_its_own_proof_is_not_resolved(
     _serve_old_app_proof(session, signing_key)
 
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 def _dual_release_session(signing_key: rsa.RSAPrivateKey) -> FakeSession:
@@ -1509,7 +1518,7 @@ async def test_signed_successor_descriptor_cannot_claim_legacy_package(
     )
 
     with pytest.raises(ReleaseResolutionError):
-        await release.async_resolve_install_bundle(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 async def test_coordinator_routes_by_package_and_ignores_the_old_app(
@@ -1742,7 +1751,7 @@ async def test_protocol_companion_requires_exact_hash_for_each_resolved_identity
     )
     _serve_protocol_metadata(session, signing_key, body)
     with pytest.raises(ReleaseResolutionError):
-        await release.async_resolve_install_bundle(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
@@ -1778,7 +1787,7 @@ async def test_signed_protocol_companion_refuses_invalid_or_unbound_record(
     body = _canonical_descriptor(document)
     _serve_protocol_metadata(session, signing_key, body)
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
@@ -1884,7 +1893,7 @@ async def test_protocol_companion_refuses_ambiguous_or_unauthenticated_metadata(
                 ),
             )
     with pytest.raises(ReleaseResolutionError):
-        await async_resolve_stable_release(session)  # type: ignore[arg-type]
+        await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
 
 
 async def test_legacy_release_without_protocol_companion_remains_unknown(
@@ -1892,7 +1901,9 @@ async def test_legacy_release_without_protocol_companion_remains_unknown(
 ) -> None:
     """Low-level old release parsing supplies no guessed compatibility proof."""
     _install_test_key(monkeypatch, signing_key)
-    artifact = await async_resolve_stable_release(_successful_session(signing_key))  # type: ignore[arg-type]
+    artifact, _ = await release._async_resolve_release(
+        _successful_session(signing_key), release._LATEST_RELEASE_URL
+    )  # type: ignore[arg-type]
     assert artifact.protocol_min is None
     assert artifact.protocol_max is None
 
@@ -1908,5 +1919,7 @@ async def test_signed_protocol_range_accepts_closed_integer_endpoints(
         )
     )
     _serve_protocol_metadata(session, signing_key, body)
-    artifact = await async_resolve_stable_release(session)  # type: ignore[arg-type]
+    artifact, _ = await release._async_resolve_release(
+        session, release._LATEST_RELEASE_URL
+    )  # type: ignore[arg-type]
     assert (artifact.protocol_min, artifact.protocol_max) == (1, 2147483647)
