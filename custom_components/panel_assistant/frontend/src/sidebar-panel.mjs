@@ -447,6 +447,7 @@ export class PanelAssistantSidebar extends HTMLElement {
       // A new URL reloads the page; the same one keeps it, so it is told to reopen what closed.
       if (frame.getAttribute('src') !== event.url) {
         delete frame.dataset.ready;
+        this.#frameWaiting = false;
         frame.setAttribute('src', event.url);
       }
       else if (session.reopen) this.#postToFrame({ type: RELAY_TYPE, open: true });
@@ -488,6 +489,8 @@ export class PanelAssistantSidebar extends HTMLElement {
   #clearFrame() {
     const frame = this.shadowRoot.querySelector('#frame');
     delete frame.dataset.ready;
+    // A retry document left before its load never consumes its wait message.
+    this.#frameWaiting = false;
     frame.removeAttribute('src');
   }
 

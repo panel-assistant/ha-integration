@@ -2191,7 +2191,7 @@ var re = class extends HTMLElement {
 				r.getAttribute("src") === t.url ? e.reopen && this.#F({
 					type: S,
 					open: !0
-				}) : (delete r.dataset.ready, r.setAttribute("src", t.url)), e.reopen = !1, this.#R();
+				}) : (delete r.dataset.ready, this.#y = !1, r.setAttribute("src", t.url)), e.reopen = !1, this.#R();
 			} else t.kind === "closed" && (this.#F({
 				type: S,
 				closed: !0
@@ -2217,7 +2217,7 @@ var re = class extends HTMLElement {
 	}
 	#P() {
 		let e = this.shadowRoot.querySelector("#frame");
-		delete e.dataset.ready, e.removeAttribute("src");
+		delete e.dataset.ready, this.#y = !1, e.removeAttribute("src");
 	}
 	#F(e) {
 		this.shadowRoot.querySelector("#frame").contentWindow?.postMessage(e, "*");

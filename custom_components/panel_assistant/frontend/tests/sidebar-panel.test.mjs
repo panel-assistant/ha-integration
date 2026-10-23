@@ -895,6 +895,8 @@ for (const reason of ['reboot', 'update', 'recovery']) test(`${reason} keeps the
   frame.contentWindow = frameWindow();
   // The retry document says what it is while it parses, before its load.
   fromWindow(frameWindow(), { type: 'panel-assistant-wait' });
+  frame.fire('load');
+  assert.equal(frame.hidden, false, 'another window cannot hold the page back');
   fromWindow(frame.contentWindow, { type: 'panel-assistant-wait' });
   frame.fire('load');
   assert.equal(frame.hidden, true, 'a self-refreshing 503 remains behind the waiting view');
@@ -902,4 +904,16 @@ for (const reason of ['reboot', 'update', 'recovery']) test(`${reason} keeps the
   frame.fire('load');
   assert.equal(frame.hidden, false);
   assert.equal($('#loading').hidden, true, 'the real page returns without refreshing the sidebar');
+});
+
+test('a retry document left before it loads does not hold back the next page', async () => {
+  const { $, subs } = await mount(fakeHass());
+  subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  const frame = $('#frame');
+  frame.contentDocument = null;
+  frame.contentWindow = frameWindow();
+  fromWindow(frame.contentWindow, { type: 'panel-assistant-wait' });
+  subs[0].callback({ kind: 'opened', url: url(TOKEN2) });
+  frame.fire('load');
+  assert.equal(frame.hidden, false);
 });
