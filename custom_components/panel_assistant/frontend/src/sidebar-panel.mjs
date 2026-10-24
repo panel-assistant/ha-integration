@@ -16,6 +16,8 @@ export const SELECTION_KEY = 'panel_assistant.sidebar.entry';
 export const RELAY_TYPE = 'panel-assistant-ui';
 // What the embed view's retry document posts: the panel is not back yet.
 const WAIT_TYPE = 'panel-assistant-wait';
+// What every page the embed view serves posts from its own load: it is a page to show.
+const READY_TYPE = 'panel-assistant-ready';
 export const ADD_PANEL_PATH = '/config/integrations/dashboard/add?domain=panel_assistant';
 export const SETTINGS_PATH = '/config/integrations/integration/panel_assistant';
 const STATES = new Set(['reachable', 'unreachable', 'not_loaded', 'restarting']);
@@ -84,14 +86,14 @@ export class PanelAssistantSidebar extends HTMLElement {
   #relaysClosed = false;
   #onMessage = event => {
     const frame = this.shadowRoot.querySelector('#frame');
-    if (event.data?.type === WAIT_TYPE && event.source && event.source === frame.contentWindow) {
-      // Posted while the document parses, so it arrives before that document's load.
-      this.#frameWaiting = true;
-      frame.dataset.ready = 'false';
+    const kind = event.data?.type;
+    if ((kind === WAIT_TYPE || kind === READY_TYPE) && event.source && event.source === frame.contentWindow) {
+      // Each document says what it is. The frame's load event cannot: WebKit delivers the
+      // retry document's message after that document's load, and Chromium before it.
+      if (frame.getAttribute('src')) frame.dataset.ready = String(kind === READY_TYPE);
       this.#render();
     } else this.#relayFrame(event);
   };
-  #frameWaiting = false;
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
@@ -195,16 +197,9 @@ export class PanelAssistantSidebar extends HTMLElement {
       overflow.focus?.();
     });
     root.querySelector('#frame').setAttribute('title', this.#messages.frameTitle);
-    root.querySelector('#frame').addEventListener('load', () => {
-      const frame = root.querySelector('#frame');
-      // The embed token can open before the panel returns. Its self-refreshing
-      // retry document is not a usable page, and stays behind the shared Notice.
-      // Every embed document is sandboxed, so the sidebar cannot read it; the retry
-      // document says it is one, and its message may come before or after this load.
-      frame.dataset.ready = String(Boolean(frame.getAttribute('src')) && !this.#frameWaiting);
-      this.#frameWaiting = false;
-      this.#render();
-    });
+    // The embed token can open before the panel returns. Its self-refreshing retry document
+    // is not a usable page and stays behind the shared Notice: the frame shows only once its
+    // sandboxed document, which the sidebar cannot read, says it is a page (see #onMessage).
     const settings = root.querySelector('#settings');
     settings.setAttribute('aria-label', this.#messages.integrationSettings);
     settings.setAttribute('title', this.#messages.integrationSettings);
@@ -471,7 +466,6 @@ export class PanelAssistantSidebar extends HTMLElement {
       // A new URL reloads the page; the same one keeps it, so it is told to reopen what closed.
       if (this.#frameUrl !== event.url) {
         delete frame.dataset.ready;
-        this.#frameWaiting = false;
         this.#frameUrl = event.url;
         // A deep link for this panel opens its page once; later sessions open the panel's first page.
         const suffix = this.#deepLink?.entryId === session.entryId ? this.#deepLink.suffix : '';
@@ -520,8 +514,6 @@ export class PanelAssistantSidebar extends HTMLElement {
   #clearFrame() {
     const frame = this.shadowRoot.querySelector('#frame');
     delete frame.dataset.ready;
-    // A retry document left before its load never consumes its wait message.
-    this.#frameWaiting = false;
     this.#frameUrl = null;
     frame.removeAttribute('src');
   }
