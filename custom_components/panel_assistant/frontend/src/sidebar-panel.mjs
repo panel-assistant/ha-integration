@@ -173,7 +173,7 @@ export class PanelAssistantSidebar extends HTMLElement {
       </div>
       <div id="slot"></div>
     </header><div id="failure" class="state" hidden><section class="card"><span id="failure-pill" class="pill dot"></span><img id="pickles" src="/panel_assistant/usb/pickles.svg" alt=""><p id="failure-status" class="title" role="status" aria-live="polite"></p><p id="pickles-story" data-message="picklesStory"></p><p id="next-step" class="dim"></p></section></div><p id="status" role="status" aria-live="polite"></p><div id="loading" class="state" hidden><section class="card"><span id="loading-pill" class="pill dot" data-message="pillOpening"></span><p id="loading-text" class="title" role="status" aria-live="polite"></p><p id="loading-hint" class="wiz-status dim" data-message="loadingHint"></p></section></div><iframe id="frame"></iframe></div>`;
-    // Pickles art: https://github.com/maxlyth/pickles. Recopy static/pickles.svg for upstream fixes.
+    // Pickles art: https://github.com/maxlyth/pickles. Refresh static/pickles.svg with: node pickles/sync.mjs <pickles checkout> <commit>
     const root = this.shadowRoot;
     for (const element of root.querySelectorAll('[data-message]')) element.textContent = this.#messages[element.dataset.message];
     const menu = root.querySelector('#menu');
