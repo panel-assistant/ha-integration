@@ -8,7 +8,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 
-from .const import DOMAIN
+from .const import DOMAIN, help_url
 
 if TYPE_CHECKING:
     from .voice import VoiceConfiguration
@@ -34,9 +34,15 @@ def async_reconcile_microphone_issue(
     if check not in ("silent", "no_audio"):
         ir.async_delete_issue(hass, DOMAIN, issue_id)
         return
-    from .device import panel_display_name
+    from .device import panel_display_name, sidebar_url
 
-    placeholders = {"panel": panel_display_name(hass, entry)}
+    placeholders = {
+        "panel": panel_display_name(hass, entry),
+        "configure_url": sidebar_url(entry.entry_id, "configure", "cfg-voice_enabled"),
+        "audio_source_url": sidebar_url(
+            entry.entry_id, "configure", "cfg-voice_audio_source"
+        ),
+    }
     if check == "silent":
         translation_key = ISSUE_MICROPHONE_SILENT
     elif microphone is not None and microphone.detail:
@@ -52,6 +58,7 @@ def async_reconcile_microphone_issue(
         is_persistent=False,
         severity=ir.IssueSeverity.WARNING,
         translation_key=translation_key,
+        learn_more_url=help_url("repair", issue=translation_key),
         translation_placeholders=placeholders,
         data={"entry_id": entry.entry_id},
     )

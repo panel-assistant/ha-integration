@@ -66,7 +66,7 @@ async def test_another_home_assistant_repair_uses_the_rename(
     assert async_raise_foreign_ha_issue(hass, entry)
 
     issue = _issue(hass, foreign_ha_issue_id(entry.entry_id))
-    assert issue.translation_placeholders == {"panel": RENAMED}
+    assert issue.translation_placeholders["panel"] == RENAMED
 
 
 async def test_other_account_repair_and_its_rebind_form_use_the_rename(
@@ -85,7 +85,7 @@ async def test_other_account_repair_and_its_rebind_form_use_the_rename(
 
     assert refused["error"]["code"] == "panel_user_mismatch"
     issue_id = f"panel_user_mismatch_{entry.entry_id}"
-    assert _issue(hass, issue_id).translation_placeholders == {"panel": RENAMED}
+    assert _issue(hass, issue_id).translation_placeholders["panel"] == RENAMED
     _, form = await _start_fix_flow(await hass_client(), issue_id)
     assert form["step_id"] == "confirm_rebind"
     assert form["description_placeholders"]["panel"] == RENAMED
@@ -100,7 +100,7 @@ async def test_merged_identity_repair_uses_the_rename(
     async_raise_merged_identity_issue(hass, "did-1", [entry])
 
     issue = _issue(hass, merged_identity_issue_id("did-1"))
-    assert issue.translation_placeholders == {"panels": RENAMED}
+    assert issue.translation_placeholders["panels"] == RENAMED
 
 
 async def test_unverified_address_repair_uses_the_rename(
@@ -200,7 +200,7 @@ async def test_panel_never_moved_off_mqtt_is_refused_under_its_rename(
 
     assert entry.state is ConfigEntryState.SETUP_ERROR
     issue = _issue(hass, f"mqtt_panel_needs_090_{entry.entry_id}")
-    assert issue.translation_placeholders == {"panel": RENAMED}
+    assert issue.translation_placeholders["panel"] == RENAMED
     assert entry.error_reason_translation_placeholders == {"panel": RENAMED}
 
 

@@ -13,6 +13,7 @@ from homeassistant.setup import async_setup_component
 from custom_components.panel_assistant.client import InvalidResponseError
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.status import parse_status_response
+from tests.test_repair_links import assert_repair_links
 
 from .test_permission_repairs import HEALTH, _panel
 
@@ -77,7 +78,10 @@ async def test_an_uncalibrated_sensor_raises_one_warning_until_it_is_calibrated(
     issue = _issue(hass, entry)
     assert issue is not None
     assert issue.is_fixable and issue.severity is ir.IssueSeverity.WARNING
-    assert issue.translation_placeholders == {"panel": "Kitchen display"}
+    assert_repair_links(issue)
+    assert {
+        "panel": "Kitchen display"
+    }.items() <= issue.translation_placeholders.items()
     assert sum(domain == DOMAIN for domain, _ in ir.async_get(hass).issues) == 1
 
     # Someone part way through setup is neither nagged nor told it is done.

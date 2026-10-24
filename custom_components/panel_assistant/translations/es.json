@@ -782,7 +782,9 @@
     }
   },
   "exceptions": {
-    "old_app_needs_090": {"message": "Este panel todavía ejecuta la app antigua: instala primero Panel Assistant 0.9.0, como explica su reparación"},
+    "old_app_needs_090": {
+      "message": "Este panel todavía ejecuta la app antigua: instala primero Panel Assistant 0.9.0, como explica su reparación"
+    },
     "mqtt_panel_needs_090": {
       "message": "{panel} nunca se movió desde MQTT: instala primero Panel Assistant 0.9.0, como explica su reparación"
     },
@@ -792,20 +794,48 @@
     "health_address_retired": {
       "message": "La dirección del panel cambió mientras se leía su estado"
     },
-    "update_unavailable": { "message": "La actualización de Panel Assistant solicitada no está disponible" },
-    "update_busy": { "message": "El panel está ocupado con otra operación" },
-    "update_approval_required": { "message": "Aprueba esta actualización en el panel y vuelve a intentarlo" },
-    "update_rejected": { "message": "{panel} rechazó la solicitud de actualización. Revisa la pestaña Instalar del panel y vuelve a intentarlo." },
-    "update_refused_by_panel": { "message": "{panel} rechazó la actualización: {reason}" },
-    "panel_changed_during_update": { "message": "El panel cambió durante la actualización. Actualiza la vista y vuelve a intentarlo." },
-    "release_download_failed": { "message": "No se pudo descargar la versión de la aplicación. Comprueba la conexión y vuelve a intentarlo." },
-    "staged_app_mismatch": { "message": "La aplicación preparada no coincidía con los datos de la versión firmada, por lo que no se instaló nada." },
-    "update_not_accepted": { "message": "El panel no aceptó la solicitud de actualización" },
-    "update_not_complete": { "message": "La actualización del panel no se completó" },
-    "panel_backup_failed": { "message": "No se pudo hacer una copia de seguridad del panel, así que no se instaló nada" },
-    "build_verification_failed": { "message": "La compilación no coincidía con el feed de compilaciones firmado, así que no se instaló nada" },
-    "release_verification_failed": { "message": "La versión no coincidía con su firma, así que no se instaló nada" },
-    "upload_disabled": { "message": "El panel no acepta subidas de apps; activa la subida de APK en su configuración" },
+    "update_unavailable": {
+      "message": "La actualización de Panel Assistant solicitada no está disponible"
+    },
+    "update_busy": {
+      "message": "El panel está ocupado con otra operación"
+    },
+    "update_approval_required": {
+      "message": "Aprueba esta actualización en el panel y vuelve a intentarlo"
+    },
+    "update_rejected": {
+      "message": "{panel} rechazó la solicitud de actualización. Revisa la pestaña Instalar del panel y vuelve a intentarlo."
+    },
+    "update_refused_by_panel": {
+      "message": "{panel} rechazó la actualización: {reason}"
+    },
+    "panel_changed_during_update": {
+      "message": "El panel cambió durante la actualización. Actualiza la vista y vuelve a intentarlo."
+    },
+    "release_download_failed": {
+      "message": "No se pudo descargar la versión de la aplicación. Comprueba la conexión y vuelve a intentarlo."
+    },
+    "staged_app_mismatch": {
+      "message": "La aplicación preparada no coincidía con los datos de la versión firmada, por lo que no se instaló nada."
+    },
+    "update_not_accepted": {
+      "message": "El panel no aceptó la solicitud de actualización"
+    },
+    "update_not_complete": {
+      "message": "La actualización del panel no se completó"
+    },
+    "panel_backup_failed": {
+      "message": "No se pudo hacer una copia de seguridad del panel, así que no se instaló nada"
+    },
+    "build_verification_failed": {
+      "message": "La compilación no coincidía con el feed de compilaciones firmado, así que no se instaló nada"
+    },
+    "release_verification_failed": {
+      "message": "La versión no coincidía con su firma, así que no se instaló nada"
+    },
+    "upload_disabled": {
+      "message": "El panel no acepta subidas de apps; activa la subida de APK en su configuración"
+    },
     "adb_authorization_required": {
       "message": "Todavía no se permiten las actualizaciones en {panel}. Abre Reparaciones en Home Assistant y selecciona «Permitir actualizaciones en {panel}». Después, pulsa «Permitir» en la pregunta «¿Permitir depuración?» del panel."
     },
@@ -867,31 +897,31 @@
   "issues": {
     "panel_app_too_old": {
       "title": "{panel} necesita la app {required_version}",
-      "description": "{panel} ejecuta la app {version}, que usa un protocolo anterior al de Panel Assistant 1.0, por lo que Home Assistant no puede verlo ni controlarlo y sus entidades aparecen como no disponibles. No se pierde nada: sigue funcionando por su cuenta y conserva sus ajustes y su historial. Instala la actualización que Panel Assistant ofrece para este panel y se reconectará."
+      "description": "Home Assistant no puede ver ni controlar {panel} porque la versión {version} de la app no admite este protocolo de conexión.\n\nPara solucionarlo:\n1. Abre [Actualizaciones]({updates_url}) e instala una actualización compatible de la app para {panel}, si se ofrece.\n2. Espera a que el panel vuelva a conectarse."
     },
     "old_app_needs_090": {
       "title": "{panel} todavía ejecuta la app antigua",
-      "description": "{panel} todavía ejecuta la antigua app ha-paneld. Panel Assistant 1.0 ya no puede mover un panel a la nueva app, así que no instala ni actualiza nada en {panel} hasta que se haya movido. Instala primero Panel Assistant 0.9.0 (en HACS abre Panel Assistant, elige Redownload y selecciona la versión 0.9.0), mueve el panel con su reparación y después instala 1.0.0. Mientras tanto, el panel sigue funcionando con la app antigua."
+      "description": "Panel Assistant no puede instalar ni actualizar {panel} mientras siga ejecutando la antigua app ha-paneld.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación segura]({recovery_url}) para completar la migración con Panel Assistant 0.9.0.\n2. Si algún panel ya ejecuta la app 1.0, o no tienes una copia de seguridad anterior a la actualización, pide ayuda antes de cambiar de versión.\n3. Completa todas las migraciones en 0.9.0 y después actualiza la integración a 1.0."
     },
     "mqtt_panel_needs_090": {
       "title": "{panel} nunca se movió desde MQTT",
-      "description": "Panel Assistant 1.0 ya no puede mover {panel} de MQTT a su propia conexión, y conectarlo ahora crearía un segundo conjunto de entidades y dividiría su historial. Instala primero Panel Assistant 0.9.0 (en HACS abre Panel Assistant, elige Redownload y selecciona la versión 0.9.0), deja que mueva el panel y después instala 1.0.0. Si prefieres empezar de cero, elimina el dispositivo de este panel en Configuración, Dispositivos y servicios, MQTT, luego recarga esta entrada o elimínala y añade el panel de nuevo; así se crean entidades nuevas y no se conserva el historial."
+      "description": "Panel Assistant no puede conectar {panel} mientras sus entidades sigan usando MQTT sin dividir su historial.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación segura]({recovery_url}) para completar la migración con Panel Assistant 0.9.0.\n2. Si algún panel ya ejecuta la app 1.0, o no tienes una copia de seguridad anterior a la actualización, pide ayuda antes de cambiar de versión.\n3. Completa todas las migraciones en 0.9.0 y después actualiza la integración a 1.0."
     },
     "panel_permissions": {
       "title": "Los permisos de {panel} requieren atención.",
       "fix_flow": {
         "step": {
           "commission_permissions": {
-            "title": "Comprobar los permisos de {panel}",
-            "description": "El panel de control de {panel} sigue disponible. En el panel físico, abre Ajustes de Android → Aplicaciones → Panel Assistant. Permite el acceso a la cámara y al micrófono donde aparezcan, y las notificaciones. En Acceso especial de aplicaciones, permite Modificar ajustes del sistema y Mostrar sobre otras aplicaciones para Panel Assistant. En Accesibilidad, activa el servicio Panel Assistant. Cuando la barra de navegación esté configurada como Mostrar al deslizar o Siempre activa y falte Mostrar sobre otras aplicaciones, al deslizar hacia arriba desde la parte inferior del panel de control se abrirá en su lugar el ajuste Mostrar sobre otras aplicaciones: permítelo, vuelve atrás y desliza hacia arriba de nuevo. Vuelve aquí y selecciona Enviar para comprobar los permisos de nuevo."
+            "title": "Comprobar los permisos",
+            "description": "La falta de permisos de Android impide que funcionen algunas funciones de {panel}.\n\nPara solucionarlo:\n1. En el panel, sigue la [guía de permisos de Android]({permissions_url}): en Ajustes → Aplicaciones → Panel Assistant, permite el acceso a la cámara, al micrófono y a las notificaciones cuando aparezcan.\n2. En Acceso especial de aplicaciones, permite Modificar ajustes del sistema y Mostrar sobre otras aplicaciones; en Accesibilidad, activa Panel Assistant.\n3. Vuelve aquí y selecciona Enviar para comprobarlo de nuevo.\n\n[Más información]({learn_more_url})"
           }
         },
         "error": {
-          "permissions_missing": "El panel sigue indicando que falta un permiso. Completa los pasos en el panel y vuelve a enviar.",
-          "permissions_unreadable": "Home Assistant no pudo verificar todos los permisos necesarios en este panel. Comprueba que esté conectado y vuelve a enviar."
+          "permissions_missing": "Aún falta un permiso. Completa los pasos en el panel y vuelve a seleccionar Enviar.",
+          "permissions_unreadable": "Home Assistant no ha podido verificar todos los permisos necesarios. Comprueba que el panel esté conectado y vuelve a seleccionar Enviar."
         },
         "abort": {
-          "entry_removed": "Este panel se ha eliminado."
+          "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant](/config/integrations/integration/panel_assistant) si quieres volver a añadirlo.\n2. En caso contrario, cierra este diálogo.\n\n[Más información]({learn_more_url})"
         }
       }
     },
@@ -900,8 +930,8 @@
       "fix_flow": {
         "step": {
           "set_up_proximity": {
-            "title": "Configurar la proximidad en {panel}",
-            "description": "Mientras su sensor de proximidad no esté configurado, {panel} no puede activarse con un gesto de la mano. La configuración tarda alrededor de un minuto y necesitas estar delante del panel. Abre Panel Assistant en la barra lateral y elige {panel}. En su [página Configurar]({configure_url}), en Presencia y activación, selecciona Configurar proximidad en el panel y sigue las instrucciones en la pantalla del panel. También puedes iniciarla en el propio panel con Abrir configuración de proximidad en su panel de control. Cuando el panel indique que la calibración se ha guardado, vuelve aquí y selecciona Enviar."
+            "title": "Configurar la proximidad",
+            "description": "{panel} no puede activarse al pasar la mano hasta que se configure su sensor de proximidad.\n\nPara solucionarlo:\n1. Abre la [configuración de proximidad]({configure_url}) y selecciona Configurar proximidad en el panel.\n2. Ponte delante de {panel} y sigue las instrucciones de su pantalla (aproximadamente un minuto).\n3. Cuando se guarde la calibración, vuelve aquí y selecciona Enviar.\n\n[Más información]({learn_more_url})"
           }
         },
         "error": {
@@ -910,71 +940,71 @@
           "proximity_unreadable": "Home Assistant no pudo leer el estado de proximidad del panel. Comprueba que esté conectado y vuelve a enviar."
         },
         "abort": {
-          "entry_removed": "Este panel se ha eliminado."
+          "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant](/config/integrations/integration/panel_assistant) si quieres volver a añadirlo.\n2. En caso contrario, cierra este diálogo.\n\n[Más información]({learn_more_url})"
         }
       }
     },
     "voice_microphone_silent": {
       "title": "El asistente de voz de {panel} no está escuchando.",
-      "description": "El asistente de voz de {panel} no está escuchando porque su micrófono solo grabó silencio cuando el panel lo comprobó. Para comprobarlo de nuevo, desactiva y vuelve a activar el asistente de voz en la página Configurar del panel, o elige allí otra fuente de audio."
+      "description": "El asistente de voz de {panel} no está escuchando porque la comprobación del micrófono solo ha grabado silencio.\n\nPara solucionarlo:\n1. Abre los [ajustes de voz]({configure_url}).\n2. Desactiva y vuelve a activar Asistente de voz para repetir la comprobación.\n3. Si sigue fallando, prueba otra [Fuente de audio]({audio_source_url})."
     },
     "voice_microphone_no_audio": {
       "title": "El asistente de voz de {panel} no está escuchando.",
-      "description": "El asistente de voz de {panel} no está escuchando porque su micrófono no entregó audio cuando el panel lo comprobó. Para comprobarlo de nuevo, desactiva y vuelve a activar el asistente de voz en la página Configurar del panel, o elige allí otra fuente de audio."
+      "description": "El asistente de voz de {panel} no está escuchando porque la comprobación del micrófono no ha recibido audio.\n\nPara solucionarlo:\n1. Abre los [ajustes de voz]({configure_url}).\n2. Desactiva y vuelve a activar Asistente de voz para repetir la comprobación.\n3. Si sigue fallando, prueba otra [Fuente de audio]({audio_source_url})."
     },
     "voice_microphone_no_audio_detail": {
       "title": "El asistente de voz de {panel} no está escuchando.",
-      "description": "El asistente de voz de {panel} no está escuchando porque su micrófono no entregó audio cuando el panel lo comprobó. Para comprobarlo de nuevo, desactiva y vuelve a activar el asistente de voz en la página Configurar del panel, o elige allí otra fuente de audio. El panel informó: {detail}"
+      "description": "El asistente de voz de {panel} no está escuchando porque la comprobación del micrófono no ha recibido audio ({detail}).\n\nPara solucionarlo:\n1. Abre los [ajustes de voz]({configure_url}).\n2. Desactiva y vuelve a activar Asistente de voz para repetir la comprobación.\n3. Si sigue fallando, prueba otra [Fuente de audio]({audio_source_url})."
     },
     "wake_word_kept": {
       "title": "{panel} ha conservado su propia palabra de activación {wake_word}.",
-      "description": "Panel Assistant no ha instalado la palabra de activación compartida {wake_word} en {panel}, porque el panel ya tiene otra palabra de activación con el mismo nombre que se importó en el propio panel. Para usar la compartida allí, abre {panel} en la barra lateral de Panel Assistant e importa la palabra de activación de nuevo."
+      "description": "{panel} está usando su propio modelo para {wake_word} en lugar del modelo compartido.\n\nPara solucionarlo:\n1. [Abre las palabras de activación]({configure_url}).\n2. Si quieres el modelo compartido, importa su manifiesto .json y su archivo .tflite; al importarlos aquí se sustituye la copia compartida y se pueden actualizar otros paneles."
     },
     "wake_word_refused": {
       "title": "{panel} no ha podido instalar la palabra de activación {wake_word}.",
-      "description": "Panel Assistant no ha podido instalar la palabra de activación compartida {wake_word} en {panel}. Las demás palabras de activación del panel no han cambiado. El panel informó: {reason}"
+      "description": "{panel} no ha podido añadir la palabra de activación compartida {wake_word}: {reason}.\n\nPara solucionarlo:\n1. [Abre las palabras de activación]({configure_url}).\n2. Corrige el problema indicado e importa un manifiesto .json y un modelo .tflite compatibles con microWakeWord; al importarlos aquí se sustituye la copia compartida y se pueden actualizar otros paneles."
     },
     "volume_number_removed": {
       "title": "{panel} ya no tiene un número de volumen separado",
-      "description": "{panel} tiene un reproductor multimedia que muestra y ajusta su volumen, así que Panel Assistant eliminó su número de volumen separado {entity}. Estas automatizaciones o scripts todavía lo usan: {users}. Cámbialos para que ajusten el volumen con la acción `media_player.volume_set` en el reproductor multimedia del panel. Cuando estén cambiados, puedes ignorar este mensaje."
+      "description": "Las automatizaciones o los scripts ya no pueden usar esta entidad numérica de volumen eliminada para ajustar el volumen de {panel}:\n\n```text\n{entity}\n```\n\nPara solucionarlo:\n1. Abre [Automatizaciones]({automations_url}) o [Scripts]({scripts_url}) y busca estas automatizaciones o scripts:\n\n   ```text\n   {users}\n   ```\n\n2. Sustituye las acciones que usan la entidad numérica eliminada por `media_player.volume_set` en el reproductor multimedia de este panel, con un valor de `volume_level` entre 0 y 1 (0.5 equivale al 50%).\n3. Guarda los cambios y después ignora esta reparación."
     },
-      "restart_required": {
-        "title": "Reinicia Home Assistant para terminar de actualizar Panel Assistant",
-        "fix_flow": {
-          "step": {
-            "confirm_restart": {
-              "title": "Reiniciar Home Assistant",
-              "description": "Panel Assistant {installed} está instalado, pero Home Assistant sigue ejecutando {loaded}. La nueva versión empieza a funcionar cuando Home Assistant se reinicia. Selecciona Enviar para reiniciar Home Assistant ahora."
-            }
+    "restart_required": {
+      "title": "Reinicia Home Assistant para terminar de actualizar Panel Assistant",
+      "fix_flow": {
+        "step": {
+          "confirm_restart": {
+            "title": "Reiniciar Home Assistant",
+            "description": "Home Assistant sigue ejecutando Panel Assistant {loaded}, por lo que la compilación instalada {installed} aún no está activa.\n\nPara solucionarlo:\n1. Revisa [Panel Assistant]({integration_url}) si lo necesitas y vuelve aquí.\n2. Selecciona Enviar para reiniciar Home Assistant ahora.\n\n[Más información]({learn_more_url})"
           }
         }
-      },
+      }
+    },
     "panel_user_mismatch": {
       "title": "Confirmar el usuario de Home Assistant para {panel}",
       "fix_flow": {
         "step": {
           "confirm_bind": {
             "title": "Confirmar el usuario del panel",
-            "description": "El panel {panel} ha pedido conectarse a Home Assistant como el usuario {user}. Confirma solo si {user} es la cuenta que configuraste para este panel. Si confirmas, el panel debería conectarse poco después. Cualquier persona con sesión iniciada en Home Assistant puede pedir conectarse como panel, así que si no reconoces esta solicitud, cierra este cuadro de diálogo e ignora el problema."
+            "description": "{panel} no puede conectarse como {user} hasta que confirmes esta cuenta.\n\nPara solucionarlo:\n1. [Comprueba el inicio de sesión del panel]({configure_url}).\n2. Selecciona Enviar solo si has configurado {user} para este panel; después debería volver a conectarse.\n3. Si no reconoces la solicitud, cierra este diálogo e ignora el problema: cualquier persona que haya iniciado sesión puede solicitar una conexión de panel.\n\n[Más información]({learn_more_url})"
           },
           "confirm_rebind": {
             "title": "Cambiar el usuario del panel",
-            "description": "El panel {panel} está confirmado para el usuario {bound_user}, pero el usuario {user} ha pedido conectarse como este panel. Confirma solo si cambiaste la cuenta de este panel a {user}: el panel dejará de aceptar a {bound_user} y debería conectarse poco después. Si no lo hiciste, puede que otra persona esté intentando apropiarse del panel, así que cierra este cuadro de diálogo e ignora el problema."
+            "description": "{user} ha solicitado conectarse como {panel}, que actualmente acepta a {bound_user}.\n\nPara solucionarlo:\n1. [Comprueba el inicio de sesión del panel]({configure_url}).\n2. Selecciona Enviar solo si has cambiado su cuenta a {user}; esto deja de aceptar a {bound_user}.\n3. En caso contrario, cierra este diálogo e ignora el problema: podría ser un intento de tomar el control.\n\n[Más información]({learn_more_url})"
           }
         },
         "abort": {
-          "entry_removed": "Este panel ya no está configurado en Home Assistant.",
-          "user_unavailable": "El usuario que pidió conectarse ya no existe o está desactivado. No se ha cambiado nada."
+          "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant](/config/integrations/integration/panel_assistant) si quieres volver a añadirlo.\n2. En caso contrario, cierra este diálogo.\n\n[Más información]({learn_more_url})",
+          "user_unavailable": "El usuario que ha hecho la solicitud ya no existe o está desactivado; no se ha cambiado nada.\n\nPara solucionarlo:\n1. [Comprueba el inicio de sesión del panel]({configure_url}).\n2. Inicia sesión con la cuenta activa que quieras que use este panel y después confirma solo una solicitud que reconozcas.\n\n[Más información]({learn_more_url})"
         }
       }
     },
     "no_update_route": {
       "title": "{panel} no puede recibir actualizaciones de la aplicación",
-      "description": "Panel Assistant no puede instalar actualizaciones de la aplicación en {panel}, por lo que la aplicación se queda en su versión actual. Todo lo demás del panel sigue funcionando, por lo que es fácil pasarlo por alto. Suele ocurrir tras un cambio realizado en el propio panel, como una actualización del firmware o un restablecimiento. Vuelve a conectar el panel a Panel Assistant por USB para recuperar las actualizaciones. Selecciona Más información para ver los pasos de este panel."
+      "description": "{panel} no puede recibir actualizaciones de la app, aunque sus demás funciones siguen funcionando.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación de actualizaciones de este panel]({recovery_url}).\n2. Restablece el acceso de depuración o vuelve a conectarlo por USB si los pasos lo requieren.\n3. Vuelve a Actualizaciones de Home Assistant cuando desaparezca esta reparación."
     },
     "merged_panel_identity": {
       "title": "Separa los paneles combinados: {panels}",
-      "description": "Los paneles {panels} notifican la misma identidad de dispositivo, por lo que Home Assistant no puede determinar de forma segura a qué entrada pertenece una conexión nativa o una entidad. Se rechaza su conexión nativa y no se trasladan entidades. Actualiza la aplicación Panel Assistant en todos los paneles afectados para que cada uno tenga una identidad distinta. Después, elimina el dispositivo combinado y deja que los paneles vuelvan a registrarse."
+      "description": "{panels} comparten una identidad de dispositivo, por lo que se rechazan sus conexiones nativas y no se trasladan entidades.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant]({integration_url}).\n2. Actualiza la app en todos los paneles afectados para que cada uno tenga su propia identidad.\n3. Después elimina el dispositivo combinado y deja que los paneles vuelvan a registrarse."
     },
     "installer_failure": {
       "title": "Falló la instalación o actualización en {panel}",
@@ -982,7 +1012,7 @@
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "La instalación o actualización en {panel} no terminó.",
+            "description": "La instalación o la actualización no ha finalizado.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Informe de soporte** para comprobar la causa y después **Reintentar** cuando esté resuelta.\n\n[Más información]({learn_more_url})",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -991,19 +1021,19 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
+            "description": "Este informe contiene los detalles guardados de la instalación o actualización fallida.\n\nPara solucionarlo:\n1. Lee [cómo usar este informe de soporte]({guide_url}).\n2. Revisa si el informe contiene información privada y después cópialo en una [nueva incidencia de la integración Panel Assistant]({issue_url}).\n\n{report}\n\n[Más información]({learn_more_url})"
           },
           "clear_error": {
             "title": "Borrar error",
-            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+            "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
-            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+            "title": "Reintento incompleto",
+            "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura."
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1024,7 +1054,7 @@
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "El panel no aceptó la conexión de Home Assistant.",
+            "description": "Home Assistant no ha podido conectarse al panel para instalar Panel Assistant.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Autoriza a Home Assistant en el panel si se te solicita y después selecciona **Reintentar**.\n\n[Más información]({learn_more_url})",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -1033,19 +1063,19 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
+            "description": "Este informe contiene los detalles guardados de la instalación o actualización fallida.\n\nPara solucionarlo:\n1. Lee [cómo usar este informe de soporte]({guide_url}).\n2. Revisa si el informe contiene información privada y después cópialo en una [nueva incidencia de la integración Panel Assistant]({issue_url}).\n\n{report}\n\n[Más información]({learn_more_url})"
           },
           "clear_error": {
             "title": "Borrar error",
-            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+            "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
-            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+            "title": "Reintento incompleto",
+            "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura."
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1066,7 +1096,7 @@
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "No se instaló nada en el panel.",
+            "description": "No se ha podido instalar Panel Assistant porque el panel no ha superado las comprobaciones de seguridad.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Informe de soporte** y corrige el problema detectado en la comprobación de seguridad antes de reintentarlo.\n\n[Más información]({learn_more_url})",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -1075,19 +1105,19 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
+            "description": "Este informe contiene los detalles guardados de la instalación o actualización fallida.\n\nPara solucionarlo:\n1. Lee [cómo usar este informe de soporte]({guide_url}).\n2. Revisa si el informe contiene información privada y después cópialo en una [nueva incidencia de la integración Panel Assistant]({issue_url}).\n\n{report}\n\n[Más información]({learn_more_url})"
           },
           "clear_error": {
             "title": "Borrar error",
-            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+            "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
-            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+            "title": "Reintento incompleto",
+            "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura."
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1108,7 +1138,7 @@
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "No se pudo verificar la versión, por lo que no se instaló nada.",
+            "description": "Panel Assistant no se ha instalado porque se han rechazado la versión o sus comprobaciones de preparación.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Comprueba la versión seleccionada y la conexión y después selecciona **Reintentar**.\n\n[Más información]({learn_more_url})",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -1117,19 +1147,19 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
+            "description": "Este informe contiene los detalles guardados de la instalación o actualización fallida.\n\nPara solucionarlo:\n1. Lee [cómo usar este informe de soporte]({guide_url}).\n2. Revisa si el informe contiene información privada y después cópialo en una [nueva incidencia de la integración Panel Assistant]({issue_url}).\n\n{report}\n\n[Más información]({learn_more_url})"
           },
           "clear_error": {
             "title": "Borrar error",
-            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+            "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
-            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+            "title": "Reintento incompleto",
+            "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura."
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1150,7 +1180,7 @@
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "La conexión se interrumpió antes de que terminara la instalación.",
+            "description": "Home Assistant no ha podido terminar de transferir o instalar Panel Assistant.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Restablece la conexión del panel y después selecciona **Reintentar**.\n\n[Más información]({learn_more_url})",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -1159,19 +1189,19 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
+            "description": "Este informe contiene los detalles guardados de la instalación o actualización fallida.\n\nPara solucionarlo:\n1. Lee [cómo usar este informe de soporte]({guide_url}).\n2. Revisa si el informe contiene información privada y después cópialo en una [nueva incidencia de la integración Panel Assistant]({issue_url}).\n\n{report}\n\n[Más información]({learn_more_url})"
           },
           "clear_error": {
             "title": "Borrar error",
-            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+            "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
-            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+            "title": "Reintento incompleto",
+            "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura."
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1192,7 +1222,7 @@
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "Android en el panel rechazó la instalación.",
+            "description": "Android ha rechazado la instalación de Panel Assistant.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Informe de soporte** y resuelve el error de Android antes de reintentarlo.\n\n[Más información]({learn_more_url})",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -1201,19 +1231,19 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
+            "description": "Este informe contiene los detalles guardados de la instalación o actualización fallida.\n\nPara solucionarlo:\n1. Lee [cómo usar este informe de soporte]({guide_url}).\n2. Revisa si el informe contiene información privada y después cópialo en una [nueva incidencia de la integración Panel Assistant]({issue_url}).\n\n{report}\n\n[Más información]({learn_more_url})"
           },
           "clear_error": {
             "title": "Borrar error",
-            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+            "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
-            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+            "title": "Reintento incompleto",
+            "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura."
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1234,7 +1264,7 @@
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "Panel Assistant está instalado, pero no se inició.",
+            "description": "Panel Assistant está instalado, pero no se ha iniciado.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Abre Panel Assistant en el panel y después selecciona **Reintentar**.\n\n[Más información]({learn_more_url})",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -1243,19 +1273,19 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
+            "description": "Este informe contiene los detalles guardados de la instalación o actualización fallida.\n\nPara solucionarlo:\n1. Lee [cómo usar este informe de soporte]({guide_url}).\n2. Revisa si el informe contiene información privada y después cópialo en una [nueva incidencia de la integración Panel Assistant]({issue_url}).\n\n{report}\n\n[Más información]({learn_more_url})"
           },
           "clear_error": {
             "title": "Borrar error",
-            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+            "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
-            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+            "title": "Reintento incompleto",
+            "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura."
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1276,7 +1306,7 @@
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "Panel Assistant se inició, pero no informó de un estado correcto.",
+            "description": "Panel Assistant se ha iniciado, pero Home Assistant no ha podido confirmar que funciona correctamente.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Abre Panel Assistant en el panel y restablece su conexión; después selecciona **Reintentar**.\n\n[Más información]({learn_more_url})",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -1285,19 +1315,19 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
+            "description": "Este informe contiene los detalles guardados de la instalación o actualización fallida.\n\nPara solucionarlo:\n1. Lee [cómo usar este informe de soporte]({guide_url}).\n2. Revisa si el informe contiene información privada y después cópialo en una [nueva incidencia de la integración Panel Assistant]({issue_url}).\n\n{report}\n\n[Más información]({learn_more_url})"
           },
           "clear_error": {
             "title": "Borrar error",
-            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+            "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
-            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+            "title": "Reintento incompleto",
+            "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura."
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1318,7 +1348,7 @@
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "Home Assistant no puede determinar si la instalación modificó el panel.",
+            "description": "Home Assistant no puede determinar si la instalación ha cambiado el panel.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Informe de soporte** y comprueba el panel antes de reintentarlo. No lo reinstales, desinstales ni restablezcas mientras se desconozca su estado.\n\n[Más información]({learn_more_url})",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -1327,19 +1357,19 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
+            "description": "Este informe contiene los detalles guardados de la instalación o actualización fallida.\n\nPara solucionarlo:\n1. Lee [cómo usar este informe de soporte]({guide_url}).\n2. Revisa si el informe contiene información privada y después cópialo en una [nueva incidencia de la integración Panel Assistant]({issue_url}).\n\n{report}\n\n[Más información]({learn_more_url})"
           },
           "clear_error": {
             "title": "Borrar error",
-            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+            "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
-            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+            "title": "Reintento incompleto",
+            "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura."
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1360,7 +1390,7 @@
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "Se bloquea otra instalación hasta que se compruebe el panel.",
+            "description": "Se bloquea otra instalación hasta que Home Assistant pueda verificar el panel.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Informe de soporte** y restablece la verificación del panel antes de reintentarlo. No reinstales ni restablezcas la app.\n\n[Más información]({learn_more_url})",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -1369,19 +1399,19 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
+            "description": "Este informe contiene los detalles guardados de la instalación o actualización fallida.\n\nPara solucionarlo:\n1. Lee [cómo usar este informe de soporte]({guide_url}).\n2. Revisa si el informe contiene información privada y después cópialo en una [nueva incidencia de la integración Panel Assistant]({issue_url}).\n\n{report}\n\n[Más información]({learn_more_url})"
           },
           "clear_error": {
             "title": "Borrar error",
-            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+            "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
-            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+            "title": "Reintento incompleto",
+            "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura."
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1402,7 +1432,7 @@
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "Panel Assistant no se actualizó en el panel.",
+            "description": "Home Assistant no ha podido confirmar que Panel Assistant haya terminado de actualizarse.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Restablece la conexión del panel y consulta **Informe de soporte**; después selecciona **Reintentar**.\n\n[Más información]({learn_more_url})",
             "menu_options": {
               "retry": "Reintentar",
               "authorize_adb": "Permitir actualizaciones",
@@ -1412,24 +1442,24 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
+            "description": "Este informe contiene los detalles guardados de la instalación o actualización fallida.\n\nPara solucionarlo:\n1. Lee [cómo usar este informe de soporte]({guide_url}).\n2. Revisa si el informe contiene información privada y después cópialo en una [nueva incidencia de la integración Panel Assistant]({issue_url}).\n\n{report}\n\n[Más información]({learn_more_url})"
           },
           "clear_error": {
             "title": "Borrar error",
-            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+            "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
-            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+            "title": "Reintento incompleto",
+            "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Permitir actualizaciones en {panel}",
-            "description": "Selecciona Enviar y mira la pantalla de {panel}: marca **Permitir siempre desde este ordenador** y toca **Permitir**. Android puede describir Home Assistant como un ordenador."
+            "title": "Permitir actualizaciones",
+            "description": "Home Assistant necesita la autorización de Android para poder actualizar {panel}.\n\nPara solucionarlo:\n1. Lee los [pasos de autorización de ADB]({approval_url}).\n2. Selecciona **Enviar** y después, en {panel}, marca **Permitir siempre desde este ordenador** y toca **Permitir**.\n3. Tras autorizarlo, selecciona **Reintentar** en esta reparación para volver a intentar la actualización.\n\n[Más información]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura.",
-          "authorize_adb": "Mira la pantalla de {panel}: marca **Permitir siempre desde este ordenador** y toca **Permitir**. Android puede describir Home Assistant como un ordenador.\n\nEl proceso continuará por sí solo cuando el panel lo permita."
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})",
+          "authorize_adb": "Aún se necesita la autorización de Android en {panel}.\n\nPara solucionarlo:\n1. Lee los [pasos de autorización de ADB]({approval_url}).\n2. En {panel}, marca **Permitir siempre desde este ordenador** y después toca **Permitir**.\n\nEl proceso continúa automáticamente tras la autorización.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1456,7 +1486,7 @@
           "panel_identity_changed": "La dirección ya no responde como este panel configurado. Comprueba el panel y su dirección antes de reintentar."
         },
         "abort": {
-          "entry_removed": "Este panel se ha eliminado."
+          "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant](/config/integrations/integration/panel_assistant) si quieres volver a añadirlo.\n2. En caso contrario, cierra este diálogo.\n\n[Más información]({learn_more_url})"
         }
       }
     },
@@ -1466,7 +1496,7 @@
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "Los reintentos quedan bloqueados hasta que se pueda comprobar el panel.",
+            "description": "El reintento no se ha completado, por lo que el error y el informe guardados siguen disponibles.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Informe de soporte** y comprueba la causa indicada antes de reintentarlo. Borrar este error no autoriza ninguna instalación.\n\n[Más información]({learn_more_url})",
             "menu_options": {
               "retry": "Reintentar",
               "support_report": "Informe de soporte",
@@ -1475,19 +1505,19 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
+            "description": "Este informe contiene los detalles guardados de la instalación o actualización fallida.\n\nPara solucionarlo:\n1. Lee [cómo usar este informe de soporte]({guide_url}).\n2. Revisa si el informe contiene información privada y después cópialo en una [nueva incidencia de la integración Panel Assistant]({issue_url}).\n\n{report}\n\n[Más información]({learn_more_url})"
           },
           "clear_error": {
             "title": "Borrar error",
-            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+            "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
-            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+            "title": "Reintento incompleto",
+            "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura."
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1501,41 +1531,41 @@
           "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
         },
         "abort": {
-          "entry_removed": "Este panel se ha eliminado."
+          "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant](/config/integrations/integration/panel_assistant) si quieres volver a añadirlo.\n2. En caso contrario, cierra este diálogo.\n\n[Más información]({learn_more_url})"
         }
       }
     },
     "panel_address_unreachable": {
       "title": "No se puede acceder a {panel} en {address}",
-      "description": "Sus entidades siguen funcionando a través de la conexión activa desde {session_address}.\n\nSi el panel ha cambiado de dirección, añádelo de nuevo con su nueva dirección. Este problema se resuelve por sí solo cuando la dirección responde."
+      "description": "{panel} está conectado, pero no se puede acceder a su dirección guardada {address} para las operaciones que la necesitan.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant]({integration_url}).\n2. Si ha cambiado la dirección del panel, vuelve a añadirlo con su dirección actual.\n3. En caso contrario, restablece el acceso a {address}; esta reparación desaparece cuando responda con la identidad de este panel."
     },
     "panel_address_unverified": {
       "title": "{panel} se ha trasladado y no se pudo confirmar su nueva dirección",
-      "description": "{panel} está conectado a Home Assistant desde {session_address}, por lo que sus entidades siguen disponibles, pero Home Assistant no puede leer el panel en su dirección guardada {address}, y una comprobación en {session_address} no respondió como este panel, así que la dirección guardada no se ha cambiado. Si el panel se ha trasladado, vuelve a añadirlo con su nueva dirección, lo que actualiza la dirección guardada; el aviso desaparece por sí solo cuando la dirección guardada responde."
+      "description": "{panel} está conectado, pero no se han podido confirmar ni {address} ni la dirección sugerida {session_address} para las operaciones que necesitan la dirección del panel.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant]({integration_url}).\n2. Si ha cambiado la dirección del panel, vuelve a añadirlo con su dirección actual.\n3. En caso contrario, restablece el acceso a {address}; esta reparación desaparece cuando responda con la identidad de este panel."
     },
     "panel_identity_mismatch": {
       "title": "Comprobar la dirección de {panel}",
-      "description": "La respuesta de {address} no correspondía a {panel}, por lo que sus controles se han desactivado temporalmente. Comprueba que esta dirección pertenece al panel. Si su dirección ha cambiado, añádelo de nuevo con la dirección actual."
+      "description": "{address} no ha respondido con la identidad de {panel}, por lo que sus controles están en pausa.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant]({integration_url}).\n2. Comprueba la dirección actual del panel.\n3. Si ha cambiado, vuelve a añadirlo en esa dirección."
     },
     "panel_link_shared": {
       "title": "{panel} se reinstaló, pero comparte su vínculo de dispositivo",
-      "description": "{panel} respondió en {address} tras reinstalar su aplicación, pero {others} tiene el mismo vínculo de dispositivo, así que Home Assistant no puede saber a qué configuración pertenece este panel y ha pausado sus controles. La dirección es correcta. Si {others} ya no se usa, elimínalo y {panel} se volverá a unir por sí solo; si no, vuelve a añadir {panel}."
+      "description": "{panel} se ha reinstalado en {address}, pero comparte un enlace de dispositivo con {others}, por lo que sus controles están en pausa.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant]({integration_url}).\n2. Elimina {others} solo si ya no se usan; {panel} volverá a unirse automáticamente.\n3. Si esos paneles siguen en uso, vuelve a añadir {panel}."
     },
     "panel_identity_confirmation": {
       "title": "Conservar la configuración de {panel}",
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "Conservar las configuraciones de los paneles indicados",
-            "description": "¿Conservar las entidades y los ajustes existentes de todos estos paneles?\n\n{panels}\n\nEnvía una vez para confirmar todos los paneles indicados."
+            "title": "Conservar configuraciones",
+            "description": "Los paneles de la lista necesitan confirmación para poder conservar sus configuraciones existentes con sus nuevas identidades de dispositivo.\n\nPara solucionarlo:\n1. [Comprueba los dispositivos de Panel Assistant]({integration_url}) con esta lista.\n2. Confirma solo si cada panel corresponde a su configuración existente.\n3. Selecciona Enviar una vez para conservar todas las configuraciones de la lista.\n\n{panels}\n\n[Más información]({learn_more_url})"
           }
         },
         "abort": {
-          "entry_removed": "Este panel se ha eliminado.",
-          "identity_changed": "El panel ha cambiado mientras esta confirmación estaba abierta. Abre el aviso de reparación más reciente e inténtalo de nuevo."
+          "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant](/config/integrations/integration/panel_assistant) si quieres volver a añadirlo.\n2. En caso contrario, cierra este diálogo.\n\n[Más información]({learn_more_url})",
+          "identity_changed": "Un panel de la lista ha cambiado mientras esta confirmación estaba abierta.\n\nPara solucionarlo:\n1. [Abre Reparaciones](/config/repairs) y abre la confirmación de paneles más reciente.\n2. Comprueba todos los paneles de la lista antes de seleccionar Enviar.\n\n[Más información]({learn_more_url})"
         },
         "error": {
-          "cannot_connect": "No se puede conectar con todos los paneles indicados. Comprueba sus conexiones e inténtalo de nuevo."
+          "cannot_connect": "No se puede acceder a todos los paneles de la lista; comprueba sus conexiones y vuelve a intentarlo."
         }
       }
     },
@@ -1545,7 +1575,7 @@
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "Home Assistant todavía no tiene permiso para actualizar {panel}.",
+            "description": "Home Assistant aún no tiene permiso para actualizar {panel}.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Elige **Permitir actualizaciones**, después selecciona **Enviar** y autoriza la solicitud en {panel}.\n\n[Más información]({learn_more_url})",
             "menu_options": {
               "retry": "Reintentar",
               "authorize_adb": "Permitir actualizaciones",
@@ -1555,24 +1585,24 @@
           },
           "support_report": {
             "title": "Informe de soporte",
-            "description": "### [Cómo usar este informe de soporte]({guide_url})\n\nCopia el informe de abajo en una [nueva incidencia de la integración Panel Assistant]({issue_url}). Si pides ayuda a un asistente de IA, usa el texto para el asistente de IA de la página de la guía enlazada junto con el informe.\n\n{report}"
+            "description": "Este informe contiene los detalles guardados de la instalación o actualización fallida.\n\nPara solucionarlo:\n1. Lee [cómo usar este informe de soporte]({guide_url}).\n2. Revisa si el informe contiene información privada y después cópialo en una [nueva incidencia de la integración Panel Assistant]({issue_url}).\n\n{report}\n\n[Más información]({learn_more_url})"
           },
           "clear_error": {
             "title": "Borrar error",
-            "description": "Elimina este error y el informe guardado de Reparaciones. Esto no cambia el panel. Selecciona Enviar para borrarlo."
+            "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
-            "description": "El reintento está en pausa. El error sigue en Reparaciones; el informe de soporte contiene los detalles."
+            "title": "Reintento incompleto",
+            "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Permitir actualizaciones en {panel}",
-            "description": "Selecciona Enviar y mira la pantalla de {panel}: marca **Permitir siempre desde este ordenador** y toca **Permitir**. Android puede describir Home Assistant como un ordenador."
+            "title": "Permitir actualizaciones",
+            "description": "Home Assistant necesita la autorización de Android para poder actualizar {panel}.\n\nPara solucionarlo:\n1. Lee los [pasos de autorización de ADB]({approval_url}).\n2. Selecciona **Enviar** y después, en {panel}, marca **Permitir siempre desde este ordenador** y toca **Permitir**.\n3. Tras autorizarlo, selecciona **Reintentar** en esta reparación para volver a intentar la actualización.\n\n[Más información]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura.",
-          "authorize_adb": "Mira la pantalla de {panel}: marca **Permitir siempre desde este ordenador** y toca **Permitir**. Android puede describir Home Assistant como un ordenador.\n\nEl proceso continuará por sí solo cuando el panel lo permita."
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})",
+          "authorize_adb": "Aún se necesita la autorización de Android en {panel}.\n\nPara solucionarlo:\n1. Lee los [pasos de autorización de ADB]({approval_url}).\n2. En {panel}, marca **Permitir siempre desde este ordenador** y después toca **Permitir**.\n\nEl proceso continúa automáticamente tras la autorización.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1599,7 +1629,7 @@
           "panel_identity_changed": "La dirección ya no responde como este panel configurado. Comprueba el panel y su dirección antes de reintentar."
         },
         "abort": {
-          "entry_removed": "Este panel se ha eliminado."
+          "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant](/config/integrations/integration/panel_assistant) si quieres volver a añadirlo.\n2. En caso contrario, cierra este diálogo.\n\n[Más información]({learn_more_url})"
         }
       }
     },
@@ -1608,8 +1638,8 @@
       "fix_flow": {
         "step": {
           "authorize_adb": {
-            "title": "Permitir actualizaciones en {panel}",
-            "description": "Selecciona Enviar y mira la pantalla de {panel}: marca **Permitir siempre desde este ordenador** y toca **Permitir**. Android puede describir Home Assistant como un ordenador."
+            "title": "Permitir actualizaciones",
+            "description": "Home Assistant no puede instalar actualizaciones en {panel} hasta que permitas su conexión ADB.\n\nPara solucionarlo:\n1. Lee los [pasos de autorización de ADB]({approval_url}) y después selecciona Enviar para enviar la solicitud de autorización.\n2. En {panel}, marca **Permitir siempre desde este ordenador** y después toca **Permitir**.\n3. Espera aquí a que termine la autorización; Android puede referirse a Home Assistant como un ordenador.\n\n[Más información]({learn_more_url})"
           }
         },
         "error": {
@@ -1628,16 +1658,16 @@
           "panel_identity_changed": "La dirección ya no responde como este panel configurado. Comprueba el panel y su dirección antes de reintentar."
         },
         "abort": {
-          "entry_removed": "Este panel se ha eliminado."
+          "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant](/config/integrations/integration/panel_assistant) si quieres volver a añadirlo.\n2. En caso contrario, cierra este diálogo.\n\n[Más información]({learn_more_url})"
         },
         "progress": {
-          "authorize_adb": "Mira la pantalla de {panel}: marca **Permitir siempre desde este ordenador** y toca **Permitir**. Android puede describir Home Assistant como un ordenador.\n\nEl proceso continuará por sí solo cuando el panel lo permita."
+          "authorize_adb": "Home Assistant está esperando a que {panel} permita las actualizaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de autorización de ADB]({approval_url}) en el panel.\n2. Marca **Permitir siempre desde este ordenador** y después toca **Permitir**.\n3. Espera aquí; el proceso continúa automáticamente tras la autorización.\n\n[Más información]({learn_more_url})"
         }
       }
     },
     "another_home_assistant": {
       "title": "{panel} tiene la sesión iniciada en otro Home Assistant",
-      "description": "{panel} se ha añadido aquí, pero tiene la sesión iniciada en otro Home Assistant. Su configuración y su inicio de sesión no han cambiado. Para conectarlo aquí, cambia de Home Assistant e inicia sesión en el panel."
+      "description": "{panel} se ha añadido aquí, pero sigue con la sesión iniciada en otro Home Assistant.\n\nPara solucionarlo:\n1. [Abre la conexión del panel con Home Assistant]({configure_url}).\n2. Si quieres conectarlo aquí, introduce la dirección de este Home Assistant y guarda los cambios.\n3. Vuelve a conectarlo e inicia sesión con la cuenta que quieras que use el panel; en caso contrario, conserva su servidor actual e ignora esta reparación."
     }
   },
   "options": {

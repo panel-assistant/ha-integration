@@ -1,5 +1,6 @@
 """A panel with a speaker shows its volume on the media player alone.
 
+
 The media player reads and sets the volume through the volume channel, so the
 separate volume number is redundant there: a panel that describes its media
 player gets no volume number, and the hello removes the one an earlier version
@@ -23,6 +24,7 @@ from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.const import DOMAIN
+from tests.test_repair_links import assert_repair_links
 
 from .test_media_player import _observe, _player, _sent
 from .test_native import DESCRIPTORS
@@ -206,6 +208,7 @@ async def test_automations_and_scripts_still_using_the_number_are_named(
     issue = _issue(hass, native)
     assert issue is not None
     assert issue.translation_key == "volume_number_removed"
+    assert_repair_links(issue)
     assert issue.is_persistent
     assert not issue.is_fixable
     assert issue.translation_placeholders is not None

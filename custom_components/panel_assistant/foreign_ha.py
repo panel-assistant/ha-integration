@@ -14,8 +14,8 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from .client import HaPaneldClient, HaPaneldError
-from .const import DOMAIN
-from .device import panel_display_name
+from .const import DOMAIN, help_url
+from .device import panel_display_name, sidebar_url
 from .ha_url import DATA_INSTANCE_ID, _connection_origin
 from .release import strict_json_hooks
 
@@ -111,7 +111,11 @@ def async_raise_foreign_ha_issue(hass: HomeAssistant, entry: ConfigEntry) -> boo
         is_persistent=False,
         severity=ir.IssueSeverity.WARNING,
         translation_key="another_home_assistant",
-        translation_placeholders={"panel": panel_display_name(hass, entry)},
+        learn_more_url=help_url("repair", issue="another_home_assistant"),
+        translation_placeholders={
+            "panel": panel_display_name(hass, entry),
+            "configure_url": sidebar_url(entry.entry_id, "configure", "cfg-ha_url"),
+        },
         data={"entry_id": entry.entry_id},
     )
     if coordinator is not None:

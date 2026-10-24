@@ -782,7 +782,9 @@
     }
   },
   "exceptions": {
-    "old_app_needs_090": {"message": "此面板仍在运行旧应用：请先安装 Panel Assistant 0.9.0，如其修复所述"},
+    "old_app_needs_090": {
+      "message": "此面板仍在运行旧应用：请先安装 Panel Assistant 0.9.0，如其修复所述"
+    },
     "mqtt_panel_needs_090": {
       "message": "{panel} 尚未从 MQTT 迁移：请先安装 Panel Assistant 0.9.0，如其修复所述"
     },
@@ -792,20 +794,48 @@
     "health_address_retired": {
       "message": "读取面板健康状态时，面板地址已更改"
     },
-    "update_unavailable": { "message": "请求的 Panel Assistant 更新不可用" },
-    "update_busy": { "message": "面板正在执行其他操作" },
-    "update_approval_required": { "message": "请在面板上批准此更新，然后重试" },
-    "update_rejected": { "message": "{panel} 拒绝了更新请求。请检查面板的“安装”选项卡，然后重试。" },
-    "update_refused_by_panel": { "message": "{panel} 拒绝了更新：{reason}" },
-    "panel_changed_during_update": { "message": "更新期间面板状态发生变化。请刷新页面后重试。" },
-    "release_download_failed": { "message": "无法下载应用版本。请检查连接后重试。" },
-    "staged_app_mismatch": { "message": "已暂存的应用与签名版本信息不符，因此未安装任何内容。" },
-    "update_not_accepted": { "message": "面板未接受更新请求" },
-    "update_not_complete": { "message": "面板更新未完成" },
-    "panel_backup_failed": { "message": "无法备份面板，因此未安装任何内容" },
-    "build_verification_failed": { "message": "该构建与已签名的构建源不一致，因此未安装任何内容" },
-    "release_verification_failed": { "message": "该版本与其签名不符，因此未安装任何内容" },
-    "upload_disabled": { "message": "面板不接受应用上传；请在其设置中开启 APK 上传" },
+    "update_unavailable": {
+      "message": "请求的 Panel Assistant 更新不可用"
+    },
+    "update_busy": {
+      "message": "面板正在执行其他操作"
+    },
+    "update_approval_required": {
+      "message": "请在面板上批准此更新，然后重试"
+    },
+    "update_rejected": {
+      "message": "{panel} 拒绝了更新请求。请检查面板的“安装”选项卡，然后重试。"
+    },
+    "update_refused_by_panel": {
+      "message": "{panel} 拒绝了更新：{reason}"
+    },
+    "panel_changed_during_update": {
+      "message": "更新期间面板状态发生变化。请刷新页面后重试。"
+    },
+    "release_download_failed": {
+      "message": "无法下载应用版本。请检查连接后重试。"
+    },
+    "staged_app_mismatch": {
+      "message": "已暂存的应用与签名版本信息不符，因此未安装任何内容。"
+    },
+    "update_not_accepted": {
+      "message": "面板未接受更新请求"
+    },
+    "update_not_complete": {
+      "message": "面板更新未完成"
+    },
+    "panel_backup_failed": {
+      "message": "无法备份面板，因此未安装任何内容"
+    },
+    "build_verification_failed": {
+      "message": "该构建与已签名的构建源不一致，因此未安装任何内容"
+    },
+    "release_verification_failed": {
+      "message": "该版本与其签名不符，因此未安装任何内容"
+    },
+    "upload_disabled": {
+      "message": "面板不接受应用上传；请在其设置中开启 APK 上传"
+    },
     "adb_authorization_required": {
       "message": "尚未允许更新 {panel}。请打开 Home Assistant 的“修复”，选择“允许更新 {panel}”，然后在面板的“允许调试？”提示中点按“允许”。"
     },
@@ -867,31 +897,31 @@
   "issues": {
     "panel_app_too_old": {
       "title": "{panel} 需要应用 {required_version}",
-      "description": "{panel} 运行的应用 {version} 使用的协议比 Panel Assistant 1.0 更旧，因此 Home Assistant 无法看到或控制它，其实体会显示为不可用。不会丢失任何内容：面板仍会独立工作，并保留其设置和历史记录。请安装 Panel Assistant 为此面板提供的更新，它就会重新连接。"
+      "description": "Home Assistant 无法查看或控制 {panel}，因为应用版本 {version} 不支持此连接协议。\n\n解决方法：\n1. 打开[更新]({updates_url})，如果有适用于 {panel} 的兼容应用更新，请安装。\n2. 等待面板重新连接。"
     },
     "old_app_needs_090": {
       "title": "{panel} 仍在运行旧应用",
-      "description": "{panel} 仍在运行旧版 ha-paneld 应用。Panel Assistant 1.0 已无法将面板迁移到新应用，因此在迁移完成前不会在 {panel} 上安装或更新任何内容。请先安装 Panel Assistant 0.9.0（在 HACS 中打开 Panel Assistant，选择 Redownload，然后选择 0.9.0 版本），通过其修复迁移面板，再安装 1.0.0。在此期间，面板会继续使用旧应用正常工作。"
+      "description": "{panel} 仍在运行旧版 ha-paneld 应用，Panel Assistant 无法为其安装或更新应用。\n\n解决方法：\n1. 按照[安全恢复步骤]({recovery_url})，使用 Panel Assistant 0.9.0 完成迁移。\n2. 如果已有任何面板运行 1.0 版应用，或没有升级前的备份，请先寻求帮助，再更改版本。\n3. 在 0.9.0 中完成所有迁移后，再将集成更新到 1.0。"
     },
     "mqtt_panel_needs_090": {
       "title": "{panel} 尚未从 MQTT 迁移",
-      "description": "Panel Assistant 1.0 无法再将 {panel} 从 MQTT 迁移到它自己的连接，现在连接它会创建第二组实体并拆分其历史记录。请先安装 Panel Assistant 0.9.0（在 HACS 中打开 Panel Assistant，选择 Redownload，然后选择 0.9.0 版本），让它迁移面板，再安装 1.0.0。如果您想重新开始，请在“设置”、“设备与服务”、MQTT 中删除此面板的设备，然后重新加载此条目，或将其移除并重新添加面板；这会创建新实体，且不保留历史记录。"
+      "description": "当 {panel} 的实体仍在使用 MQTT 时，Panel Assistant 无法在不拆分其历史记录的情况下连接该面板。\n\n解决方法：\n1. 按照[安全恢复步骤]({recovery_url})，使用 Panel Assistant 0.9.0 完成迁移。\n2. 如果已有任何面板运行 1.0 版应用，或没有升级前的备份，请先寻求帮助，再更改版本。\n3. 在 0.9.0 中完成所有迁移后，再将集成更新到 1.0。"
     },
     "panel_permissions": {
       "title": "{panel} 的权限需要处理。",
       "fix_flow": {
         "step": {
           "commission_permissions": {
-            "title": "检查 {panel} 的权限",
-            "description": "{panel} 上的仪表盘仍可使用。请在实体面板上打开 Android 设置 → 应用 → Panel Assistant。允许相机和麦克风访问权限（如有列出）以及通知权限。在“特殊应用权限”下，为 Panel Assistant 允许“修改系统设置”和“显示在其他应用的上层”。在“无障碍”下，启用 Panel Assistant 服务。当导航栏设为“滑动显示”或“始终显示”，且缺少“显示在其他应用的上层”权限时，从仪表盘底部向上滑动会改为打开“显示在其他应用的上层”设置：请允许该权限，返回，然后再次向上滑动。返回此处并选择“提交”以重新检查权限。"
+            "title": "检查权限",
+            "description": "缺少 Android 权限，导致 {panel} 上的部分功能无法使用。\n\n解决方法：\n1. 在面板上按照 [Android 权限指南]({permissions_url})操作：在“设置 → 应用 → Panel Assistant”中，允许所列出的相机、麦克风和通知权限。\n2. 在“特殊应用权限”中，允许“修改系统设置”和“显示在其他应用的上层”；在“无障碍”中，启用 Panel Assistant。\n3. 返回此处并选择“提交”，重新检查。\n\n[了解更多]({learn_more_url})"
           }
         },
         "error": {
-          "permissions_missing": "面板仍报告缺少权限。请在面板上完成上述步骤，然后再次提交。",
-          "permissions_unreadable": "Home Assistant 无法确认此面板的所有必要权限。请检查面板是否已连接，然后再次提交。"
+          "permissions_missing": "仍有权限缺失。请在面板上完成这些步骤，然后再次选择“提交”。",
+          "permissions_unreadable": "Home Assistant 无法确认所有必需的权限。请检查面板是否已连接，然后再次选择“提交”。"
         },
         "abort": {
-          "entry_removed": "此面板已被移除。"
+          "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})"
         }
       }
     },
@@ -900,8 +930,8 @@
       "fix_flow": {
         "step": {
           "set_up_proximity": {
-            "title": "在 {panel} 上设置接近传感器",
-            "description": "在接近传感器设置完成之前，{panel} 无法通过挥手唤醒。设置大约需要一分钟，需要您站在面板前。在侧边栏中打开 Panel Assistant 并选择 {panel}。在其[设置页面]({configure_url})的“存在与唤醒”下，选择“在面板上设置接近传感器”，然后按照面板屏幕上的说明操作。您也可以在面板本身的仪表盘上选择“打开接近传感器设置”来开始。当面板显示校准已保存后，返回此处并选择提交。"
+            "title": "设置接近传感器",
+            "description": "{panel} 的接近传感器尚未设置，无法通过挥手唤醒。\n\n解决方法：\n1. 打开[接近传感器设置]({configure_url})，选择“在面板上设置接近传感器”。\n2. 站在 {panel} 前，按照屏幕上的说明操作（约一分钟）。\n3. 校准保存后，返回此处并选择“提交”。\n\n[了解更多]({learn_more_url})"
           }
         },
         "error": {
@@ -910,71 +940,71 @@
           "proximity_unreadable": "Home Assistant 无法读取面板的接近传感器状态。请检查面板是否已连接，然后再次提交。"
         },
         "abort": {
-          "entry_removed": "此面板已被移除。"
+          "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})"
         }
       }
     },
     "voice_microphone_silent": {
       "title": "{panel} 上的语音助手未在聆听。",
-      "description": "{panel} 上的语音助手未在聆听，因为面板检查时其麦克风只录到了静音。要重新检查，请在面板的设置页面中关闭再打开语音助手，或在那里选择其他音频源。"
+      "description": "{panel} 上的语音助手未在聆听，因为麦克风检查只录到了静音。\n\n解决方法：\n1. 打开[语音设置]({configure_url})。\n2. 关闭再打开“语音助手”，重新检查。\n3. 如果仍然失败，请尝试其他[音频源]({audio_source_url})。"
     },
     "voice_microphone_no_audio": {
       "title": "{panel} 上的语音助手未在聆听。",
-      "description": "{panel} 上的语音助手未在聆听，因为面板检查时其麦克风没有提供任何音频。要重新检查，请在面板的设置页面中关闭再打开语音助手，或在那里选择其他音频源。"
+      "description": "{panel} 上的语音助手未在聆听，因为麦克风检查未收到任何音频。\n\n解决方法：\n1. 打开[语音设置]({configure_url})。\n2. 关闭再打开“语音助手”，重新检查。\n3. 如果仍然失败，请尝试其他[音频源]({audio_source_url})。"
     },
     "voice_microphone_no_audio_detail": {
       "title": "{panel} 上的语音助手未在聆听。",
-      "description": "{panel} 上的语音助手未在聆听，因为面板检查时其麦克风没有提供任何音频。要重新检查，请在面板的设置页面中关闭再打开语音助手，或在那里选择其他音频源。面板报告：{detail}"
+      "description": "{panel} 上的语音助手未在聆听，因为麦克风检查未收到任何音频（{detail}）。\n\n解决方法：\n1. 打开[语音设置]({configure_url})。\n2. 关闭再打开“语音助手”，重新检查。\n3. 如果仍然失败，请尝试其他[音频源]({audio_source_url})。"
     },
     "wake_word_kept": {
       "title": "{panel} 保留了自己的唤醒词 {wake_word}。",
-      "description": "Panel Assistant 没有在 {panel} 上安装共享唤醒词 {wake_word}，因为该面板已有一个同名的不同唤醒词，是在面板本身上导入的。要在该面板上使用共享的唤醒词，请在 Panel Assistant 侧边栏中打开 {panel}，然后再次导入该唤醒词。"
+      "description": "{panel} 正在使用自己的 {wake_word} 模型，而非共享模型。\n\n解决方法：\n1. [打开唤醒词设置]({configure_url})。\n2. 如果希望使用共享模型，请导入其 .json 清单和 .tflite 文件；在此处导入会替换共享副本，并可能更新其他面板。"
     },
     "wake_word_refused": {
       "title": "{panel} 无法安装唤醒词 {wake_word}。",
-      "description": "Panel Assistant 无法在 {panel} 上安装共享唤醒词 {wake_word}。面板的其他唤醒词未更改。面板报告：{reason}"
+      "description": "{panel} 无法添加共享唤醒词 {wake_word}：{reason}。\n\n解决方法：\n1. [打开唤醒词设置]({configure_url})。\n2. 解决报告的问题后，导入兼容的 microWakeWord .json 清单和 .tflite 模型；在此处导入会替换共享副本，并可能更新其他面板。"
     },
     "volume_number_removed": {
       "title": "{panel} 不再有单独的音量数值实体",
-      "description": "{panel} 有一个媒体播放器，可显示和设置其音量，因此 Panel Assistant 已删除其单独的音量数值实体 {entity}。以下自动化或脚本仍在使用它：{users}。请将它们改为在面板的媒体播放器上使用 `media_player.volume_set` 动作设置音量。修改完成后，可以忽略此消息。"
+      "description": "自动化或脚本已无法使用以下已移除的音量数值实体来设置 {panel} 的音量：\n\n```text\n{entity}\n```\n\n解决方法：\n1. 打开[自动化]({automations_url})或[脚本]({scripts_url})，找到以下自动化或脚本：\n\n   ```text\n   {users}\n   ```\n\n2. 将针对已移除数值实体的动作替换为对此面板媒体播放器调用 `media_player.volume_set`，并将 `volume_level` 设为 0 到 1 之间的值（0.5 表示 50%）。\n3. 保存更改，然后忽略此修复提示。"
     },
-      "restart_required": {
-        "title": "重启 Home Assistant 以完成 Panel Assistant 的更新",
-        "fix_flow": {
-          "step": {
-            "confirm_restart": {
-              "title": "重启 Home Assistant",
-              "description": "已安装 Panel Assistant {installed}，但 Home Assistant 仍在运行 {loaded}。新版本会在 Home Assistant 重启后生效。选择提交即可立即重启 Home Assistant。"
-            }
+    "restart_required": {
+      "title": "重启 Home Assistant 以完成 Panel Assistant 的更新",
+      "fix_flow": {
+        "step": {
+          "confirm_restart": {
+            "title": "重启 Home Assistant",
+            "description": "Home Assistant 仍在运行 Panel Assistant {loaded}，因此已安装的构建版本 {installed} 尚未生效。\n\n解决方法：\n1. 如有需要，查看 [Panel Assistant]({integration_url})，然后返回此处。\n2. 选择“提交”，立即重启 Home Assistant。\n\n[了解更多]({learn_more_url})"
           }
         }
-      },
+      }
+    },
     "panel_user_mismatch": {
       "title": "确认 {panel} 的 Home Assistant 用户",
       "fix_flow": {
         "step": {
           "confirm_bind": {
             "title": "确认面板用户",
-            "description": "面板 {panel} 请求以用户 {user} 的身份连接到 Home Assistant。仅当 {user} 是您为此面板设置的账户时才确认。确认后，面板应该很快就会连接。任何已登录 Home Assistant 的人都可以请求以面板身份连接，因此如果您不认识此请求，请关闭此对话框并忽略该问题。"
+            "description": "确认此账户之前，{panel} 无法以 {user} 的身份连接。\n\n解决方法：\n1. [检查面板的登录账户]({configure_url})。\n2. 只有在您为此面板设置了 {user} 时，才选择“提交”；之后面板应会重新连接。\n3. 如果不认识此请求，请关闭此对话框并忽略此问题：任何已登录的用户都可以请求连接面板。\n\n[了解更多]({learn_more_url})"
           },
           "confirm_rebind": {
             "title": "更改面板用户",
-            "description": "面板 {panel} 已确认用于用户 {bound_user}，但用户 {user} 请求以此面板的身份连接。仅当您已将此面板的账户更改为 {user} 时才确认：之后面板将不再接受 {bound_user}，并且应该很快就会连接。如果您没有更改，可能有其他人试图接管此面板，请关闭此对话框并忽略该问题。"
+            "description": "{user} 请求以 {panel} 的身份连接，而此面板目前接受的是 {bound_user}。\n\n解决方法：\n1. [检查面板的登录账户]({configure_url})。\n2. 只有在您将其账户改为 {user} 时，才选择“提交”；此操作会停止接受 {bound_user}。\n3. 否则，请关闭此对话框并忽略此问题：这可能是一次接管尝试。\n\n[了解更多]({learn_more_url})"
           }
         },
         "abort": {
-          "entry_removed": "此面板已不再在 Home Assistant 中设置。",
-          "user_unavailable": "请求连接的用户已不存在或已停用。未做任何更改。"
+          "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})",
+          "user_unavailable": "发起请求的用户已不存在或已停用；未作任何更改。\n\n解决方法：\n1. [检查面板的登录账户]({configure_url})。\n2. 使用希望此面板使用的有效账户登录，然后仅确认您认识的请求。\n\n[了解更多]({learn_more_url})"
         }
       }
     },
     "no_update_route": {
       "title": "{panel} 无法接收应用更新",
-      "description": "Panel Assistant 无法在 {panel} 上安装应用更新，因此应用将保持当前版本。面板的其他功能一切照常，所以很容易被忽略。这通常发生在面板本身被更改之后，例如固件更新或重置。通过 USB 将面板重新连接到 Panel Assistant 即可恢复更新。选择“了解更多”查看此面板的操作步骤。"
+      "description": "{panel} 无法接收应用更新，但其他功能仍可使用。\n\n解决方法：\n1. 按照[此面板的更新恢复步骤]({recovery_url})操作。\n2. 恢复调试访问，或在步骤要求时通过 USB 重新连接。\n3. 此修复提示消失后，返回 Home Assistant 的“更新”页面。"
     },
     "merged_panel_identity": {
       "title": "分离已合并的面板：{panels}",
-      "description": "面板 {panels} 报告了相同的设备标识，因此 Home Assistant 无法安全地确定原生连接或实体属于哪个条目。它们的原生连接已被拒绝，也不会移动任何实体。请在所有受影响的面板上更新 Panel Assistant 应用，使每个面板都拥有不同的标识，然后删除合并后的设备，让面板重新注册。"
+      "description": "{panels} 共用同一设备身份，因此其原生连接被拒绝，也不会迁移任何实体。\n\n解决方法：\n1. [打开 Panel Assistant 设备页面]({integration_url})。\n2. 更新所有受影响面板上的应用，使每个面板拥有独立的身份。\n3. 然后删除合并的设备，让面板重新注册。"
     },
     "installer_failure": {
       "title": "{panel} 安装或更新失败",
@@ -982,7 +1012,7 @@
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "{panel} 上的安装或更新未完成。",
+            "description": "安装或更新未完成。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**支持报告**”查看原因，解决后再选择“**重试**”。\n\n[了解更多]({learn_more_url})",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -991,19 +1021,19 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "### [如何使用此支持报告]({guide_url})\n\n将下方报告复制到 [Panel Assistant 集成的新问题]({issue_url})。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
+            "description": "此报告包含已保存的安装或更新失败详情。\n\n解决方法：\n1. 阅读[如何使用此支持报告]({guide_url})。\n2. 检查报告中是否包含隐私信息，然后将其复制到[新的 Panel Assistant 集成问题]({issue_url})中。\n\n{report}\n\n[了解更多]({learn_more_url})"
           },
           "clear_error": {
             "title": "清除错误",
-            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+            "description": "清除此错误会删除其已保存的报告，不会更改面板。\n\n解决方法：\n1. 如果需要报告，请先[保存支持报告]({guide_url})。\n2. 选择“**提交**”，移除此错误和报告。\n\n[了解更多]({learn_more_url})"
           },
           "retry_error": {
             "title": "重试未能完成",
-            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+            "description": "重试未能完成，因此此错误及其报告仍保留在“修复”中。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**提交**”，然后选择“**支持报告**”，在重试前查看原因。\n\n[了解更多]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全地重试。"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1024,7 +1054,7 @@
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "面板未接受来自 Home Assistant 的连接。",
+            "description": "Home Assistant 无法连接面板以安装 Panel Assistant。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 如果面板上出现提示，请批准 Home Assistant，然后选择“**重试**”。\n\n[了解更多]({learn_more_url})",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -1033,19 +1063,19 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "### [如何使用此支持报告]({guide_url})\n\n将下方报告复制到 [Panel Assistant 集成的新问题]({issue_url})。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
+            "description": "此报告包含已保存的安装或更新失败详情。\n\n解决方法：\n1. 阅读[如何使用此支持报告]({guide_url})。\n2. 检查报告中是否包含隐私信息，然后将其复制到[新的 Panel Assistant 集成问题]({issue_url})中。\n\n{report}\n\n[了解更多]({learn_more_url})"
           },
           "clear_error": {
             "title": "清除错误",
-            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+            "description": "清除此错误会删除其已保存的报告，不会更改面板。\n\n解决方法：\n1. 如果需要报告，请先[保存支持报告]({guide_url})。\n2. 选择“**提交**”，移除此错误和报告。\n\n[了解更多]({learn_more_url})"
           },
           "retry_error": {
             "title": "重试未能完成",
-            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+            "description": "重试未能完成，因此此错误及其报告仍保留在“修复”中。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**提交**”，然后选择“**支持报告**”，在重试前查看原因。\n\n[了解更多]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全地重试。"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1066,7 +1096,7 @@
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "未在面板上安装任何内容。",
+            "description": "面板未通过安全检查，无法安装 Panel Assistant。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**支持报告**”，解决未通过的安全检查后再重试。\n\n[了解更多]({learn_more_url})",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -1075,19 +1105,19 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "### [如何使用此支持报告]({guide_url})\n\n将下方报告复制到 [Panel Assistant 集成的新问题]({issue_url})。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
+            "description": "此报告包含已保存的安装或更新失败详情。\n\n解决方法：\n1. 阅读[如何使用此支持报告]({guide_url})。\n2. 检查报告中是否包含隐私信息，然后将其复制到[新的 Panel Assistant 集成问题]({issue_url})中。\n\n{report}\n\n[了解更多]({learn_more_url})"
           },
           "clear_error": {
             "title": "清除错误",
-            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+            "description": "清除此错误会删除其已保存的报告，不会更改面板。\n\n解决方法：\n1. 如果需要报告，请先[保存支持报告]({guide_url})。\n2. 选择“**提交**”，移除此错误和报告。\n\n[了解更多]({learn_more_url})"
           },
           "retry_error": {
             "title": "重试未能完成",
-            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+            "description": "重试未能完成，因此此错误及其报告仍保留在“修复”中。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**提交**”，然后选择“**支持报告**”，在重试前查看原因。\n\n[了解更多]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全地重试。"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1108,7 +1138,7 @@
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "无法验证发布版本，因此未安装任何内容。",
+            "description": "发布版本或其暂存检查被拒绝，因此未安装 Panel Assistant。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 检查所选发布版本和连接，然后选择“**重试**”。\n\n[了解更多]({learn_more_url})",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -1117,19 +1147,19 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "### [如何使用此支持报告]({guide_url})\n\n将下方报告复制到 [Panel Assistant 集成的新问题]({issue_url})。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
+            "description": "此报告包含已保存的安装或更新失败详情。\n\n解决方法：\n1. 阅读[如何使用此支持报告]({guide_url})。\n2. 检查报告中是否包含隐私信息，然后将其复制到[新的 Panel Assistant 集成问题]({issue_url})中。\n\n{report}\n\n[了解更多]({learn_more_url})"
           },
           "clear_error": {
             "title": "清除错误",
-            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+            "description": "清除此错误会删除其已保存的报告，不会更改面板。\n\n解决方法：\n1. 如果需要报告，请先[保存支持报告]({guide_url})。\n2. 选择“**提交**”，移除此错误和报告。\n\n[了解更多]({learn_more_url})"
           },
           "retry_error": {
             "title": "重试未能完成",
-            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+            "description": "重试未能完成，因此此错误及其报告仍保留在“修复”中。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**提交**”，然后选择“**支持报告**”，在重试前查看原因。\n\n[了解更多]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全地重试。"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1150,7 +1180,7 @@
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "安装完成前连接已中断。",
+            "description": "Home Assistant 无法完成 Panel Assistant 的传输或安装。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 恢复面板连接，然后选择“**重试**”。\n\n[了解更多]({learn_more_url})",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -1159,19 +1189,19 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "### [如何使用此支持报告]({guide_url})\n\n将下方报告复制到 [Panel Assistant 集成的新问题]({issue_url})。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
+            "description": "此报告包含已保存的安装或更新失败详情。\n\n解决方法：\n1. 阅读[如何使用此支持报告]({guide_url})。\n2. 检查报告中是否包含隐私信息，然后将其复制到[新的 Panel Assistant 集成问题]({issue_url})中。\n\n{report}\n\n[了解更多]({learn_more_url})"
           },
           "clear_error": {
             "title": "清除错误",
-            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+            "description": "清除此错误会删除其已保存的报告，不会更改面板。\n\n解决方法：\n1. 如果需要报告，请先[保存支持报告]({guide_url})。\n2. 选择“**提交**”，移除此错误和报告。\n\n[了解更多]({learn_more_url})"
           },
           "retry_error": {
             "title": "重试未能完成",
-            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+            "description": "重试未能完成，因此此错误及其报告仍保留在“修复”中。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**提交**”，然后选择“**支持报告**”，在重试前查看原因。\n\n[了解更多]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全地重试。"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1192,7 +1222,7 @@
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "面板上的 Android 拒绝了安装。",
+            "description": "Android 拒绝了 Panel Assistant 的安装。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**支持报告**”，解决 Android 错误后再重试。\n\n[了解更多]({learn_more_url})",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -1201,19 +1231,19 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "### [如何使用此支持报告]({guide_url})\n\n将下方报告复制到 [Panel Assistant 集成的新问题]({issue_url})。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
+            "description": "此报告包含已保存的安装或更新失败详情。\n\n解决方法：\n1. 阅读[如何使用此支持报告]({guide_url})。\n2. 检查报告中是否包含隐私信息，然后将其复制到[新的 Panel Assistant 集成问题]({issue_url})中。\n\n{report}\n\n[了解更多]({learn_more_url})"
           },
           "clear_error": {
             "title": "清除错误",
-            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+            "description": "清除此错误会删除其已保存的报告，不会更改面板。\n\n解决方法：\n1. 如果需要报告，请先[保存支持报告]({guide_url})。\n2. 选择“**提交**”，移除此错误和报告。\n\n[了解更多]({learn_more_url})"
           },
           "retry_error": {
             "title": "重试未能完成",
-            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+            "description": "重试未能完成，因此此错误及其报告仍保留在“修复”中。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**提交**”，然后选择“**支持报告**”，在重试前查看原因。\n\n[了解更多]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全地重试。"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1234,7 +1264,7 @@
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "Panel Assistant 已安装，但未启动。",
+            "description": "Panel Assistant 已安装，但未启动。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 在面板上打开 Panel Assistant，然后选择“**重试**”。\n\n[了解更多]({learn_more_url})",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -1243,19 +1273,19 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "### [如何使用此支持报告]({guide_url})\n\n将下方报告复制到 [Panel Assistant 集成的新问题]({issue_url})。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
+            "description": "此报告包含已保存的安装或更新失败详情。\n\n解决方法：\n1. 阅读[如何使用此支持报告]({guide_url})。\n2. 检查报告中是否包含隐私信息，然后将其复制到[新的 Panel Assistant 集成问题]({issue_url})中。\n\n{report}\n\n[了解更多]({learn_more_url})"
           },
           "clear_error": {
             "title": "清除错误",
-            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+            "description": "清除此错误会删除其已保存的报告，不会更改面板。\n\n解决方法：\n1. 如果需要报告，请先[保存支持报告]({guide_url})。\n2. 选择“**提交**”，移除此错误和报告。\n\n[了解更多]({learn_more_url})"
           },
           "retry_error": {
             "title": "重试未能完成",
-            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+            "description": "重试未能完成，因此此错误及其报告仍保留在“修复”中。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**提交**”，然后选择“**支持报告**”，在重试前查看原因。\n\n[了解更多]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全地重试。"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1276,7 +1306,7 @@
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "Panel Assistant 已启动，但未报告健康状态。",
+            "description": "Panel Assistant 已启动，但 Home Assistant 无法确认其运行正常。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 在面板上打开 Panel Assistant 并恢复其连接，然后选择“**重试**”。\n\n[了解更多]({learn_more_url})",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -1285,19 +1315,19 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "### [如何使用此支持报告]({guide_url})\n\n将下方报告复制到 [Panel Assistant 集成的新问题]({issue_url})。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
+            "description": "此报告包含已保存的安装或更新失败详情。\n\n解决方法：\n1. 阅读[如何使用此支持报告]({guide_url})。\n2. 检查报告中是否包含隐私信息，然后将其复制到[新的 Panel Assistant 集成问题]({issue_url})中。\n\n{report}\n\n[了解更多]({learn_more_url})"
           },
           "clear_error": {
             "title": "清除错误",
-            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+            "description": "清除此错误会删除其已保存的报告，不会更改面板。\n\n解决方法：\n1. 如果需要报告，请先[保存支持报告]({guide_url})。\n2. 选择“**提交**”，移除此错误和报告。\n\n[了解更多]({learn_more_url})"
           },
           "retry_error": {
             "title": "重试未能完成",
-            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+            "description": "重试未能完成，因此此错误及其报告仍保留在“修复”中。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**提交**”，然后选择“**支持报告**”，在重试前查看原因。\n\n[了解更多]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全地重试。"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1318,7 +1348,7 @@
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "Home Assistant 无法确定安装是否更改了面板。",
+            "description": "Home Assistant 无法判断此次安装是否更改了面板。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**支持报告**”并检查面板后再重试。状态不明时，请勿重新安装、卸载或重置面板。\n\n[了解更多]({learn_more_url})",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -1327,19 +1357,19 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "### [如何使用此支持报告]({guide_url})\n\n将下方报告复制到 [Panel Assistant 集成的新问题]({issue_url})。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
+            "description": "此报告包含已保存的安装或更新失败详情。\n\n解决方法：\n1. 阅读[如何使用此支持报告]({guide_url})。\n2. 检查报告中是否包含隐私信息，然后将其复制到[新的 Panel Assistant 集成问题]({issue_url})中。\n\n{report}\n\n[了解更多]({learn_more_url})"
           },
           "clear_error": {
             "title": "清除错误",
-            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+            "description": "清除此错误会删除其已保存的报告，不会更改面板。\n\n解决方法：\n1. 如果需要报告，请先[保存支持报告]({guide_url})。\n2. 选择“**提交**”，移除此错误和报告。\n\n[了解更多]({learn_more_url})"
           },
           "retry_error": {
             "title": "重试未能完成",
-            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+            "description": "重试未能完成，因此此错误及其报告仍保留在“修复”中。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**提交**”，然后选择“**支持报告**”，在重试前查看原因。\n\n[了解更多]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全地重试。"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1360,7 +1390,7 @@
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "在面板经过检查之前，暂缓再次安装。",
+            "description": "Home Assistant 能够验证面板之前，将阻止再次安装。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**支持报告**”，恢复面板验证后再重试。请勿重新安装或重置应用。\n\n[了解更多]({learn_more_url})",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -1369,19 +1399,19 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "### [如何使用此支持报告]({guide_url})\n\n将下方报告复制到 [Panel Assistant 集成的新问题]({issue_url})。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
+            "description": "此报告包含已保存的安装或更新失败详情。\n\n解决方法：\n1. 阅读[如何使用此支持报告]({guide_url})。\n2. 检查报告中是否包含隐私信息，然后将其复制到[新的 Panel Assistant 集成问题]({issue_url})中。\n\n{report}\n\n[了解更多]({learn_more_url})"
           },
           "clear_error": {
             "title": "清除错误",
-            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+            "description": "清除此错误会删除其已保存的报告，不会更改面板。\n\n解决方法：\n1. 如果需要报告，请先[保存支持报告]({guide_url})。\n2. 选择“**提交**”，移除此错误和报告。\n\n[了解更多]({learn_more_url})"
           },
           "retry_error": {
             "title": "重试未能完成",
-            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+            "description": "重试未能完成，因此此错误及其报告仍保留在“修复”中。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**提交**”，然后选择“**支持报告**”，在重试前查看原因。\n\n[了解更多]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全地重试。"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1402,7 +1432,7 @@
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "面板上的 Panel Assistant 未更新。",
+            "description": "Home Assistant 无法确认 Panel Assistant 已完成更新。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 恢复面板连接并查看“**支持报告**”，然后选择“**重试**”。\n\n[了解更多]({learn_more_url})",
             "menu_options": {
               "retry": "重试",
               "authorize_adb": "允许更新",
@@ -1412,24 +1442,24 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "### [如何使用此支持报告]({guide_url})\n\n将下方报告复制到 [Panel Assistant 集成的新问题]({issue_url})。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
+            "description": "此报告包含已保存的安装或更新失败详情。\n\n解决方法：\n1. 阅读[如何使用此支持报告]({guide_url})。\n2. 检查报告中是否包含隐私信息，然后将其复制到[新的 Panel Assistant 集成问题]({issue_url})中。\n\n{report}\n\n[了解更多]({learn_more_url})"
           },
           "clear_error": {
             "title": "清除错误",
-            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+            "description": "清除此错误会删除其已保存的报告，不会更改面板。\n\n解决方法：\n1. 如果需要报告，请先[保存支持报告]({guide_url})。\n2. 选择“**提交**”，移除此错误和报告。\n\n[了解更多]({learn_more_url})"
           },
           "retry_error": {
             "title": "重试未能完成",
-            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+            "description": "重试未能完成，因此此错误及其报告仍保留在“修复”中。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**提交**”，然后选择“**支持报告**”，在重试前查看原因。\n\n[了解更多]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "允许更新 {panel}",
-            "description": "选择“提交”，然后查看 {panel} 的屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。"
+            "title": "允许更新",
+            "description": "Home Assistant 需要获得 Android 批准，才能更新 {panel}。\n\n解决方法：\n1. 阅读 [ADB 授权步骤]({approval_url})。\n2. 选择“**提交**”，然后在 {panel} 上勾选“**一律允许使用这台计算机进行调试**”并点按“**允许**”。\n3. 获得批准后，在此修复提示中选择“**重试**”，再次尝试更新。\n\n[了解更多]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全地重试。",
-          "authorize_adb": "请查看 {panel} 的屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。\n\n面板允许后，将自动继续。"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})",
+          "authorize_adb": "仍需在 {panel} 上获得 Android 批准。\n\n解决方法：\n1. 阅读 [ADB 授权步骤]({approval_url})。\n2. 在 {panel} 上勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。\n\n获得批准后将自动继续。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1456,7 +1486,7 @@
           "panel_identity_changed": "该地址上响应的已不再是此已配置的面板。请检查面板及其地址后重试。"
         },
         "abort": {
-          "entry_removed": "此面板已被移除。"
+          "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})"
         }
       }
     },
@@ -1466,7 +1496,7 @@
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "重试已暂停，直到能够检查面板。",
+            "description": "重试未完成，因此已保存的错误和报告仍可查看。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**支持报告**”，查看报告中的原因后再重试。清除此错误并不代表授权安装。\n\n[了解更多]({learn_more_url})",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -1475,19 +1505,19 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "### [如何使用此支持报告]({guide_url})\n\n将下方报告复制到 [Panel Assistant 集成的新问题]({issue_url})。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
+            "description": "此报告包含已保存的安装或更新失败详情。\n\n解决方法：\n1. 阅读[如何使用此支持报告]({guide_url})。\n2. 检查报告中是否包含隐私信息，然后将其复制到[新的 Panel Assistant 集成问题]({issue_url})中。\n\n{report}\n\n[了解更多]({learn_more_url})"
           },
           "clear_error": {
             "title": "清除错误",
-            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+            "description": "清除此错误会删除其已保存的报告，不会更改面板。\n\n解决方法：\n1. 如果需要报告，请先[保存支持报告]({guide_url})。\n2. 选择“**提交**”，移除此错误和报告。\n\n[了解更多]({learn_more_url})"
           },
           "retry_error": {
             "title": "重试未能完成",
-            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+            "description": "重试未能完成，因此此错误及其报告仍保留在“修复”中。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**提交**”，然后选择“**支持报告**”，在重试前查看原因。\n\n[了解更多]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全地重试。"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1501,41 +1531,41 @@
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         },
         "abort": {
-          "entry_removed": "此面板已被移除。"
+          "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})"
         }
       }
     },
     "panel_address_unreachable": {
       "title": "无法通过 {address} 连接到 {panel}",
-      "description": "其实体仍可通过来自 {session_address} 的实时连接正常工作。\n\n如果面板的地址已更改，请用新地址再次添加它。地址恢复响应后，此问题会自动解除。"
+      "description": "{panel} 已连接，但无法访问其已保存的地址 {address}，因此需要使用该地址的操作无法进行。\n\n解决方法：\n1. [打开 Panel Assistant 设备页面]({integration_url})。\n2. 如果面板地址已更改，请使用当前地址重新添加。\n3. 否则，请恢复对 {address} 的访问；该地址以此面板的身份响应后，此提示会消失。"
     },
     "panel_address_unverified": {
       "title": "{panel} 已迁移，但无法确认其新地址",
-      "description": "{panel} 正从 {session_address} 连接到 Home Assistant，因此其实体保持可用，但 Home Assistant 无法通过已保存的地址 {address} 读取该面板，并且对 {session_address} 的检查未以该面板的身份作出响应，因此已保存的地址未被更改。如果面板已迁移，请使用新地址重新添加，已保存的地址会随之更新；已保存的地址恢复响应后，此提示会自动消失。"
+      "description": "{panel} 已连接，但无法确认 {address} 或建议地址 {session_address} 是否可用于需要面板地址的操作。\n\n解决方法：\n1. [打开 Panel Assistant 设备页面]({integration_url})。\n2. 如果面板地址已更改，请使用当前地址重新添加。\n3. 否则，请恢复对 {address} 的访问；该地址以此面板的身份响应后，此提示会消失。"
     },
     "panel_identity_mismatch": {
       "title": "检查 {panel} 的地址",
-      "description": "{address} 的响应与 {panel} 不符，因此已暂停此面板的控制功能。请检查此地址是否属于该面板。如果面板的地址已更改，请使用当前地址重新添加。"
+      "description": "{address} 未以 {panel} 的身份响应，因此其控制功能已暂停。\n\n解决方法：\n1. [打开 Panel Assistant 设备页面]({integration_url})。\n2. 检查面板的当前地址。\n3. 如果地址已更改，请使用该地址重新添加。"
     },
     "panel_link_shared": {
       "title": "{panel} 已重新安装，但与其他设置共用设备关联",
-      "description": "{panel} 在重新安装应用后从 {address} 应答，但 {others} 也持有相同的设备关联，因此 Home Assistant 无法判断此面板属于哪个设置，已暂停其控制。地址没有问题。如果 {others} 已不再使用，请将其删除，{panel} 会自动重新加入；否则请重新添加 {panel}。"
+      "description": "{panel} 在 {address} 重新安装了应用，但它与 {others} 共用设备关联，因此其控制功能已暂停。\n\n解决方法：\n1. [打开 Panel Assistant 设备页面]({integration_url})。\n2. 只有在 {others} 已不再使用时，才将其移除；之后 {panel} 会自动重新加入。\n3. 如果那些面板仍在使用，请重新添加 {panel}。"
     },
     "panel_identity_confirmation": {
       "title": "保留 {panel} 的现有设置",
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "保留所列面板的设置",
-            "description": "是否保留以下所有面板的现有实体和设置？\n\n{panels}\n\n提交一次即可确认上述所有面板。"
+            "title": "保留配置",
+            "description": "列出的面板需要确认，才能以新的设备身份保留其现有设置。\n\n解决方法：\n1. 对照此列表[检查 Panel Assistant 设备]({integration_url})。\n2. 只有在每个面板都确实对应其现有设置时，才进行确认。\n3. 选择一次“提交”，保留列出的所有设置。\n\n{panels}\n\n[了解更多]({learn_more_url})"
           }
         },
         "abort": {
-          "entry_removed": "此面板已被移除。",
-          "identity_changed": "此确认窗口打开期间，面板发生了变化。请打开最新的修复提示并重试。"
+          "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})",
+          "identity_changed": "此确认窗口打开期间，列表中的某个面板发生了变化。\n\n解决方法：\n1. [打开“修复”](/config/repairs)，然后打开最新的面板确认。\n2. 检查列出的每个面板后，再选择“提交”。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
-          "cannot_connect": "无法连接所有列出的面板。请检查其连接并重试。"
+          "cannot_connect": "无法连接列出的所有面板；请检查其连接并重试。"
         }
       }
     },
@@ -1545,7 +1575,7 @@
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "Home Assistant 尚未获准更新 {panel}。",
+            "description": "Home Assistant 尚未获准更新 {panel}。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**允许更新**”，然后选择“**提交**”，并在 {panel} 上批准提示中的请求。\n\n[了解更多]({learn_more_url})",
             "menu_options": {
               "retry": "重试",
               "authorize_adb": "允许更新",
@@ -1555,24 +1585,24 @@
           },
           "support_report": {
             "title": "支持报告",
-            "description": "### [如何使用此支持报告]({guide_url})\n\n将下方报告复制到 [Panel Assistant 集成的新问题]({issue_url})。如果向 AI 助手寻求帮助，请将报告与所链接指南页面上的提示词一起提供。\n\n{report}"
+            "description": "此报告包含已保存的安装或更新失败详情。\n\n解决方法：\n1. 阅读[如何使用此支持报告]({guide_url})。\n2. 检查报告中是否包含隐私信息，然后将其复制到[新的 Panel Assistant 集成问题]({issue_url})中。\n\n{report}\n\n[了解更多]({learn_more_url})"
           },
           "clear_error": {
             "title": "清除错误",
-            "description": "从“修复”中删除此错误及其保存的报告。此操作不会更改面板。选择“提交”以清除错误。"
+            "description": "清除此错误会删除其已保存的报告，不会更改面板。\n\n解决方法：\n1. 如果需要报告，请先[保存支持报告]({guide_url})。\n2. 选择“**提交**”，移除此错误和报告。\n\n[了解更多]({learn_more_url})"
           },
           "retry_error": {
             "title": "重试未能完成",
-            "description": "重试已暂停。错误仍保留在“修复”中；支持报告提供详细信息。"
+            "description": "重试未能完成，因此此错误及其报告仍保留在“修复”中。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**提交**”，然后选择“**支持报告**”，在重试前查看原因。\n\n[了解更多]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "允许更新 {panel}",
-            "description": "选择“提交”，然后查看 {panel} 的屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。"
+            "title": "允许更新",
+            "description": "Home Assistant 需要获得 Android 批准，才能更新 {panel}。\n\n解决方法：\n1. 阅读 [ADB 授权步骤]({approval_url})。\n2. 选择“**提交**”，然后在 {panel} 上勾选“**一律允许使用这台计算机进行调试**”并点按“**允许**”。\n3. 获得批准后，在此修复提示中选择“**重试**”，再次尝试更新。\n\n[了解更多]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全地重试。",
-          "authorize_adb": "请查看 {panel} 的屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。\n\n面板允许后，将自动继续。"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})",
+          "authorize_adb": "仍需在 {panel} 上获得 Android 批准。\n\n解决方法：\n1. 阅读 [ADB 授权步骤]({approval_url})。\n2. 在 {panel} 上勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。\n\n获得批准后将自动继续。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1599,7 +1629,7 @@
           "panel_identity_changed": "该地址上响应的已不再是此已配置的面板。请检查面板及其地址后重试。"
         },
         "abort": {
-          "entry_removed": "此面板已被移除。"
+          "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})"
         }
       }
     },
@@ -1608,8 +1638,8 @@
       "fix_flow": {
         "step": {
           "authorize_adb": {
-            "title": "允许更新 {panel}",
-            "description": "选择“提交”，然后查看 {panel} 的屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。"
+            "title": "允许更新",
+            "description": "允许 ADB 连接之前，Home Assistant 无法在 {panel} 上安装更新。\n\n解决方法：\n1. 阅读 [ADB 授权步骤]({approval_url})，然后选择“提交”，发送授权请求。\n2. 在 {panel} 上勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。\n3. 在此处等待授权完成；Android 可能会将 Home Assistant 称为一台计算机。\n\n[了解更多]({learn_more_url})"
           }
         },
         "error": {
@@ -1628,16 +1658,16 @@
           "panel_identity_changed": "该地址上响应的已不再是此已配置的面板。请检查面板及其地址后重试。"
         },
         "abort": {
-          "entry_removed": "此面板已被移除。"
+          "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})"
         },
         "progress": {
-          "authorize_adb": "请查看 {panel} 的屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。\n\n面板允许后，将自动继续。"
+          "authorize_adb": "Home Assistant 正在等待 {panel} 允许更新。\n\n解决方法：\n1. 在面板上按照 [ADB 授权步骤]({approval_url})操作。\n2. 勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。\n3. 在此处等待；获得批准后将自动继续。\n\n[了解更多]({learn_more_url})"
         }
       }
     },
     "another_home_assistant": {
       "title": "{panel} 已登录另一个 Home Assistant",
-      "description": "{panel} 已添加到此处，但它当前已登录另一个 Home Assistant。其设置和登录状态未更改。若要将其连接到此处，请在面板上更改 Home Assistant 并登录。"
+      "description": "{panel} 已添加到此处，但仍登录着另一个 Home Assistant。\n\n解决方法：\n1. [打开面板的 Home Assistant 连接设置]({configure_url})。\n2. 如果确实要连接到此处，请输入此 Home Assistant 的地址并保存。\n3. 重新连接，并使用希望面板使用的账户登录；否则，请保留当前服务器并忽略此修复提示。"
     }
   },
   "options": {

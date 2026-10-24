@@ -36,6 +36,7 @@ from custom_components.panel_assistant.repairs_failure import (
 from custom_components.panel_assistant.status import parse_status_response
 from custom_components.panel_assistant.update import HaPaneldUpdateEntity
 from custom_components.panel_assistant.update_coordinator import PanelUpdateCoordinator
+from tests.test_repair_links import assert_repair_links
 
 from .test_lan_staged_update import _backup
 from .test_transport import HEALTH as NATIVE_HEALTH
@@ -217,7 +218,10 @@ async def test_a_new_running_build_cannot_clear_unresolved_grants(
         assert issue is not None
         assert issue.severity is ir.IssueSeverity.WARNING
         assert issue.is_persistent and issue.is_fixable
-        assert issue.translation_placeholders == {"panel": "Kitchen display"}
+        assert_repair_links(issue)
+        assert {
+            "panel": "Kitchen display"
+        }.items() <= issue.translation_placeholders.items()
         assert issue.data == {"entry_id": entry.entry_id}
         health.return_value = replace(HEALTH, version="0.9.10", build="101")
         if next_read == "wrong-panel":

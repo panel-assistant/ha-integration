@@ -30,6 +30,7 @@ from custom_components.panel_assistant.repairs_restart import (
     read_installed_build,
     restart_pending,
 )
+from tests.test_repair_links import assert_repair_links
 
 LOADED = ("0.7.0-rc1", 267)
 
@@ -77,10 +78,11 @@ async def test_a_newer_build_on_disk_asks_for_a_restart(
     assert issue.is_fixable
     assert not issue.is_persistent
     assert issue.translation_key == ISSUE_RESTART_REQUIRED
-    assert issue.translation_placeholders == {
+    assert_repair_links(issue)
+    assert {
         "loaded": "0.7.0-rc1 (267)",
         "installed": "0.7.0 (270)",
-    }
+    }.items() <= issue.translation_placeholders.items()
     assert restart_pending(hass) == {
         "loaded_version": "0.7.0-rc1",
         "loaded_build": 267,
@@ -200,10 +202,10 @@ async def test_installing_a_new_build_shows_the_repair_within_one_second(
 
     issues = await visible_issues(2)
     assert len(issues) == 1
-    assert issues[0]["translation_placeholders"] == {
+    assert {
         "loaded": f"{INTEGRATION_VERSION} ({INTEGRATION_BUILD})",
         "installed": f"{INTEGRATION_VERSION} ({INTEGRATION_BUILD + 1})",
-    }
+    }.items() <= issues[0]["translation_placeholders"].items()
 
     _install(root, INTEGRATION_VERSION, INTEGRATION_BUILD)
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=2))

@@ -35,7 +35,7 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.storage import Store
 
 from .blob import async_get_blobs
-from .const import DOMAIN
+from .const import DOMAIN, help_url
 from .transport_protocol import OUTCOME_APPLIED
 from .transport_sessions import (
     PanelSession,
@@ -355,11 +355,12 @@ class SharedWakeWords:
         entry = self._hass.config_entries.async_get_entry(entry_id)
         if entry is None:
             return
-        from .device import panel_display_name
+        from .device import panel_display_name, sidebar_url
 
         placeholders = {
             "panel": panel_display_name(self._hass, entry),
             "wake_word": word.phrase,
+            "configure_url": sidebar_url(entry_id, "configure", "cfg-voice_wake_words"),
         }
         if key == ISSUE_REFUSED:
             placeholders["reason"] = reason
@@ -371,6 +372,7 @@ class SharedWakeWords:
             is_persistent=False,
             severity=ir.IssueSeverity.WARNING,
             translation_key=key,
+            learn_more_url=help_url("repair", issue=key),
             translation_placeholders=placeholders,
             data={"entry_id": entry_id},
         )

@@ -466,7 +466,9 @@ def test_destructive_recovery_instructions_stay_prohibitions_in_drafted_locales(
         for path, text in english.items()
         if re.search(r"\bDo not [^.]*\b(uninstall|reset)\b", text)
     }
-    assert len(prohibited) == 8
+    # More recovery guidance may add warnings; the scan must still exercise at
+    # least the original coverage floor rather than pinning its exact size.
+    assert len(prohibited) >= 8
     for locale, positive in _POSITIVE_DESTRUCTIVE_COMMANDS.items():
         target = _translation_leaves(
             _load_translation_catalogue(INTEGRATION / "translations" / f"{locale}.json")

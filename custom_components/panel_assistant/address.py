@@ -25,7 +25,7 @@ from .client import (
     PanelHealth,
     normalize_address,
 )
-from .const import DOMAIN
+from .const import DOMAIN, help_url
 
 # The panel is connected, but the stored address does not answer and the
 # session offers no other address to try (it came from the stored one, or
@@ -125,10 +125,12 @@ def async_raise_address_issue(
         is_persistent=False,
         severity=ir.IssueSeverity.WARNING,
         translation_key=issue,
+        learn_more_url=help_url("repair", issue=issue),
         translation_placeholders={
             "panel": panel,
             "address": address,
             "session_address": session_address,
+            "integration_url": "/config/integrations/integration/panel_assistant",
         },
     )
 

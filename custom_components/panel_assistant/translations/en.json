@@ -782,7 +782,9 @@
     }
   },
   "exceptions": {
-    "old_app_needs_090": {"message": "This panel still runs the old app: install Panel Assistant 0.9.0 first, as its Repair explains"},
+    "old_app_needs_090": {
+      "message": "This panel still runs the old app: install Panel Assistant 0.9.0 first, as its Repair explains"
+    },
     "mqtt_panel_needs_090": {
       "message": "{panel} was never moved off MQTT: install Panel Assistant 0.9.0 first, as its Repair explains"
     },
@@ -895,31 +897,31 @@
   "issues": {
     "panel_app_too_old": {
       "title": "{panel} needs app {required_version}",
-      "description": "{panel} runs app {version}, which speaks an older protocol than Panel Assistant 1.0, so Home Assistant cannot see or control it and its entities show as unavailable. Nothing is lost: it keeps working on its own and keeps its settings and history. Install the update that Panel Assistant offers for this panel and it reconnects."
+      "description": "Home Assistant cannot see or control {panel} because app {version} does not support this connection protocol.\n\nTo fix:\n1. Open [Updates]({updates_url}) and install a compatible app update for {panel}, if offered.\n2. Wait for the panel to reconnect."
     },
     "old_app_needs_090": {
       "title": "{panel} still runs the old app",
-      "description": "{panel} still runs the old ha-paneld app. Panel Assistant 1.0 can no longer move a panel to the new app, so it installs and updates nothing on {panel} until it has moved. Install Panel Assistant 0.9.0 first (in HACS open Panel Assistant, choose Redownload, and pick version 0.9.0), move the panel with its Repair, then install 1.0.0. The panel keeps working on the old app meanwhile."
+      "description": "Panel Assistant cannot install or update {panel} while it still runs the old ha-paneld app.\n\nTo fix:\n1. Follow the [safe recovery steps]({recovery_url}) to finish the move with Panel Assistant 0.9.0.\n2. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.\n3. Finish all moves in 0.9.0, then update the integration to 1.0."
     },
     "mqtt_panel_needs_090": {
       "title": "{panel} was never moved off MQTT",
-      "description": "Panel Assistant 1.0 can no longer move {panel} from MQTT to its own connection, and connecting it now would create a second set of entities and split its history. Install Panel Assistant 0.9.0 first (in HACS open Panel Assistant, choose Redownload, and pick version 0.9.0), let it move the panel, then install 1.0.0. If you would rather start fresh, delete this panel's device under Settings, Devices & services, MQTT, then reload this entry or remove it and add the panel again; that creates new entities and keeps no history."
+      "description": "Panel Assistant cannot connect {panel} while its entities still use MQTT without splitting their history.\n\nTo fix:\n1. Follow the [safe recovery steps]({recovery_url}) to finish the move with Panel Assistant 0.9.0.\n2. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.\n3. Finish all moves in 0.9.0, then update the integration to 1.0."
     },
     "panel_permissions": {
       "title": "Permissions need attention on {panel}.",
       "fix_flow": {
         "step": {
           "commission_permissions": {
-            "title": "Check permissions on {panel}",
-            "description": "The dashboard on {panel} remains available. On the physical panel, open Android Settings → Apps → Panel Assistant. Allow camera and microphone access where listed, and notifications. Under Special app access, allow Modify system settings and Display over other apps for Panel Assistant. Under Accessibility, enable the Panel Assistant service. When the navigation bar is set to Swipe reveal or Always on and Display over other apps is missing, swiping up from the bottom of the dashboard opens the Display over other apps setting instead: allow it, go back, and swipe up again. Return here and select Submit to check the permissions again."
+            "title": "Check permissions",
+            "description": "Missing Android permissions prevent some features on {panel} from working.\n\nTo fix:\n1. At the panel, follow the [Android permission guide]({permissions_url}): in Settings → Apps → Panel Assistant, allow camera, microphone and notifications where listed.\n2. Under Special app access, allow Modify system settings and Display over other apps; under Accessibility, enable Panel Assistant.\n3. Return here and select Submit to check again.\n\n[Learn more]({learn_more_url})"
           }
         },
         "error": {
-          "permissions_missing": "The panel still reports a missing permission. Complete the steps on the panel, then submit again.",
-          "permissions_unreadable": "Home Assistant could not verify every required permission on this panel. Check that the panel is connected, then submit again."
+          "permissions_missing": "A permission is still missing. Complete the steps on the panel, then select Submit again.",
+          "permissions_unreadable": "Home Assistant could not verify every required permission. Check that the panel is connected, then select Submit again."
         },
         "abort": {
-          "entry_removed": "This panel has been removed."
+          "entry_removed": "This panel is no longer set up in Home Assistant.\n\nTo fix:\n1. [Open Panel Assistant devices](/config/integrations/integration/panel_assistant) if you want to add it again.\n2. Otherwise, close this dialog.\n\n[Learn more]({learn_more_url})"
         }
       }
     },
@@ -928,8 +930,8 @@
       "fix_flow": {
         "step": {
           "set_up_proximity": {
-            "title": "Set up proximity on {panel}",
-            "description": "Until its proximity sensor is set up, {panel} cannot wake on a wave. Setup takes about a minute and needs you in front of the panel. Open Panel Assistant in the sidebar and choose {panel}. On its [Configure page]({configure_url}), under Presence & wake, select Set up proximity on panel, then follow the instructions on the panel's screen. You can also start it on the panel itself with Open proximity setup on its dashboard. When the panel says the calibration is saved, return here and select Submit."
+            "title": "Set up proximity",
+            "description": "{panel} cannot wake on a wave until its proximity sensor is set up.\n\nTo fix:\n1. Open [proximity setup]({configure_url}) and select Set up proximity on panel.\n2. Stand in front of {panel} and follow its screen instructions (about a minute).\n3. When calibration is saved, return here and select Submit.\n\n[Learn more]({learn_more_url})"
           }
         },
         "error": {
@@ -938,71 +940,71 @@
           "proximity_unreadable": "Home Assistant could not read the panel's proximity state. Check that the panel is connected, then submit again."
         },
         "abort": {
-          "entry_removed": "This panel has been removed."
+          "entry_removed": "This panel is no longer set up in Home Assistant.\n\nTo fix:\n1. [Open Panel Assistant devices](/config/integrations/integration/panel_assistant) if you want to add it again.\n2. Otherwise, close this dialog.\n\n[Learn more]({learn_more_url})"
         }
       }
     },
     "voice_microphone_silent": {
       "title": "The voice assistant on {panel} is not listening.",
-      "description": "The voice assistant on {panel} is not listening because its microphone recorded only silence when the panel checked it. To check again, turn the voice assistant off and on in the panel's Configure page, or choose another audio source there."
+      "description": "The voice assistant on {panel} is not listening because its microphone check recorded only silence.\n\nTo fix:\n1. Open [voice settings]({configure_url}).\n2. Turn Voice assistant off and on to check again.\n3. If it still fails, try another [Audio source]({audio_source_url})."
     },
     "voice_microphone_no_audio": {
       "title": "The voice assistant on {panel} is not listening.",
-      "description": "The voice assistant on {panel} is not listening because its microphone delivered no audio when the panel checked it. To check again, turn the voice assistant off and on in the panel's Configure page, or choose another audio source there."
+      "description": "The voice assistant on {panel} is not listening because its microphone check received no audio.\n\nTo fix:\n1. Open [voice settings]({configure_url}).\n2. Turn Voice assistant off and on to check again.\n3. If it still fails, try another [Audio source]({audio_source_url})."
     },
     "voice_microphone_no_audio_detail": {
       "title": "The voice assistant on {panel} is not listening.",
-      "description": "The voice assistant on {panel} is not listening because its microphone delivered no audio when the panel checked it. To check again, turn the voice assistant off and on in the panel's Configure page, or choose another audio source there. The panel reported: {detail}"
+      "description": "The voice assistant on {panel} is not listening because its microphone check received no audio ({detail}).\n\nTo fix:\n1. Open [voice settings]({configure_url}).\n2. Turn Voice assistant off and on to check again.\n3. If it still fails, try another [Audio source]({audio_source_url})."
     },
     "wake_word_kept": {
       "title": "{panel} kept its own wake word {wake_word}.",
-      "description": "Panel Assistant did not install the shared wake word {wake_word} on {panel}, because the panel already has a different wake word of the same name that was imported on the panel itself. To use the shared one there, open {panel} in the Panel Assistant sidebar and import the wake word again."
+      "description": "{panel} is using its own model for {wake_word} instead of the shared model.\n\nTo fix:\n1. [Open wake words]({configure_url}).\n2. If you want the shared model, import its .json manifest and .tflite file; importing here replaces the shared copy and can update other panels."
     },
     "wake_word_refused": {
       "title": "{panel} could not install the wake word {wake_word}.",
-      "description": "Panel Assistant could not install the shared wake word {wake_word} on {panel}. The panel's other wake words are unchanged. The panel reported: {reason}"
+      "description": "{panel} could not add the shared wake word {wake_word}: {reason}.\n\nTo fix:\n1. [Open wake words]({configure_url}).\n2. Correct the reported problem, then import a compatible microWakeWord .json manifest and .tflite model; importing here replaces the shared copy and can update other panels."
     },
     "volume_number_removed": {
       "title": "{panel} no longer has a separate volume number",
-      "description": "{panel} has a media player that shows and sets its volume, so Panel Assistant removed its separate volume number {entity}. These automations or scripts still use it: {users}. Change them to set the volume with the `media_player.volume_set` action on the panel's media player. Once they are changed, you can ignore this message."
+      "description": "Automations or scripts can no longer use this removed volume number to set the volume on {panel}:\n\n```text\n{entity}\n```\n\nTo fix:\n1. Open [Automations]({automations_url}) or [Scripts]({scripts_url}) and find these automations or scripts:\n\n   ```text\n   {users}\n   ```\n\n2. Replace actions for the removed number with `media_player.volume_set` on this panel’s media player, using `volume_level` from 0 to 1 (0.5 is 50%).\n3. Save your changes, then ignore this Repair."
     },
-      "restart_required": {
-        "title": "Restart Home Assistant to finish updating Panel Assistant",
-        "fix_flow": {
-          "step": {
-            "confirm_restart": {
-              "title": "Restart Home Assistant",
-              "description": "Panel Assistant {installed} is installed, but Home Assistant is still running {loaded}. The new version starts working after Home Assistant restarts. Select Submit to restart Home Assistant now."
-            }
+    "restart_required": {
+      "title": "Restart Home Assistant to finish updating Panel Assistant",
+      "fix_flow": {
+        "step": {
+          "confirm_restart": {
+            "title": "Restart Home Assistant",
+            "description": "Home Assistant is still running Panel Assistant {loaded}, so installed build {installed} is not active yet.\n\nTo fix:\n1. Review [Panel Assistant]({integration_url}) if needed, then return here.\n2. Select Submit to restart Home Assistant now.\n\n[Learn more]({learn_more_url})"
           }
         }
-      },
+      }
+    },
     "panel_user_mismatch": {
       "title": "Confirm the Home Assistant user for {panel}",
       "fix_flow": {
         "step": {
           "confirm_bind": {
-            "title": "Confirm the panel's user",
-            "description": "The panel {panel} asked to connect to Home Assistant as the user {user}. Confirm only if {user} is the account you set up for this panel. If you confirm, the panel should connect shortly afterwards. Anyone signed in to Home Assistant can ask to connect as a panel, so if you do not recognise this request, close this dialog and ignore the issue."
+            "title": "Confirm panel user",
+            "description": "{panel} cannot connect as {user} until you confirm this account.\n\nTo fix:\n1. [Check the panel’s sign-in]({configure_url}).\n2. Select Submit only if you set up {user} for this panel; it should then reconnect.\n3. If you do not recognise the request, close this dialog and ignore the issue: anyone signed in can request a panel connection.\n\n[Learn more]({learn_more_url})"
           },
           "confirm_rebind": {
-            "title": "Change the panel's user",
-            "description": "The panel {panel} is confirmed for the user {bound_user}, but the user {user} asked to connect as it. Confirm only if you changed this panel's account to {user}: the panel then stops accepting {bound_user} and should connect shortly afterwards. If you did not, someone else may be trying to take over the panel, so close this dialog and ignore the issue."
+            "title": "Change panel user",
+            "description": "{user} asked to connect as {panel}, which currently accepts {bound_user}.\n\nTo fix:\n1. [Check the panel’s sign-in]({configure_url}).\n2. Select Submit only if you changed its account to {user}; this stops accepting {bound_user}.\n3. Otherwise close this dialog and ignore the issue: this may be a takeover attempt.\n\n[Learn more]({learn_more_url})"
           }
         },
         "abort": {
-          "entry_removed": "This panel is no longer set up in Home Assistant.",
-          "user_unavailable": "The user who asked to connect no longer exists or is deactivated. Nothing was changed."
+          "entry_removed": "This panel is no longer set up in Home Assistant.\n\nTo fix:\n1. [Open Panel Assistant devices](/config/integrations/integration/panel_assistant) if you want to add it again.\n2. Otherwise, close this dialog.\n\n[Learn more]({learn_more_url})",
+          "user_unavailable": "The requesting user no longer exists or is deactivated; nothing was changed.\n\nTo fix:\n1. [Check the panel’s sign-in]({configure_url}).\n2. Sign in with the active account you want this panel to use, then confirm only a request you recognise.\n\n[Learn more]({learn_more_url})"
         }
       }
     },
     "no_update_route": {
       "title": "{panel} cannot receive app updates",
-      "description": "Panel Assistant cannot install app updates on {panel}, so the app stays on its current version. Everything else about the panel keeps working, which is why this is easy to miss. It usually follows a change made on the panel itself, such as a firmware update or a reset. Reconnecting the panel to Panel Assistant by USB restores updates. Select Learn more for the steps for this panel."
+      "description": "{panel} cannot receive app updates, although its other features keep working.\n\nTo fix:\n1. Follow the [update recovery steps for this panel]({recovery_url}).\n2. Restore debugging access, or reconnect by USB if the steps require it.\n3. Return to Home Assistant Updates when this Repair clears."
     },
     "merged_panel_identity": {
       "title": "Separate the merged panels: {panels}",
-      "description": "The panels {panels} report the same device identity, so Home Assistant cannot safely decide which entry owns a native connection or entity. Their native connection is refused and no entities are moved. Update the Panel Assistant app on every affected panel so each has a distinct identity, then delete the merged device and let the panels register again."
+      "description": "{panels} share one device identity, so their native connections are refused and no entities are moved.\n\nTo fix:\n1. [Open Panel Assistant devices]({integration_url}).\n2. Update the app on every affected panel so each has its own identity.\n3. Then delete the merged device and let the panels register again."
     },
     "installer_failure": {
       "title": "Install or update failed on {panel}",
@@ -1010,7 +1012,7 @@
         "step": {
           "init": {
             "title": "Resolve panel error",
-            "description": "The install or update on {panel} did not finish.",
+            "description": "The install or update did not finish.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Support report** to check the cause, then **Try again** when it is resolved.\n\n[Learn more]({learn_more_url})",
             "menu_options": {
               "retry": "Try again",
               "support_report": "Support report",
@@ -1019,19 +1021,19 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "This report contains the saved details of the failed installation or update.\n\nTo fix:\n1. Read [how to use this support report]({guide_url}).\n2. Review the report for private information, then copy it into a [new Panel Assistant integration issue]({issue_url}).\n\n{report}\n\n[Learn more]({learn_more_url})"
           },
           "clear_error": {
             "title": "Clear error",
-            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+            "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
-            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+            "title": "Retry incomplete",
+            "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely."
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1052,7 +1054,7 @@
         "step": {
           "init": {
             "title": "Resolve panel error",
-            "description": "The panel did not accept the connection from Home Assistant.",
+            "description": "Home Assistant could not connect to the panel to install Panel Assistant.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Approve Home Assistant on the panel if prompted, then select **Try again**.\n\n[Learn more]({learn_more_url})",
             "menu_options": {
               "retry": "Try again",
               "support_report": "Support report",
@@ -1061,19 +1063,19 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "This report contains the saved details of the failed installation or update.\n\nTo fix:\n1. Read [how to use this support report]({guide_url}).\n2. Review the report for private information, then copy it into a [new Panel Assistant integration issue]({issue_url}).\n\n{report}\n\n[Learn more]({learn_more_url})"
           },
           "clear_error": {
             "title": "Clear error",
-            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+            "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
-            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+            "title": "Retry incomplete",
+            "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely."
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1094,7 +1096,7 @@
         "step": {
           "init": {
             "title": "Resolve panel error",
-            "description": "Nothing was installed on the panel.",
+            "description": "Panel Assistant could not be installed because the panel failed its safety checks.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Support report** and correct the failed safety check before retrying.\n\n[Learn more]({learn_more_url})",
             "menu_options": {
               "retry": "Try again",
               "support_report": "Support report",
@@ -1103,19 +1105,19 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "This report contains the saved details of the failed installation or update.\n\nTo fix:\n1. Read [how to use this support report]({guide_url}).\n2. Review the report for private information, then copy it into a [new Panel Assistant integration issue]({issue_url}).\n\n{report}\n\n[Learn more]({learn_more_url})"
           },
           "clear_error": {
             "title": "Clear error",
-            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+            "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
-            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+            "title": "Retry incomplete",
+            "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely."
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1136,7 +1138,7 @@
         "step": {
           "init": {
             "title": "Resolve panel error",
-            "description": "The release could not be verified, so nothing was installed.",
+            "description": "Panel Assistant was not installed because the release or its staging checks were rejected.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Check the selected release and connection, then select **Try again**.\n\n[Learn more]({learn_more_url})",
             "menu_options": {
               "retry": "Try again",
               "support_report": "Support report",
@@ -1145,19 +1147,19 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "This report contains the saved details of the failed installation or update.\n\nTo fix:\n1. Read [how to use this support report]({guide_url}).\n2. Review the report for private information, then copy it into a [new Panel Assistant integration issue]({issue_url}).\n\n{report}\n\n[Learn more]({learn_more_url})"
           },
           "clear_error": {
             "title": "Clear error",
-            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+            "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
-            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+            "title": "Retry incomplete",
+            "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely."
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1178,7 +1180,7 @@
         "step": {
           "init": {
             "title": "Resolve panel error",
-            "description": "The connection dropped before the install finished.",
+            "description": "Home Assistant could not finish transferring or installing Panel Assistant.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Restore the panel’s connection, then select **Try again**.\n\n[Learn more]({learn_more_url})",
             "menu_options": {
               "retry": "Try again",
               "support_report": "Support report",
@@ -1187,19 +1189,19 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "This report contains the saved details of the failed installation or update.\n\nTo fix:\n1. Read [how to use this support report]({guide_url}).\n2. Review the report for private information, then copy it into a [new Panel Assistant integration issue]({issue_url}).\n\n{report}\n\n[Learn more]({learn_more_url})"
           },
           "clear_error": {
             "title": "Clear error",
-            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+            "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
-            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+            "title": "Retry incomplete",
+            "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely."
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1220,7 +1222,7 @@
         "step": {
           "init": {
             "title": "Resolve panel error",
-            "description": "Android on the panel rejected the install.",
+            "description": "Android rejected the Panel Assistant installation.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Support report** and resolve the Android error before retrying.\n\n[Learn more]({learn_more_url})",
             "menu_options": {
               "retry": "Try again",
               "support_report": "Support report",
@@ -1229,19 +1231,19 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "This report contains the saved details of the failed installation or update.\n\nTo fix:\n1. Read [how to use this support report]({guide_url}).\n2. Review the report for private information, then copy it into a [new Panel Assistant integration issue]({issue_url}).\n\n{report}\n\n[Learn more]({learn_more_url})"
           },
           "clear_error": {
             "title": "Clear error",
-            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+            "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
-            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+            "title": "Retry incomplete",
+            "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely."
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1262,7 +1264,7 @@
         "step": {
           "init": {
             "title": "Resolve panel error",
-            "description": "Panel Assistant is installed but did not start.",
+            "description": "Panel Assistant is installed but did not start.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Open Panel Assistant on the panel, then select **Try again**.\n\n[Learn more]({learn_more_url})",
             "menu_options": {
               "retry": "Try again",
               "support_report": "Support report",
@@ -1271,19 +1273,19 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "This report contains the saved details of the failed installation or update.\n\nTo fix:\n1. Read [how to use this support report]({guide_url}).\n2. Review the report for private information, then copy it into a [new Panel Assistant integration issue]({issue_url}).\n\n{report}\n\n[Learn more]({learn_more_url})"
           },
           "clear_error": {
             "title": "Clear error",
-            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+            "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
-            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+            "title": "Retry incomplete",
+            "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely."
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1304,7 +1306,7 @@
         "step": {
           "init": {
             "title": "Resolve panel error",
-            "description": "Panel Assistant started but did not report healthy.",
+            "description": "Panel Assistant started but Home Assistant could not confirm it was healthy.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Open Panel Assistant on the panel and restore its connection, then select **Try again**.\n\n[Learn more]({learn_more_url})",
             "menu_options": {
               "retry": "Try again",
               "support_report": "Support report",
@@ -1313,19 +1315,19 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "This report contains the saved details of the failed installation or update.\n\nTo fix:\n1. Read [how to use this support report]({guide_url}).\n2. Review the report for private information, then copy it into a [new Panel Assistant integration issue]({issue_url}).\n\n{report}\n\n[Learn more]({learn_more_url})"
           },
           "clear_error": {
             "title": "Clear error",
-            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+            "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
-            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+            "title": "Retry incomplete",
+            "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely."
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1346,7 +1348,7 @@
         "step": {
           "init": {
             "title": "Resolve panel error",
-            "description": "Home Assistant cannot tell whether the install changed the panel.",
+            "description": "Home Assistant cannot tell whether the installation changed the panel.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Support report** and check the panel before retrying. Do not reinstall, uninstall or reset it while its state is unknown.\n\n[Learn more]({learn_more_url})",
             "menu_options": {
               "retry": "Try again",
               "support_report": "Support report",
@@ -1355,19 +1357,19 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "This report contains the saved details of the failed installation or update.\n\nTo fix:\n1. Read [how to use this support report]({guide_url}).\n2. Review the report for private information, then copy it into a [new Panel Assistant integration issue]({issue_url}).\n\n{report}\n\n[Learn more]({learn_more_url})"
           },
           "clear_error": {
             "title": "Clear error",
-            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+            "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
-            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+            "title": "Retry incomplete",
+            "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely."
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1388,7 +1390,7 @@
         "step": {
           "init": {
             "title": "Resolve panel error",
-            "description": "Another install is held until the panel is checked.",
+            "description": "Another installation is blocked until Home Assistant can verify the panel.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Support report** and restore panel verification before retrying. Do not reinstall or reset the app.\n\n[Learn more]({learn_more_url})",
             "menu_options": {
               "retry": "Try again",
               "support_report": "Support report",
@@ -1397,19 +1399,19 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "This report contains the saved details of the failed installation or update.\n\nTo fix:\n1. Read [how to use this support report]({guide_url}).\n2. Review the report for private information, then copy it into a [new Panel Assistant integration issue]({issue_url}).\n\n{report}\n\n[Learn more]({learn_more_url})"
           },
           "clear_error": {
             "title": "Clear error",
-            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+            "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
-            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+            "title": "Retry incomplete",
+            "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely."
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1430,7 +1432,7 @@
         "step": {
           "init": {
             "title": "Resolve panel error",
-            "description": "Panel Assistant was not updated on the panel.",
+            "description": "Home Assistant could not confirm that Panel Assistant finished updating.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Restore the panel’s connection and check **Support report**, then select **Try again**.\n\n[Learn more]({learn_more_url})",
             "menu_options": {
               "retry": "Try again",
               "authorize_adb": "Allow updates",
@@ -1440,24 +1442,24 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "This report contains the saved details of the failed installation or update.\n\nTo fix:\n1. Read [how to use this support report]({guide_url}).\n2. Review the report for private information, then copy it into a [new Panel Assistant integration issue]({issue_url}).\n\n{report}\n\n[Learn more]({learn_more_url})"
           },
           "clear_error": {
             "title": "Clear error",
-            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+            "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
-            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+            "title": "Retry incomplete",
+            "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Allow updates on {panel}",
-            "description": "Select Submit, then look at the screen of {panel}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer."
+            "title": "Allow updates",
+            "description": "Home Assistant needs Android approval before it can update {panel}.\n\nTo fix:\n1. Read the [ADB approval steps]({approval_url}).\n2. Select **Submit**, then on {panel} tick **Always allow from this computer** and tap **Allow**.\n3. After approval, select **Try again** from this Repair to retry the update.\n\n[Learn more]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely.",
-          "authorize_adb": "Look at the screen of {panel}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer.\n\nThis carries on by itself once the panel allows it."
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})",
+          "authorize_adb": "Android approval on {panel} is still needed.\n\nTo fix:\n1. Read the [ADB approval steps]({approval_url}).\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n\nThis continues automatically after approval.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1484,7 +1486,7 @@
           "panel_identity_changed": "The address no longer answers as this configured panel. Check the panel and its address before retrying."
         },
         "abort": {
-          "entry_removed": "This panel has been removed."
+          "entry_removed": "This panel is no longer set up in Home Assistant.\n\nTo fix:\n1. [Open Panel Assistant devices](/config/integrations/integration/panel_assistant) if you want to add it again.\n2. Otherwise, close this dialog.\n\n[Learn more]({learn_more_url})"
         }
       }
     },
@@ -1494,7 +1496,7 @@
         "step": {
           "init": {
             "title": "Resolve panel error",
-            "description": "Retrying is on hold until the panel can be checked.",
+            "description": "Retry did not complete, so the saved error and report remain available.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Support report** and check the reported cause before retrying. Clearing this error does not authorize an installation.\n\n[Learn more]({learn_more_url})",
             "menu_options": {
               "retry": "Try again",
               "support_report": "Support report",
@@ -1503,19 +1505,19 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "This report contains the saved details of the failed installation or update.\n\nTo fix:\n1. Read [how to use this support report]({guide_url}).\n2. Review the report for private information, then copy it into a [new Panel Assistant integration issue]({issue_url}).\n\n{report}\n\n[Learn more]({learn_more_url})"
           },
           "clear_error": {
             "title": "Clear error",
-            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+            "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
-            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+            "title": "Retry incomplete",
+            "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely."
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1529,41 +1531,41 @@
           "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
         },
         "abort": {
-          "entry_removed": "This panel has been removed."
+          "entry_removed": "This panel is no longer set up in Home Assistant.\n\nTo fix:\n1. [Open Panel Assistant devices](/config/integrations/integration/panel_assistant) if you want to add it again.\n2. Otherwise, close this dialog.\n\n[Learn more]({learn_more_url})"
         }
       }
     },
     "panel_address_unreachable": {
       "title": "Can't reach {panel} at {address}",
-      "description": "Its entities still work through the live connection from {session_address}.\n\nIf the panel has moved, add it again at its new address. This clears by itself once the address answers."
+      "description": "{panel} is connected, but its stored address {address} cannot be reached for operations that need it.\n\nTo fix:\n1. [Open Panel Assistant devices]({integration_url}).\n2. If the panel moved, add it again using its current address.\n3. Otherwise, restore access to {address}; this clears when it answers as this panel."
     },
     "panel_address_unverified": {
       "title": "{panel} has moved, and its new address could not be confirmed",
-      "description": "{panel} is connected to Home Assistant from {session_address}, so its entities stay available, but Home Assistant cannot read the panel at its stored address {address}, and a check at {session_address} did not answer as this panel, so the stored address was not changed. If the panel has moved, add it again at its new address, which updates the stored address; the issue clears by itself once the stored address answers."
+      "description": "{panel} is connected, but neither {address} nor the suggested address {session_address} could be confirmed for operations that need the panel’s address.\n\nTo fix:\n1. [Open Panel Assistant devices]({integration_url}).\n2. If the panel moved, add it again using its current address.\n3. Otherwise, restore access to {address}; this clears when it answers as this panel."
     },
     "panel_identity_mismatch": {
       "title": "Check the address for {panel}",
-      "description": "{address} did not answer as {panel}, so its controls have been paused. Check that this address belongs to the panel. If the panel moved, add it again using its current address."
+      "description": "{address} did not answer as {panel}, so its controls are paused.\n\nTo fix:\n1. [Open Panel Assistant devices]({integration_url}).\n2. Check the panel’s current address.\n3. If it moved, add it again at that address."
     },
     "panel_link_shared": {
       "title": "{panel} was reinstalled but shares its device link",
-      "description": "{panel} answered at {address} after its app was reinstalled, but {others} holds the same device link, so Home Assistant cannot tell which setup this panel belongs to and has paused its controls. The address is fine. If {others} is no longer in use, delete it and {panel} rejoins by itself; otherwise add {panel} again."
+      "description": "{panel} was reinstalled at {address}, but it shares a device link with {others}, so its controls are paused.\n\nTo fix:\n1. [Open Panel Assistant devices]({integration_url}).\n2. Remove {others} only if no longer in use; {panel} then rejoins automatically.\n3. If those panels are still in use, add {panel} again."
     },
     "panel_identity_confirmation": {
       "title": "Keep the existing setup for {panel}",
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "Keep the listed panel setups",
-            "description": "Keep the existing entities and settings for all these panels?\n\n{panels}\n\nSubmit once to confirm every panel listed above."
+            "title": "Keep setups",
+            "description": "The listed panels need confirmation before their existing setups can be kept under their new device identities.\n\nTo fix:\n1. [Check Panel Assistant devices]({integration_url}) against this list.\n2. Confirm only if every panel belongs to its existing setup.\n3. Select Submit once to keep all listed setups.\n\n{panels}\n\n[Learn more]({learn_more_url})"
           }
         },
         "abort": {
-          "entry_removed": "This panel has been removed.",
-          "identity_changed": "The panel changed while this confirmation was open. Open the latest repair and try again."
+          "entry_removed": "This panel is no longer set up in Home Assistant.\n\nTo fix:\n1. [Open Panel Assistant devices](/config/integrations/integration/panel_assistant) if you want to add it again.\n2. Otherwise, close this dialog.\n\n[Learn more]({learn_more_url})",
+          "identity_changed": "A listed panel changed while this confirmation was open.\n\nTo fix:\n1. [Open Repairs](/config/repairs) and open the latest panel confirmation.\n2. Check every listed panel before selecting Submit.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
-          "cannot_connect": "Cannot reach every listed panel. Check their connections and try again."
+          "cannot_connect": "Cannot reach every listed panel; check their connections and try again."
         }
       }
     },
@@ -1573,7 +1575,7 @@
         "step": {
           "init": {
             "title": "Resolve panel error",
-            "description": "Home Assistant is not yet allowed to update {panel}.",
+            "description": "Home Assistant is not yet allowed to update {panel}.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Choose **Allow updates**, then select **Submit** and approve the prompt on {panel}.\n\n[Learn more]({learn_more_url})",
             "menu_options": {
               "retry": "Try again",
               "authorize_adb": "Allow updates",
@@ -1583,24 +1585,24 @@
           },
           "support_report": {
             "title": "Support report",
-            "description": "### [How to use this support report]({guide_url})\n\nCopy the report below into a [new Panel Assistant integration issue]({issue_url}). For help from an AI assistant, use the prompt on the linked guide page with the report.\n\n{report}"
+            "description": "This report contains the saved details of the failed installation or update.\n\nTo fix:\n1. Read [how to use this support report]({guide_url}).\n2. Review the report for private information, then copy it into a [new Panel Assistant integration issue]({issue_url}).\n\n{report}\n\n[Learn more]({learn_more_url})"
           },
           "clear_error": {
             "title": "Clear error",
-            "description": "Remove this error and its saved report from Repairs. This does not change the panel. Select Submit to clear it."
+            "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
-            "description": "Retry is on hold. The error remains in Repairs; the support report has details."
+            "title": "Retry incomplete",
+            "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Allow updates on {panel}",
-            "description": "Select Submit, then look at the screen of {panel}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer."
+            "title": "Allow updates",
+            "description": "Home Assistant needs Android approval before it can update {panel}.\n\nTo fix:\n1. Read the [ADB approval steps]({approval_url}).\n2. Select **Submit**, then on {panel} tick **Always allow from this computer** and tap **Allow**.\n3. After approval, select **Try again** from this Repair to retry the update.\n\n[Learn more]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely.",
-          "authorize_adb": "Look at the screen of {panel}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer.\n\nThis carries on by itself once the panel allows it."
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})",
+          "authorize_adb": "Android approval on {panel} is still needed.\n\nTo fix:\n1. Read the [ADB approval steps]({approval_url}).\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n\nThis continues automatically after approval.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1627,7 +1629,7 @@
           "panel_identity_changed": "The address no longer answers as this configured panel. Check the panel and its address before retrying."
         },
         "abort": {
-          "entry_removed": "This panel has been removed."
+          "entry_removed": "This panel is no longer set up in Home Assistant.\n\nTo fix:\n1. [Open Panel Assistant devices](/config/integrations/integration/panel_assistant) if you want to add it again.\n2. Otherwise, close this dialog.\n\n[Learn more]({learn_more_url})"
         }
       }
     },
@@ -1636,8 +1638,8 @@
       "fix_flow": {
         "step": {
           "authorize_adb": {
-            "title": "Allow updates on {panel}",
-            "description": "Select Submit, then look at the screen of {panel}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer."
+            "title": "Allow updates",
+            "description": "Home Assistant cannot install updates on {panel} until you allow its ADB connection.\n\nTo fix:\n1. Read the [ADB approval steps]({approval_url}), then select Submit to send the approval request.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n3. Wait here for approval to finish; Android may call Home Assistant a computer.\n\n[Learn more]({learn_more_url})"
           }
         },
         "error": {
@@ -1656,16 +1658,16 @@
           "panel_identity_changed": "The address no longer answers as this configured panel. Check the panel and its address before retrying."
         },
         "abort": {
-          "entry_removed": "This panel has been removed."
+          "entry_removed": "This panel is no longer set up in Home Assistant.\n\nTo fix:\n1. [Open Panel Assistant devices](/config/integrations/integration/panel_assistant) if you want to add it again.\n2. Otherwise, close this dialog.\n\n[Learn more]({learn_more_url})"
         },
         "progress": {
-          "authorize_adb": "Look at the screen of {panel}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer.\n\nThis carries on by itself once the panel allows it."
+          "authorize_adb": "Home Assistant is waiting for {panel} to allow updates.\n\nTo fix:\n1. Follow the [ADB approval steps]({approval_url}) on the panel.\n2. Tick **Always allow from this computer**, then tap **Allow**.\n3. Wait here; this continues automatically after approval.\n\n[Learn more]({learn_more_url})"
         }
       }
     },
     "another_home_assistant": {
       "title": "{panel} is signed in to another Home Assistant",
-      "description": "{panel} has been added here, but it is signed in to another Home Assistant. Its settings and sign-in have not changed. To connect it here, change Home Assistant and sign in on the panel."
+      "description": "{panel} is added here but remains signed in to another Home Assistant.\n\nTo fix:\n1. [Open the panel’s Home Assistant connection]({configure_url}).\n2. If you intend to connect here, enter this Home Assistant’s address and save.\n3. Reconnect and sign in with the account you want the panel to use; otherwise, keep its current server and ignore this Repair."
     }
   },
   "options": {

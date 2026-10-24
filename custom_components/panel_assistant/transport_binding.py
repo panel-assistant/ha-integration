@@ -19,8 +19,8 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.util import dt as dt_util
 
-from .const import CONF_TRANSPORT_USER_ID, DOMAIN
-from .device import panel_display_name
+from .const import CONF_TRANSPORT_USER_ID, DOMAIN, help_url
+from .device import panel_display_name, sidebar_url
 from .transport_protocol import (
     ERR_PANEL_USER_MISMATCH,
     REASON_BINDING_CHANGED,
@@ -141,7 +141,12 @@ def async_raise_binding_issue(
         is_persistent=False,
         severity=ir.IssueSeverity.WARNING,
         translation_key=ISSUE_PANEL_USER_MISMATCH,
-        translation_placeholders={"panel": panel_display_name(hass, entry)},
+        learn_more_url=help_url("repair", issue=ISSUE_PANEL_USER_MISMATCH),
+        translation_placeholders={
+            "panel": panel_display_name(hass, entry),
+            "configure_url": sidebar_url(entry.entry_id, "configure", "cfg-ha-oauth"),
+            "learn_more_url": help_url("repair", issue=ISSUE_PANEL_USER_MISMATCH),
+        },
     )
 
 
