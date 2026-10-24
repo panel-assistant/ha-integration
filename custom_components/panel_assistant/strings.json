@@ -966,7 +966,7 @@
     },
     "volume_number_removed": {
       "title": "{panel} no longer has a separate volume number",
-      "description": "Automations or scripts using {entity} can no longer set the volume on {panel}.\n\nTo fix:\n1. Open [Automations]({automations_url}) or [Scripts]({scripts_url}) and find: {users}.\n2. Replace volume-setting actions for {entity} with `media_player.volume_set` on this panel’s media player, using `volume_level` from 0 to 1 (0.5 is 50%).\n3. Save your changes, then ignore this Repair."
+      "description": "Automations or scripts can no longer use this removed volume number to set the volume on {panel}:\n\n```text\n{entity}\n```\n\nTo fix:\n1. Open [Automations]({automations_url}) or [Scripts]({scripts_url}) and find these automations or scripts:\n\n   ```text\n   {users}\n   ```\n\n2. Replace actions for the removed number with `media_player.volume_set` on this panel’s media player, using `volume_level` from 0 to 1 (0.5 is 50%).\n3. Save your changes, then ignore this Repair."
     },
     "restart_required": {
       "title": "Restart Home Assistant to finish updating Panel Assistant",

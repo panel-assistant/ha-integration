@@ -782,7 +782,9 @@
     }
   },
   "exceptions": {
-    "old_app_needs_090": {"message": "Na tym panelu nadal działa stara aplikacja: najpierw zainstaluj Panel Assistant 0.9.0, jak wyjaśnia jego naprawa"},
+    "old_app_needs_090": {
+      "message": "Na tym panelu nadal działa stara aplikacja: najpierw zainstaluj Panel Assistant 0.9.0, jak wyjaśnia jego naprawa"
+    },
     "mqtt_panel_needs_090": {
       "message": "{panel} nigdy nie został przeniesiony z MQTT: najpierw zainstaluj Panel Assistant 0.9.0, jak wyjaśnia jego naprawa"
     },
@@ -895,15 +897,15 @@
   "issues": {
     "panel_app_too_old": {
       "title": "{panel} wymaga aplikacji {required_version}",
-      "description": "{panel} uruchamia aplikację {version}, która używa starszego protokołu niż Panel Assistant 1.0, więc Home Assistant nie może go widzieć ani nim sterować, a jego encje są niedostępne. Nic nie przepadnie: panel nadal działa samodzielnie i zachowuje ustawienia oraz historię. Zainstaluj aktualizację, którą Panel Assistant oferuje dla tego panelu, a połączy się ponownie."
+      "description": "Home Assistant nie może odczytywać stanu panelu {panel} ani nim sterować, ponieważ aplikacja w wersji {version} nie obsługuje tego protokołu połączenia.\n\nAby rozwiązać problem:\n1. Otwórz [Aktualizacje]({updates_url}) i zainstaluj zgodną aktualizację aplikacji dla panelu {panel}, jeśli jest dostępna.\n2. Poczekaj, aż panel połączy się ponownie."
     },
     "old_app_needs_090": {
       "title": "Na {panel} nadal działa stara aplikacja",
-      "description": "Na {panel} nadal działa stara aplikacja ha-paneld. Panel Assistant 1.0 nie może już przenieść panelu do nowej aplikacji, więc niczego na {panel} nie instaluje ani nie aktualizuje, dopóki nie zostanie przeniesiony. Najpierw zainstaluj Panel Assistant 0.9.0 (w HACS otwórz Panel Assistant, wybierz Redownload i wersję 0.9.0), przenieś panel za pomocą jego naprawy, a potem zainstaluj 1.0.0. Do tego czasu panel działa dalej na starej aplikacji."
+      "description": "Panel Assistant nie może zainstalować ani zaktualizować aplikacji na panelu {panel}, dopóki działa na nim stara aplikacja ha-paneld.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją bezpiecznego odzyskiwania]({recovery_url}), aby dokończyć przenoszenie za pomocą Panel Assistant 0.9.0.\n2. Jeśli na którymkolwiek panelu działa już aplikacja 1.0 lub nie masz kopii zapasowej sprzed aktualizacji, poproś o pomoc przed zmianą wersji.\n3. Dokończ wszystkie przenoszenia w wersji 0.9.0, a następnie zaktualizuj integrację do wersji 1.0."
     },
     "mqtt_panel_needs_090": {
       "title": "{panel} nigdy nie został przeniesiony z MQTT",
-      "description": "Panel Assistant 1.0 nie może już przenieść {panel} z MQTT na własne połączenie, a połączenie go teraz utworzyłoby drugi zestaw encji i podzieliło jego historię. Najpierw zainstaluj Panel Assistant 0.9.0 (w HACS otwórz Panel Assistant, wybierz Redownload i wersję 0.9.0), pozwól mu przenieść panel, a potem zainstaluj 1.0.0. Jeśli wolisz zacząć od nowa, usuń urządzenie tego panelu w Ustawieniach, Urządzenia i usługi, MQTT, a następnie przeładuj ten wpis albo usuń go i dodaj panel ponownie; powstaną nowe encje, a historia nie zostanie zachowana."
+      "description": "Panel Assistant nie może połączyć panelu {panel} bez rozdzielenia historii jego encji, dopóki korzystają one z MQTT.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją bezpiecznego odzyskiwania]({recovery_url}), aby dokończyć przenoszenie za pomocą Panel Assistant 0.9.0.\n2. Jeśli na którymkolwiek panelu działa już aplikacja 1.0 lub nie masz kopii zapasowej sprzed aktualizacji, poproś o pomoc przed zmianą wersji.\n3. Dokończ wszystkie przenoszenia w wersji 0.9.0, a następnie zaktualizuj integrację do wersji 1.0."
     },
     "panel_permissions": {
       "title": "Uprawnienia na {panel} wymagają uwagi.",
@@ -911,15 +913,15 @@
         "step": {
           "commission_permissions": {
             "title": "Sprawdź uprawnienia na {panel}",
-            "description": "Pulpit na panelu {panel} pozostaje dostępny. Na fizycznym panelu otwórz Ustawienia systemu Android → Aplikacje → Panel Assistant. Zezwól na dostęp do aparatu i mikrofonu, jeśli są wymienione, oraz na powiadomienia. W sekcji „Specjalny dostęp aplikacji” zezwól aplikacji Panel Assistant na „Modyfikowanie ustawień systemu” i „Wyświetlanie nad innymi aplikacjami”. W sekcji „Ułatwienia dostępu” włącz usługę Panel Assistant. Gdy pasek nawigacji jest ustawiony na „Przesuń, aby wyświetlić” lub „Zawsze włączone”, a brakuje uprawnienia „Wyświetlanie nad innymi aplikacjami”, przesunięcie palcem w górę od dołu pulpitu otwiera zamiast tego ustawienie „Wyświetlanie nad innymi aplikacjami”: zezwól na nie, wróć i ponownie przesuń palcem w górę. Wróć tutaj i wybierz „Zatwierdź”, aby ponownie sprawdzić uprawnienia."
+            "description": "Brak uprawnień systemu Android uniemożliwia działanie niektórych funkcji panelu {panel}.\n\nAby rozwiązać problem:\n1. Na panelu postępuj zgodnie z [instrukcją uprawnień systemu Android]({permissions_url}): w Ustawienia → Aplikacje → Panel Assistant zezwól na dostęp do aparatu i mikrofonu oraz na powiadomienia, jeśli są wymienione.\n2. W sekcji Specjalny dostęp aplikacji zezwól na Modyfikowanie ustawień systemu i Wyświetlanie nad innymi aplikacjami; w sekcji Ułatwienia dostępu włącz Panel Assistant.\n3. Wróć tutaj i wybierz Zatwierdź, aby sprawdzić ponownie.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
         "error": {
-          "permissions_missing": "Panel nadal zgłasza brak uprawnienia. Wykonaj kroki na panelu i wyślij ponownie.",
-          "permissions_unreadable": "Home Assistant nie mógł zweryfikować wszystkich wymaganych uprawnień na tym panelu. Sprawdź, czy panel jest połączony, i wyślij ponownie."
+          "permissions_missing": "Nadal brakuje uprawnienia. Wykonaj kroki na panelu, a następnie ponownie wybierz Zatwierdź.",
+          "permissions_unreadable": "Home Assistant nie mógł zweryfikować wszystkich wymaganych uprawnień. Sprawdź, czy panel jest połączony, a następnie ponownie wybierz Zatwierdź."
         },
         "abort": {
-          "entry_removed": "Ten panel został usunięty."
+          "entry_removed": "Ten panel został usunięty.\n\n[Dowiedz się więcej]({learn_more_url})"
         }
       }
     },
@@ -929,7 +931,7 @@
         "step": {
           "set_up_proximity": {
             "title": "Konfiguracja czujnika zbliżeniowego na panelu {panel}",
-            "description": "Dopóki czujnik zbliżeniowy nie zostanie skonfigurowany, {panel} nie może wybudzić się po machnięciu. Konfiguracja trwa około minuty i wymaga twojej obecności przed panelem. Otwórz Panel Assistant na pasku bocznym i wybierz {panel}. Na jego [stronie „Konfiguracja”]({configure_url}) w sekcji „Obecność i wybudzanie” wybierz „Skonfiguruj czujnik zbliżeniowy na panelu”, a następnie postępuj zgodnie z instrukcjami na ekranie panelu. Możesz też rozpocząć konfigurację na samym panelu, używając opcji „Otwórz ustawienia zbliżenia” na jego pulpicie. Gdy panel poinformuje, że kalibracja została zapisana, wróć tutaj i wybierz „Zatwierdź”."
+            "description": "Panel {panel} nie może wybudzać się po machnięciu, dopóki jego czujnik zbliżeniowy nie zostanie skonfigurowany.\n\nAby rozwiązać problem:\n1. Otwórz [konfigurację czujnika zbliżeniowego]({configure_url}) i wybierz Skonfiguruj czujnik zbliżeniowy na panelu.\n2. Stań przed panelem {panel} i postępuj zgodnie z instrukcjami na jego ekranie (około minuty).\n3. Po zapisaniu kalibracji wróć tutaj i wybierz Zatwierdź.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
         "error": {
@@ -938,71 +940,71 @@
           "proximity_unreadable": "Home Assistant nie mógł odczytać stanu czujnika zbliżeniowego panelu. Sprawdź, czy panel jest połączony, i wyślij ponownie."
         },
         "abort": {
-          "entry_removed": "Ten panel został usunięty."
+          "entry_removed": "Ten panel został usunięty.\n\n[Dowiedz się więcej]({learn_more_url})"
         }
       }
     },
     "voice_microphone_silent": {
       "title": "Asystent głosowy na {panel} nie nasłuchuje.",
-      "description": "Asystent głosowy na {panel} nie nasłuchuje, ponieważ podczas sprawdzania przez panel jego mikrofon nagrał tylko ciszę. Aby sprawdzić ponownie, wyłącz i włącz asystenta głosowego na stronie „Konfiguracja” panelu albo wybierz tam inne źródło dźwięku."
+      "description": "Asystent głosowy na panelu {panel} nie nasłuchuje, ponieważ podczas sprawdzania mikrofonu nagrano tylko ciszę.\n\nAby rozwiązać problem:\n1. Otwórz [ustawienia głosu]({configure_url}).\n2. Wyłącz i włącz Asystenta głosowego, aby sprawdzić ponownie.\n3. Jeśli problem się powtarza, wypróbuj inne [Źródło dźwięku]({audio_source_url})."
     },
     "voice_microphone_no_audio": {
       "title": "Asystent głosowy na {panel} nie nasłuchuje.",
-      "description": "Asystent głosowy na {panel} nie nasłuchuje, ponieważ podczas sprawdzania przez panel jego mikrofon nie dostarczył dźwięku. Aby sprawdzić ponownie, wyłącz i włącz asystenta głosowego na stronie „Konfiguracja” panelu albo wybierz tam inne źródło dźwięku."
+      "description": "Asystent głosowy na panelu {panel} nie nasłuchuje, ponieważ podczas sprawdzania mikrofonu nie otrzymano dźwięku.\n\nAby rozwiązać problem:\n1. Otwórz [ustawienia głosu]({configure_url}).\n2. Wyłącz i włącz Asystenta głosowego, aby sprawdzić ponownie.\n3. Jeśli problem się powtarza, wypróbuj inne [Źródło dźwięku]({audio_source_url})."
     },
     "voice_microphone_no_audio_detail": {
       "title": "Asystent głosowy na {panel} nie nasłuchuje.",
-      "description": "Asystent głosowy na {panel} nie nasłuchuje, ponieważ podczas sprawdzania przez panel jego mikrofon nie dostarczył dźwięku. Aby sprawdzić ponownie, wyłącz i włącz asystenta głosowego na stronie „Konfiguracja” panelu albo wybierz tam inne źródło dźwięku. Panel zgłosił: {detail}"
+      "description": "Asystent głosowy na panelu {panel} nie nasłuchuje, ponieważ podczas sprawdzania mikrofonu nie otrzymano dźwięku ({detail}).\n\nAby rozwiązać problem:\n1. Otwórz [ustawienia głosu]({configure_url}).\n2. Wyłącz i włącz Asystenta głosowego, aby sprawdzić ponownie.\n3. Jeśli problem się powtarza, wypróbuj inne [Źródło dźwięku]({audio_source_url})."
     },
     "wake_word_kept": {
       "title": "{panel} zachował własne słowo aktywujące {wake_word}.",
-      "description": "Panel Assistant nie zainstalował wspólnego słowa aktywującego {wake_word} na {panel}, ponieważ panel ma już inne słowo aktywujące o tej samej nazwie, zaimportowane na samym panelu. Aby używać tam wspólnego, otwórz {panel} na pasku bocznym Panel Assistant i ponownie zaimportuj słowo aktywujące."
+      "description": "Panel {panel} używa własnego modelu dla słowa aktywującego {wake_word} zamiast modelu współdzielonego.\n\nAby rozwiązać problem:\n1. [Otwórz słowa aktywujące]({configure_url}).\n2. Jeśli chcesz używać modelu współdzielonego, zaimportuj jego manifest .json i plik .tflite; import w tym miejscu zastępuje współdzieloną kopię i może zaktualizować inne panele."
     },
     "wake_word_refused": {
       "title": "{panel} nie mógł zainstalować słowa aktywującego {wake_word}.",
-      "description": "Panel Assistant nie mógł zainstalować wspólnego słowa aktywującego {wake_word} na {panel}. Pozostałe słowa aktywujące panelu nie zmieniły się. Panel zgłosił: {reason}"
+      "description": "Panel {panel} nie mógł dodać współdzielonego słowa aktywującego {wake_word}: {reason}.\n\nAby rozwiązać problem:\n1. [Otwórz słowa aktywujące]({configure_url}).\n2. Rozwiąż zgłoszony problem, a następnie zaimportuj zgodny manifest .json i model .tflite microWakeWord; import w tym miejscu zastępuje współdzieloną kopię i może zaktualizować inne panele."
     },
     "volume_number_removed": {
       "title": "{panel} nie ma już osobnej liczby głośności",
-      "description": "{panel} ma odtwarzacz multimediów, który pokazuje i ustawia jego głośność, dlatego Panel Assistant usunął osobną liczbę głośności {entity}. Te automatyzacje lub skrypty nadal jej używają: {users}. Zmień je tak, aby ustawiały głośność akcją `media_player.volume_set` na odtwarzaczu multimediów panelu. Gdy zostaną zmienione, możesz zignorować ten komunikat."
+      "description": "Automatyzacje lub skrypty nie mogą już używać tej usuniętej encji liczbowej do ustawiania głośności na panelu {panel}:\n\n```text\n{entity}\n```\n\nAby rozwiązać problem:\n1. Otwórz [Automatyzacje]({automations_url}) lub [Skrypty]({scripts_url}) i znajdź te automatyzacje lub skrypty:\n\n   ```text\n   {users}\n   ```\n\n2. Zastąp akcje dla usuniętej encji liczbowej akcją `media_player.volume_set` na odtwarzaczu multimediów tego panelu, z wartością `volume_level` od 0 do 1 (0.5 to 50%).\n3. Zapisz zmiany, a następnie zignoruj ten problem."
     },
-      "restart_required": {
-        "title": "Uruchom ponownie Home Assistant, aby dokończyć aktualizację Panel Assistant",
-        "fix_flow": {
-          "step": {
-            "confirm_restart": {
-              "title": "Uruchom ponownie Home Assistant",
-              "description": "Panel Assistant {installed} jest zainstalowany, ale Home Assistant nadal używa wersji {loaded}. Nowa wersja zacznie działać po ponownym uruchomieniu Home Assistant. Wybierz Zatwierdź, aby teraz ponownie uruchomić Home Assistant."
-            }
+    "restart_required": {
+      "title": "Uruchom ponownie Home Assistant, aby dokończyć aktualizację Panel Assistant",
+      "fix_flow": {
+        "step": {
+          "confirm_restart": {
+            "title": "Uruchom ponownie Home Assistant",
+            "description": "Home Assistant nadal używa Panel Assistant {loaded}, więc zainstalowana wersja {installed} nie jest jeszcze aktywna.\n\nAby rozwiązać problem:\n1. W razie potrzeby sprawdź [Panel Assistant]({integration_url}), a następnie wróć tutaj.\n2. Wybierz Zatwierdź, aby teraz ponownie uruchomić Home Assistant.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         }
-      },
+      }
+    },
     "panel_user_mismatch": {
       "title": "Potwierdź użytkownika Home Assistant dla {panel}",
       "fix_flow": {
         "step": {
           "confirm_bind": {
             "title": "Potwierdź użytkownika panelu",
-            "description": "Panel {panel} poprosił o połączenie z Home Assistant jako użytkownik {user}. Potwierdź tylko wtedy, gdy {user} to konto utworzone przez ciebie dla tego panelu. Po potwierdzeniu panel powinien wkrótce się połączyć. Każdy zalogowany w Home Assistant może poprosić o połączenie jako panel, więc jeśli nie rozpoznajesz tej prośby, zamknij to okno i zignoruj ten problem."
+            "description": "Panel {panel} nie może połączyć się jako {user}, dopóki nie potwierdzisz tego konta.\n\nAby rozwiązać problem:\n1. [Sprawdź logowanie na panelu]({configure_url}).\n2. Wybierz Zatwierdź tylko wtedy, gdy konto {user} zostało przez ciebie skonfigurowane dla tego panelu; panel powinien wtedy połączyć się ponownie.\n3. Jeśli nie rozpoznajesz prośby, zamknij to okno i zignoruj problem: każda zalogowana osoba może poprosić o połączenie panelu.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "confirm_rebind": {
             "title": "Zmień użytkownika panelu",
-            "description": "Panel {panel} jest potwierdzony dla użytkownika {bound_user}, ale użytkownik {user} poprosił o połączenie jako ten panel. Potwierdź tylko wtedy, gdy konto tego panelu zostało zmienione przez ciebie na {user}: panel przestanie wtedy akceptować {bound_user} i powinien wkrótce się połączyć. Jeśli nie, ktoś inny może próbować przejąć panel, więc zamknij to okno i zignoruj ten problem."
+            "description": "Użytkownik {user} poprosił o połączenie jako {panel}, który obecnie akceptuje konto {bound_user}.\n\nAby rozwiązać problem:\n1. [Sprawdź logowanie na panelu]({configure_url}).\n2. Wybierz Zatwierdź tylko wtedy, gdy konto panelu zostało przez ciebie zmienione na {user}; panel przestanie akceptować konto {bound_user}.\n3. W przeciwnym razie zamknij to okno i zignoruj problem: może to być próba przejęcia panelu.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
         "abort": {
-          "entry_removed": "Ten panel nie jest już skonfigurowany w Home Assistant.",
-          "user_unavailable": "Użytkownik, który poprosił o nawiązanie połączenia, już nie istnieje lub został dezaktywowany. Nie wprowadzono żadnych zmian."
+          "entry_removed": "Ten panel nie jest już skonfigurowany w Home Assistant.\n\n[Dowiedz się więcej]({learn_more_url})",
+          "user_unavailable": "Użytkownik, który wysłał prośbę, już nie istnieje lub został dezaktywowany; niczego nie zmieniono.\n\n[Dowiedz się więcej]({learn_more_url})"
         }
       }
     },
     "no_update_route": {
       "title": "{panel} nie może otrzymywać aktualizacji aplikacji",
-      "description": "Panel Assistant nie może zainstalować aktualizacji aplikacji na {panel}, więc aplikacja pozostaje w bieżącej wersji. Wszystko inne w panelu działa dalej, dlatego łatwo to przeoczyć. Zwykle dzieje się tak po zmianie wprowadzonej na samym panelu, takiej jak aktualizacja oprogramowania układowego lub przywrócenie ustawień. Ponownie podłącz panel do Panel Assistant przez USB, aby przywrócić aktualizacje. Wybierz Dowiedz się więcej, aby poznać kroki dla tego panelu."
+      "description": "Panel {panel} nie może otrzymywać aktualizacji aplikacji, choć jego pozostałe funkcje nadal działają.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją przywracania aktualizacji dla tego panelu]({recovery_url}).\n2. Przywróć dostęp do debugowania lub połącz panel ponownie przez USB, jeśli wymaga tego instrukcja.\n3. Wróć do Aktualizacji w Home Assistant, gdy ten problem zniknie."
     },
     "merged_panel_identity": {
       "title": "Rozdziel scalone panele: {panels}",
-      "description": "Panele {panels} zgłaszają tę samą tożsamość urządzenia, więc Home Assistant nie może bezpiecznie ustalić, do którego wpisu należy połączenie natywne lub encja. Ich połączenie natywne jest odrzucane i żadne encje nie są przenoszone. Zaktualizuj aplikację Panel Assistant na wszystkich panelach, których dotyczy problem, aby każdy miał odrębną tożsamość. Następnie usuń scalone urządzenie i pozwól panelom ponownie się zarejestrować."
+      "description": "Panele {panels} mają tę samą tożsamość urządzenia, więc ich połączenia natywne są odrzucane, a encje nie są przenoszone.\n\nAby rozwiązać problem:\n1. [Otwórz urządzenia Panel Assistant]({integration_url}).\n2. Zaktualizuj aplikację na każdym panelu objętym problemem, aby każdy miał własną tożsamość.\n3. Następnie usuń scalone urządzenie i pozwól panelom zarejestrować się ponownie."
     },
     "installer_failure": {
       "title": "Instalacja lub aktualizacja na panelu {panel} nie powiodła się",
@@ -1010,7 +1012,7 @@
         "step": {
           "init": {
             "title": "Rozwiąż błąd panelu",
-            "description": "Instalacja lub aktualizacja na {panel} nie została zakończona.",
+            "description": "Instalacja lub aktualizacja nie została ukończona.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Raport pomocy technicznej**, aby sprawdzić przyczynę, a po jej usunięciu wybierz **Spróbuj ponownie**.\n\n[Dowiedz się więcej]({learn_more_url})",
             "menu_options": {
               "retry": "Spróbuj ponownie",
               "support_report": "Raport dla pomocy technicznej",
@@ -1019,19 +1021,19 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej]({guide_url})\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
+            "description": "Ten raport zawiera zapisane szczegóły nieudanej instalacji lub aktualizacji.\n\nAby rozwiązać problem:\n1. Przeczytaj, [jak korzystać z tego raportu pomocy technicznej]({guide_url}).\n2. Sprawdź, czy raport zawiera prywatne informacje, a następnie skopiuj go do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}).\n\n{report}\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "clear_error": {
             "title": "Usuń błąd",
-            "description": "Usuń ten błąd i zapisany raport z Problemów. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+            "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
             "title": "Ponowna próba nie powiodła się",
-            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Problemach; szczegóły są w raporcie."
+            "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby.\n\n[Dowiedz się więcej]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
@@ -1052,7 +1054,7 @@
         "step": {
           "init": {
             "title": "Rozwiąż błąd panelu",
-            "description": "Panel nie zaakceptował połączenia z Home Assistant.",
+            "description": "Home Assistant nie mógł połączyć się z panelem, aby zainstalować Panel Assistant.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Jeśli na panelu pojawi się prośba, zatwierdź dostęp dla Home Assistant, a następnie wybierz **Spróbuj ponownie**.\n\n[Dowiedz się więcej]({learn_more_url})",
             "menu_options": {
               "retry": "Spróbuj ponownie",
               "support_report": "Raport dla pomocy technicznej",
@@ -1061,19 +1063,19 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej]({guide_url})\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
+            "description": "Ten raport zawiera zapisane szczegóły nieudanej instalacji lub aktualizacji.\n\nAby rozwiązać problem:\n1. Przeczytaj, [jak korzystać z tego raportu pomocy technicznej]({guide_url}).\n2. Sprawdź, czy raport zawiera prywatne informacje, a następnie skopiuj go do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}).\n\n{report}\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "clear_error": {
             "title": "Usuń błąd",
-            "description": "Usuń ten błąd i zapisany raport z Problemów. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+            "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
             "title": "Ponowna próba nie powiodła się",
-            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Problemach; szczegóły są w raporcie."
+            "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby.\n\n[Dowiedz się więcej]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
@@ -1094,7 +1096,7 @@
         "step": {
           "init": {
             "title": "Rozwiąż błąd panelu",
-            "description": "Na panelu niczego nie zainstalowano.",
+            "description": "Nie udało się zainstalować Panel Assistant, ponieważ panel nie przeszedł kontroli bezpieczeństwa.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Raport pomocy technicznej** i usuń przyczynę nieudanej kontroli bezpieczeństwa przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})",
             "menu_options": {
               "retry": "Spróbuj ponownie",
               "support_report": "Raport dla pomocy technicznej",
@@ -1103,19 +1105,19 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej]({guide_url})\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
+            "description": "Ten raport zawiera zapisane szczegóły nieudanej instalacji lub aktualizacji.\n\nAby rozwiązać problem:\n1. Przeczytaj, [jak korzystać z tego raportu pomocy technicznej]({guide_url}).\n2. Sprawdź, czy raport zawiera prywatne informacje, a następnie skopiuj go do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}).\n\n{report}\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "clear_error": {
             "title": "Usuń błąd",
-            "description": "Usuń ten błąd i zapisany raport z Problemów. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+            "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
             "title": "Ponowna próba nie powiodła się",
-            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Problemach; szczegóły są w raporcie."
+            "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby.\n\n[Dowiedz się więcej]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
@@ -1136,7 +1138,7 @@
         "step": {
           "init": {
             "title": "Rozwiąż błąd panelu",
-            "description": "Nie udało się zweryfikować wydania, więc niczego nie zainstalowano.",
+            "description": "Nie zainstalowano Panel Assistant, ponieważ odrzucono wydanie lub wynik kontroli przygotowania do instalacji.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Sprawdź wybrane wydanie i połączenie, a następnie wybierz **Spróbuj ponownie**.\n\n[Dowiedz się więcej]({learn_more_url})",
             "menu_options": {
               "retry": "Spróbuj ponownie",
               "support_report": "Raport dla pomocy technicznej",
@@ -1145,19 +1147,19 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej]({guide_url})\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
+            "description": "Ten raport zawiera zapisane szczegóły nieudanej instalacji lub aktualizacji.\n\nAby rozwiązać problem:\n1. Przeczytaj, [jak korzystać z tego raportu pomocy technicznej]({guide_url}).\n2. Sprawdź, czy raport zawiera prywatne informacje, a następnie skopiuj go do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}).\n\n{report}\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "clear_error": {
             "title": "Usuń błąd",
-            "description": "Usuń ten błąd i zapisany raport z Problemów. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+            "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
             "title": "Ponowna próba nie powiodła się",
-            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Problemach; szczegóły są w raporcie."
+            "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby.\n\n[Dowiedz się więcej]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
@@ -1178,7 +1180,7 @@
         "step": {
           "init": {
             "title": "Rozwiąż błąd panelu",
-            "description": "Połączenie zostało przerwane przed zakończeniem instalacji.",
+            "description": "Home Assistant nie mógł ukończyć przesyłania lub instalowania Panel Assistant.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Przywróć połączenie panelu, a następnie wybierz **Spróbuj ponownie**.\n\n[Dowiedz się więcej]({learn_more_url})",
             "menu_options": {
               "retry": "Spróbuj ponownie",
               "support_report": "Raport dla pomocy technicznej",
@@ -1187,19 +1189,19 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej]({guide_url})\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
+            "description": "Ten raport zawiera zapisane szczegóły nieudanej instalacji lub aktualizacji.\n\nAby rozwiązać problem:\n1. Przeczytaj, [jak korzystać z tego raportu pomocy technicznej]({guide_url}).\n2. Sprawdź, czy raport zawiera prywatne informacje, a następnie skopiuj go do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}).\n\n{report}\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "clear_error": {
             "title": "Usuń błąd",
-            "description": "Usuń ten błąd i zapisany raport z Problemów. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+            "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
             "title": "Ponowna próba nie powiodła się",
-            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Problemach; szczegóły są w raporcie."
+            "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby.\n\n[Dowiedz się więcej]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
@@ -1220,7 +1222,7 @@
         "step": {
           "init": {
             "title": "Rozwiąż błąd panelu",
-            "description": "Android na panelu odrzucił instalację.",
+            "description": "Android odrzucił instalację Panel Assistant.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Raport pomocy technicznej** i rozwiąż błąd systemu Android przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})",
             "menu_options": {
               "retry": "Spróbuj ponownie",
               "support_report": "Raport dla pomocy technicznej",
@@ -1229,19 +1231,19 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej]({guide_url})\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
+            "description": "Ten raport zawiera zapisane szczegóły nieudanej instalacji lub aktualizacji.\n\nAby rozwiązać problem:\n1. Przeczytaj, [jak korzystać z tego raportu pomocy technicznej]({guide_url}).\n2. Sprawdź, czy raport zawiera prywatne informacje, a następnie skopiuj go do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}).\n\n{report}\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "clear_error": {
             "title": "Usuń błąd",
-            "description": "Usuń ten błąd i zapisany raport z Problemów. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+            "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
             "title": "Ponowna próba nie powiodła się",
-            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Problemach; szczegóły są w raporcie."
+            "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby.\n\n[Dowiedz się więcej]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
@@ -1262,7 +1264,7 @@
         "step": {
           "init": {
             "title": "Rozwiąż błąd panelu",
-            "description": "Panel Assistant jest zainstalowany, ale nie został uruchomiony.",
+            "description": "Panel Assistant jest zainstalowany, ale nie uruchomił się.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Otwórz Panel Assistant na panelu, a następnie wybierz **Spróbuj ponownie**.\n\n[Dowiedz się więcej]({learn_more_url})",
             "menu_options": {
               "retry": "Spróbuj ponownie",
               "support_report": "Raport dla pomocy technicznej",
@@ -1271,19 +1273,19 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej]({guide_url})\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
+            "description": "Ten raport zawiera zapisane szczegóły nieudanej instalacji lub aktualizacji.\n\nAby rozwiązać problem:\n1. Przeczytaj, [jak korzystać z tego raportu pomocy technicznej]({guide_url}).\n2. Sprawdź, czy raport zawiera prywatne informacje, a następnie skopiuj go do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}).\n\n{report}\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "clear_error": {
             "title": "Usuń błąd",
-            "description": "Usuń ten błąd i zapisany raport z Problemów. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+            "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
             "title": "Ponowna próba nie powiodła się",
-            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Problemach; szczegóły są w raporcie."
+            "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby.\n\n[Dowiedz się więcej]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
@@ -1304,7 +1306,7 @@
         "step": {
           "init": {
             "title": "Rozwiąż błąd panelu",
-            "description": "Panel Assistant został uruchomiony, ale nie zgłosił poprawnego stanu działania.",
+            "description": "Panel Assistant uruchomił się, ale Home Assistant nie mógł potwierdzić jego prawidłowego działania.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Otwórz Panel Assistant na panelu i przywróć połączenie, a następnie wybierz **Spróbuj ponownie**.\n\n[Dowiedz się więcej]({learn_more_url})",
             "menu_options": {
               "retry": "Spróbuj ponownie",
               "support_report": "Raport dla pomocy technicznej",
@@ -1313,19 +1315,19 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej]({guide_url})\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
+            "description": "Ten raport zawiera zapisane szczegóły nieudanej instalacji lub aktualizacji.\n\nAby rozwiązać problem:\n1. Przeczytaj, [jak korzystać z tego raportu pomocy technicznej]({guide_url}).\n2. Sprawdź, czy raport zawiera prywatne informacje, a następnie skopiuj go do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}).\n\n{report}\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "clear_error": {
             "title": "Usuń błąd",
-            "description": "Usuń ten błąd i zapisany raport z Problemów. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+            "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
             "title": "Ponowna próba nie powiodła się",
-            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Problemach; szczegóły są w raporcie."
+            "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby.\n\n[Dowiedz się więcej]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
@@ -1346,7 +1348,7 @@
         "step": {
           "init": {
             "title": "Rozwiąż błąd panelu",
-            "description": "Home Assistant nie może ustalić, czy instalacja zmieniła panel.",
+            "description": "Home Assistant nie może ustalić, czy instalacja zmieniła stan panelu.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Raport pomocy technicznej** i sprawdź panel przed kolejną próbą. Nie instaluj ponownie, nie odinstalowuj ani nie resetuj panelu, dopóki jego stan jest nieznany.\n\n[Dowiedz się więcej]({learn_more_url})",
             "menu_options": {
               "retry": "Spróbuj ponownie",
               "support_report": "Raport dla pomocy technicznej",
@@ -1355,19 +1357,19 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej]({guide_url})\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
+            "description": "Ten raport zawiera zapisane szczegóły nieudanej instalacji lub aktualizacji.\n\nAby rozwiązać problem:\n1. Przeczytaj, [jak korzystać z tego raportu pomocy technicznej]({guide_url}).\n2. Sprawdź, czy raport zawiera prywatne informacje, a następnie skopiuj go do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}).\n\n{report}\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "clear_error": {
             "title": "Usuń błąd",
-            "description": "Usuń ten błąd i zapisany raport z Problemów. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+            "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
             "title": "Ponowna próba nie powiodła się",
-            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Problemach; szczegóły są w raporcie."
+            "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby.\n\n[Dowiedz się więcej]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
@@ -1388,7 +1390,7 @@
         "step": {
           "init": {
             "title": "Rozwiąż błąd panelu",
-            "description": "Kolejna instalacja jest wstrzymana do czasu sprawdzenia panelu.",
+            "description": "Kolejna instalacja jest zablokowana, dopóki Home Assistant nie będzie mógł zweryfikować panelu.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Raport pomocy technicznej** i przywróć możliwość weryfikacji panelu przed kolejną próbą. Nie instaluj ponownie ani nie resetuj aplikacji.\n\n[Dowiedz się więcej]({learn_more_url})",
             "menu_options": {
               "retry": "Spróbuj ponownie",
               "support_report": "Raport dla pomocy technicznej",
@@ -1397,19 +1399,19 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej]({guide_url})\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
+            "description": "Ten raport zawiera zapisane szczegóły nieudanej instalacji lub aktualizacji.\n\nAby rozwiązać problem:\n1. Przeczytaj, [jak korzystać z tego raportu pomocy technicznej]({guide_url}).\n2. Sprawdź, czy raport zawiera prywatne informacje, a następnie skopiuj go do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}).\n\n{report}\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "clear_error": {
             "title": "Usuń błąd",
-            "description": "Usuń ten błąd i zapisany raport z Problemów. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+            "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
             "title": "Ponowna próba nie powiodła się",
-            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Problemach; szczegóły są w raporcie."
+            "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby.\n\n[Dowiedz się więcej]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
@@ -1430,7 +1432,7 @@
         "step": {
           "init": {
             "title": "Rozwiąż błąd panelu",
-            "description": "Panel Assistant nie został zaktualizowany na panelu.",
+            "description": "Home Assistant nie mógł potwierdzić ukończenia aktualizacji Panel Assistant.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Przywróć połączenie panelu i sprawdź **Raport pomocy technicznej**, a następnie wybierz **Spróbuj ponownie**.\n\n[Dowiedz się więcej]({learn_more_url})",
             "menu_options": {
               "retry": "Spróbuj ponownie",
               "authorize_adb": "Zezwól na aktualizacje",
@@ -1440,24 +1442,24 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej]({guide_url})\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
+            "description": "Ten raport zawiera zapisane szczegóły nieudanej instalacji lub aktualizacji.\n\nAby rozwiązać problem:\n1. Przeczytaj, [jak korzystać z tego raportu pomocy technicznej]({guide_url}).\n2. Sprawdź, czy raport zawiera prywatne informacje, a następnie skopiuj go do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}).\n\n{report}\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "clear_error": {
             "title": "Usuń błąd",
-            "description": "Usuń ten błąd i zapisany raport z Problemów. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+            "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
             "title": "Ponowna próba nie powiodła się",
-            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Problemach; szczegóły są w raporcie."
+            "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "authorize_adb": {
             "title": "Zezwól na aktualizacje panelu {panel}",
-            "description": "Wybierz „Zatwierdź”, a potem spójrz na ekran panelu {panel}: zaznacz **Zawsze zezwalaj z tego komputera**, a potem dotknij **Zezwól**. Android może nazywać Home Assistant komputerem."
+            "description": "Home Assistant potrzebuje zgody w systemie Android, aby zaktualizować panel {panel}.\n\nAby rozwiązać problem:\n1. Przeczytaj [instrukcję zatwierdzania ADB]({approval_url}).\n2. Wybierz **Zatwierdź**, a następnie na panelu {panel} zaznacz **Zawsze zezwalaj z tego komputera** i dotknij **Zezwól**.\n3. Po udzieleniu zgody wybierz **Spróbuj ponownie** w tym problemie, aby ponowić aktualizację.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby.",
-          "authorize_adb": "Spójrz na ekran panelu {panel}: zaznacz **Zawsze zezwalaj z tego komputera**, a potem dotknij **Zezwól**. Android może nazywać Home Assistant komputerem.\n\nGdy panel na to zezwoli, proces będzie kontynuowany sam."
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby.\n\n[Dowiedz się więcej]({learn_more_url})",
+          "authorize_adb": "Nadal potrzebna jest zgoda w systemie Android na panelu {panel}.\n\nAby rozwiązać problem:\n1. Przeczytaj [instrukcję zatwierdzania ADB]({approval_url}).\n2. Na panelu {panel} zaznacz **Zawsze zezwalaj z tego komputera**, a następnie dotknij **Zezwól**.\n\nProces będzie kontynuowany automatycznie po udzieleniu zgody.\n\n[Dowiedz się więcej]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
@@ -1484,7 +1486,7 @@
           "panel_identity_changed": "Ten adres nie odpowiada już jako skonfigurowany panel. Sprawdź panel i adres przed ponowną próbą."
         },
         "abort": {
-          "entry_removed": "Ten panel został usunięty."
+          "entry_removed": "Ten panel został usunięty.\n\n[Dowiedz się więcej]({learn_more_url})"
         }
       }
     },
@@ -1494,7 +1496,7 @@
         "step": {
           "init": {
             "title": "Rozwiąż błąd panelu",
-            "description": "Ponowne próby są wstrzymane do czasu, aż będzie można sprawdzić panel.",
+            "description": "Ponowna próba nie została ukończona, więc zapisany błąd i raport pozostają dostępne.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Raport pomocy technicznej** i sprawdź zgłoszoną przyczynę przed kolejną próbą. Wyczyszczenie tego błędu nie zezwala na instalację.\n\n[Dowiedz się więcej]({learn_more_url})",
             "menu_options": {
               "retry": "Spróbuj ponownie",
               "support_report": "Raport dla pomocy technicznej",
@@ -1503,19 +1505,19 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej]({guide_url})\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
+            "description": "Ten raport zawiera zapisane szczegóły nieudanej instalacji lub aktualizacji.\n\nAby rozwiązać problem:\n1. Przeczytaj, [jak korzystać z tego raportu pomocy technicznej]({guide_url}).\n2. Sprawdź, czy raport zawiera prywatne informacje, a następnie skopiuj go do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}).\n\n{report}\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "clear_error": {
             "title": "Usuń błąd",
-            "description": "Usuń ten błąd i zapisany raport z Problemów. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+            "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
             "title": "Ponowna próba nie powiodła się",
-            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Problemach; szczegóły są w raporcie."
+            "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby."
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby.\n\n[Dowiedz się więcej]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
@@ -1529,25 +1531,25 @@
           "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz naprawę ponownie, jeśli błąd wróci."
         },
         "abort": {
-          "entry_removed": "Ten panel został usunięty."
+          "entry_removed": "Ten panel został usunięty.\n\n[Dowiedz się więcej]({learn_more_url})"
         }
       }
     },
     "panel_address_unreachable": {
       "title": "Nie można połączyć się z panelem {panel} pod adresem {address}",
-      "description": "Jego encje nadal działają przez aktywne połączenie z {session_address}.\n\nJeśli adres panelu się zmienił, dodaj go ponownie pod nowym adresem. Ten problem zniknie sam, gdy adres zacznie odpowiadać."
+      "description": "Panel {panel} jest połączony, ale jego zapisany adres {address} jest nieosiągalny dla operacji, które go wymagają.\n\nAby rozwiązać problem:\n1. [Otwórz urządzenia Panel Assistant]({integration_url}).\n2. Jeśli adres panelu się zmienił, dodaj go ponownie, używając aktualnego adresu.\n3. W przeciwnym razie przywróć dostęp do {address}; problem zniknie, gdy pod tym adresem odpowie ten panel."
     },
     "panel_address_unverified": {
       "title": "Panel {panel} został przeniesiony, a jego nowego adresu nie udało się potwierdzić",
-      "description": "{panel} jest połączony z Home Assistant z adresu {session_address}, więc jego encje pozostają dostępne, ale Home Assistant nie może odczytać panelu pod zapisanym adresem {address}, a sprawdzenie pod adresem {session_address} nie dało odpowiedzi od tego panelu, więc zapisanego adresu nie zmieniono. Jeśli panel został przeniesiony, dodaj go ponownie pod nowym adresem, co zaktualizuje zapisany adres; problem zniknie sam, gdy zapisany adres odpowie."
+      "description": "Panel {panel} jest połączony, ale nie udało się potwierdzić ani adresu {address}, ani sugerowanego adresu {session_address} dla operacji wymagających adresu panelu.\n\nAby rozwiązać problem:\n1. [Otwórz urządzenia Panel Assistant]({integration_url}).\n2. Jeśli adres panelu się zmienił, dodaj go ponownie, używając aktualnego adresu.\n3. W przeciwnym razie przywróć dostęp do {address}; problem zniknie, gdy pod tym adresem odpowie ten panel."
     },
     "panel_identity_mismatch": {
       "title": "Sprawdź adres panelu {panel}",
-      "description": "Odpowiedź z adresu {address} nie odpowiadała panelowi {panel}, dlatego sterowanie nim zostało tymczasowo wyłączone. Sprawdź, czy ten adres należy do panelu. Jeśli jego adres się zmienił, dodaj panel ponownie, używając aktualnego adresu."
+      "description": "Pod adresem {address} nie odpowiedział panel {panel}, więc sterowanie nim jest wstrzymane.\n\nAby rozwiązać problem:\n1. [Otwórz urządzenia Panel Assistant]({integration_url}).\n2. Sprawdź aktualny adres panelu.\n3. Jeśli adres się zmienił, dodaj panel ponownie pod tym adresem."
     },
     "panel_link_shared": {
       "title": "{panel} został ponownie zainstalowany, ale współdzieli powiązanie urządzenia",
-      "description": "{panel} odpowiedział pod adresem {address} po ponownej instalacji aplikacji, ale {others} ma to samo powiązanie urządzenia, więc Home Assistant nie może ustalić, do której konfiguracji należy ten panel, i wstrzymał jego sterowanie. Adres jest prawidłowy. Jeśli {others} nie jest już używany, usuń go, a {panel} połączy się ponownie samodzielnie; w przeciwnym razie dodaj {panel} ponownie."
+      "description": "Panel {panel} został ponownie zainstalowany pod adresem {address}, ale współdzieli powiązanie urządzenia z {others}, więc sterowanie nim jest wstrzymane.\n\nAby rozwiązać problem:\n1. [Otwórz urządzenia Panel Assistant]({integration_url}).\n2. Usuń {others} tylko wtedy, gdy nie są już używane; panel {panel} połączy się wtedy ponownie automatycznie.\n3. Jeśli te panele nadal są używane, dodaj panel {panel} ponownie."
     },
     "panel_identity_confirmation": {
       "title": "Zachowaj konfigurację panelu {panel}",
@@ -1555,15 +1557,15 @@
         "step": {
           "confirm_identity": {
             "title": "Zachowaj konfiguracje wymienionych paneli",
-            "description": "Zachować istniejące encje i ustawienia wszystkich tych paneli?\n\n{panels}\n\nZatwierdź raz, aby potwierdzić wszystkie wymienione panele."
+            "description": "Panele z listy wymagają potwierdzenia, aby można było zachować ich istniejące konfiguracje pod nowymi tożsamościami urządzeń.\n\nAby rozwiązać problem:\n1. [Sprawdź urządzenia Panel Assistant]({integration_url}), porównując je z tą listą.\n2. Potwierdź tylko wtedy, gdy każdy panel odpowiada swojej istniejącej konfiguracji.\n3. Wybierz Zatwierdź raz, aby zachować wszystkie wymienione konfiguracje.\n\n{panels}\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
         "abort": {
-          "entry_removed": "Ten panel został usunięty.",
-          "identity_changed": "Panel zmienił się, gdy to okno potwierdzenia było otwarte. Otwórz najnowsze zgłoszenie w Problemach i spróbuj ponownie."
+          "entry_removed": "Ten panel został usunięty.\n\n[Dowiedz się więcej]({learn_more_url})",
+          "identity_changed": "Jeden z wymienionych paneli zmienił się, gdy to potwierdzenie było otwarte; otwórz najnowszy problem i ponownie sprawdź listę.\n\n[Dowiedz się więcej]({learn_more_url})"
         },
         "error": {
-          "cannot_connect": "Nie można połączyć się ze wszystkimi wymienionymi panelami. Sprawdź ich połączenia i spróbuj ponownie."
+          "cannot_connect": "Nie można połączyć się ze wszystkimi wymienionymi panelami; sprawdź ich połączenia i spróbuj ponownie."
         }
       }
     },
@@ -1573,7 +1575,7 @@
         "step": {
           "init": {
             "title": "Rozwiąż błąd panelu",
-            "description": "Home Assistant nie ma jeszcze uprawnień do aktualizacji panelu {panel}.",
+            "description": "Home Assistant nie ma jeszcze zgody na aktualizowanie panelu {panel}.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zezwól na aktualizacje**, następnie wybierz **Zatwierdź** i zatwierdź prośbę na panelu {panel}.\n\n[Dowiedz się więcej]({learn_more_url})",
             "menu_options": {
               "retry": "Spróbuj ponownie",
               "authorize_adb": "Zezwól na aktualizacje",
@@ -1583,24 +1585,24 @@
           },
           "support_report": {
             "title": "Raport dla pomocy technicznej",
-            "description": "### [Jak korzystać z tego raportu dla pomocy technicznej]({guide_url})\n\nSkopiuj poniższy raport do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}). Jeśli prosisz asystenta AI o pomoc, podaj mu raport razem z instrukcją na podlinkowanej stronie pomocy.\n\n{report}"
+            "description": "Ten raport zawiera zapisane szczegóły nieudanej instalacji lub aktualizacji.\n\nAby rozwiązać problem:\n1. Przeczytaj, [jak korzystać z tego raportu pomocy technicznej]({guide_url}).\n2. Sprawdź, czy raport zawiera prywatne informacje, a następnie skopiuj go do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}).\n\n{report}\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "clear_error": {
             "title": "Usuń błąd",
-            "description": "Usuń ten błąd i zapisany raport z Problemów. Nie zmieni to panelu. Wybierz Zatwierdź, aby usunąć błąd."
+            "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
             "title": "Ponowna próba nie powiodła się",
-            "description": "Ponowna próba została wstrzymana. Błąd pozostaje w Problemach; szczegóły są w raporcie."
+            "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "authorize_adb": {
             "title": "Zezwól na aktualizacje panelu {panel}",
-            "description": "Wybierz „Zatwierdź”, a potem spójrz na ekran panelu {panel}: zaznacz **Zawsze zezwalaj z tego komputera**, a potem dotknij **Zezwól**. Android może nazywać Home Assistant komputerem."
+            "description": "Home Assistant potrzebuje zgody w systemie Android, aby zaktualizować panel {panel}.\n\nAby rozwiązać problem:\n1. Przeczytaj [instrukcję zatwierdzania ADB]({approval_url}).\n2. Wybierz **Zatwierdź**, a następnie na panelu {panel} zaznacz **Zawsze zezwalaj z tego komputera** i dotknij **Zezwól**.\n3. Po udzieleniu zgody wybierz **Spróbuj ponownie** w tym problemie, aby ponowić aktualizację.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby.",
-          "authorize_adb": "Spójrz na ekran panelu {panel}: zaznacz **Zawsze zezwalaj z tego komputera**, a potem dotknij **Zezwól**. Android może nazywać Home Assistant komputerem.\n\nGdy panel na to zezwoli, proces będzie kontynuowany sam."
+          "retrying": "Sprawdzanie panelu i bezpieczne ponawianie próby.\n\n[Dowiedz się więcej]({learn_more_url})",
+          "authorize_adb": "Nadal potrzebna jest zgoda w systemie Android na panelu {panel}.\n\nAby rozwiązać problem:\n1. Przeczytaj [instrukcję zatwierdzania ADB]({approval_url}).\n2. Na panelu {panel} zaznacz **Zawsze zezwalaj z tego komputera**, a następnie dotknij **Zezwól**.\n\nProces będzie kontynuowany automatycznie po udzieleniu zgody.\n\n[Dowiedz się więcej]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
@@ -1627,7 +1629,7 @@
           "panel_identity_changed": "Ten adres nie odpowiada już jako skonfigurowany panel. Sprawdź panel i adres przed ponowną próbą."
         },
         "abort": {
-          "entry_removed": "Ten panel został usunięty."
+          "entry_removed": "Ten panel został usunięty.\n\n[Dowiedz się więcej]({learn_more_url})"
         }
       }
     },
@@ -1637,7 +1639,7 @@
         "step": {
           "authorize_adb": {
             "title": "Zezwól na aktualizacje panelu {panel}",
-            "description": "Wybierz „Zatwierdź”, a potem spójrz na ekran panelu {panel}: zaznacz **Zawsze zezwalaj z tego komputera**, a potem dotknij **Zezwól**. Android może nazywać Home Assistant komputerem."
+            "description": "Home Assistant nie może instalować aktualizacji na panelu {panel}, dopóki nie zezwolisz na jego połączenie ADB.\n\nAby rozwiązać problem:\n1. Przeczytaj [instrukcję zatwierdzania ADB]({approval_url}), a następnie wybierz Zatwierdź, aby wysłać prośbę o zgodę.\n2. Na panelu {panel} zaznacz **Zawsze zezwalaj z tego komputera**, a następnie dotknij **Zezwól**.\n3. Poczekaj tutaj na zakończenie zatwierdzania; Android może nazywać Home Assistant komputerem.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
         "error": {
@@ -1656,16 +1658,16 @@
           "panel_identity_changed": "Ten adres nie odpowiada już jako skonfigurowany panel. Sprawdź panel i adres przed ponowną próbą."
         },
         "abort": {
-          "entry_removed": "Ten panel został usunięty."
+          "entry_removed": "Ten panel został usunięty.\n\n[Dowiedz się więcej]({learn_more_url})"
         },
         "progress": {
-          "authorize_adb": "Spójrz na ekran panelu {panel}: zaznacz **Zawsze zezwalaj z tego komputera**, a potem dotknij **Zezwól**. Android może nazywać Home Assistant komputerem.\n\nGdy panel na to zezwoli, proces będzie kontynuowany sam."
+          "authorize_adb": "Home Assistant czeka, aż panel {panel} zezwoli na aktualizacje.\n\nAby rozwiązać problem:\n1. Postępuj na panelu zgodnie z [instrukcją zatwierdzania ADB]({approval_url}).\n2. Zaznacz **Zawsze zezwalaj z tego komputera**, a następnie dotknij **Zezwól**.\n3. Poczekaj tutaj; proces będzie kontynuowany automatycznie po udzieleniu zgody.\n\n[Dowiedz się więcej]({learn_more_url})"
         }
       }
     },
     "another_home_assistant": {
       "title": "Panel {panel} jest zalogowany do innej instancji Home Assistant",
-      "description": "Panel {panel} został tu dodany, ale jest zalogowany do innej instancji Home Assistant. Jego ustawienia i logowanie nie zostały zmienione. Aby połączyć go tutaj, zmień na panelu instancję Home Assistant i zaloguj się."
+      "description": "Panel {panel} został tu dodany, ale pozostaje zalogowany do innej instancji Home Assistant.\n\nAby rozwiązać problem:\n1. [Otwórz połączenie panelu z Home Assistant]({configure_url}).\n2. Jeśli zamierzasz połączyć go tutaj, wpisz adres tej instancji Home Assistant i zapisz.\n3. Połącz się ponownie i zaloguj na konto, którego panel ma używać; w przeciwnym razie pozostaw obecny serwer i zignoruj ten problem."
     }
   },
   "options": {

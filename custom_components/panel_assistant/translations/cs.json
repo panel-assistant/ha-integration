@@ -782,7 +782,9 @@
     }
   },
   "exceptions": {
-    "old_app_needs_090": {"message": "Na tomto panelu stále běží stará aplikace: nejprve nainstalujte Panel Assistant 0.9.0, jak vysvětluje jeho oprava"},
+    "old_app_needs_090": {
+      "message": "Na tomto panelu stále běží stará aplikace: nejprve nainstalujte Panel Assistant 0.9.0, jak vysvětluje jeho oprava"
+    },
     "mqtt_panel_needs_090": {
       "message": "{panel} nebyl přesunut z MQTT: nejprve nainstalujte Panel Assistant 0.9.0, jak vysvětluje jeho oprava"
     },
@@ -895,15 +897,15 @@
   "issues": {
     "panel_app_too_old": {
       "title": "{panel} potřebuje aplikaci {required_version}",
-      "description": "{panel} používá aplikaci {version}, která mluví starším protokolem než Panel Assistant 1.0, takže ji Home Assistant nevidí ani neovládá a její entity se zobrazují jako nedostupné. Nic se neztratilo: panel dál funguje samostatně a ponechává si nastavení i historii. Nainstalujte aktualizaci, kterou Panel Assistant pro tento panel nabízí, a panel se znovu připojí."
+      "description": "Home Assistant nemůže panel {panel} zobrazit ani ovládat, protože aplikace {version} nepodporuje tento komunikační protokol.\n\nPostup opravy:\n1. Otevřete [Aktualizace]({updates_url}) a nainstalujte kompatibilní aktualizaci aplikace pro panel {panel}, pokud je nabízena.\n2. Počkejte, až se panel znovu připojí."
     },
     "old_app_needs_090": {
       "title": "Na {panel} stále běží stará aplikace",
-      "description": "Na {panel} stále běží stará aplikace ha-paneld. Panel Assistant 1.0 už nedokáže převést panel na novou aplikaci, takže na {panel} nic neinstaluje ani neaktualizuje, dokud nebude převeden. Nejprve nainstalujte Panel Assistant 0.9.0 (v HACS otevřete Panel Assistant, zvolte Redownload a vyberte verzi 0.9.0), převeďte panel jeho opravou a poté nainstalujte 1.0.0. Panel mezitím na staré aplikaci dál funguje."
+      "description": "Panel Assistant nemůže na panelu {panel} instalovat ani aktualizovat aplikaci, dokud na něm běží stará aplikace ha-paneld.\n\nPostup opravy:\n1. Podle [postupu bezpečné obnovy]({recovery_url}) dokončete přechod pomocí Panel Assistant 0.9.0.\n2. Pokud na kterémkoli panelu již běží aplikace 1.0 nebo nemáte zálohu z doby před aktualizací, požádejte před změnou verzí o pomoc.\n3. Dokončete všechny přechody ve verzi 0.9.0 a poté aktualizujte integraci na 1.0."
     },
     "mqtt_panel_needs_090": {
       "title": "{panel} nebyl přesunut z MQTT",
-      "description": "Panel Assistant 1.0 už nedokáže přesunout {panel} z MQTT na vlastní připojení a jeho připojení by teď vytvořilo druhou sadu entit a rozdělilo jeho historii. Nejprve nainstalujte Panel Assistant 0.9.0 (v HACS otevřete Panel Assistant, zvolte Redownload a vyberte verzi 0.9.0), nechte panel přesunout a poté nainstalujte 1.0.0. Pokud raději začnete znovu, smažte zařízení tohoto panelu v Nastavení, Zařízení a služby, MQTT, potom tuto položku znovu načtěte nebo ji odeberte a panel přidejte znovu; vzniknou nové entity a historie se nezachová."
+      "description": "Panel Assistant nemůže připojit panel {panel}, dokud jeho entity stále používají MQTT, aniž by se rozdělila jejich historie.\n\nPostup opravy:\n1. Podle [postupu bezpečné obnovy]({recovery_url}) dokončete přechod pomocí Panel Assistant 0.9.0.\n2. Pokud na kterémkoli panelu již běží aplikace 1.0 nebo nemáte zálohu z doby před aktualizací, požádejte před změnou verzí o pomoc.\n3. Dokončete všechny přechody ve verzi 0.9.0 a poté aktualizujte integraci na 1.0."
     },
     "panel_permissions": {
       "title": "Oprávnění na panelu {panel} vyžadují pozornost.",
@@ -911,15 +913,15 @@
         "step": {
           "commission_permissions": {
             "title": "Zkontrolovat oprávnění na panelu {panel}",
-            "description": "Ovládací panel na panelu {panel} zůstává dostupný. Na fyzickém panelu otevřete Nastavení systému Android → Aplikace → Panel Assistant. Povolte přístup ke kameře a mikrofonu, pokud jsou uvedeny, a také oznámení. V části Speciální přístup aplikací povolte pro Panel Assistant Úpravu nastavení systému a Zobrazení přes jiné aplikace. V části Přístupnost zapněte službu Panel Assistant. Pokud je navigační lišta nastavena na Zobrazení po přejetí prstem nebo Vždy zapnuto a chybí oprávnění Zobrazení přes jiné aplikace, přejetí prstem nahoru od spodního okraje ovládacího panelu místo toho otevře nastavení Zobrazení přes jiné aplikace: povolte ho, vraťte se zpět a znovu přejeďte prstem nahoru. Vraťte se sem a výběrem možnosti Odeslat oprávnění znovu zkontrolujte."
+            "description": "Kvůli chybějícím oprávněním systému Android nefungují některé funkce na panelu {panel}.\n\nPostup opravy:\n1. Na panelu postupujte podle [průvodce oprávněními systému Android]({permissions_url}): v Nastavení → Aplikace → Panel Assistant povolte kameru, mikrofon a oznámení, pokud jsou uvedeny.\n2. V části Speciální přístup aplikací povolte Úpravu nastavení systému a Zobrazení přes jiné aplikace; v části Přístupnost zapněte Panel Assistant.\n3. Vraťte se sem a zvolte Odeslat pro opětovnou kontrolu.\n\n[Další informace]({learn_more_url})"
           }
         },
         "error": {
-          "permissions_missing": "Panel stále hlásí chybějící oprávnění. Dokončete kroky na panelu a poté formulář znovu odešlete.",
-          "permissions_unreadable": "Home Assistant nemohl ověřit všechna požadovaná oprávnění na tomto panelu. Zkontrolujte, že je panel připojený, a poté formulář znovu odešlete."
+          "permissions_missing": "Stále chybí některé oprávnění. Dokončete kroky na panelu a poté znovu zvolte Odeslat.",
+          "permissions_unreadable": "Home Assistant nemohl ověřit všechna požadovaná oprávnění. Zkontrolujte, zda je panel připojený, a poté znovu zvolte Odeslat."
         },
         "abort": {
-          "entry_removed": "Tento panel byl odstraněn."
+          "entry_removed": "Tento panel byl odstraněn.\n\n[Další informace]({learn_more_url})"
         }
       }
     },
@@ -929,7 +931,7 @@
         "step": {
           "set_up_proximity": {
             "title": "Nastavení detekce přiblížení na panelu {panel}",
-            "description": "Dokud není nastaven jeho senzor přiblížení, {panel} se nemůže probudit mávnutím. Nastavení trvá asi minutu a vyžaduje vaši přítomnost před panelem. Otevřete Panel Assistant v postranním panelu a vyberte {panel}. Na jeho [stránce Konfigurovat]({configure_url}) v části Přítomnost a probuzení vyberte Nastavit detekci přiblížení na panelu a pak postupujte podle pokynů na obrazovce panelu. Nastavení můžete spustit také přímo na panelu pomocí Otevřít nastavení detekce přiblížení na jeho ovládacím panelu. Až panel oznámí, že je kalibrace uložena, vraťte se sem a vyberte Odeslat."
+            "description": "Panel {panel} se nemůže probouzet mávnutím, dokud není nastaven jeho senzor přiblížení.\n\nPostup opravy:\n1. Otevřete [nastavení detekce přiblížení]({configure_url}) a zvolte Nastavit detekci přiblížení na panelu.\n2. Postavte se před panel {panel} a postupujte podle pokynů na jeho obrazovce (asi minutu).\n3. Po uložení kalibrace se vraťte sem a zvolte Odeslat.\n\n[Další informace]({learn_more_url})"
           }
         },
         "error": {
@@ -938,33 +940,33 @@
           "proximity_unreadable": "Home Assistant nemohl zjistit stav detekce přiblížení na panelu. Zkontrolujte, že je panel připojený, a poté formulář znovu odešlete."
         },
         "abort": {
-          "entry_removed": "Tento panel byl odstraněn."
+          "entry_removed": "Tento panel byl odstraněn.\n\n[Další informace]({learn_more_url})"
         }
       }
     },
     "voice_microphone_silent": {
       "title": "Hlasový asistent na panelu {panel} neposlouchá.",
-      "description": "Hlasový asistent na panelu {panel} neposlouchá, protože jeho mikrofon při kontrole panelem zaznamenal pouze ticho. Pro novou kontrolu hlasového asistenta vypněte a zapněte na stránce Konfigurace panelu, nebo tam vyberte jiný zdroj zvuku."
+      "description": "Hlasový asistent na panelu {panel} neposlouchá, protože kontrola mikrofonu zaznamenala pouze ticho.\n\nPostup opravy:\n1. Otevřete [nastavení hlasu]({configure_url}).\n2. Vypněte a znovu zapněte Hlasového asistenta, aby kontrola proběhla znovu.\n3. Pokud problém přetrvává, zkuste jiný [Zdroj zvuku]({audio_source_url})."
     },
     "voice_microphone_no_audio": {
       "title": "Hlasový asistent na panelu {panel} neposlouchá.",
-      "description": "Hlasový asistent na panelu {panel} neposlouchá, protože jeho mikrofon při kontrole panelem neposkytl žádný zvuk. Pro novou kontrolu hlasového asistenta vypněte a zapněte na stránce Konfigurace panelu, nebo tam vyberte jiný zdroj zvuku."
+      "description": "Hlasový asistent na panelu {panel} neposlouchá, protože kontrola mikrofonu neobdržela žádný zvuk.\n\nPostup opravy:\n1. Otevřete [nastavení hlasu]({configure_url}).\n2. Vypněte a znovu zapněte Hlasového asistenta, aby kontrola proběhla znovu.\n3. Pokud problém přetrvává, zkuste jiný [Zdroj zvuku]({audio_source_url})."
     },
     "voice_microphone_no_audio_detail": {
       "title": "Hlasový asistent na panelu {panel} neposlouchá.",
-      "description": "Hlasový asistent na panelu {panel} neposlouchá, protože jeho mikrofon při kontrole panelem neposkytl žádný zvuk. Pro novou kontrolu hlasového asistenta vypněte a zapněte na stránce Konfigurace panelu, nebo tam vyberte jiný zdroj zvuku. Panel nahlásil: {detail}"
+      "description": "Hlasový asistent na panelu {panel} neposlouchá, protože kontrola mikrofonu neobdržela žádný zvuk ({detail}).\n\nPostup opravy:\n1. Otevřete [nastavení hlasu]({configure_url}).\n2. Vypněte a znovu zapněte Hlasového asistenta, aby kontrola proběhla znovu.\n3. Pokud problém přetrvává, zkuste jiný [Zdroj zvuku]({audio_source_url})."
     },
     "wake_word_kept": {
       "title": "{panel} si ponechal vlastní aktivační slovo {wake_word}.",
-      "description": "Panel Assistant nenainstaloval sdílené aktivační slovo {wake_word} na {panel}, protože panel už má jiné aktivační slovo se stejným názvem, importované přímo na panelu. Chcete-li tam používat sdílené, otevřete {panel} v postranním panelu Panel Assistant a aktivační slovo importujte znovu."
+      "description": "Panel {panel} používá pro {wake_word} vlastní model místo sdíleného modelu.\n\nPostup opravy:\n1. [Otevřete aktivační slova]({configure_url}).\n2. Pokud chcete sdílený model, importujte jeho manifest .json a soubor .tflite; import zde nahradí sdílenou kopii a může aktualizovat i jiné panely."
     },
     "wake_word_refused": {
       "title": "{panel} nemohl nainstalovat aktivační slovo {wake_word}.",
-      "description": "Panel Assistant nemohl nainstalovat sdílené aktivační slovo {wake_word} na {panel}. Ostatní aktivační slova panelu se nezměnila. Panel nahlásil: {reason}"
+      "description": "Panel {panel} nemohl přidat sdílené aktivační slovo {wake_word}: {reason}.\n\nPostup opravy:\n1. [Otevřete aktivační slova]({configure_url}).\n2. Opravte nahlášený problém a poté importujte kompatibilní manifest .json a model .tflite pro microWakeWord; import zde nahradí sdílenou kopii a může aktualizovat i jiné panely."
     },
     "volume_number_removed": {
       "title": "Panel {panel} už nemá samostatné číslo hlasitosti",
-      "description": "Panel {panel} má přehrávač médií, který zobrazuje a nastavuje jeho hlasitost, proto Panel Assistant odstranil jeho samostatné číslo hlasitosti {entity}. Tyto automatizace nebo skripty ho stále používají: {users}. Upravte je tak, aby nastavovaly hlasitost akcí `media_player.volume_set` na přehrávači médií panelu. Až budou upravené, můžete tuto zprávu ignorovat."
+      "description": "Automatizace nebo skripty již nemohou pomocí této odstraněné číselné entity hlasitosti nastavovat hlasitost na panelu {panel}:\n\n```text\n{entity}\n```\n\nPostup opravy:\n1. Otevřete [Automatizace]({automations_url}) nebo [Skripty]({scripts_url}) a vyhledejte tyto automatizace nebo skripty:\n\n   ```text\n   {users}\n   ```\n\n2. Nahraďte akce pro odstraněnou číselnou entitu akcí `media_player.volume_set` pro přehrávač médií tohoto panelu s hodnotou `volume_level` od 0 do 1 (0.5 je 50 %).\n3. Uložte změny a poté tuto opravu ignorujte."
     },
     "restart_required": {
       "title": "Pro dokončení aktualizace Panel Assistant restartujte systém Home Assistant",
@@ -972,7 +974,7 @@
         "step": {
           "confirm_restart": {
             "title": "Restartovat systém Home Assistant",
-            "description": "Je nainstalovaná verze Panel Assistant {installed}, ale systém Home Assistant stále používá verzi {loaded}. Nová verze začne fungovat po restartu systému Home Assistant. Výběrem Odeslat nyní restartujete systém Home Assistant."
+            "description": "Home Assistant stále používá Panel Assistant {loaded}, takže nainstalované sestavení {installed} ještě není aktivní.\n\nPostup opravy:\n1. V případě potřeby zkontrolujte [Panel Assistant]({integration_url}) a poté se vraťte sem.\n2. Zvolte Odeslat pro okamžité restartování Home Assistant.\n\n[Další informace]({learn_more_url})"
           }
         }
       }
@@ -983,26 +985,26 @@
         "step": {
           "confirm_bind": {
             "title": "Potvrdit uživatele panelu",
-            "description": "Panel {panel} požádal o připojení k systému Home Assistant jako uživatel {user}. Potvrďte to pouze tehdy, pokud je {user} účet, který jste pro tento panel nastavili. Po potvrzení by se panel měl brzy připojit. O připojení jako panel může požádat kdokoli přihlášený do systému Home Assistant. Pokud tedy tento požadavek nepoznáváte, zavřete toto dialogové okno a problém ignorujte."
+            "description": "Panel {panel} se nemůže připojit jako {user}, dokud tento účet nepotvrdíte.\n\nPostup opravy:\n1. [Zkontrolujte přihlášení panelu]({configure_url}).\n2. Zvolte Odeslat pouze tehdy, pokud jste pro tento panel nastavili účet {user}; poté by se měl znovu připojit.\n3. Pokud požadavek nepoznáváte, zavřete tento dialog a problém ignorujte: o připojení panelu může požádat kdokoli, kdo je přihlášený.\n\n[Další informace]({learn_more_url})"
           },
           "confirm_rebind": {
             "title": "Změnit uživatele panelu",
-            "description": "Panel {panel} je potvrzený pro uživatele {bound_user}, ale uživatel {user} požádal o připojení jako tento panel. Potvrďte to pouze tehdy, pokud jste účet tohoto panelu změnili na {user}: panel poté přestane přijímat uživatele {bound_user} a měl by se brzy připojit. Pokud jste účet nezměnili, někdo jiný se možná pokouší panel převzít. Zavřete proto toto dialogové okno a problém ignorujte."
+            "description": "Uživatel {user} požádal o připojení jako panel {panel}, který nyní přijímá účet {bound_user}.\n\nPostup opravy:\n1. [Zkontrolujte přihlášení panelu]({configure_url}).\n2. Zvolte Odeslat pouze tehdy, pokud jste jeho účet změnili na {user}; tím přestane přijímat účet {bound_user}.\n3. Jinak tento dialog zavřete a problém ignorujte: může jít o pokus o převzetí.\n\n[Další informace]({learn_more_url})"
           }
         },
         "abort": {
-          "entry_removed": "Tento panel už není nastavený v systému Home Assistant.",
-          "user_unavailable": "Uživatel, který požádal o připojení, už neexistuje nebo je deaktivovaný. Nic se nezměnilo."
+          "entry_removed": "Tento panel již není nastaven v Home Assistant.\n\n[Další informace]({learn_more_url})",
+          "user_unavailable": "Žádající uživatel již neexistuje nebo je deaktivovaný; nic se nezměnilo.\n\n[Další informace]({learn_more_url})"
         }
       }
     },
     "no_update_route": {
       "title": "Panel {panel} nemůže přijímat aktualizace aplikace",
-      "description": "Panel Assistant nemůže na panelu {panel} instalovat aktualizace aplikace, proto aplikace zůstává na stávající verzi. Vše ostatní na panelu dál funguje, a proto lze tento problém snadno přehlédnout. Obvykle následuje po změně provedené na samotném panelu, například po aktualizaci firmwaru nebo resetu. Aktualizace obnovíte opětovným připojením panelu k Panel Assistant přes USB. Výběrem Další informace zobrazíte postup pro tento panel."
+      "description": "Panel {panel} nemůže přijímat aktualizace aplikace, ale jeho ostatní funkce nadále fungují.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnovení aktualizací pro tento panel]({recovery_url}).\n2. Obnovte přístup k ladění nebo panel znovu připojte přes USB, pokud to pokyny vyžadují.\n3. Až tato oprava zmizí, vraťte se do Aktualizací v Home Assistant."
     },
     "merged_panel_identity": {
       "title": "Oddělit sloučené panely: {panels}",
-      "description": "Panely {panels} hlásí stejnou identitu zařízení, takže Home Assistant nemůže bezpečně určit, ke kterému záznamu patří nativní připojení nebo entita. Jejich nativní připojení je odmítnuto a žádné entity se nepřesouvají. Aktualizujte aplikaci Panel Assistant na všech dotčených panelech, aby měl každý vlastní identitu. Potom odstraňte sloučené zařízení a nechte panely znovu se zaregistrovat."
+      "description": "Panely {panels} sdílejí jednu identitu zařízení, takže jejich nativní připojení jsou odmítána a žádné entity se nepřesouvají.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant]({integration_url}).\n2. Aktualizujte aplikaci na každém dotčeném panelu, aby měl každý vlastní identitu.\n3. Poté odstraňte sloučené zařízení a nechte panely, ať se znovu zaregistrují."
     },
     "installer_failure": {
       "title": "Instalace nebo aktualizace na panelu {panel} selhala",
@@ -1010,7 +1012,7 @@
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Instalace nebo aktualizace na {panel} nebyla dokončena.",
+            "description": "Instalace nebo aktualizace se nedokončila.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Zpráva pro podporu** a zjistěte příčinu; po jejím vyřešení zvolte **Zkusit znovu**.\n\n[Další informace]({learn_more_url})",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -1019,19 +1021,19 @@
           },
           "support_report": {
             "title": "Zpráva pro podporu",
-            "description": "### [Jak použít tuto zprávu pro podporu]({guide_url})\n\nZkopírujte níže uvedenou zprávu do [nového hlášení problému s integrací Panel Assistant]({issue_url}). Pokud chcete pomoc od asistenta AI, použijte se zprávou zadání z odkazované stránky s návodem.\n\n{report}"
+            "description": "Tato zpráva obsahuje uložené podrobnosti o neúspěšné instalaci nebo aktualizaci.\n\nPostup opravy:\n1. Přečtěte si, [jak tuto zprávu pro podporu použít]({guide_url}).\n2. Zkontrolujte, zda zpráva neobsahuje soukromé informace, a poté ji zkopírujte do [nového hlášení problému integrace Panel Assistant]({issue_url}).\n\n{report}\n\n[Další informace]({learn_more_url})"
           },
           "clear_error": {
             "title": "Vymazat chybu",
-            "description": "Odstraní tuto chybu a její uloženou zprávu z části Opravy. Panel tím nezměníte. Výběrem Odeslat ji vymažete."
+            "description": "Vymazáním této chyby se odstraní její uložená zpráva, aniž by se panel změnil.\n\nPostup opravy:\n1. Pokud zprávu potřebujete, nejprve si [uložte zprávu pro podporu]({guide_url}).\n2. Zvolte **Odeslat** pro odstranění této chyby a zprávy.\n\n[Další informace]({learn_more_url})"
           },
           "retry_error": {
             "title": "Opakovaný pokus nebyl dokončen",
-            "description": "Opakovaný pokus je pozastaven. Chyba zůstává v části Opravy; podrobnosti najdete ve zprávě pro podporu."
+            "description": "Opakovaný pokus se nemohl dokončit, takže tato chyba a její zpráva zůstávají v Opravách.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Odeslat** a poté **Zpráva pro podporu**, abyste před dalším pokusem zjistili příčinu.\n\n[Další informace]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Panel se kontroluje a pokus se bezpečně opakuje."
+          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1052,7 +1054,7 @@
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Panel nepřijal připojení z Home Assistant.",
+            "description": "Home Assistant se nemohl připojit k panelu, aby nainstaloval Panel Assistant.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Pokud se na panelu zobrazí výzva, povolte Home Assistant a poté zvolte **Zkusit znovu**.\n\n[Další informace]({learn_more_url})",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -1061,19 +1063,19 @@
           },
           "support_report": {
             "title": "Zpráva pro podporu",
-            "description": "### [Jak použít tuto zprávu pro podporu]({guide_url})\n\nZkopírujte níže uvedenou zprávu do [nového hlášení problému s integrací Panel Assistant]({issue_url}). Pokud chcete pomoc od asistenta AI, použijte se zprávou zadání z odkazované stránky s návodem.\n\n{report}"
+            "description": "Tato zpráva obsahuje uložené podrobnosti o neúspěšné instalaci nebo aktualizaci.\n\nPostup opravy:\n1. Přečtěte si, [jak tuto zprávu pro podporu použít]({guide_url}).\n2. Zkontrolujte, zda zpráva neobsahuje soukromé informace, a poté ji zkopírujte do [nového hlášení problému integrace Panel Assistant]({issue_url}).\n\n{report}\n\n[Další informace]({learn_more_url})"
           },
           "clear_error": {
             "title": "Vymazat chybu",
-            "description": "Odstraní tuto chybu a její uloženou zprávu z části Opravy. Panel tím nezměníte. Výběrem Odeslat ji vymažete."
+            "description": "Vymazáním této chyby se odstraní její uložená zpráva, aniž by se panel změnil.\n\nPostup opravy:\n1. Pokud zprávu potřebujete, nejprve si [uložte zprávu pro podporu]({guide_url}).\n2. Zvolte **Odeslat** pro odstranění této chyby a zprávy.\n\n[Další informace]({learn_more_url})"
           },
           "retry_error": {
             "title": "Opakovaný pokus nebyl dokončen",
-            "description": "Opakovaný pokus je pozastaven. Chyba zůstává v části Opravy; podrobnosti najdete ve zprávě pro podporu."
+            "description": "Opakovaný pokus se nemohl dokončit, takže tato chyba a její zpráva zůstávají v Opravách.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Odeslat** a poté **Zpráva pro podporu**, abyste před dalším pokusem zjistili příčinu.\n\n[Další informace]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Panel se kontroluje a pokus se bezpečně opakuje."
+          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1094,7 +1096,7 @@
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Na panel se nic nenainstalovalo.",
+            "description": "Panel Assistant se nepodařilo nainstalovat, protože panel neprošel bezpečnostními kontrolami.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Zpráva pro podporu** a před dalším pokusem napravte příčinu neúspěšné bezpečnostní kontroly.\n\n[Další informace]({learn_more_url})",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -1103,19 +1105,19 @@
           },
           "support_report": {
             "title": "Zpráva pro podporu",
-            "description": "### [Jak použít tuto zprávu pro podporu]({guide_url})\n\nZkopírujte níže uvedenou zprávu do [nového hlášení problému s integrací Panel Assistant]({issue_url}). Pokud chcete pomoc od asistenta AI, použijte se zprávou zadání z odkazované stránky s návodem.\n\n{report}"
+            "description": "Tato zpráva obsahuje uložené podrobnosti o neúspěšné instalaci nebo aktualizaci.\n\nPostup opravy:\n1. Přečtěte si, [jak tuto zprávu pro podporu použít]({guide_url}).\n2. Zkontrolujte, zda zpráva neobsahuje soukromé informace, a poté ji zkopírujte do [nového hlášení problému integrace Panel Assistant]({issue_url}).\n\n{report}\n\n[Další informace]({learn_more_url})"
           },
           "clear_error": {
             "title": "Vymazat chybu",
-            "description": "Odstraní tuto chybu a její uloženou zprávu z části Opravy. Panel tím nezměníte. Výběrem Odeslat ji vymažete."
+            "description": "Vymazáním této chyby se odstraní její uložená zpráva, aniž by se panel změnil.\n\nPostup opravy:\n1. Pokud zprávu potřebujete, nejprve si [uložte zprávu pro podporu]({guide_url}).\n2. Zvolte **Odeslat** pro odstranění této chyby a zprávy.\n\n[Další informace]({learn_more_url})"
           },
           "retry_error": {
             "title": "Opakovaný pokus nebyl dokončen",
-            "description": "Opakovaný pokus je pozastaven. Chyba zůstává v části Opravy; podrobnosti najdete ve zprávě pro podporu."
+            "description": "Opakovaný pokus se nemohl dokončit, takže tato chyba a její zpráva zůstávají v Opravách.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Odeslat** a poté **Zpráva pro podporu**, abyste před dalším pokusem zjistili příčinu.\n\n[Další informace]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Panel se kontroluje a pokus se bezpečně opakuje."
+          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1136,7 +1138,7 @@
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Vydání se nepodařilo ověřit, takže se nic nenainstalovalo.",
+            "description": "Panel Assistant nebyl nainstalován, protože bylo odmítnuto vydání nebo neprošly kontroly jeho přípravy k instalaci.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zkontrolujte vybrané vydání a připojení a poté zvolte **Zkusit znovu**.\n\n[Další informace]({learn_more_url})",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -1145,19 +1147,19 @@
           },
           "support_report": {
             "title": "Zpráva pro podporu",
-            "description": "### [Jak použít tuto zprávu pro podporu]({guide_url})\n\nZkopírujte níže uvedenou zprávu do [nového hlášení problému s integrací Panel Assistant]({issue_url}). Pokud chcete pomoc od asistenta AI, použijte se zprávou zadání z odkazované stránky s návodem.\n\n{report}"
+            "description": "Tato zpráva obsahuje uložené podrobnosti o neúspěšné instalaci nebo aktualizaci.\n\nPostup opravy:\n1. Přečtěte si, [jak tuto zprávu pro podporu použít]({guide_url}).\n2. Zkontrolujte, zda zpráva neobsahuje soukromé informace, a poté ji zkopírujte do [nového hlášení problému integrace Panel Assistant]({issue_url}).\n\n{report}\n\n[Další informace]({learn_more_url})"
           },
           "clear_error": {
             "title": "Vymazat chybu",
-            "description": "Odstraní tuto chybu a její uloženou zprávu z části Opravy. Panel tím nezměníte. Výběrem Odeslat ji vymažete."
+            "description": "Vymazáním této chyby se odstraní její uložená zpráva, aniž by se panel změnil.\n\nPostup opravy:\n1. Pokud zprávu potřebujete, nejprve si [uložte zprávu pro podporu]({guide_url}).\n2. Zvolte **Odeslat** pro odstranění této chyby a zprávy.\n\n[Další informace]({learn_more_url})"
           },
           "retry_error": {
             "title": "Opakovaný pokus nebyl dokončen",
-            "description": "Opakovaný pokus je pozastaven. Chyba zůstává v části Opravy; podrobnosti najdete ve zprávě pro podporu."
+            "description": "Opakovaný pokus se nemohl dokončit, takže tato chyba a její zpráva zůstávají v Opravách.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Odeslat** a poté **Zpráva pro podporu**, abyste před dalším pokusem zjistili příčinu.\n\n[Další informace]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Panel se kontroluje a pokus se bezpečně opakuje."
+          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1178,7 +1180,7 @@
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Připojení se přerušilo před dokončením instalace.",
+            "description": "Home Assistant nemohl dokončit přenos nebo instalaci Panel Assistant.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Obnovte připojení panelu a poté zvolte **Zkusit znovu**.\n\n[Další informace]({learn_more_url})",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -1187,19 +1189,19 @@
           },
           "support_report": {
             "title": "Zpráva pro podporu",
-            "description": "### [Jak použít tuto zprávu pro podporu]({guide_url})\n\nZkopírujte níže uvedenou zprávu do [nového hlášení problému s integrací Panel Assistant]({issue_url}). Pokud chcete pomoc od asistenta AI, použijte se zprávou zadání z odkazované stránky s návodem.\n\n{report}"
+            "description": "Tato zpráva obsahuje uložené podrobnosti o neúspěšné instalaci nebo aktualizaci.\n\nPostup opravy:\n1. Přečtěte si, [jak tuto zprávu pro podporu použít]({guide_url}).\n2. Zkontrolujte, zda zpráva neobsahuje soukromé informace, a poté ji zkopírujte do [nového hlášení problému integrace Panel Assistant]({issue_url}).\n\n{report}\n\n[Další informace]({learn_more_url})"
           },
           "clear_error": {
             "title": "Vymazat chybu",
-            "description": "Odstraní tuto chybu a její uloženou zprávu z části Opravy. Panel tím nezměníte. Výběrem Odeslat ji vymažete."
+            "description": "Vymazáním této chyby se odstraní její uložená zpráva, aniž by se panel změnil.\n\nPostup opravy:\n1. Pokud zprávu potřebujete, nejprve si [uložte zprávu pro podporu]({guide_url}).\n2. Zvolte **Odeslat** pro odstranění této chyby a zprávy.\n\n[Další informace]({learn_more_url})"
           },
           "retry_error": {
             "title": "Opakovaný pokus nebyl dokončen",
-            "description": "Opakovaný pokus je pozastaven. Chyba zůstává v části Opravy; podrobnosti najdete ve zprávě pro podporu."
+            "description": "Opakovaný pokus se nemohl dokončit, takže tato chyba a její zpráva zůstávají v Opravách.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Odeslat** a poté **Zpráva pro podporu**, abyste před dalším pokusem zjistili příčinu.\n\n[Další informace]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Panel se kontroluje a pokus se bezpečně opakuje."
+          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1220,7 +1222,7 @@
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Android na panelu odmítl instalaci.",
+            "description": "Android odmítl instalaci Panel Assistant.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Zpráva pro podporu** a před dalším pokusem vyřešte chybu systému Android.\n\n[Další informace]({learn_more_url})",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -1229,19 +1231,19 @@
           },
           "support_report": {
             "title": "Zpráva pro podporu",
-            "description": "### [Jak použít tuto zprávu pro podporu]({guide_url})\n\nZkopírujte níže uvedenou zprávu do [nového hlášení problému s integrací Panel Assistant]({issue_url}). Pokud chcete pomoc od asistenta AI, použijte se zprávou zadání z odkazované stránky s návodem.\n\n{report}"
+            "description": "Tato zpráva obsahuje uložené podrobnosti o neúspěšné instalaci nebo aktualizaci.\n\nPostup opravy:\n1. Přečtěte si, [jak tuto zprávu pro podporu použít]({guide_url}).\n2. Zkontrolujte, zda zpráva neobsahuje soukromé informace, a poté ji zkopírujte do [nového hlášení problému integrace Panel Assistant]({issue_url}).\n\n{report}\n\n[Další informace]({learn_more_url})"
           },
           "clear_error": {
             "title": "Vymazat chybu",
-            "description": "Odstraní tuto chybu a její uloženou zprávu z části Opravy. Panel tím nezměníte. Výběrem Odeslat ji vymažete."
+            "description": "Vymazáním této chyby se odstraní její uložená zpráva, aniž by se panel změnil.\n\nPostup opravy:\n1. Pokud zprávu potřebujete, nejprve si [uložte zprávu pro podporu]({guide_url}).\n2. Zvolte **Odeslat** pro odstranění této chyby a zprávy.\n\n[Další informace]({learn_more_url})"
           },
           "retry_error": {
             "title": "Opakovaný pokus nebyl dokončen",
-            "description": "Opakovaný pokus je pozastaven. Chyba zůstává v části Opravy; podrobnosti najdete ve zprávě pro podporu."
+            "description": "Opakovaný pokus se nemohl dokončit, takže tato chyba a její zpráva zůstávají v Opravách.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Odeslat** a poté **Zpráva pro podporu**, abyste před dalším pokusem zjistili příčinu.\n\n[Další informace]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Panel se kontroluje a pokus se bezpečně opakuje."
+          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1262,7 +1264,7 @@
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Panel Assistant je nainstalovaný, ale nespustil se.",
+            "description": "Panel Assistant je nainstalován, ale nespustil se.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Otevřete Panel Assistant na panelu a poté zvolte **Zkusit znovu**.\n\n[Další informace]({learn_more_url})",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -1271,19 +1273,19 @@
           },
           "support_report": {
             "title": "Zpráva pro podporu",
-            "description": "### [Jak použít tuto zprávu pro podporu]({guide_url})\n\nZkopírujte níže uvedenou zprávu do [nového hlášení problému s integrací Panel Assistant]({issue_url}). Pokud chcete pomoc od asistenta AI, použijte se zprávou zadání z odkazované stránky s návodem.\n\n{report}"
+            "description": "Tato zpráva obsahuje uložené podrobnosti o neúspěšné instalaci nebo aktualizaci.\n\nPostup opravy:\n1. Přečtěte si, [jak tuto zprávu pro podporu použít]({guide_url}).\n2. Zkontrolujte, zda zpráva neobsahuje soukromé informace, a poté ji zkopírujte do [nového hlášení problému integrace Panel Assistant]({issue_url}).\n\n{report}\n\n[Další informace]({learn_more_url})"
           },
           "clear_error": {
             "title": "Vymazat chybu",
-            "description": "Odstraní tuto chybu a její uloženou zprávu z části Opravy. Panel tím nezměníte. Výběrem Odeslat ji vymažete."
+            "description": "Vymazáním této chyby se odstraní její uložená zpráva, aniž by se panel změnil.\n\nPostup opravy:\n1. Pokud zprávu potřebujete, nejprve si [uložte zprávu pro podporu]({guide_url}).\n2. Zvolte **Odeslat** pro odstranění této chyby a zprávy.\n\n[Další informace]({learn_more_url})"
           },
           "retry_error": {
             "title": "Opakovaný pokus nebyl dokončen",
-            "description": "Opakovaný pokus je pozastaven. Chyba zůstává v části Opravy; podrobnosti najdete ve zprávě pro podporu."
+            "description": "Opakovaný pokus se nemohl dokončit, takže tato chyba a její zpráva zůstávají v Opravách.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Odeslat** a poté **Zpráva pro podporu**, abyste před dalším pokusem zjistili příčinu.\n\n[Další informace]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Panel se kontroluje a pokus se bezpečně opakuje."
+          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1304,7 +1306,7 @@
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Panel Assistant se spustil, ale neohlásil zdravý stav.",
+            "description": "Panel Assistant se spustil, ale Home Assistant nemohl potvrdit, že funguje správně.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Otevřete Panel Assistant na panelu a obnovte jeho připojení; poté zvolte **Zkusit znovu**.\n\n[Další informace]({learn_more_url})",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -1313,19 +1315,19 @@
           },
           "support_report": {
             "title": "Zpráva pro podporu",
-            "description": "### [Jak použít tuto zprávu pro podporu]({guide_url})\n\nZkopírujte níže uvedenou zprávu do [nového hlášení problému s integrací Panel Assistant]({issue_url}). Pokud chcete pomoc od asistenta AI, použijte se zprávou zadání z odkazované stránky s návodem.\n\n{report}"
+            "description": "Tato zpráva obsahuje uložené podrobnosti o neúspěšné instalaci nebo aktualizaci.\n\nPostup opravy:\n1. Přečtěte si, [jak tuto zprávu pro podporu použít]({guide_url}).\n2. Zkontrolujte, zda zpráva neobsahuje soukromé informace, a poté ji zkopírujte do [nového hlášení problému integrace Panel Assistant]({issue_url}).\n\n{report}\n\n[Další informace]({learn_more_url})"
           },
           "clear_error": {
             "title": "Vymazat chybu",
-            "description": "Odstraní tuto chybu a její uloženou zprávu z části Opravy. Panel tím nezměníte. Výběrem Odeslat ji vymažete."
+            "description": "Vymazáním této chyby se odstraní její uložená zpráva, aniž by se panel změnil.\n\nPostup opravy:\n1. Pokud zprávu potřebujete, nejprve si [uložte zprávu pro podporu]({guide_url}).\n2. Zvolte **Odeslat** pro odstranění této chyby a zprávy.\n\n[Další informace]({learn_more_url})"
           },
           "retry_error": {
             "title": "Opakovaný pokus nebyl dokončen",
-            "description": "Opakovaný pokus je pozastaven. Chyba zůstává v části Opravy; podrobnosti najdete ve zprávě pro podporu."
+            "description": "Opakovaný pokus se nemohl dokončit, takže tato chyba a její zpráva zůstávají v Opravách.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Odeslat** a poté **Zpráva pro podporu**, abyste před dalším pokusem zjistili příčinu.\n\n[Další informace]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Panel se kontroluje a pokus se bezpečně opakuje."
+          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1346,7 +1348,7 @@
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Home Assistant nemůže určit, zda instalace panel změnila.",
+            "description": "Home Assistant nedokáže určit, zda instalace panel změnila.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Zpráva pro podporu** a před dalším pokusem zkontrolujte panel. Dokud je jeho stav neznámý, neprovádějte přeinstalaci, odinstalaci ani reset.\n\n[Další informace]({learn_more_url})",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -1355,19 +1357,19 @@
           },
           "support_report": {
             "title": "Zpráva pro podporu",
-            "description": "### [Jak použít tuto zprávu pro podporu]({guide_url})\n\nZkopírujte níže uvedenou zprávu do [nového hlášení problému s integrací Panel Assistant]({issue_url}). Pokud chcete pomoc od asistenta AI, použijte se zprávou zadání z odkazované stránky s návodem.\n\n{report}"
+            "description": "Tato zpráva obsahuje uložené podrobnosti o neúspěšné instalaci nebo aktualizaci.\n\nPostup opravy:\n1. Přečtěte si, [jak tuto zprávu pro podporu použít]({guide_url}).\n2. Zkontrolujte, zda zpráva neobsahuje soukromé informace, a poté ji zkopírujte do [nového hlášení problému integrace Panel Assistant]({issue_url}).\n\n{report}\n\n[Další informace]({learn_more_url})"
           },
           "clear_error": {
             "title": "Vymazat chybu",
-            "description": "Odstraní tuto chybu a její uloženou zprávu z části Opravy. Panel tím nezměníte. Výběrem Odeslat ji vymažete."
+            "description": "Vymazáním této chyby se odstraní její uložená zpráva, aniž by se panel změnil.\n\nPostup opravy:\n1. Pokud zprávu potřebujete, nejprve si [uložte zprávu pro podporu]({guide_url}).\n2. Zvolte **Odeslat** pro odstranění této chyby a zprávy.\n\n[Další informace]({learn_more_url})"
           },
           "retry_error": {
             "title": "Opakovaný pokus nebyl dokončen",
-            "description": "Opakovaný pokus je pozastaven. Chyba zůstává v části Opravy; podrobnosti najdete ve zprávě pro podporu."
+            "description": "Opakovaný pokus se nemohl dokončit, takže tato chyba a její zpráva zůstávají v Opravách.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Odeslat** a poté **Zpráva pro podporu**, abyste před dalším pokusem zjistili příčinu.\n\n[Další informace]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Panel se kontroluje a pokus se bezpečně opakuje."
+          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1388,7 +1390,7 @@
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Další instalace je pozastavena, dokud panel nebude zkontrolován.",
+            "description": "Další instalace je zablokována, dokud Home Assistant nemůže ověřit panel.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Zpráva pro podporu** a před dalším pokusem obnovte možnost ověření panelu. Aplikaci nepřeinstalovávejte ani neresetujte.\n\n[Další informace]({learn_more_url})",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -1397,19 +1399,19 @@
           },
           "support_report": {
             "title": "Zpráva pro podporu",
-            "description": "### [Jak použít tuto zprávu pro podporu]({guide_url})\n\nZkopírujte níže uvedenou zprávu do [nového hlášení problému s integrací Panel Assistant]({issue_url}). Pokud chcete pomoc od asistenta AI, použijte se zprávou zadání z odkazované stránky s návodem.\n\n{report}"
+            "description": "Tato zpráva obsahuje uložené podrobnosti o neúspěšné instalaci nebo aktualizaci.\n\nPostup opravy:\n1. Přečtěte si, [jak tuto zprávu pro podporu použít]({guide_url}).\n2. Zkontrolujte, zda zpráva neobsahuje soukromé informace, a poté ji zkopírujte do [nového hlášení problému integrace Panel Assistant]({issue_url}).\n\n{report}\n\n[Další informace]({learn_more_url})"
           },
           "clear_error": {
             "title": "Vymazat chybu",
-            "description": "Odstraní tuto chybu a její uloženou zprávu z části Opravy. Panel tím nezměníte. Výběrem Odeslat ji vymažete."
+            "description": "Vymazáním této chyby se odstraní její uložená zpráva, aniž by se panel změnil.\n\nPostup opravy:\n1. Pokud zprávu potřebujete, nejprve si [uložte zprávu pro podporu]({guide_url}).\n2. Zvolte **Odeslat** pro odstranění této chyby a zprávy.\n\n[Další informace]({learn_more_url})"
           },
           "retry_error": {
             "title": "Opakovaný pokus nebyl dokončen",
-            "description": "Opakovaný pokus je pozastaven. Chyba zůstává v části Opravy; podrobnosti najdete ve zprávě pro podporu."
+            "description": "Opakovaný pokus se nemohl dokončit, takže tato chyba a její zpráva zůstávají v Opravách.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Odeslat** a poté **Zpráva pro podporu**, abyste před dalším pokusem zjistili příčinu.\n\n[Další informace]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Panel se kontroluje a pokus se bezpečně opakuje."
+          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1430,7 +1432,7 @@
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Panel Assistant se na panelu neaktualizoval.",
+            "description": "Home Assistant nemohl potvrdit dokončení aktualizace Panel Assistant.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Obnovte připojení panelu a zkontrolujte **Zprávu pro podporu**; poté zvolte **Zkusit znovu**.\n\n[Další informace]({learn_more_url})",
             "menu_options": {
               "retry": "Zkusit znovu",
               "authorize_adb": "Povolit aktualizace",
@@ -1440,24 +1442,24 @@
           },
           "support_report": {
             "title": "Zpráva pro podporu",
-            "description": "### [Jak použít tuto zprávu pro podporu]({guide_url})\n\nZkopírujte níže uvedenou zprávu do [nového hlášení problému s integrací Panel Assistant]({issue_url}). Pokud chcete pomoc od asistenta AI, použijte se zprávou zadání z odkazované stránky s návodem.\n\n{report}"
+            "description": "Tato zpráva obsahuje uložené podrobnosti o neúspěšné instalaci nebo aktualizaci.\n\nPostup opravy:\n1. Přečtěte si, [jak tuto zprávu pro podporu použít]({guide_url}).\n2. Zkontrolujte, zda zpráva neobsahuje soukromé informace, a poté ji zkopírujte do [nového hlášení problému integrace Panel Assistant]({issue_url}).\n\n{report}\n\n[Další informace]({learn_more_url})"
           },
           "clear_error": {
             "title": "Vymazat chybu",
-            "description": "Odstraní tuto chybu a její uloženou zprávu z části Opravy. Panel tím nezměníte. Výběrem Odeslat ji vymažete."
+            "description": "Vymazáním této chyby se odstraní její uložená zpráva, aniž by se panel změnil.\n\nPostup opravy:\n1. Pokud zprávu potřebujete, nejprve si [uložte zprávu pro podporu]({guide_url}).\n2. Zvolte **Odeslat** pro odstranění této chyby a zprávy.\n\n[Další informace]({learn_more_url})"
           },
           "retry_error": {
             "title": "Opakovaný pokus nebyl dokončen",
-            "description": "Opakovaný pokus je pozastaven. Chyba zůstává v části Opravy; podrobnosti najdete ve zprávě pro podporu."
+            "description": "Opakovaný pokus se nemohl dokončit, takže tato chyba a její zpráva zůstávají v Opravách.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Odeslat** a poté **Zpráva pro podporu**, abyste před dalším pokusem zjistili příčinu.\n\n[Další informace]({learn_more_url})"
           },
           "authorize_adb": {
             "title": "Povolit aktualizace na {panel}",
-            "description": "Zvolte Odeslat a podívejte se na obrazovku panelu {panel}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač."
+            "description": "Home Assistant potřebuje schválení v systému Android, aby mohl aktualizovat panel {panel}.\n\nPostup opravy:\n1. Přečtěte si [postup schválení ADB]({approval_url}).\n2. Zvolte **Odeslat** a poté na panelu {panel} zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**.\n3. Po schválení zvolte v této opravě **Zkusit znovu** pro opakování aktualizace.\n\n[Další informace]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Panel se kontroluje a pokus se bezpečně opakuje.",
-          "authorize_adb": "Podívejte se na obrazovku panelu {panel}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač.\n\nJakmile to panel povolí, bude se pokračovat samo."
+          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})",
+          "authorize_adb": "Na panelu {panel} je stále potřeba schválení v systému Android.\n\nPostup opravy:\n1. Přečtěte si [postup schválení ADB]({approval_url}).\n2. Na panelu {panel} zaškrtněte **Vždy povolit z tohoto počítače** a poté klepněte na **Povolit**.\n\nPo schválení se bude pokračovat automaticky.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1484,7 +1486,7 @@
           "panel_identity_changed": "Zařízení na této adrese už neodpovídá jako tento nakonfigurovaný panel. Před opakovaným pokusem zkontrolujte panel a jeho adresu."
         },
         "abort": {
-          "entry_removed": "Tento panel byl odstraněn."
+          "entry_removed": "Tento panel byl odstraněn.\n\n[Další informace]({learn_more_url})"
         }
       }
     },
@@ -1494,7 +1496,7 @@
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Další pokusy jsou pozastavené, dokud nebude možné panel zkontrolovat.",
+            "description": "Opakovaný pokus se nedokončil, takže uložená chyba a zpráva zůstávají dostupné.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Zpráva pro podporu** a před dalším pokusem zkontrolujte uvedenou příčinu. Vymazání této chyby neuděluje souhlas s instalací.\n\n[Další informace]({learn_more_url})",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",
@@ -1503,19 +1505,19 @@
           },
           "support_report": {
             "title": "Zpráva pro podporu",
-            "description": "### [Jak použít tuto zprávu pro podporu]({guide_url})\n\nZkopírujte níže uvedenou zprávu do [nového hlášení problému s integrací Panel Assistant]({issue_url}). Pokud chcete pomoc od asistenta AI, použijte se zprávou zadání z odkazované stránky s návodem.\n\n{report}"
+            "description": "Tato zpráva obsahuje uložené podrobnosti o neúspěšné instalaci nebo aktualizaci.\n\nPostup opravy:\n1. Přečtěte si, [jak tuto zprávu pro podporu použít]({guide_url}).\n2. Zkontrolujte, zda zpráva neobsahuje soukromé informace, a poté ji zkopírujte do [nového hlášení problému integrace Panel Assistant]({issue_url}).\n\n{report}\n\n[Další informace]({learn_more_url})"
           },
           "clear_error": {
             "title": "Vymazat chybu",
-            "description": "Odstraní tuto chybu a její uloženou zprávu z části Opravy. Panel tím nezměníte. Výběrem Odeslat ji vymažete."
+            "description": "Vymazáním této chyby se odstraní její uložená zpráva, aniž by se panel změnil.\n\nPostup opravy:\n1. Pokud zprávu potřebujete, nejprve si [uložte zprávu pro podporu]({guide_url}).\n2. Zvolte **Odeslat** pro odstranění této chyby a zprávy.\n\n[Další informace]({learn_more_url})"
           },
           "retry_error": {
             "title": "Opakovaný pokus nebyl dokončen",
-            "description": "Opakovaný pokus je pozastaven. Chyba zůstává v části Opravy; podrobnosti najdete ve zprávě pro podporu."
+            "description": "Opakovaný pokus se nemohl dokončit, takže tato chyba a její zpráva zůstávají v Opravách.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Odeslat** a poté **Zpráva pro podporu**, abyste před dalším pokusem zjistili příčinu.\n\n[Další informace]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Panel se kontroluje a pokus se bezpečně opakuje."
+          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1529,25 +1531,25 @@
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         },
         "abort": {
-          "entry_removed": "Tento panel byl odstraněn."
+          "entry_removed": "Tento panel byl odstraněn.\n\n[Další informace]({learn_more_url})"
         }
       }
     },
     "panel_address_unreachable": {
       "title": "{panel} není dostupný na adrese {address}",
-      "description": "Jeho entity dál fungují přes aktivní připojení z {session_address}.\n\nPokud se adresa panelu změnila, přidejte ho znovu na nové adrese. Tento problém zmizí sám, jakmile adresa odpoví."
+      "description": "Panel {panel} je připojený, ale jeho uložená adresa {address} není dostupná pro operace, které ji vyžadují.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant]({integration_url}).\n2. Pokud se adresa panelu změnila, přidejte ho znovu pomocí jeho aktuální adresy.\n3. Jinak obnovte přístup k adrese {address}; tato oprava zmizí, až na ní odpoví tento panel."
     },
     "panel_address_unverified": {
       "title": "Panel {panel} se přesunul a jeho novou adresu se nepodařilo potvrdit",
-      "description": "Panel {panel} je připojený k systému Home Assistant z adresy {session_address}, takže jeho entity zůstávají dostupné. Systém Home Assistant však nemůže načíst panel na jeho uložené adrese {address} a kontrola na adrese {session_address} neodpověděla jako tento panel, proto se uložená adresa nezměnila. Pokud se panel přesunul, přidejte jej znovu na nové adrese; tím se uložená adresa aktualizuje. Problém zmizí sám, jakmile uložená adresa odpoví."
+      "description": "Panel {panel} je připojený, ale pro operace vyžadující jeho adresu se nepodařilo ověřit ani adresu {address}, ani navrženou adresu {session_address}.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant]({integration_url}).\n2. Pokud se adresa panelu změnila, přidejte ho znovu pomocí jeho aktuální adresy.\n3. Jinak obnovte přístup k adrese {address}; tato oprava zmizí, až na ní odpoví tento panel."
     },
     "panel_identity_mismatch": {
       "title": "Zkontrolovat adresu panelu {panel}",
-      "description": "Zařízení na adrese {address} neodpovědělo jako panel {panel}, proto bylo jeho ovládání pozastaveno. Zkontrolujte, že tato adresa patří panelu. Pokud se panel přesunul, přidejte jej znovu pomocí jeho aktuální adresy."
+      "description": "Adresa {address} neodpověděla jako panel {panel}, takže jeho ovládání je pozastaveno.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant]({integration_url}).\n2. Zkontrolujte aktuální adresu panelu.\n3. Pokud se panel přesunul, přidejte ho znovu na této adrese."
     },
     "panel_link_shared": {
       "title": "{panel} byl znovu nainstalován, ale sdílí propojení zařízení",
-      "description": "{panel} odpověděl na adrese {address} po přeinstalaci aplikace, ale {others} má stejné propojení zařízení, takže Home Assistant nedokáže určit, ke kterému nastavení tento panel patří, a pozastavil jeho ovládání. Adresa je v pořádku. Pokud se {others} už nepoužívá, smažte ho a {panel} se připojí sám; jinak přidejte {panel} znovu."
+      "description": "Panel {panel} byl přeinstalován na adrese {address}, ale sdílí propojení zařízení s {others}, takže jeho ovládání je pozastaveno.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant]({integration_url}).\n2. Odstraňte {others} pouze tehdy, pokud se již nepoužívají; panel {panel} se poté automaticky znovu připojí.\n3. Pokud se tyto panely stále používají, přidejte panel {panel} znovu."
     },
     "panel_identity_confirmation": {
       "title": "Zachovat stávající nastavení panelu {panel}",
@@ -1555,15 +1557,15 @@
         "step": {
           "confirm_identity": {
             "title": "Zachovat uvedená nastavení panelů",
-            "description": "Zachovat stávající entity a nastavení všech těchto panelů?\n\n{panels}\n\nJedním odesláním potvrďte všechny výše uvedené panely."
+            "description": "Uvedené panely vyžadují potvrzení, aby bylo možné zachovat jejich stávající nastavení pod novými identitami zařízení.\n\nPostup opravy:\n1. [Porovnejte zařízení Panel Assistant]({integration_url}) s tímto seznamem.\n2. Potvrďte pouze tehdy, pokud každý panel patří ke svému stávajícímu nastavení.\n3. Jednou zvolte Odeslat pro zachování všech uvedených nastavení.\n\n{panels}\n\n[Další informace]({learn_more_url})"
           }
         },
         "abort": {
-          "entry_removed": "Tento panel byl odstraněn.",
-          "identity_changed": "Panel se změnil, když bylo toto potvrzení otevřené. Otevřete nejnovější opravu a zkuste to znovu."
+          "entry_removed": "Tento panel byl odstraněn.\n\n[Další informace]({learn_more_url})",
+          "identity_changed": "Některý uvedený panel se změnil, zatímco bylo toto potvrzení otevřené; otevřete nejnovější opravu a seznam znovu zkontrolujte.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
-          "cannot_connect": "Nelze se spojit se všemi uvedenými panely. Zkontrolujte jejich připojení a zkuste to znovu."
+          "cannot_connect": "Nelze se spojit se všemi uvedenými panely; zkontrolujte jejich připojení a zkuste to znovu."
         }
       }
     },
@@ -1573,7 +1575,7 @@
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Home Assistant zatím nemá oprávnění aktualizovat {panel}.",
+            "description": "Home Assistant zatím nemá povoleno aktualizovat panel {panel}.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Povolit aktualizace**, poté **Odeslat** a schvalte výzvu na panelu {panel}.\n\n[Další informace]({learn_more_url})",
             "menu_options": {
               "retry": "Zkusit znovu",
               "authorize_adb": "Povolit aktualizace",
@@ -1583,24 +1585,24 @@
           },
           "support_report": {
             "title": "Zpráva pro podporu",
-            "description": "### [Jak použít tuto zprávu pro podporu]({guide_url})\n\nZkopírujte níže uvedenou zprávu do [nového hlášení problému s integrací Panel Assistant]({issue_url}). Pokud chcete pomoc od asistenta AI, použijte se zprávou zadání z odkazované stránky s návodem.\n\n{report}"
+            "description": "Tato zpráva obsahuje uložené podrobnosti o neúspěšné instalaci nebo aktualizaci.\n\nPostup opravy:\n1. Přečtěte si, [jak tuto zprávu pro podporu použít]({guide_url}).\n2. Zkontrolujte, zda zpráva neobsahuje soukromé informace, a poté ji zkopírujte do [nového hlášení problému integrace Panel Assistant]({issue_url}).\n\n{report}\n\n[Další informace]({learn_more_url})"
           },
           "clear_error": {
             "title": "Vymazat chybu",
-            "description": "Odstraní tuto chybu a její uloženou zprávu z části Opravy. Panel tím nezměníte. Výběrem Odeslat ji vymažete."
+            "description": "Vymazáním této chyby se odstraní její uložená zpráva, aniž by se panel změnil.\n\nPostup opravy:\n1. Pokud zprávu potřebujete, nejprve si [uložte zprávu pro podporu]({guide_url}).\n2. Zvolte **Odeslat** pro odstranění této chyby a zprávy.\n\n[Další informace]({learn_more_url})"
           },
           "retry_error": {
             "title": "Opakovaný pokus nebyl dokončen",
-            "description": "Opakovaný pokus je pozastaven. Chyba zůstává v části Opravy; podrobnosti najdete ve zprávě pro podporu."
+            "description": "Opakovaný pokus se nemohl dokončit, takže tato chyba a její zpráva zůstávají v Opravách.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Odeslat** a poté **Zpráva pro podporu**, abyste před dalším pokusem zjistili příčinu.\n\n[Další informace]({learn_more_url})"
           },
           "authorize_adb": {
             "title": "Povolit aktualizace na panelu {panel}",
-            "description": "Zvolte Odeslat a podívejte se na obrazovku panelu {panel}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač."
+            "description": "Home Assistant potřebuje schválení v systému Android, aby mohl aktualizovat panel {panel}.\n\nPostup opravy:\n1. Přečtěte si [postup schválení ADB]({approval_url}).\n2. Zvolte **Odeslat** a poté na panelu {panel} zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**.\n3. Po schválení zvolte v této opravě **Zkusit znovu** pro opakování aktualizace.\n\n[Další informace]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Panel se kontroluje a pokus se bezpečně opakuje.",
-          "authorize_adb": "Podívejte se na obrazovku panelu {panel}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač.\n\nJakmile to panel povolí, bude se pokračovat samo."
+          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})",
+          "authorize_adb": "Na panelu {panel} je stále potřeba schválení v systému Android.\n\nPostup opravy:\n1. Přečtěte si [postup schválení ADB]({approval_url}).\n2. Na panelu {panel} zaškrtněte **Vždy povolit z tohoto počítače** a poté klepněte na **Povolit**.\n\nPo schválení se bude pokračovat automaticky.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1627,7 +1629,7 @@
           "panel_identity_changed": "Na této adrese už neodpovídá nastavený panel. Před dalším pokusem zkontrolujte panel a jeho adresu."
         },
         "abort": {
-          "entry_removed": "Tento panel byl odebrán."
+          "entry_removed": "Tento panel byl odstraněn.\n\n[Další informace]({learn_more_url})"
         }
       }
     },
@@ -1637,7 +1639,7 @@
         "step": {
           "authorize_adb": {
             "title": "Povolit aktualizace na panelu {panel}",
-            "description": "Zvolte Odeslat a podívejte se na obrazovku panelu {panel}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač."
+            "description": "Home Assistant nemůže instalovat aktualizace na panelu {panel}, dokud nepovolíte jeho připojení ADB.\n\nPostup opravy:\n1. Přečtěte si [postup schválení ADB]({approval_url}) a poté zvolte Odeslat pro odeslání žádosti o schválení.\n2. Na panelu {panel} zaškrtněte **Vždy povolit z tohoto počítače** a poté klepněte na **Povolit**.\n3. Počkejte zde na dokončení schválení; Android může Home Assistant označovat jako počítač.\n\n[Další informace]({learn_more_url})"
           }
         },
         "error": {
@@ -1656,16 +1658,16 @@
           "panel_identity_changed": "Na této adrese už neodpovídá nastavený panel. Před dalším pokusem zkontrolujte panel a jeho adresu."
         },
         "abort": {
-          "entry_removed": "Tento panel byl odebrán."
+          "entry_removed": "Tento panel byl odstraněn.\n\n[Další informace]({learn_more_url})"
         },
         "progress": {
-          "authorize_adb": "Podívejte se na obrazovku panelu {panel}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač.\n\nJakmile to panel povolí, bude se pokračovat samo."
+          "authorize_adb": "Home Assistant čeká, až panel {panel} povolí aktualizace.\n\nPostup opravy:\n1. Na panelu postupujte podle [pokynů ke schválení ADB]({approval_url}).\n2. Zaškrtněte **Vždy povolit z tohoto počítače** a poté klepněte na **Povolit**.\n3. Počkejte zde; po schválení se bude pokračovat automaticky.\n\n[Další informace]({learn_more_url})"
         }
       }
     },
     "another_home_assistant": {
       "title": "{panel} je přihlášen k jiné instanci Home Assistant",
-      "description": "{panel} byl sem přidán, ale je přihlášen k jiné instanci Home Assistant. Jeho nastavení a přihlášení se nezměnily. Chcete-li jej připojit sem, změňte na panelu instanci Home Assistant a přihlaste se."
+      "description": "Panel {panel} je zde přidaný, ale zůstává přihlášený k jiné instanci Home Assistant.\n\nPostup opravy:\n1. [Otevřete připojení panelu k Home Assistant]({configure_url}).\n2. Pokud ho chcete připojit sem, zadejte adresu této instance Home Assistant a uložte ji.\n3. Znovu se připojte a přihlaste se účtem, který má panel používat; jinak ponechte jeho současný server a tuto opravu ignorujte."
     }
   },
   "options": {

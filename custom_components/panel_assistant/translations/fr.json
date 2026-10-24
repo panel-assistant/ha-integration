@@ -782,7 +782,9 @@
     }
   },
   "exceptions": {
-    "old_app_needs_090": {"message": "Ce panneau exécute encore l'ancienne app : installez d'abord Panel Assistant 0.9.0, comme l'explique sa réparation"},
+    "old_app_needs_090": {
+      "message": "Ce panneau exécute encore l'ancienne app : installez d'abord Panel Assistant 0.9.0, comme l'explique sa réparation"
+    },
     "mqtt_panel_needs_090": {
       "message": "{panel} n'a jamais quitté MQTT : installez d'abord Panel Assistant 0.9.0, comme l'explique sa réparation"
     },
@@ -792,20 +794,48 @@
     "health_address_retired": {
       "message": "L'adresse du panneau a changé pendant la lecture de son état"
     },
-    "update_unavailable": { "message": "La mise à jour Panel Assistant demandée n'est pas disponible" },
-    "update_busy": { "message": "Le panneau est occupé par une autre opération" },
-    "update_approval_required": { "message": "Approuvez cette mise à jour sur le panneau, puis réessayez" },
-    "update_rejected": { "message": "{panel} a refusé la demande de mise à jour. Vérifiez l'onglet Installer du panneau, puis réessayez." },
-    "update_refused_by_panel": { "message": "{panel} a refusé la mise à jour : {reason}" },
-    "panel_changed_during_update": { "message": "Le panneau a changé pendant la mise à jour. Actualisez la page, puis réessayez." },
-    "release_download_failed": { "message": "Impossible de télécharger la version de l'application. Vérifiez la connexion, puis réessayez." },
-    "staged_app_mismatch": { "message": "L'application préparée ne correspondait pas aux données de la version signée. Rien n'a été installé." },
-    "update_not_accepted": { "message": "Le panneau n'a pas accepté la demande de mise à jour" },
-    "update_not_complete": { "message": "La mise à jour du panneau ne s'est pas terminée" },
-    "panel_backup_failed": { "message": "Le panneau n'a pas pu être sauvegardé, rien n'a donc été installé" },
-    "build_verification_failed": { "message": "Le build ne correspondait pas au flux de builds signé, rien n'a donc été installé" },
-    "release_verification_failed": { "message": "La version ne correspondait pas à sa signature, donc rien n'a été installé" },
-    "upload_disabled": { "message": "Le panneau n'accepte pas les envois d'applications ; activez l'envoi d'APK dans ses paramètres" },
+    "update_unavailable": {
+      "message": "La mise à jour Panel Assistant demandée n'est pas disponible"
+    },
+    "update_busy": {
+      "message": "Le panneau est occupé par une autre opération"
+    },
+    "update_approval_required": {
+      "message": "Approuvez cette mise à jour sur le panneau, puis réessayez"
+    },
+    "update_rejected": {
+      "message": "{panel} a refusé la demande de mise à jour. Vérifiez l'onglet Installer du panneau, puis réessayez."
+    },
+    "update_refused_by_panel": {
+      "message": "{panel} a refusé la mise à jour : {reason}"
+    },
+    "panel_changed_during_update": {
+      "message": "Le panneau a changé pendant la mise à jour. Actualisez la page, puis réessayez."
+    },
+    "release_download_failed": {
+      "message": "Impossible de télécharger la version de l'application. Vérifiez la connexion, puis réessayez."
+    },
+    "staged_app_mismatch": {
+      "message": "L'application préparée ne correspondait pas aux données de la version signée. Rien n'a été installé."
+    },
+    "update_not_accepted": {
+      "message": "Le panneau n'a pas accepté la demande de mise à jour"
+    },
+    "update_not_complete": {
+      "message": "La mise à jour du panneau ne s'est pas terminée"
+    },
+    "panel_backup_failed": {
+      "message": "Le panneau n'a pas pu être sauvegardé, rien n'a donc été installé"
+    },
+    "build_verification_failed": {
+      "message": "Le build ne correspondait pas au flux de builds signé, rien n'a donc été installé"
+    },
+    "release_verification_failed": {
+      "message": "La version ne correspondait pas à sa signature, donc rien n'a été installé"
+    },
+    "upload_disabled": {
+      "message": "Le panneau n'accepte pas les envois d'applications ; activez l'envoi d'APK dans ses paramètres"
+    },
     "adb_authorization_required": {
       "message": "Les mises à jour ne sont pas encore autorisées sur {panel}. Ouvrez les Réparations dans Home Assistant et sélectionnez « Autoriser les mises à jour sur {panel} ». Appuyez ensuite sur « Autoriser » dans la demande « Autoriser le débogage ? » du panneau."
     },
@@ -867,15 +897,15 @@
   "issues": {
     "panel_app_too_old": {
       "title": "{panel} a besoin de l'app {required_version}",
-      "description": "{panel} exécute l'app {version}, qui utilise un protocole plus ancien que Panel Assistant 1.0 : Home Assistant ne peut donc ni le voir ni le contrôler, et ses entités apparaissent comme indisponibles. Rien n'est perdu : il continue de fonctionner seul et conserve ses paramètres et son historique. Installez la mise à jour que Panel Assistant propose pour ce panneau et il se reconnectera."
+      "description": "Home Assistant ne peut ni voir ni contrôler {panel}, car l’application {version} ne prend pas en charge ce protocole de connexion.\n\nPour corriger le problème :\n1. Ouvrez [Mises à jour]({updates_url}) et installez une mise à jour compatible de l’application pour {panel}, si elle est proposée.\n2. Attendez que le panneau se reconnecte."
     },
     "old_app_needs_090": {
       "title": "{panel} exécute encore l'ancienne app",
-      "description": "{panel} exécute encore l'ancienne app ha-paneld. Panel Assistant 1.0 ne peut plus faire passer un panneau à la nouvelle app, il n'installe et ne met donc rien à jour sur {panel} tant qu'il n'est pas passé. Installez d'abord Panel Assistant 0.9.0 (dans HACS, ouvrez Panel Assistant, choisissez Redownload, puis la version 0.9.0), faites passer le panneau avec sa réparation, puis installez 1.0.0. En attendant, le panneau continue de fonctionner avec l'ancienne app."
+      "description": "Panel Assistant ne peut ni installer ni mettre à jour {panel} tant que le panneau utilise encore l’ancienne application ha-paneld.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération sécurisée]({recovery_url}) pour terminer la migration avec Panel Assistant 0.9.0.\n2. Si un panneau utilise déjà l’application 1.0 ou si vous n’avez aucune sauvegarde datant d’avant la mise à niveau, demandez de l’aide avant de changer de version.\n3. Terminez toutes les migrations dans 0.9.0, puis mettez l’intégration à jour vers 1.0."
     },
     "mqtt_panel_needs_090": {
       "title": "{panel} n'a jamais quitté MQTT",
-      "description": "Panel Assistant 1.0 ne peut plus faire passer {panel} de MQTT à sa propre connexion, et le connecter maintenant créerait un second jeu d'entités et scinderait son historique. Installez d'abord Panel Assistant 0.9.0 (dans HACS, ouvrez Panel Assistant, choisissez Redownload, puis la version 0.9.0), laissez-le faire passer le panneau, puis installez 1.0.0. Si vous préférez repartir de zéro, supprimez l'appareil de ce panneau dans Paramètres, Appareils et services, MQTT, puis rechargez cette entrée ou supprimez-la et ajoutez de nouveau le panneau ; cela crée de nouvelles entités et ne conserve aucun historique."
+      "description": "Panel Assistant ne peut pas connecter {panel} tant que ses entités utilisent encore MQTT sans scinder leur historique.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération sécurisée]({recovery_url}) pour terminer la migration avec Panel Assistant 0.9.0.\n2. Si un panneau utilise déjà l’application 1.0 ou si vous n’avez aucune sauvegarde datant d’avant la mise à niveau, demandez de l’aide avant de changer de version.\n3. Terminez toutes les migrations dans 0.9.0, puis mettez l’intégration à jour vers 1.0."
     },
     "panel_permissions": {
       "title": "Les autorisations de {panel} nécessitent votre attention.",
@@ -883,15 +913,15 @@
         "step": {
           "commission_permissions": {
             "title": "Vérifier les autorisations de {panel}",
-            "description": "Le tableau de bord de {panel} reste disponible. Sur le panneau physique, ouvrez Paramètres Android → Applications → Panel Assistant. Autorisez l'accès à l'appareil photo et au micro lorsqu'ils sont listés, ainsi que les notifications. Dans Accès spéciaux des applications, autorisez Modifier les paramètres système et Afficher par-dessus les autres applications pour Panel Assistant. Dans Accessibilité, activez le service Panel Assistant. Lorsque la barre de navigation est réglée sur Afficher par balayage ou Toujours affiché et que Afficher par-dessus les autres applications est manquant, un balayage vers le haut depuis le bas du tableau de bord ouvre à la place le paramètre Afficher par-dessus les autres applications : autorisez-le, revenez en arrière et balayez de nouveau vers le haut. Revenez ici et sélectionnez Valider pour vérifier à nouveau les autorisations."
+            "description": "Des autorisations Android manquantes empêchent certaines fonctions de {panel} de fonctionner.\n\nPour corriger le problème :\n1. Sur le panneau, suivez le [guide des autorisations Android]({permissions_url}) : dans Paramètres → Applications → Panel Assistant, autorisez l’appareil photo, le microphone et les notifications lorsqu’ils sont proposés.\n2. Dans Accès spéciaux des applications, autorisez Modifier les paramètres système et Afficher par-dessus les autres applications ; dans Accessibilité, activez Panel Assistant.\n3. Revenez ici et sélectionnez Valider pour vérifier à nouveau.\n\n[En savoir plus]({learn_more_url})"
           }
         },
         "error": {
-          "permissions_missing": "Le panneau signale toujours une autorisation manquante. Effectuez les étapes sur le panneau, puis validez à nouveau.",
-          "permissions_unreadable": "Home Assistant n’a pas pu vérifier toutes les autorisations requises sur ce panneau. Vérifiez sa connexion, puis validez à nouveau."
+          "permissions_missing": "Une autorisation manque encore. Effectuez les étapes sur le panneau, puis sélectionnez à nouveau Valider.",
+          "permissions_unreadable": "Home Assistant n’a pas pu vérifier toutes les autorisations requises. Vérifiez que le panneau est connecté, puis sélectionnez à nouveau Valider."
         },
         "abort": {
-          "entry_removed": "Ce panneau a été supprimé."
+          "entry_removed": "Ce panneau a été supprimé.\n\n[En savoir plus]({learn_more_url})"
         }
       }
     },
@@ -901,7 +931,7 @@
         "step": {
           "set_up_proximity": {
             "title": "Configurer la proximité sur {panel}",
-            "description": "Tant que son capteur de proximité n’est pas configuré, {panel} ne peut pas se réveiller d’un geste de la main. La configuration prend environ une minute et vous devez vous tenir devant le panneau. Ouvrez Panel Assistant dans la barre latérale et choisissez {panel}. Sur sa [page Configurer]({configure_url}), sous Présence et réveil, sélectionnez Configurer la proximité sur le panneau, puis suivez les instructions à l’écran du panneau. Vous pouvez aussi la lancer sur le panneau lui-même avec Ouvrir la configuration de proximité sur son tableau de bord. Quand le panneau indique que l’étalonnage est enregistré, revenez ici et sélectionnez Valider."
+            "description": "{panel} ne peut pas se réveiller d’un geste tant que son capteur de proximité n’est pas configuré.\n\nPour corriger le problème :\n1. Ouvrez la [configuration de la proximité]({configure_url}) et sélectionnez Configurer la proximité sur le panneau.\n2. Placez-vous devant {panel} et suivez les instructions à l’écran (environ une minute).\n3. Une fois l’étalonnage enregistré, revenez ici et sélectionnez Valider.\n\n[En savoir plus]({learn_more_url})"
           }
         },
         "error": {
@@ -910,71 +940,71 @@
           "proximity_unreadable": "Home Assistant n’a pas pu lire l’état de proximité du panneau. Vérifiez sa connexion, puis validez à nouveau."
         },
         "abort": {
-          "entry_removed": "Ce panneau a été supprimé."
+          "entry_removed": "Ce panneau a été supprimé.\n\n[En savoir plus]({learn_more_url})"
         }
       }
     },
     "voice_microphone_silent": {
       "title": "L'assistant vocal de {panel} n'écoute pas.",
-      "description": "L'assistant vocal de {panel} n'écoute pas, car son microphone n'a enregistré que du silence lorsque le panneau l'a vérifié. Pour vérifier à nouveau, désactivez puis réactivez l'assistant vocal sur la page Configurer du panneau, ou choisissez-y une autre source audio."
+      "description": "L’assistant vocal de {panel} n’écoute pas, car la vérification du microphone n’a enregistré que du silence.\n\nPour corriger le problème :\n1. Ouvrez les [paramètres vocaux]({configure_url}).\n2. Désactivez puis réactivez Assistant vocal pour vérifier à nouveau.\n3. Si la vérification échoue encore, essayez une autre [Source audio]({audio_source_url})."
     },
     "voice_microphone_no_audio": {
       "title": "L'assistant vocal de {panel} n'écoute pas.",
-      "description": "L'assistant vocal de {panel} n'écoute pas, car son microphone n'a fourni aucun son lorsque le panneau l'a vérifié. Pour vérifier à nouveau, désactivez puis réactivez l'assistant vocal sur la page Configurer du panneau, ou choisissez-y une autre source audio."
+      "description": "L’assistant vocal de {panel} n’écoute pas, car la vérification du microphone n’a reçu aucun son.\n\nPour corriger le problème :\n1. Ouvrez les [paramètres vocaux]({configure_url}).\n2. Désactivez puis réactivez Assistant vocal pour vérifier à nouveau.\n3. Si la vérification échoue encore, essayez une autre [Source audio]({audio_source_url})."
     },
     "voice_microphone_no_audio_detail": {
       "title": "L'assistant vocal de {panel} n'écoute pas.",
-      "description": "L'assistant vocal de {panel} n'écoute pas, car son microphone n'a fourni aucun son lorsque le panneau l'a vérifié. Pour vérifier à nouveau, désactivez puis réactivez l'assistant vocal sur la page Configurer du panneau, ou choisissez-y une autre source audio. Le panneau a signalé : {detail}"
+      "description": "L’assistant vocal de {panel} n’écoute pas, car la vérification du microphone n’a reçu aucun son ({detail}).\n\nPour corriger le problème :\n1. Ouvrez les [paramètres vocaux]({configure_url}).\n2. Désactivez puis réactivez Assistant vocal pour vérifier à nouveau.\n3. Si la vérification échoue encore, essayez une autre [Source audio]({audio_source_url})."
     },
     "wake_word_kept": {
       "title": "{panel} a conservé son propre mot d'activation {wake_word}.",
-      "description": "Panel Assistant n'a pas installé le mot d'activation partagé {wake_word} sur {panel}, car le panneau possède déjà un autre mot d'activation du même nom, importé sur le panneau lui-même. Pour y utiliser le mot partagé, ouvrez {panel} dans la barre latérale de Panel Assistant et importez à nouveau le mot d'activation."
+      "description": "{panel} utilise son propre modèle pour {wake_word} au lieu du modèle partagé.\n\nPour corriger le problème :\n1. [Ouvrez les mots d’activation]({configure_url}).\n2. Si vous souhaitez utiliser le modèle partagé, importez son manifeste .json et son fichier .tflite ; l’importation ici remplace la copie partagée et peut mettre à jour d’autres panneaux."
     },
     "wake_word_refused": {
       "title": "{panel} n'a pas pu installer le mot d'activation {wake_word}.",
-      "description": "Panel Assistant n'a pas pu installer le mot d'activation partagé {wake_word} sur {panel}. Les autres mots d'activation du panneau sont inchangés. Le panneau a signalé : {reason}"
+      "description": "{panel} n’a pas pu ajouter le mot d’activation partagé {wake_word} : {reason}.\n\nPour corriger le problème :\n1. [Ouvrez les mots d’activation]({configure_url}).\n2. Corrigez le problème signalé, puis importez un manifeste .json et un modèle .tflite microWakeWord compatibles ; l’importation ici remplace la copie partagée et peut mettre à jour d’autres panneaux."
     },
     "volume_number_removed": {
       "title": "{panel} n'a plus de nombre de volume séparé",
-      "description": "{panel} a un lecteur multimédia qui affiche et règle son volume, Panel Assistant a donc supprimé son nombre de volume séparé {entity}. Ces automatisations ou scripts l'utilisent encore : {users}. Modifiez-les pour régler le volume avec l'action `media_player.volume_set` sur le lecteur multimédia du panneau. Une fois qu'ils sont modifiés, vous pouvez ignorer ce message."
+      "description": "Les automatisations ou scripts ne peuvent plus utiliser ce nombre de volume supprimé pour régler le volume de {panel} :\n\n```text\n{entity}\n```\n\nPour corriger le problème :\n1. Ouvrez [Automatisations]({automations_url}) ou [Scripts]({scripts_url}) et recherchez ces automatisations ou scripts :\n\n   ```text\n   {users}\n   ```\n\n2. Remplacez les actions utilisant le nombre supprimé par `media_player.volume_set` sur le lecteur multimédia de ce panneau, avec `volume_level` compris entre 0 et 1 (0.5 correspond à 50%).\n3. Enregistrez vos modifications, puis ignorez cette réparation."
     },
-      "restart_required": {
-        "title": "Redémarrez Home Assistant pour terminer la mise à jour de Panel Assistant",
-        "fix_flow": {
-          "step": {
-            "confirm_restart": {
-              "title": "Redémarrer Home Assistant",
-              "description": "Panel Assistant {installed} est installé, mais Home Assistant exécute toujours {loaded}. La nouvelle version prend effet après le redémarrage de Home Assistant. Sélectionnez Valider pour redémarrer Home Assistant maintenant."
-            }
+    "restart_required": {
+      "title": "Redémarrez Home Assistant pour terminer la mise à jour de Panel Assistant",
+      "fix_flow": {
+        "step": {
+          "confirm_restart": {
+            "title": "Redémarrer Home Assistant",
+            "description": "Home Assistant exécute encore Panel Assistant {loaded} ; la version installée {installed} n’est donc pas encore active.\n\nPour corriger le problème :\n1. Consultez [Panel Assistant]({integration_url}) si nécessaire, puis revenez ici.\n2. Sélectionnez Valider pour redémarrer Home Assistant maintenant.\n\n[En savoir plus]({learn_more_url})"
           }
         }
-      },
+      }
+    },
     "panel_user_mismatch": {
       "title": "Confirmer l'utilisateur Home Assistant de {panel}",
       "fix_flow": {
         "step": {
           "confirm_bind": {
             "title": "Confirmer l'utilisateur du panneau",
-            "description": "Le panneau {panel} demande à se connecter à Home Assistant en tant qu'utilisateur {user}. Ne confirmez que si {user} est le compte que vous avez configuré pour ce panneau. Après confirmation, le panneau devrait se connecter peu après. Toute personne connectée à Home Assistant peut demander à se connecter comme panneau : si vous ne reconnaissez pas cette demande, fermez cette boîte de dialogue et ignorez le problème."
+            "description": "{panel} ne peut pas se connecter en tant que {user} tant que vous n’avez pas confirmé ce compte.\n\nPour corriger le problème :\n1. [Vérifiez la connexion du panneau]({configure_url}).\n2. Sélectionnez Valider uniquement si vous avez configuré {user} pour ce panneau ; il devrait alors se reconnecter.\n3. Si vous ne reconnaissez pas cette demande, fermez cette boîte de dialogue et ignorez le problème : toute personne connectée peut demander une connexion de panneau.\n\n[En savoir plus]({learn_more_url})"
           },
           "confirm_rebind": {
             "title": "Changer l'utilisateur du panneau",
-            "description": "Le panneau {panel} est confirmé pour l'utilisateur {bound_user}, mais l'utilisateur {user} demande à se connecter en tant que ce panneau. Ne confirmez que si vous avez remplacé le compte de ce panneau par {user} : le panneau n'acceptera plus {bound_user} et devrait se connecter peu après. Sinon, quelqu'un d'autre essaie peut-être de prendre le contrôle du panneau : fermez cette boîte de dialogue et ignorez le problème."
+            "description": "{user} a demandé à se connecter en tant que {panel}, qui accepte actuellement {bound_user}.\n\nPour corriger le problème :\n1. [Vérifiez la connexion du panneau]({configure_url}).\n2. Sélectionnez Valider uniquement si vous avez remplacé son compte par {user} ; {bound_user} ne sera plus accepté.\n3. Sinon, fermez cette boîte de dialogue et ignorez le problème : il peut s’agir d’une tentative de prise de contrôle.\n\n[En savoir plus]({learn_more_url})"
           }
         },
         "abort": {
-          "entry_removed": "Ce panneau n'est plus configuré dans Home Assistant.",
-          "user_unavailable": "L'utilisateur qui a demandé à se connecter n'existe plus ou est désactivé. Rien n'a été modifié."
+          "entry_removed": "Ce panneau n’est plus configuré dans Home Assistant.\n\n[En savoir plus]({learn_more_url})",
+          "user_unavailable": "L’utilisateur à l’origine de la demande n’existe plus ou est désactivé ; rien n’a été modifié.\n\n[En savoir plus]({learn_more_url})"
         }
       }
     },
     "no_update_route": {
       "title": "{panel} ne peut pas recevoir de mises à jour de l'application",
-      "description": "Panel Assistant ne peut pas installer de mises à jour de l'application sur {panel}, donc l'application reste sur sa version actuelle. Tout le reste du panneau continue de fonctionner, ce qui rend le problème facile à manquer. Cela fait généralement suite à une modification effectuée sur le panneau lui-même, comme une mise à jour du micrologiciel ou une réinitialisation. Reconnectez le panneau à Panel Assistant par USB pour rétablir les mises à jour. Sélectionnez En savoir plus pour les étapes propres à ce panneau."
+      "description": "{panel} ne peut pas recevoir de mises à jour de l’application, mais ses autres fonctions continuent de fonctionner.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération des mises à jour pour ce panneau]({recovery_url}).\n2. Rétablissez l’accès de débogage ou reconnectez le panneau par USB si les étapes l’exigent.\n3. Revenez aux mises à jour de Home Assistant lorsque cette réparation disparaît."
     },
     "merged_panel_identity": {
       "title": "Séparer les panneaux fusionnés : {panels}",
-      "description": "Les panneaux {panels} signalent la même identité d’appareil. Home Assistant ne peut donc pas déterminer de manière sûre à quelle entrée appartient une connexion native ou une entité. Leur connexion native est refusée et aucune entité n’est déplacée. Mettez à jour l’application Panel Assistant sur chaque panneau concerné pour que chacun ait une identité distincte. Supprimez ensuite l’appareil fusionné et laissez les panneaux s’enregistrer à nouveau."
+      "description": "{panels} partagent une même identité d’appareil ; leurs connexions natives sont donc refusées et aucune entité n’est déplacée.\n\nPour corriger le problème :\n1. [Ouvrez les appareils Panel Assistant]({integration_url}).\n2. Mettez l’application à jour sur chaque panneau concerné pour que chacun ait sa propre identité.\n3. Supprimez ensuite l’appareil fusionné et laissez les panneaux s’enregistrer à nouveau."
     },
     "installer_failure": {
       "title": "Échec de l'installation ou de la mise à jour sur {panel}",
@@ -982,7 +1012,7 @@
         "step": {
           "init": {
             "title": "Résoudre l'erreur du panneau",
-            "description": "L’installation ou la mise à jour sur {panel} ne s’est pas terminée.",
+            "description": "L’installation ou la mise à jour ne s’est pas terminée.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Rapport d’assistance** pour vérifier la cause, puis **Réessayer** une fois le problème résolu.\n\n[En savoir plus]({learn_more_url})",
             "menu_options": {
               "retry": "Réessayer",
               "support_report": "Rapport d'assistance",
@@ -991,19 +1021,19 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "### [Comment utiliser ce rapport d’assistance]({guide_url})\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
+            "description": "Ce rapport contient les détails enregistrés de l’échec de l’installation ou de la mise à jour.\n\nPour corriger le problème :\n1. Lisez [comment utiliser ce rapport d’assistance]({guide_url}).\n2. Vérifiez si le rapport contient des informations privées, puis copiez-le dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}).\n\n{report}\n\n[En savoir plus]({learn_more_url})"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
+            "description": "Effacer cette erreur supprime son rapport enregistré sans modifier le panneau.\n\nPour corriger le problème :\n1. [Enregistrez d’abord un rapport d’assistance]({guide_url}) si vous en avez besoin.\n2. Sélectionnez **Valider** pour supprimer cette erreur et son rapport.\n\n[En savoir plus]({learn_more_url})"
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative n’a pas pu se terminer ; cette erreur et son rapport restent donc dans Réparations.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Valider**, puis **Rapport d’assistance** pour vérifier la cause avant de réessayer.\n\n[En savoir plus]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1024,7 +1054,7 @@
         "step": {
           "init": {
             "title": "Résoudre l'erreur du panneau",
-            "description": "Le panneau n’a pas accepté la connexion de Home Assistant.",
+            "description": "Home Assistant n’a pas pu se connecter au panneau pour installer Panel Assistant.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Autorisez Home Assistant sur le panneau si cela vous est demandé, puis sélectionnez **Réessayer**.\n\n[En savoir plus]({learn_more_url})",
             "menu_options": {
               "retry": "Réessayer",
               "support_report": "Rapport d'assistance",
@@ -1033,19 +1063,19 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "### [Comment utiliser ce rapport d’assistance]({guide_url})\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
+            "description": "Ce rapport contient les détails enregistrés de l’échec de l’installation ou de la mise à jour.\n\nPour corriger le problème :\n1. Lisez [comment utiliser ce rapport d’assistance]({guide_url}).\n2. Vérifiez si le rapport contient des informations privées, puis copiez-le dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}).\n\n{report}\n\n[En savoir plus]({learn_more_url})"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
+            "description": "Effacer cette erreur supprime son rapport enregistré sans modifier le panneau.\n\nPour corriger le problème :\n1. [Enregistrez d’abord un rapport d’assistance]({guide_url}) si vous en avez besoin.\n2. Sélectionnez **Valider** pour supprimer cette erreur et son rapport.\n\n[En savoir plus]({learn_more_url})"
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative n’a pas pu se terminer ; cette erreur et son rapport restent donc dans Réparations.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Valider**, puis **Rapport d’assistance** pour vérifier la cause avant de réessayer.\n\n[En savoir plus]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1066,7 +1096,7 @@
         "step": {
           "init": {
             "title": "Résoudre l'erreur du panneau",
-            "description": "Rien n’a été installé sur le panneau.",
+            "description": "Panel Assistant n’a pas pu être installé, car le panneau n’a pas satisfait aux vérifications de sécurité.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Rapport d’assistance** et corrigez le problème ayant fait échouer la vérification de sécurité avant de réessayer.\n\n[En savoir plus]({learn_more_url})",
             "menu_options": {
               "retry": "Réessayer",
               "support_report": "Rapport d'assistance",
@@ -1075,19 +1105,19 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "### [Comment utiliser ce rapport d’assistance]({guide_url})\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
+            "description": "Ce rapport contient les détails enregistrés de l’échec de l’installation ou de la mise à jour.\n\nPour corriger le problème :\n1. Lisez [comment utiliser ce rapport d’assistance]({guide_url}).\n2. Vérifiez si le rapport contient des informations privées, puis copiez-le dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}).\n\n{report}\n\n[En savoir plus]({learn_more_url})"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
+            "description": "Effacer cette erreur supprime son rapport enregistré sans modifier le panneau.\n\nPour corriger le problème :\n1. [Enregistrez d’abord un rapport d’assistance]({guide_url}) si vous en avez besoin.\n2. Sélectionnez **Valider** pour supprimer cette erreur et son rapport.\n\n[En savoir plus]({learn_more_url})"
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative n’a pas pu se terminer ; cette erreur et son rapport restent donc dans Réparations.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Valider**, puis **Rapport d’assistance** pour vérifier la cause avant de réessayer.\n\n[En savoir plus]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1108,7 +1138,7 @@
         "step": {
           "init": {
             "title": "Résoudre l'erreur du panneau",
-            "description": "La version n’a pas pu être vérifiée ; rien n’a donc été installé.",
+            "description": "Panel Assistant n’a pas été installé, car la version ou ses vérifications de préparation ont été rejetées.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Vérifiez la version sélectionnée et la connexion, puis sélectionnez **Réessayer**.\n\n[En savoir plus]({learn_more_url})",
             "menu_options": {
               "retry": "Réessayer",
               "support_report": "Rapport d'assistance",
@@ -1117,19 +1147,19 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "### [Comment utiliser ce rapport d’assistance]({guide_url})\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
+            "description": "Ce rapport contient les détails enregistrés de l’échec de l’installation ou de la mise à jour.\n\nPour corriger le problème :\n1. Lisez [comment utiliser ce rapport d’assistance]({guide_url}).\n2. Vérifiez si le rapport contient des informations privées, puis copiez-le dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}).\n\n{report}\n\n[En savoir plus]({learn_more_url})"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
+            "description": "Effacer cette erreur supprime son rapport enregistré sans modifier le panneau.\n\nPour corriger le problème :\n1. [Enregistrez d’abord un rapport d’assistance]({guide_url}) si vous en avez besoin.\n2. Sélectionnez **Valider** pour supprimer cette erreur et son rapport.\n\n[En savoir plus]({learn_more_url})"
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative n’a pas pu se terminer ; cette erreur et son rapport restent donc dans Réparations.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Valider**, puis **Rapport d’assistance** pour vérifier la cause avant de réessayer.\n\n[En savoir plus]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1150,7 +1180,7 @@
         "step": {
           "init": {
             "title": "Résoudre l'erreur du panneau",
-            "description": "La connexion a été interrompue avant la fin de l’installation.",
+            "description": "Home Assistant n’a pas pu terminer le transfert ou l’installation de Panel Assistant.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Rétablissez la connexion du panneau, puis sélectionnez **Réessayer**.\n\n[En savoir plus]({learn_more_url})",
             "menu_options": {
               "retry": "Réessayer",
               "support_report": "Rapport d'assistance",
@@ -1159,19 +1189,19 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "### [Comment utiliser ce rapport d’assistance]({guide_url})\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
+            "description": "Ce rapport contient les détails enregistrés de l’échec de l’installation ou de la mise à jour.\n\nPour corriger le problème :\n1. Lisez [comment utiliser ce rapport d’assistance]({guide_url}).\n2. Vérifiez si le rapport contient des informations privées, puis copiez-le dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}).\n\n{report}\n\n[En savoir plus]({learn_more_url})"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
+            "description": "Effacer cette erreur supprime son rapport enregistré sans modifier le panneau.\n\nPour corriger le problème :\n1. [Enregistrez d’abord un rapport d’assistance]({guide_url}) si vous en avez besoin.\n2. Sélectionnez **Valider** pour supprimer cette erreur et son rapport.\n\n[En savoir plus]({learn_more_url})"
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative n’a pas pu se terminer ; cette erreur et son rapport restent donc dans Réparations.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Valider**, puis **Rapport d’assistance** pour vérifier la cause avant de réessayer.\n\n[En savoir plus]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1192,7 +1222,7 @@
         "step": {
           "init": {
             "title": "Résoudre l'erreur du panneau",
-            "description": "Android sur le panneau a refusé l’installation.",
+            "description": "Android a refusé l’installation de Panel Assistant.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Rapport d’assistance** et résolvez l’erreur Android avant de réessayer.\n\n[En savoir plus]({learn_more_url})",
             "menu_options": {
               "retry": "Réessayer",
               "support_report": "Rapport d'assistance",
@@ -1201,19 +1231,19 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "### [Comment utiliser ce rapport d’assistance]({guide_url})\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
+            "description": "Ce rapport contient les détails enregistrés de l’échec de l’installation ou de la mise à jour.\n\nPour corriger le problème :\n1. Lisez [comment utiliser ce rapport d’assistance]({guide_url}).\n2. Vérifiez si le rapport contient des informations privées, puis copiez-le dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}).\n\n{report}\n\n[En savoir plus]({learn_more_url})"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
+            "description": "Effacer cette erreur supprime son rapport enregistré sans modifier le panneau.\n\nPour corriger le problème :\n1. [Enregistrez d’abord un rapport d’assistance]({guide_url}) si vous en avez besoin.\n2. Sélectionnez **Valider** pour supprimer cette erreur et son rapport.\n\n[En savoir plus]({learn_more_url})"
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative n’a pas pu se terminer ; cette erreur et son rapport restent donc dans Réparations.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Valider**, puis **Rapport d’assistance** pour vérifier la cause avant de réessayer.\n\n[En savoir plus]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1234,7 +1264,7 @@
         "step": {
           "init": {
             "title": "Résoudre l'erreur du panneau",
-            "description": "Panel Assistant est installé, mais n’a pas démarré.",
+            "description": "Panel Assistant est installé, mais n’a pas démarré.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Ouvrez Panel Assistant sur le panneau, puis sélectionnez **Réessayer**.\n\n[En savoir plus]({learn_more_url})",
             "menu_options": {
               "retry": "Réessayer",
               "support_report": "Rapport d'assistance",
@@ -1243,19 +1273,19 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "### [Comment utiliser ce rapport d’assistance]({guide_url})\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
+            "description": "Ce rapport contient les détails enregistrés de l’échec de l’installation ou de la mise à jour.\n\nPour corriger le problème :\n1. Lisez [comment utiliser ce rapport d’assistance]({guide_url}).\n2. Vérifiez si le rapport contient des informations privées, puis copiez-le dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}).\n\n{report}\n\n[En savoir plus]({learn_more_url})"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
+            "description": "Effacer cette erreur supprime son rapport enregistré sans modifier le panneau.\n\nPour corriger le problème :\n1. [Enregistrez d’abord un rapport d’assistance]({guide_url}) si vous en avez besoin.\n2. Sélectionnez **Valider** pour supprimer cette erreur et son rapport.\n\n[En savoir plus]({learn_more_url})"
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative n’a pas pu se terminer ; cette erreur et son rapport restent donc dans Réparations.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Valider**, puis **Rapport d’assistance** pour vérifier la cause avant de réessayer.\n\n[En savoir plus]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1276,7 +1306,7 @@
         "step": {
           "init": {
             "title": "Résoudre l'erreur du panneau",
-            "description": "Panel Assistant a démarré, mais n’a pas signalé un état de fonctionnement correct.",
+            "description": "Panel Assistant a démarré, mais Home Assistant n’a pas pu confirmer son bon fonctionnement.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Ouvrez Panel Assistant sur le panneau et rétablissez sa connexion, puis sélectionnez **Réessayer**.\n\n[En savoir plus]({learn_more_url})",
             "menu_options": {
               "retry": "Réessayer",
               "support_report": "Rapport d'assistance",
@@ -1285,19 +1315,19 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "### [Comment utiliser ce rapport d’assistance]({guide_url})\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
+            "description": "Ce rapport contient les détails enregistrés de l’échec de l’installation ou de la mise à jour.\n\nPour corriger le problème :\n1. Lisez [comment utiliser ce rapport d’assistance]({guide_url}).\n2. Vérifiez si le rapport contient des informations privées, puis copiez-le dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}).\n\n{report}\n\n[En savoir plus]({learn_more_url})"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
+            "description": "Effacer cette erreur supprime son rapport enregistré sans modifier le panneau.\n\nPour corriger le problème :\n1. [Enregistrez d’abord un rapport d’assistance]({guide_url}) si vous en avez besoin.\n2. Sélectionnez **Valider** pour supprimer cette erreur et son rapport.\n\n[En savoir plus]({learn_more_url})"
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative n’a pas pu se terminer ; cette erreur et son rapport restent donc dans Réparations.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Valider**, puis **Rapport d’assistance** pour vérifier la cause avant de réessayer.\n\n[En savoir plus]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1318,7 +1348,7 @@
         "step": {
           "init": {
             "title": "Résoudre l'erreur du panneau",
-            "description": "Home Assistant ne peut pas déterminer si l’installation a modifié le panneau.",
+            "description": "Home Assistant ne peut pas déterminer si l’installation a modifié le panneau.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Rapport d’assistance** et vérifiez le panneau avant de réessayer. Ne le réinstallez pas, ne le désinstallez pas et ne le réinitialisez pas tant que son état est inconnu.\n\n[En savoir plus]({learn_more_url})",
             "menu_options": {
               "retry": "Réessayer",
               "support_report": "Rapport d'assistance",
@@ -1327,19 +1357,19 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "### [Comment utiliser ce rapport d’assistance]({guide_url})\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
+            "description": "Ce rapport contient les détails enregistrés de l’échec de l’installation ou de la mise à jour.\n\nPour corriger le problème :\n1. Lisez [comment utiliser ce rapport d’assistance]({guide_url}).\n2. Vérifiez si le rapport contient des informations privées, puis copiez-le dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}).\n\n{report}\n\n[En savoir plus]({learn_more_url})"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
+            "description": "Effacer cette erreur supprime son rapport enregistré sans modifier le panneau.\n\nPour corriger le problème :\n1. [Enregistrez d’abord un rapport d’assistance]({guide_url}) si vous en avez besoin.\n2. Sélectionnez **Valider** pour supprimer cette erreur et son rapport.\n\n[En savoir plus]({learn_more_url})"
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative n’a pas pu se terminer ; cette erreur et son rapport restent donc dans Réparations.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Valider**, puis **Rapport d’assistance** pour vérifier la cause avant de réessayer.\n\n[En savoir plus]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1360,7 +1390,7 @@
         "step": {
           "init": {
             "title": "Résoudre l'erreur du panneau",
-            "description": "Une autre installation est bloquée jusqu’à la vérification du panneau.",
+            "description": "Une autre installation est bloquée tant que Home Assistant ne peut pas vérifier le panneau.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Rapport d’assistance** et rétablissez la vérification du panneau avant de réessayer. Ne réinstallez pas et ne réinitialisez pas l’application.\n\n[En savoir plus]({learn_more_url})",
             "menu_options": {
               "retry": "Réessayer",
               "support_report": "Rapport d'assistance",
@@ -1369,19 +1399,19 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "### [Comment utiliser ce rapport d’assistance]({guide_url})\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
+            "description": "Ce rapport contient les détails enregistrés de l’échec de l’installation ou de la mise à jour.\n\nPour corriger le problème :\n1. Lisez [comment utiliser ce rapport d’assistance]({guide_url}).\n2. Vérifiez si le rapport contient des informations privées, puis copiez-le dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}).\n\n{report}\n\n[En savoir plus]({learn_more_url})"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
+            "description": "Effacer cette erreur supprime son rapport enregistré sans modifier le panneau.\n\nPour corriger le problème :\n1. [Enregistrez d’abord un rapport d’assistance]({guide_url}) si vous en avez besoin.\n2. Sélectionnez **Valider** pour supprimer cette erreur et son rapport.\n\n[En savoir plus]({learn_more_url})"
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative n’a pas pu se terminer ; cette erreur et son rapport restent donc dans Réparations.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Valider**, puis **Rapport d’assistance** pour vérifier la cause avant de réessayer.\n\n[En savoir plus]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1402,7 +1432,7 @@
         "step": {
           "init": {
             "title": "Résoudre l'erreur du panneau",
-            "description": "Panel Assistant n’a pas été mis à jour sur le panneau.",
+            "description": "Home Assistant n’a pas pu confirmer que la mise à jour de Panel Assistant était terminée.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Rétablissez la connexion du panneau et consultez **Rapport d’assistance**, puis sélectionnez **Réessayer**.\n\n[En savoir plus]({learn_more_url})",
             "menu_options": {
               "retry": "Réessayer",
               "authorize_adb": "Autoriser les mises à jour",
@@ -1412,24 +1442,24 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "### [Comment utiliser ce rapport d’assistance]({guide_url})\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
+            "description": "Ce rapport contient les détails enregistrés de l’échec de l’installation ou de la mise à jour.\n\nPour corriger le problème :\n1. Lisez [comment utiliser ce rapport d’assistance]({guide_url}).\n2. Vérifiez si le rapport contient des informations privées, puis copiez-le dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}).\n\n{report}\n\n[En savoir plus]({learn_more_url})"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
+            "description": "Effacer cette erreur supprime son rapport enregistré sans modifier le panneau.\n\nPour corriger le problème :\n1. [Enregistrez d’abord un rapport d’assistance]({guide_url}) si vous en avez besoin.\n2. Sélectionnez **Valider** pour supprimer cette erreur et son rapport.\n\n[En savoir plus]({learn_more_url})"
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative n’a pas pu se terminer ; cette erreur et son rapport restent donc dans Réparations.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Valider**, puis **Rapport d’assistance** pour vérifier la cause avant de réessayer.\n\n[En savoir plus]({learn_more_url})"
           },
           "authorize_adb": {
             "title": "Autoriser les mises à jour sur {panel}",
-            "description": "Sélectionnez Valider, puis regardez l’écran de {panel} : cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**. Android peut décrire Home Assistant comme un ordinateur."
+            "description": "Home Assistant a besoin d’une autorisation Android avant de pouvoir mettre à jour {panel}.\n\nPour corriger le problème :\n1. Lisez les [étapes d’autorisation ADB]({approval_url}).\n2. Sélectionnez **Valider**, puis, sur {panel}, cochez **Toujours autoriser sur cet ordinateur** et touchez **Autoriser**.\n3. Après l’autorisation, sélectionnez **Réessayer** dans cette réparation pour relancer la mise à jour.\n\n[En savoir plus]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre.",
-          "authorize_adb": "Regardez l’écran de {panel} : cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**. Android peut décrire Home Assistant comme un ordinateur.\n\nL'opération se poursuivra d'elle-même dès que le panneau l'aura autorisé."
+          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})",
+          "authorize_adb": "L’autorisation Android sur {panel} est toujours nécessaire.\n\nPour corriger le problème :\n1. Lisez les [étapes d’autorisation ADB]({approval_url}).\n2. Sur {panel}, cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**.\n\nL’opération se poursuit automatiquement après l’autorisation.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1456,7 +1486,7 @@
           "panel_identity_changed": "Cette adresse ne répond plus comme le panneau configuré. Vérifiez le panneau et son adresse avant de réessayer."
         },
         "abort": {
-          "entry_removed": "Ce panneau a été supprimé."
+          "entry_removed": "Ce panneau a été supprimé.\n\n[En savoir plus]({learn_more_url})"
         }
       }
     },
@@ -1466,7 +1496,7 @@
         "step": {
           "init": {
             "title": "Résoudre l'erreur du panneau",
-            "description": "Les nouvelles tentatives sont bloquées jusqu’à ce que le panneau puisse être vérifié.",
+            "description": "La nouvelle tentative n’a pas abouti ; l’erreur et le rapport enregistrés restent donc disponibles.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Rapport d’assistance** et vérifiez la cause signalée avant de réessayer. Effacer cette erreur n’autorise pas une installation.\n\n[En savoir plus]({learn_more_url})",
             "menu_options": {
               "retry": "Réessayer",
               "support_report": "Rapport d'assistance",
@@ -1475,19 +1505,19 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "### [Comment utiliser ce rapport d’assistance]({guide_url})\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
+            "description": "Ce rapport contient les détails enregistrés de l’échec de l’installation ou de la mise à jour.\n\nPour corriger le problème :\n1. Lisez [comment utiliser ce rapport d’assistance]({guide_url}).\n2. Vérifiez si le rapport contient des informations privées, puis copiez-le dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}).\n\n{report}\n\n[En savoir plus]({learn_more_url})"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
+            "description": "Effacer cette erreur supprime son rapport enregistré sans modifier le panneau.\n\nPour corriger le problème :\n1. [Enregistrez d’abord un rapport d’assistance]({guide_url}) si vous en avez besoin.\n2. Sélectionnez **Valider** pour supprimer cette erreur et son rapport.\n\n[En savoir plus]({learn_more_url})"
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative n’a pas pu se terminer ; cette erreur et son rapport restent donc dans Réparations.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Valider**, puis **Rapport d’assistance** pour vérifier la cause avant de réessayer.\n\n[En savoir plus]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre."
+          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1501,25 +1531,25 @@
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         },
         "abort": {
-          "entry_removed": "Ce panneau a été supprimé."
+          "entry_removed": "Ce panneau a été supprimé.\n\n[En savoir plus]({learn_more_url})"
         }
       }
     },
     "panel_address_unreachable": {
       "title": "Impossible de joindre {panel} à l’adresse {address}",
-      "description": "Ses entités fonctionnent toujours via la connexion active depuis {session_address}.\n\nSi le panneau a changé d’adresse, ajoutez-le à nouveau avec sa nouvelle adresse. Ce problème se résout automatiquement dès que l’adresse répond."
+      "description": "{panel} est connecté, mais son adresse enregistrée {address} est injoignable pour les opérations qui en ont besoin.\n\nPour corriger le problème :\n1. [Ouvrez les appareils Panel Assistant]({integration_url}).\n2. Si le panneau a changé d’adresse, ajoutez-le à nouveau avec son adresse actuelle.\n3. Sinon, rétablissez l’accès à {address} ; ce problème disparaît lorsque cette adresse répond avec l’identité de ce panneau."
     },
     "panel_address_unverified": {
       "title": "{panel} a changé d'adresse et sa nouvelle adresse n'a pas pu être confirmée",
-      "description": "{panel} est connecté à Home Assistant depuis {session_address}, ses entités restent donc disponibles, mais Home Assistant ne peut pas lire le panneau à son adresse enregistrée {address}, et une vérification à {session_address} n'a pas répondu comme ce panneau ; l'adresse enregistrée n'a donc pas été modifiée. Si le panneau a changé d'adresse, ajoutez-le à nouveau avec sa nouvelle adresse, ce qui met à jour l'adresse enregistrée ; l'avertissement disparaît de lui-même dès que l'adresse enregistrée répond."
+      "description": "{panel} est connecté, mais ni {address} ni l’adresse suggérée {session_address} n’ont pu être confirmées pour les opérations nécessitant l’adresse du panneau.\n\nPour corriger le problème :\n1. [Ouvrez les appareils Panel Assistant]({integration_url}).\n2. Si le panneau a changé d’adresse, ajoutez-le à nouveau avec son adresse actuelle.\n3. Sinon, rétablissez l’accès à {address} ; ce problème disparaît lorsque cette adresse répond avec l’identité de ce panneau."
     },
     "panel_identity_mismatch": {
       "title": "Vérifier l’adresse de {panel}",
-      "description": "La réponse de {address} ne correspondait pas à {panel}. Ses commandes ont donc été temporairement désactivées. Vérifiez que cette adresse appartient au panneau. Si son adresse a changé, ajoutez-le à nouveau avec son adresse actuelle."
+      "description": "{address} n’a pas répondu avec l’identité de {panel} ; ses commandes sont donc suspendues.\n\nPour corriger le problème :\n1. [Ouvrez les appareils Panel Assistant]({integration_url}).\n2. Vérifiez l’adresse actuelle du panneau.\n3. S’il a changé d’adresse, ajoutez-le à nouveau à cette adresse."
     },
     "panel_link_shared": {
       "title": "{panel} a été réinstallé mais partage son lien d’appareil",
-      "description": "{panel} a répondu à {address} après la réinstallation de son application, mais {others} possède le même lien d’appareil : Home Assistant ne peut donc pas savoir à quelle configuration appartient ce panneau et a suspendu ses commandes. L’adresse est correcte. Si {others} n’est plus utilisé, supprimez-le et {panel} se reconnectera tout seul ; sinon, ajoutez {panel} à nouveau."
+      "description": "{panel} a été réinstallé à {address}, mais partage un lien d’appareil avec {others} ; ses commandes sont donc suspendues.\n\nPour corriger le problème :\n1. [Ouvrez les appareils Panel Assistant]({integration_url}).\n2. Supprimez {others} uniquement si ces panneaux ne sont plus utilisés ; {panel} se reconnecte alors automatiquement.\n3. Si ces panneaux sont encore utilisés, ajoutez {panel} à nouveau."
     },
     "panel_identity_confirmation": {
       "title": "Conserver la configuration de {panel}",
@@ -1527,15 +1557,15 @@
         "step": {
           "confirm_identity": {
             "title": "Conserver les configurations des panneaux indiqués",
-            "description": "Conserver les entités et les paramètres existants de tous ces panneaux ?\n\n{panels}\n\nValidez une seule fois pour confirmer tous les panneaux indiqués."
+            "description": "Les panneaux indiqués doivent être confirmés avant de pouvoir conserver leurs configurations existantes sous leurs nouvelles identités d’appareil.\n\nPour corriger le problème :\n1. [Comparez les appareils Panel Assistant]({integration_url}) à cette liste.\n2. Confirmez uniquement si chaque panneau correspond à sa configuration existante.\n3. Sélectionnez Valider une seule fois pour conserver toutes les configurations indiquées.\n\n{panels}\n\n[En savoir plus]({learn_more_url})"
           }
         },
         "abort": {
-          "entry_removed": "Ce panneau a été supprimé.",
-          "identity_changed": "Le panneau a changé pendant que cette confirmation était ouverte. Ouvrez le dernier signalement dans Réparations et réessayez."
+          "entry_removed": "Ce panneau a été supprimé.\n\n[En savoir plus]({learn_more_url})",
+          "identity_changed": "Un panneau de la liste a changé pendant que cette confirmation était ouverte ; ouvrez la réparation la plus récente et vérifiez à nouveau la liste.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
-          "cannot_connect": "Certains panneaux indiqués sont injoignables. Vérifiez leurs connexions et réessayez."
+          "cannot_connect": "Impossible de joindre tous les panneaux indiqués ; vérifiez leurs connexions et réessayez."
         }
       }
     },
@@ -1545,7 +1575,7 @@
         "step": {
           "init": {
             "title": "Résoudre l'erreur du panneau",
-            "description": "Home Assistant n’est pas encore autorisé à mettre à jour {panel}.",
+            "description": "Home Assistant n’est pas encore autorisé à mettre à jour {panel}.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Choisissez **Autoriser les mises à jour**, puis sélectionnez **Valider** et approuvez la demande sur {panel}.\n\n[En savoir plus]({learn_more_url})",
             "menu_options": {
               "retry": "Réessayer",
               "authorize_adb": "Autoriser les mises à jour",
@@ -1555,24 +1585,24 @@
           },
           "support_report": {
             "title": "Rapport d'assistance",
-            "description": "### [Comment utiliser ce rapport d’assistance]({guide_url})\n\nCopiez le rapport ci-dessous dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}). Pour demander de l’aide à un assistant IA, transmettez-lui le rapport avec le texte proposé sur la page d’aide liée.\n\n{report}"
+            "description": "Ce rapport contient les détails enregistrés de l’échec de l’installation ou de la mise à jour.\n\nPour corriger le problème :\n1. Lisez [comment utiliser ce rapport d’assistance]({guide_url}).\n2. Vérifiez si le rapport contient des informations privées, puis copiez-le dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}).\n\n{report}\n\n[En savoir plus]({learn_more_url})"
           },
           "clear_error": {
             "title": "Effacer l'erreur",
-            "description": "Supprimez cette erreur et son rapport enregistré des Réparations. Le panneau ne sera pas modifié. Sélectionnez Valider pour effacer l'erreur."
+            "description": "Effacer cette erreur supprime son rapport enregistré sans modifier le panneau.\n\nPour corriger le problème :\n1. [Enregistrez d’abord un rapport d’assistance]({guide_url}) si vous en avez besoin.\n2. Sélectionnez **Valider** pour supprimer cette erreur et son rapport.\n\n[En savoir plus]({learn_more_url})"
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative est suspendue. L'erreur reste dans les Réparations ; le rapport d'assistance contient les détails."
+            "description": "La nouvelle tentative n’a pas pu se terminer ; cette erreur et son rapport restent donc dans Réparations.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Valider**, puis **Rapport d’assistance** pour vérifier la cause avant de réessayer.\n\n[En savoir plus]({learn_more_url})"
           },
           "authorize_adb": {
             "title": "Autoriser les mises à jour sur {panel}",
-            "description": "Sélectionnez Valider, puis regardez l’écran de {panel} : cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**. Android peut décrire Home Assistant comme un ordinateur."
+            "description": "Home Assistant a besoin d’une autorisation Android avant de pouvoir mettre à jour {panel}.\n\nPour corriger le problème :\n1. Lisez les [étapes d’autorisation ADB]({approval_url}).\n2. Sélectionnez **Valider**, puis, sur {panel}, cochez **Toujours autoriser sur cet ordinateur** et touchez **Autoriser**.\n3. Après l’autorisation, sélectionnez **Réessayer** dans cette réparation pour relancer la mise à jour.\n\n[En savoir plus]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative si elle est sûre.",
-          "authorize_adb": "Regardez l’écran de {panel} : cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**. Android peut décrire Home Assistant comme un ordinateur.\n\nL'opération se poursuivra d'elle-même dès que le panneau l'aura autorisé."
+          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})",
+          "authorize_adb": "L’autorisation Android sur {panel} est toujours nécessaire.\n\nPour corriger le problème :\n1. Lisez les [étapes d’autorisation ADB]({approval_url}).\n2. Sur {panel}, cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**.\n\nL’opération se poursuit automatiquement après l’autorisation.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1599,7 +1629,7 @@
           "panel_identity_changed": "Cette adresse ne répond plus comme le panneau configuré. Vérifiez le panneau et son adresse avant de réessayer."
         },
         "abort": {
-          "entry_removed": "Ce panneau a été supprimé."
+          "entry_removed": "Ce panneau a été supprimé.\n\n[En savoir plus]({learn_more_url})"
         }
       }
     },
@@ -1609,7 +1639,7 @@
         "step": {
           "authorize_adb": {
             "title": "Autoriser les mises à jour sur {panel}",
-            "description": "Sélectionnez Valider, puis regardez l’écran de {panel} : cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**. Android peut décrire Home Assistant comme un ordinateur."
+            "description": "Home Assistant ne peut pas installer de mises à jour sur {panel} tant que vous n’avez pas autorisé sa connexion ADB.\n\nPour corriger le problème :\n1. Lisez les [étapes d’autorisation ADB]({approval_url}), puis sélectionnez Valider pour envoyer la demande d’autorisation.\n2. Sur {panel}, cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**.\n3. Attendez ici la fin de l’autorisation ; Android peut décrire Home Assistant comme un ordinateur.\n\n[En savoir plus]({learn_more_url})"
           }
         },
         "error": {
@@ -1628,16 +1658,16 @@
           "panel_identity_changed": "Cette adresse ne répond plus comme le panneau configuré. Vérifiez le panneau et son adresse avant de réessayer."
         },
         "abort": {
-          "entry_removed": "Ce panneau a été supprimé."
+          "entry_removed": "Ce panneau a été supprimé.\n\n[En savoir plus]({learn_more_url})"
         },
         "progress": {
-          "authorize_adb": "Regardez l’écran de {panel} : cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**. Android peut décrire Home Assistant comme un ordinateur.\n\nL'opération se poursuivra d'elle-même dès que le panneau l'aura autorisé."
+          "authorize_adb": "Home Assistant attend que {panel} autorise les mises à jour.\n\nPour corriger le problème :\n1. Suivez les [étapes d’autorisation ADB]({approval_url}) sur le panneau.\n2. Cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**.\n3. Attendez ici ; l’opération se poursuit automatiquement après l’autorisation.\n\n[En savoir plus]({learn_more_url})"
         }
       }
     },
     "another_home_assistant": {
       "title": "{panel} a une session ouverte sur un autre Home Assistant",
-      "description": "Le panneau {panel} a été ajouté ici, mais il a une session ouverte sur un autre Home Assistant. Ses paramètres et sa session n'ont pas changé. Pour le connecter ici, changez de Home Assistant et connectez-vous sur le panneau."
+      "description": "{panel} a été ajouté ici, mais reste connecté à un autre Home Assistant.\n\nPour corriger le problème :\n1. [Ouvrez la connexion Home Assistant du panneau]({configure_url}).\n2. Si vous souhaitez le connecter ici, saisissez l’adresse de ce Home Assistant et enregistrez.\n3. Reconnectez-vous et ouvrez une session avec le compte que le panneau doit utiliser ; sinon, conservez son serveur actuel et ignorez cette réparation."
     }
   },
   "options": {
