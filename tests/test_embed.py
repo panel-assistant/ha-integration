@@ -827,9 +827,14 @@ async def test_a_page_comes_over_the_session_with_its_base_rewritten(
     assert response.content_type == "text/html"
     assert response.headers["Content-Security-Policy"] == ISOLATED
     assert response.headers["X-Content-Type-Options"] == "nosniff"
-    # Only the first base element, the page's own, is pointed at the view.
+    # Only the first base element, the page's own, is pointed at the view, and
+    # the page says from its own load that it is a page: the sidebar shows the
+    # frame on that message alone, in Chromium and WebKit alike.
     assert await response.text() == PAGE.replace(
         '<base href="/">', f'<base href="{url}">', 1
+    ) + (
+        '<script>addEventListener("load",function(){'
+        'parent.postMessage({type:"panel-assistant-ready"},"*")})</script>'
     )
     request = await live.event("page.info")
     assert {k: v for k, v in request["args"].items() if k != "blob_token"} == {
@@ -1003,6 +1008,7 @@ async def test_a_page_asked_for_while_the_panel_session_is_down_asks_again(
         in document
     )
     assert f'<meta name="color-scheme" content="{theme}">' in document
+    assert "panel-assistant-ready" not in document
 
 
 async def test_each_panel_is_served_the_bundle_of_its_own_build(

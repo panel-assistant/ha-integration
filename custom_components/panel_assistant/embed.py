@@ -442,8 +442,8 @@ def _retry(session: EmbedSession) -> web.Response:
         503,
         body=(
             '<!doctype html><meta name="panel-assistant-wait" content="true">'
-            # The sidebar cannot read a sandboxed document, so this one says so
-            # while it parses, before its load event reaches the sidebar.
+            # The sidebar cannot read a sandboxed document, so this one says so.
+            # It may arrive before or after this document's load (WebKit).
             '<script>parent.postMessage({type:"panel-assistant-wait"},"*")</script>'
             f'<meta name="color-scheme" content="{session.theme}">'
             f'<meta http-equiv="refresh" content="{RETRY_SECONDS}">'
@@ -451,6 +451,21 @@ def _retry(session: EmbedSession) -> web.Response:
         content_type="text/html",
         headers={"Retry-After": str(RETRY_SECONDS)},
     )
+
+
+# Every served page says, from its own load, that it is a page to show. The
+# sidebar shows the frame on that message, never on the frame's load event:
+# WebKit delivers the retry document's message after that document's load, so
+# a load cannot tell a page from a retry document (Safari, 2026-10-24).
+READY_SCRIPT: Final = (
+    b'<script>addEventListener("load",function(){'
+    b'parent.postMessage({type:"panel-assistant-ready"},"*")})</script>'
+)
+
+
+def _page_body(page: bytes, prefix: str) -> bytes:
+    """The page as the frame gets it: inside the embed view, and announcing itself."""
+    return _rebase(page, prefix) + READY_SCRIPT
 
 
 def _rebase(page: bytes, prefix: str) -> bytes:
@@ -588,7 +603,7 @@ class EmbedView(HomeAssistantView):
                 )
         return _respond(
             outcome.status or 200,
-            body=_rebase(data, f"{EMBED_PREFIX}/{session.token}"),
+            body=_page_body(data, f"{EMBED_PREFIX}/{session.token}"),
             content_type="text/html",
             charset="utf-8",
         )

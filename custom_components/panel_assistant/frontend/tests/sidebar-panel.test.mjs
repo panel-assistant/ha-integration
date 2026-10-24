@@ -151,8 +151,11 @@ test('panel titles render as text and the first panel opens a session', async ()
   assert.equal($('#loading').hidden, false, 'a URL does not mean the panel page has loaded');
   // A sandboxed document is cross-origin to the sidebar, which cannot read it.
   $('#frame').contentDocument = null;
+  $('#frame').contentWindow = frameWindow();
   $('#frame').fire('load');
-  assert.equal($('#loading').hidden, true, 'the waiting view clears when the panel document loads');
+  assert.equal($('#loading').hidden, false, 'a load alone does not say the document is a page');
+  fromWindow($('#frame').contentWindow, { type: 'panel-assistant-ready' });
+  assert.equal($('#loading').hidden, true, 'the waiting view clears when the panel page says it loaded');
 });
 
 test('an opened event with a foreign URL never loads the frame', async () => {
@@ -985,29 +988,46 @@ for (const reason of ['reboot', 'update', 'recovery']) test(`${reason} keeps the
   assert.equal($('#loading').hidden, false, 'the returning document is still loading');
   frame.contentDocument = null;
   frame.contentWindow = frameWindow();
-  // The retry document says what it is while it parses, before its load.
-  fromWindow(frameWindow(), { type: 'panel-assistant-wait' });
-  frame.fire('load');
-  assert.equal(frame.hidden, false, 'another window cannot hold the page back');
+  fromWindow(frameWindow(), { type: 'panel-assistant-ready' });
+  assert.equal(frame.hidden, true, 'another window cannot show the frame');
+  // Chromium delivers the retry document's message before its load, WebKit after it.
   fromWindow(frame.contentWindow, { type: 'panel-assistant-wait' });
   frame.fire('load');
   assert.equal(frame.hidden, true, 'a self-refreshing 503 remains behind the waiting view');
+  frame.fire('load');
+  fromWindow(frame.contentWindow, { type: 'panel-assistant-wait' });
+  assert.equal(frame.hidden, true);
   assert.equal($('#loading').hidden, false);
   frame.fire('load');
+  fromWindow(frame.contentWindow, { type: 'panel-assistant-ready' });
   assert.equal(frame.hidden, false);
   assert.equal($('#loading').hidden, true, 'the real page returns without refreshing the sidebar');
 });
 
-test('a retry document left before it loads does not hold back the next page', async () => {
+test('a retry message after its own load does not hold back the next page', async () => {
   const { $, subs } = await mount(fakeHass());
   subs[0].callback({ kind: 'opened', url: url(TOKEN) });
   const frame = $('#frame');
   frame.contentDocument = null;
   frame.contentWindow = frameWindow();
-  fromWindow(frame.contentWindow, { type: 'panel-assistant-wait' });
-  subs[0].callback({ kind: 'opened', url: url(TOKEN2) });
+  // WebKit's order for the retry document, then the page it refreshes into.
   frame.fire('load');
+  fromWindow(frame.contentWindow, { type: 'panel-assistant-wait' });
+  assert.equal(frame.hidden, true);
+  frame.fire('load');
+  fromWindow(frame.contentWindow, { type: 'panel-assistant-ready' });
   assert.equal(frame.hidden, false);
+  assert.equal($('#loading').hidden, true);
+});
+
+test('a page message before any frame URL shows nothing', async () => {
+  const { $, subs } = await mount(fakeHass());
+  const frame = $('#frame');
+  frame.contentWindow = frameWindow();
+  fromWindow(frame.contentWindow, { type: 'panel-assistant-ready' });
+  assert.equal(frame.hidden, true);
+  subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  assert.equal(frame.hidden, true, 'a new URL waits for its own page');
 });
 
 function signInWindows(t, blocked = false) {
