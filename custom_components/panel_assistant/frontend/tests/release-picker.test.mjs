@@ -6,11 +6,14 @@ class Element {
   attributes = new Map();
   setAttribute(name, value) { this.attributes.set(name, String(value)); }
   getAttribute(name) { return this.attributes.get(name); }
-  listeners = {}; children = []; value = ''; disabled = false; hidden = false; textContent = '';
+  listeners = {}; children = []; disabled = false; hidden = false; textContent = '';
+  // Like a <select>, an element with option children reports the first option until one is chosen.
+  #value;
+  get value() { return this.#value ?? this.children[0]?.value ?? ''; }
+  set value(value) { this.#value = value; }
   addEventListener(name, callback) { this.listeners[name] = callback; }
   append(...children) { this.children.push(...children); }
-  querySelector(selector) { return this.children.find(child => selector === 'span' ? child.tagName === 'span' : child.type === 'radio' && child.checked) ?? null; }
-  replaceChildren(...children) { this.children = children; this.value = ''; }
+  replaceChildren(...children) { this.children = children; this.#value = undefined; }
 }
 globalThis.HTMLElement = class {
   isConnected = false;
@@ -18,11 +21,13 @@ globalThis.HTMLElement = class {
     const elements = new Map();
     this.shadowRoot = {
       querySelectorAll: () => [],
-      querySelector: key => { if (key === '#release input:checked') return elements.get('#release-choices')?.children.map(label => label.children[0]).find(input => input.checked) ?? null; if (!elements.has(key)) elements.set(key, new Element()); return elements.get(key); },
+      querySelector: key => { if (!elements.has(key)) elements.set(key, new Element()); return elements.get(key); },
     };
   }
 };
-globalThis.document = { createElement: tag => Object.assign(new Element(), { tagName: tag }) };
+// Every element the panel builds, so a test can see what kind of control it rendered.
+const created = [];
+globalThis.document = { createElement: tag => { const element = Object.assign(new Element(), { tagName: tag }); created.push(element); return element; } };
 globalThis.customElements = { get: () => true };
 const { HaPaneldUsbInstallPanel } = await import('../src/ha-install-panel.mjs');
 const { ENGLISH_MESSAGES: { haInstall: HA_INSTALL_MESSAGES } } = await import('../src/frontend-localization.mjs');
@@ -39,10 +44,18 @@ function fixture(fetchWithAuth) {
   panel.connectedCallback();
   return { panel, hass, element: id => panel.shadowRoot.querySelector(`#${id}`) };
 }
-function radios(f) { return f.element('release-choices').children.map(label => label.children[0]); }
-function labels(f) { return f.element('release-choices').children.map(label => label.children[1]); }
-function selected(f) { return radios(f).find(input => input.checked)?.value; }
-function choose(f, value) { for (const input of radios(f)) input.checked = input.value === value; }
+function options(f) { return f.element('release-choices').children; }
+function selected(f) { return f.element('release-choices').value; }
+function choose(f, value) { f.element('release-choices').value = value; }
+
+test('the release choice is a pop-up menu of options, never radio buttons', async () => {
+  created.length = 0;
+  const f = fixture(async () => response([rc, stable]));
+  await tick();
+  assert.deepEqual(options(f).map(option => option.tagName), ['option', 'option', 'option']);
+  assert.deepEqual(created.filter(element => element.tagName === 'input' && element.type === 'radio'), []);
+  f.panel.disconnectedCallback();
+});
 
 test('PA channel default stays implicit while explicit first RC and stable selections keep exact tags', async () => {
   const f = fixture(async () => response([rc, stable]));
@@ -51,8 +64,8 @@ test('PA channel default stays implicit while explicit first RC and stable selec
   await tick();
   assert.equal(selected(f), '');
   assert.equal(f.element('start').disabled, false);
-  assert.equal(radios(f)[0].disabled, false);
-  assert.deepEqual(labels(f).map(option => option.textContent), [HA_INSTALL_MESSAGES.choose, '1.2.4-rc1 (test version)', '1.2.3']);
+  assert.equal(options(f)[0].disabled, false);
+  assert.deepEqual(options(f).map(option => option.textContent), [HA_INSTALL_MESSAGES.choose, '1.2.4-rc1 (test version)', '1.2.3']);
   let opened;
   globalThis.window = { crypto: webcrypto, location: { origin: 'http://ha.example' }, addEventListener() {}, removeEventListener() {}, open(url) { opened = new URL(url); return { closed: false }; } };
   f.element('start').listeners.click();
@@ -132,9 +145,9 @@ test('dev builds are labelled by name, PA channel defaults, and an explicit buil
   const feed = { tag: 'build-772', prerelease: true, name: '0.9.7-rc4 build 772' };
   const f = fixture(async () => response([stable, rc, feed]));
   await tick();
-  assert.deepEqual(labels(f).map(option => option.textContent),
+  assert.deepEqual(options(f).map(option => option.textContent),
     [HA_INSTALL_MESSAGES.choose, '1.2.3', '1.2.4-rc1 (test version)', '0.9.7-rc4 build 772 (dev build)']);
-  assert.deepEqual(radios(f).map(option => option.value), ['', stable.tag, rc.tag, feed.tag]);
+  assert.deepEqual(options(f).map(option => option.value), ['', stable.tag, rc.tag, feed.tag]);
   assert.equal(selected(f), '');
   let opened;
   globalThis.window = { crypto: webcrypto, location: { origin: 'http://ha.example' }, addEventListener() {}, removeEventListener() {}, open(url) { opened = new URL(url); return { closed: false }; } };
@@ -148,7 +161,7 @@ test('dev builds are labelled by name, PA channel defaults, and an explicit buil
 test('compatible feed-only catalogue retains PA channel default and exact build choice', async () => {
   const f = fixture(async () => response([{ tag: 'build-772', prerelease: true, name: '0.9.7-rc4 build 772' }]));
   await tick();
-  assert.deepEqual(labels(f).map(option => option.textContent),
+  assert.deepEqual(options(f).map(option => option.textContent),
     [HA_INSTALL_MESSAGES.choose, '0.9.7-rc4 build 772 (dev build)']);
   assert.equal(selected(f), '');
   assert.equal(f.element('start').disabled, false);
@@ -224,7 +237,7 @@ for (const [signal, language] of [['de-DE', 'de'], ['cs-CZ', 'cs'], ['pt_br-u-nu
   f.panel.hass = { ...f.hass, language: signal };
   assert.equal(selected(f), rc.tag);
   assert.equal(requests, 1);
-  assert.equal(labels(f)[0].textContent, frontendMessages('haInstall', language).choose);
+  assert.equal(options(f)[0].textContent, frontendMessages('haInstall', language).choose);
   f.element('start').listeners.click();
   assert.equal(opened.searchParams.get('lang'), language);
   assert.equal(new URLSearchParams(opened.hash.slice(1)).get('rc'), rc.tag);

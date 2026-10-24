@@ -2740,7 +2740,6 @@ var Ae = class extends HTMLElement {
       :host{display:block;min-height:100%;background:var(--bg);padding:24px 16px}
       #release{border:0;padding:0;margin:14px 0;min-width:0}
       #release legend{font-size:.92rem;font-weight:600;margin-bottom:5px}
-      #release-choices{max-height:min(240px,40vh)}
     </style><main class="wiz">
       ${m}
       <ol id="journey" class="wiz-dots">${g(0)}</ol>
@@ -2748,7 +2747,7 @@ var Ae = class extends HTMLElement {
         <h2 data-message="title"></h2>
         <p class="wiz-lead" data-message="introduction"></p>
         <details id="versions"><summary data-message="otherVersions"></summary>
-        <fieldset id="release" aria-describedby="catalog-status"><legend data-message="release"></legend><div id="release-choices" class="choice-list"></div></fieldset></details>
+        <fieldset id="release" aria-describedby="catalog-status"><legend data-message="release"></legend><select id="release-choices"></select></fieldset></details>
         <p id="catalog-status" role="status" aria-live="polite"></p>
         <button id="retry" class="pbtn wiz-secondary" data-message="retry"></button>
         <button id="start" class="pbtn primary wiz-primary" data-message="start"></button>
@@ -2784,11 +2783,9 @@ var Ae = class extends HTMLElement {
 			if (this.#o !== e) return;
 			this.#c = t, this.#s = t.length ? "ready" : "empty";
 			let n = this.shadowRoot.querySelector("#release-choices");
-			for (let [e, r] of [null, ...t].entries()) {
-				let t = document.createElement("label"), i = document.createElement("input");
-				i.type = "radio", i.name = "release", i.value = r?.tag ?? "", i.checked = e === 0;
-				let a = document.createElement("span");
-				t.append(i, a), n.append(t);
+			for (let e of [null, ...t]) {
+				let t = document.createElement("option");
+				t.value = e?.tag ?? "", n.append(t);
 			}
 		} catch {
 			if (this.#o !== e) return;
@@ -2806,13 +2803,13 @@ var Ae = class extends HTMLElement {
 		n.setAttribute("aria-label", o("installer", t).progress), _(n, 0, document, t);
 		let r = e.querySelector("#release-choices").children;
 		if (r.length) {
-			r[0].querySelector("span").textContent = this.#t.choose;
+			r[0].textContent = this.#t.choose;
 			for (let [e, t] of this.#c.entries()) {
 				let n = t.name ? this.#t.devBuild : t.prerelease ? this.#t.testing : "";
-				r[e + 1].querySelector("span").textContent = `${t.name ?? t.tag.replace(/^v/, "")}${n ? ` (${n})` : ""}`;
+				r[e + 1].textContent = `${t.name ?? t.tag.replace(/^v/, "")}${n ? ` (${n})` : ""}`;
 			}
 		}
-		let i = this.#e?.user?.is_admin === !0, s = typeof this.#n?.config?.installer_url == "string" && this.#n.config.installer_url.length > 0, c = this.shadowRoot.querySelector("#release input:checked")?.value, l = c === "" ? this.#c[0] : this.#c.find((e) => e.tag === c), u = this.#a === "installed";
+		let i = this.#e?.user?.is_admin === !0, s = typeof this.#n?.config?.installer_url == "string" && this.#n.config.installer_url.length > 0, c = this.shadowRoot.querySelector("#release-choices").value, l = c === "" ? this.#c[0] : this.#c.find((e) => e.tag === c), u = this.#a === "installed";
 		this.shadowRoot.querySelector("#start").hidden = u, this.shadowRoot.querySelector("#versions").hidden = u, this.shadowRoot.querySelector("#start").disabled = !i || !s || !!this.#r || !l, this.shadowRoot.querySelector("#cancel").disabled = !this.#r, this.shadowRoot.querySelector("#release").disabled = !!this.#r || this.#s !== "ready";
 		let d = this.shadowRoot.querySelector("#catalog-status");
 		d.textContent = i && s && this.#s !== "ready" ? this.#t[this.#s] : "", d.hidden = !d.textContent, this.shadowRoot.querySelector("#retry").hidden = !i || !s || !["catalogError", "empty"].includes(this.#s), this.shadowRoot.querySelector("#cancel").hidden = !this.#r;
@@ -2821,7 +2818,7 @@ var Ae = class extends HTMLElement {
 	}
 	#d() {
 		if (this.#r || this.#e?.user?.is_admin !== !0) return;
-		let e = this.shadowRoot.querySelector("#release input:checked")?.value;
+		let e = this.shadowRoot.querySelector("#release-choices").value;
 		if (!(e === "" ? this.#c[0] : this.#c.find((t) => t.tag === e)) || !this.isConnected) return;
 		this.#i?.cancel(), this.#i = void 0;
 		let t;
