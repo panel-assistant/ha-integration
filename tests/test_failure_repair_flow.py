@@ -565,7 +565,9 @@ async def test_every_localized_failure_opens_a_labeled_repair_flow(
     strings = await async_get_translations(hass, language, "issues", {DOMAIN})
     adb_prefix = f"component.{DOMAIN}.issues.adb_update_authorization"
     assert "{panel}" in strings[f"{adb_prefix}.title"]
-    assert "{panel}" in strings[f"{adb_prefix}.fix_flow.step.authorize_adb.title"]
+    assert strings[f"{adb_prefix}.fix_flow.step.authorize_adb.title"]
+    # The short phone heading leaves panel identity in the visible body.
+    assert "{panel}" in strings[f"{adb_prefix}.fix_flow.step.authorize_adb.description"]
     assert strings[f"{adb_prefix}.fix_flow.error.adb_still_unauthorized"]
     for cause in (
         "authorization_failed",
