@@ -39,7 +39,6 @@ from homeassistant.helpers.selector import (
     TextSelector,
     TextSelectorConfig,
 )
-from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from .adb_credentials import (
@@ -80,7 +79,6 @@ from .discovery import (
     address_schema,
     async_confirm_discovery,
     async_confirm_migration,
-    async_dhcp,
     async_find_migration_targets,
     async_ignore,
     async_integration_discovery,
@@ -238,7 +236,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         async_register_browser_delivery(self.hass)
         await async_register_browser_panel(self.hass)
         # Someone adding a panel by hand is the moment to show every known one.
-        async_offer_migration_targets(self.hass, recheck=True)
+        async_offer_migration_targets(self.hass)
         return self.async_show_menu(
             step_id="user",
             menu_options=["add_panel", "install_usb"],
@@ -328,11 +326,6 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self, discovery_info: ZeroconfServiceInfo
     ) -> ConfigFlowResult:
         return await async_zeroconf(self, discovery_info)
-
-    async def async_step_dhcp(
-        self, discovery_info: DhcpServiceInfo
-    ) -> ConfigFlowResult:
-        return await async_dhcp(self, discovery_info)
 
     async def async_step_integration_discovery(
         self, discovery_info: dict[str, Any]

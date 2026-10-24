@@ -18,7 +18,6 @@ from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import SelectSelector
-from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -230,16 +229,13 @@ async def test_picking_a_known_panel_adds_it_without_typing_an_address(
     assert result["data"] == {CONF_ADDRESS: "192.168.1.30"}
 
 
-async def _network_device_seen(hass: HomeAssistant) -> dict:
-    """Core's dhcp watcher reporting some device on the LAN, not a panel."""
+async def _add_integration_opened(hass: HomeAssistant) -> dict:
+    """Someone opening Add integration for Panel Assistant, then closing it."""
     result = await hass.config_entries.flow.async_init(
-        DOMAIN,
-        context={"source": config_entries.SOURCE_DHCP},
-        data=DhcpServiceInfo(
-            ip="192.168.1.1", hostname="router", macaddress="020000000001"
-        ),
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
     await hass.async_block_till_done()
+    hass.config_entries.flow.async_abort(result["flow_id"])
     return result
 
 
@@ -255,7 +251,7 @@ def _discovered(hass: HomeAssistant) -> dict[str, dict]:
 async def test_known_panels_are_discovered_with_no_entry(
     hass: HomeAssistant, adb_open: SimpleNamespace
 ) -> None:
-    """Any device on the network raises the known panels; phones never appear."""
+    """Opening Add integration raises the known panels; phones never appear."""
     _companion(hass, "Wall screen", "192.168.1.30", "a")
     _companion(hass, "Phone", "192.168.1.31", "b", phone=True)
     _host_entry(hass, "fully_kiosk", "Stairs tablet", "192.168.1.11")
@@ -263,9 +259,9 @@ async def test_known_panels_are_discovered_with_no_entry(
     adb_open.open.update({"192.168.1.30", "192.168.1.31"})
     assert not hass.config_entries.async_entries(DOMAIN)
 
-    result = await _network_device_seen(hass)
+    result = await _add_integration_opened(hass)
 
-    assert result["type"] is FlowResultType.ABORT
+    assert result["type"] is FlowResultType.MENU
     discovered = _discovered(hass)
     assert set(discovered) == {"Wall screen", "Stairs tablet"}
     assert {flow["step_id"] for flow in discovered.values()} == {"confirm_migration"}
@@ -278,7 +274,7 @@ async def test_discovered_panel_carries_its_address_into_the_install(
     """Confirming the card takes the typed-address path with that address."""
     _companion(hass, "Wall screen", "192.168.1.30", "a")
     adb_open.open.add("192.168.1.30")
-    await _network_device_seen(hass)
+    await _add_integration_opened(hass)
     card = _discovered(hass)["Wall screen"]
 
     with (
@@ -299,12 +295,12 @@ async def test_discovered_panel_carries_its_address_into_the_install(
 
 
 async def test_ignored_panel_stays_ignored(
-    hass: HomeAssistant, adb_open: SimpleNamespace, freezer
+    hass: HomeAssistant, adb_open: SimpleNamespace
 ) -> None:
     """Ignore holds across later searches, and the ignored panel is not probed."""
     _companion(hass, "Wall screen", "192.168.1.30", "a")
     adb_open.open.add("192.168.1.30")
-    await _network_device_seen(hass)
+    await _add_integration_opened(hass)
     card = _discovered(hass)["Wall screen"]
     hass.config_entries.flow.async_abort(card["flow_id"])
     await hass.config_entries.flow.async_init(
@@ -314,8 +310,7 @@ async def test_ignored_panel_stays_ignored(
     )
     adb_open.asked.clear()
 
-    freezer.tick(3601)
-    await _network_device_seen(hass)
+    await _add_integration_opened(hass)
 
     assert _discovered(hass) == {}
     assert adb_open.asked == []
@@ -332,48 +327,45 @@ async def test_added_panel_is_not_offered_again(
     )
 
     with patch(HEALTH_CHECK, AsyncMock(return_value=HEALTH)):
-        await _network_device_seen(hass)
+        await _add_integration_opened(hass)
 
     assert _discovered(hass) == {}
     assert adb_open.asked == []
 
 
-async def test_waiting_panel_is_probed_once_however_often_the_network_wakes(
-    hass: HomeAssistant, adb_open: SimpleNamespace, freezer
+async def test_waiting_panel_is_probed_once_however_often_it_is_searched_for(
+    hass: HomeAssistant, adb_open: SimpleNamespace
 ) -> None:
-    """Every device seen at start searches again; the waiting card is kept."""
+    """Every search raises the panel again; the waiting card is kept."""
     _companion(hass, "Wall screen", "192.168.1.30", "a")
     adb_open.open.add("192.168.1.30")
 
     for _ in range(3):
-        await _network_device_seen(hass)
+        await _add_integration_opened(hass)
     # A renamed device is still the card already waiting, not a second one.
     (device,) = dr.async_get(hass).async_get_devices(identifiers={("mobile_app", "a")})
     dr.async_get(hass).async_update_device(device.id, name_by_user="Hall screen")
-    freezer.tick(3601)
-    await _network_device_seen(hass)
+    await _add_integration_opened(hass)
 
     assert adb_open.asked == ["192.168.1.30"]
     assert set(_discovered(hass)) == {"Wall screen"}
 
 
-async def test_a_device_that_is_not_a_panel_is_probed_once_an_hour(
-    hass: HomeAssistant, adb_open: SimpleNamespace, freezer
+async def test_a_device_that_is_not_a_panel_can_qualify_at_the_next_search(
+    hass: HomeAssistant, adb_open: SimpleNamespace
 ) -> None:
-    """Rejected candidates are not reprobed on every wake, and can qualify later."""
+    """A rejected candidate is probed once per search, and offered once it qualifies."""
     _host_entry(hass, "shelly", "Porch plug", "192.168.1.22")
     _companion(hass, "Wall tablet", "192.168.1.30", "a")
 
-    for _ in range(3):
-        await _network_device_seen(hass)
+    await _add_integration_opened(hass)
 
     assert sorted(adb_open.asked) == ["192.168.1.22", "192.168.1.30"]
     assert _discovered(hass) == {}
 
-    # Network ADB turned on later: the next search after an hour offers it.
+    # Network ADB turned on later: the next search offers it.
     adb_open.open.add("192.168.1.30")
-    freezer.tick(3601)
-    await _network_device_seen(hass)
+    await _add_integration_opened(hass)
 
     assert sorted(adb_open.asked) == [
         "192.168.1.22",
@@ -387,9 +379,9 @@ async def test_a_device_that_is_not_a_panel_is_probed_once_an_hour(
 async def test_a_rejected_candidate_at_a_new_address_is_probed_at_once(
     hass: HomeAssistant, adb_open: SimpleNamespace
 ) -> None:
-    """A new address is a new chance; the hourly wait applies per address."""
+    """A candidate that moved is probed at its new address."""
     _companion(hass, "Wall tablet", "192.168.1.30", "a")
-    await _network_device_seen(hass)
+    await _add_integration_opened(hass)
     [entity] = [
         e
         for e in er.async_get(hass).entities.values()
@@ -398,7 +390,7 @@ async def test_a_rejected_candidate_at_a_new_address_is_probed_at_once(
     hass.states.async_set(entity.entity_id, "192.168.1.35")
     adb_open.open.add("192.168.1.35")
 
-    await _network_device_seen(hass)
+    await _add_integration_opened(hass)
 
     assert adb_open.asked == ["192.168.1.30", "192.168.1.35"]
     assert set(_discovered(hass)) == {"Wall tablet"}
@@ -407,7 +399,7 @@ async def test_a_rejected_candidate_at_a_new_address_is_probed_at_once(
 async def test_known_panels_are_audited_as_panel_assistant_starts(
     hass: HomeAssistant, adb_open: SimpleNamespace
 ) -> None:
-    """An install or update restarts Core; the audit runs then, with no dhcp event."""
+    """An install or update restarts Core; the audit runs then, with no one asking."""
     _companion(hass, "Wall screen", "192.168.1.30", "a")
     adb_open.open.add("192.168.1.30")
 
@@ -417,12 +409,13 @@ async def test_known_panels_are_audited_as_panel_assistant_starts(
     assert set(_discovered(hass)) == {"Wall screen"}
 
 
-async def test_opening_add_integration_rechecks_known_panels_at_once(
+async def test_opening_add_integration_rechecks_known_panels(
     hass: HomeAssistant, adb_open: SimpleNamespace
 ) -> None:
-    """Someone at work in Home Assistant does not wait out the hourly recheck."""
+    """Network ADB turned on after the start audit is offered at the next Add."""
     _companion(hass, "Wall tablet", "192.168.1.30", "a")
-    await _network_device_seen(hass)
+    assert await async_setup_component(hass, DOMAIN, {})
+    await hass.async_block_till_done()
     assert _discovered(hass) == {}
     adb_open.open.add("192.168.1.30")
 
@@ -498,7 +491,7 @@ async def test_network_adb_device_another_app_knows_is_one_card(
     """The registry card and the ADB advertisement are the same panel."""
     _host_entry(hass, "fully_kiosk", "Stairs tablet", "192.168.1.11")
     adb_open.open.add("192.168.1.11")
-    await _network_device_seen(hass)
+    await _add_integration_opened(hass)
 
     await _adb_advertised(hass, "192.168.1.11")
 
@@ -572,7 +565,7 @@ async def test_network_adb_first_then_another_app_learns_the_device_is_one_card(
     await _adb_advertised(hass, "192.168.1.11")
     _host_entry(hass, "fully_kiosk", "Stairs tablet", "192.168.1.11")
 
-    await _network_device_seen(hass)
+    await _add_integration_opened(hass)
 
     assert set(_cards(hass)) == {"Android 1234567890123"}
 
@@ -587,7 +580,7 @@ async def test_device_ignored_by_its_adb_card_is_not_offered_when_an_app_learns_
     adb_open.asked.clear()
     _host_entry(hass, "fully_kiosk", "Stairs tablet", "192.168.1.11")
 
-    await _network_device_seen(hass)
+    await _add_integration_opened(hass)
 
     assert _cards(hass) == {}
     assert adb_open.asked == []
@@ -599,7 +592,7 @@ async def test_device_ignored_by_its_app_card_is_not_offered_when_adb_announces(
     """Ignore of the registry card holds against the ADB announcement too."""
     adb_open.open.add("192.168.1.11")
     _host_entry(hass, "fully_kiosk", "Stairs tablet", "192.168.1.11")
-    await _network_device_seen(hass)
+    await _add_integration_opened(hass)
     await _ignore_card(hass, _cards(hass)["Stairs tablet"])
     # Fully Kiosk now names the tablet by hostname, so only the announcement
     # carries its address, under an identity of its own.
@@ -639,7 +632,7 @@ async def _overlapping(
     announced = asyncio.create_task(_adb_advertised(hass, "192.168.1.11"))
     await _probes_reach(adb_open, 1)
     _host_entry(hass, "fully_kiosk", "Stairs tablet", fully_kiosk_host)
-    woke = asyncio.create_task(_network_device_seen(hass))
+    woke = asyncio.create_task(_add_integration_opened(hass))
     await _probes_reach(adb_open, 2)
     adb_open.gate.set()
     await announced
@@ -791,12 +784,12 @@ async def _by_adb(hass: HomeAssistant, adb_open: SimpleNamespace) -> None:
 
 
 async def _by_registry(hass: HomeAssistant, adb_open: SimpleNamespace) -> None:
-    """The Shelly integration knowing the panel, raised by any dhcp event."""
+    """The Shelly integration knowing the panel, raised by the next search."""
     if not hass.config_entries.async_entries("shelly"):
         _host_entry(hass, "shelly", "ShellyWallDisplay-00A90B9D900A", PANEL)
     adb_open.open.add(PANEL)
     with patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)):
-        await _network_device_seen(hass)
+        await _add_integration_opened(hass)
 
 
 INSTALL_CHANNELS = pytest.mark.parametrize(

@@ -11,6 +11,7 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
+from homeassistant.loader import async_get_dhcp
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.client import CannotConnectError, HaPaneldClient
@@ -37,10 +38,10 @@ from .config_flow_helpers import (
 from .config_flow_helpers import install_network_pin as install_network_pin
 from .test_availability import STORED, _health_by_host, _load, _poll
 from .test_migration_targets import (
+    _add_integration_opened,
     _companion,
     _discovered,
     _host_entry,
-    _network_device_seen,
 )
 from .test_migration_targets import adb_open as adb_open
 from .test_transport import DID, OTHER_DID, STATUS, _hello, _send
@@ -305,7 +306,7 @@ async def test_later_app_announcement_titles_the_existing_vendor_card(
         assert result["title"] == expected
 
 
-@pytest.mark.parametrize("route", ["dhcp", "stale", "manual", "nonstandard"])
+@pytest.mark.parametrize("route", ["search", "stale", "manual", "nonstandard"])
 async def test_known_hostname_panel_is_not_offered_as_unconnected(
     hass, adb_open, route
 ):
@@ -320,14 +321,14 @@ async def test_known_hostname_panel_is_not_offered_as_unconnected(
     _companion(hass, "Panel tablet", _NEW, "panel")
     adb_open.open.add(_NEW)
     if route == "stale":
-        await _network_device_seen(hass)
+        await _add_integration_opened(hass)
         card = _discovered(hass)["Panel tablet"]
     entry.add_to_hass(hass)
     with patch.object(
         HaPaneldClient, "async_get_health", AsyncMock(return_value=health)
     ):
-        if route == "dhcp":
-            await _network_device_seen(hass)
+        if route == "search":
+            await _add_integration_opened(hass)
             assert not _discovered(hass)
             assert entry.data[CONF_ADDRESS] == STORED
         elif route == "stale":
@@ -427,7 +428,7 @@ async def test_replacing_legacy_ignore_closes_other_channel_card(hass, adb_open)
         assert ignored["result"].data == {}
         _host_entry(hass, "fully_kiosk", "Registry panel", _NEW)
         adb_open.open.add(_NEW)
-        await _network_device_seen(hass)
+        await _add_integration_opened(hass)
         assert set(_discovered(hass)) == {"Registry panel"}
         result = await hass.config_entries.flow.async_init(
             DOMAIN, context={"source": SOURCE_USB_INSTALL}, data={CONF_ADDRESS: _NEW}
@@ -543,3 +544,11 @@ async def test_explicit_add_of_live_clone_preserves_original_history(
         item.id: (item.entity_id, item.device_id, item.unique_id)
         for item in er.async_entries_for_config_entry(registry, original.entry_id)
     } == entities
+
+
+async def test_devices_joining_the_network_start_no_panel_assistant_flow(hass):
+    """Core's DHCP watcher has no Panel Assistant matcher to start a flow with."""
+    matchers = await async_get_dhcp(hass)
+
+    assert any(matcher["domain"] != DOMAIN for matcher in matchers)
+    assert [matcher for matcher in matchers if matcher["domain"] == DOMAIN] == []

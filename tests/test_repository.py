@@ -4,7 +4,6 @@ import ast
 import importlib.util
 import json
 import re
-import string
 import subprocess
 import sys
 from collections import Counter
@@ -182,8 +181,6 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
             "stream",
             "websocket_api",
         ],
-        # Core buckets dhcp hostname matchers by first character.
-        "dhcp": [{"hostname": f"{c}*"} for c in string.ascii_lowercase + string.digits],
         "documentation": "https://panel-assistant.io/go/install-integration",
         "domain": "panel_assistant",
         "integration_type": "device",

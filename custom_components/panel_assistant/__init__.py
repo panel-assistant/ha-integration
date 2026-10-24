@@ -130,8 +130,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     await async_register_browser_panel(hass)
     await async_setup_restart_check(hass)
     # Installing or updating Panel Assistant means a restart, and someone at
-    # work in Home Assistant: audit known panels at once, not at the first dhcp
-    # event, which can be hours away on a network that names few devices.
+    # work in Home Assistant: offer the panels other integrations know at once.
     async_at_started(hass, async_offer_migration_targets)
     feed = config.get(DOMAIN, {}).get(CONF_BUILD_FEED)
     if feed is not None:
