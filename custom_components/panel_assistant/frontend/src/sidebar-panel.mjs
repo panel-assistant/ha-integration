@@ -220,6 +220,9 @@ export class PanelAssistantSidebar extends HTMLElement {
       this.#setMenuOpen(false);
       if (!path || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
+      // Give Back a top-level return entry: WebKit can discard the iframe's history on unmount.
+      const page = this.#session?.page;
+      history.pushState(history.state, '', `/panel-assistant/${this.#selected}${page ? '/' + page : ''}`);
       navigate(path);
     });
     for (const [id, path] of [['add', ADD_PANEL_PATH], ['settings', SETTINGS_PATH]]) {
@@ -480,13 +483,7 @@ export class PanelAssistantSidebar extends HTMLElement {
       this.#render();
     } else if (event.kind === 'page') {
       // The embed view sees navigation inside the opaque frame; the sidebar cannot read its URL.
-      if (event.page === '' || ROUTE_PAGES.has(event.page)) {
-        session.page = event.page;
-        // Keep the return entry current before HA discards this frame for a device page.
-        if (/^\/panel-assistant(?:\/|$)/.test(location.pathname)) {
-          history.replaceState(history.state, '', `/panel-assistant/${session.entryId}${event.page ? '/' + event.page : ''}`);
-        }
-      }
+      if (event.page === '' || ROUTE_PAGES.has(event.page)) session.page = event.page;
     } else if (event.kind === 'closed') {
       // The server has ended this subscription; drop it and let the list decide when to reopen.
       this.#postToFrame({ type: RELAY_TYPE, closed: true });

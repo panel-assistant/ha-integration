@@ -2030,7 +2030,10 @@ var ae = class extends HTMLElement {
 		let a = e.querySelector("#device");
 		a.setAttribute("aria-label", this.#e.device), a.setAttribute("title", this.#e.device), a.addEventListener("click", (e) => {
 			let t = a.getAttribute("href");
-			this.#C(!1), !(!t || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) && (e.preventDefault(), ne(t));
+			if (this.#C(!1), !t || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+			e.preventDefault();
+			let n = this.#p?.page;
+			history.pushState(history.state, "", `/panel-assistant/${this.#u}${n ? "/" + n : ""}`), ne(t);
 		});
 		for (let [t, n] of [["add", w], ["settings", T]]) {
 			let r = e.querySelector(`#${t}`);
@@ -2226,7 +2229,7 @@ var ae = class extends HTMLElement {
 					open: !0
 				});
 				e.reopen = !1, this.#B();
-			} else t.kind === "page" ? (t.page === "" || j.has(t.page)) && (e.page = t.page, /^\/panel-assistant(?:\/|$)/.test(location.pathname) && history.replaceState(history.state, "", `/panel-assistant/${e.entryId}${t.page ? "/" + t.page : ""}`)) : t.kind === "closed" && (this.#L({
+			} else t.kind === "page" ? (t.page === "" || j.has(t.page)) && (e.page = t.page) : t.kind === "closed" && (this.#L({
 				type: S,
 				closed: !0
 			}), this.#F(), this.#p = {
