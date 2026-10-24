@@ -974,3 +974,93 @@ test('a retry document left before it loads does not hold back the next page', a
   frame.fire('load');
   assert.equal(frame.hidden, false);
 });
+
+function signInWindows(t, blocked = false) {
+  const original = window.open;
+  const opened = [];
+  window.open = (url, target) => {
+    if (blocked) return null;
+    const popup = { url, target, opener: window, closed: false, destinations: [], close() { this.closed = true; } };
+    popup.location = { replace(destination) { popup.destinations.push(destination); } };
+    opened.push(popup);
+    return popup;
+  };
+  t.after(() => { if (original === undefined) delete window.open; else window.open = original; });
+  return opened;
+}
+
+const startSignIn = (target, command_id = 'oauth') => fromWindow(target, {
+  type: RELAY_TYPE, frame: { kind: 'manage', command_id, op: 'ha.oauth.start', args: { ha_url: 'https://ha.example' } },
+});
+
+test('a sidebar Reconnect reserves a detached tab before the panel answers, then opens authorization', async t => {
+  const opened = signInWindows(t);
+  const { relayed, target } = await relaying(fakeHass());
+  startSignIn(target);
+  assert.equal(opened.length, 1, 'the tab is reserved synchronously during the frame request');
+  assert.equal(opened[0].opener, null);
+  assert.equal(opened[0].url, '');
+  assert.equal(opened[0].target, '_blank');
+  assert.deepEqual(opened[0].destinations, [], 'no destination exists until the panel responds');
+  await tick();
+  const reply = { command_id: 'oauth', outcome: 'applied', result: { authorization_url: 'https://ha.example/auth/authorize?state=one-use' } };
+  relayed[0].resolve(reply); await tick();
+  assert.deepEqual(opened[0].destinations, [reply.result.authorization_url]);
+  assert.equal(opened[0].closed, false);
+  assert.deepEqual(target.posted.at(-1), [{ type: RELAY_TYPE, frame: reply }, '*']);
+});
+
+test('a refused or interrupted sign-in closes its reserved sidebar tab', async t => {
+  const opened = signInWindows(t);
+  const { relayed, target } = await relaying(fakeHass());
+  startSignIn(target, 'refused'); await tick();
+  relayed[0].resolve({ command_id: 'refused', outcome: 'refused', result: { error: 'invalid-panel-origin' } }); await tick();
+  assert.equal(opened[0].closed, true);
+  assert.deepEqual(opened[0].destinations, []);
+  startSignIn(target, 'interrupted'); await tick();
+  relayed[1].reject(Error('connection closed')); await tick();
+  assert.equal(opened[1].closed, true);
+  assert.deepEqual(opened[1].destinations, []);
+  assert.equal(target.posted.at(-1)[0].frame.outcome, 'failed');
+});
+
+test('panel-supplied script, data, relative and malformed destinations never run in the sidebar sign-in tab', async t => {
+  const opened = signInWindows(t);
+  const { relayed, target } = await relaying(fakeHass());
+  for (const [index, authorization_url] of ['javascript:alert(document.domain)', 'data:text/html,<script>alert(1)</script>', '/auth/authorize', 'not a URL', undefined].entries()) {
+    startSignIn(target, `invalid-${index}`); await tick();
+    relayed[index].resolve({ command_id: `invalid-${index}`, outcome: 'applied', result: { authorization_url } }); await tick();
+    assert.equal(opened[index].closed, true, String(authorization_url));
+    assert.deepEqual(opened[index].destinations, [], String(authorization_url));
+  }
+});
+
+test('a blocked sidebar popup still returns the authorization URL for the page fallback', async t => {
+  const opened = signInWindows(t, true);
+  const { relayed, target } = await relaying(fakeHass());
+  startSignIn(target); await tick();
+  const reply = { command_id: 'oauth', outcome: 'applied', result: { authorization_url: 'http://ha.example/auth/authorize' } };
+  relayed[0].resolve(reply); await tick();
+  assert.equal(opened.length, 0);
+  assert.deepEqual(target.posted.at(-1), [{ type: RELAY_TYPE, frame: reply }, '*']);
+});
+
+test('switching panels closes a pending sign-in tab when the old panel finally answers', async t => {
+  const opened = signInWindows(t);
+  const { panel, relayed, target } = await relaying(fakeHass());
+  startSignIn(target); await tick();
+  panel.route = { path: '/two' }; await tick();
+  const posted = target.posted.length;
+  relayed[0].resolve({ command_id: 'oauth', outcome: 'applied', result: { authorization_url: 'https://ha.example/auth/authorize' } }); await tick();
+  assert.equal(opened[0].closed, true);
+  assert.deepEqual(opened[0].destinations, []);
+  assert.equal(target.posted.length, posted, 'the old answer cannot reach the new panel page');
+});
+
+test('a foreign window cannot make the sidebar open a sign-in tab', async t => {
+  const opened = signInWindows(t);
+  const { relayed } = await relaying(fakeHass());
+  startSignIn(frameWindow()); await tick();
+  assert.equal(opened.length, 0);
+  assert.equal(relayed.length, 0);
+});
