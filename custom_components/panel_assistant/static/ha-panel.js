@@ -2747,7 +2747,7 @@ var Ae = class extends HTMLElement {
         <h2 data-message="title"></h2>
         <p class="wiz-lead" data-message="introduction"></p>
         <details id="versions"><summary data-message="otherVersions"></summary>
-        <fieldset id="release" aria-describedby="catalog-status"><legend data-message="release"></legend><select id="release-choices"></select></fieldset></details>
+        <fieldset id="release" aria-describedby="catalog-status"><legend id="release-label" data-message="release"></legend><select id="release-choices" aria-labelledby="release-label"></select></fieldset></details>
         <p id="catalog-status" role="status" aria-live="polite"></p>
         <button id="retry" class="pbtn wiz-secondary" data-message="retry"></button>
         <button id="start" class="pbtn primary wiz-primary" data-message="start"></button>
