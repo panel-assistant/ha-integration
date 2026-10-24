@@ -2226,7 +2226,7 @@ var ae = class extends HTMLElement {
 					open: !0
 				});
 				e.reopen = !1, this.#B();
-			} else t.kind === "page" ? (t.page === "" || j.has(t.page)) && (e.page = t.page) : t.kind === "closed" && (this.#L({
+			} else t.kind === "page" ? (t.page === "" || j.has(t.page)) && (e.page = t.page, /^\/panel-assistant(?:\/|$)/.test(location.pathname) && history.replaceState(history.state, "", `/panel-assistant/${e.entryId}${t.page ? "/" + t.page : ""}`)) : t.kind === "closed" && (this.#L({
 				type: S,
 				closed: !0
 			}), this.#F(), this.#p = {

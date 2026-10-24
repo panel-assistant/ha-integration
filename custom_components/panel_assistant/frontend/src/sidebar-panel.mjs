@@ -480,7 +480,13 @@ export class PanelAssistantSidebar extends HTMLElement {
       this.#render();
     } else if (event.kind === 'page') {
       // The embed view sees navigation inside the opaque frame; the sidebar cannot read its URL.
-      if (event.page === '' || ROUTE_PAGES.has(event.page)) session.page = event.page;
+      if (event.page === '' || ROUTE_PAGES.has(event.page)) {
+        session.page = event.page;
+        // Keep the return entry current before HA discards this frame for a device page.
+        if (/^\/panel-assistant(?:\/|$)/.test(location.pathname)) {
+          history.replaceState(history.state, '', `/panel-assistant/${session.entryId}${event.page ? '/' + event.page : ''}`);
+        }
+      }
     } else if (event.kind === 'closed') {
       // The server has ended this subscription; drop it and let the list decide when to reopen.
       this.#postToFrame({ type: RELAY_TYPE, closed: true });

@@ -44,10 +44,10 @@ globalThis.document = { createElement: tag => new Element(tag) };
 globalThis.customElements = { get() {}, define() {} };
 const store = new Map();
 globalThis.localStorage = { getItem: key => store.get(key) ?? null, setItem: (key, value) => store.set(key, value) };
-const pushed = [];
-globalThis.history = { pushState: (...args) => pushed.push(args) };
+const pushed = [], replaced = [];
+globalThis.history = { pushState: (...args) => pushed.push(args), replaceState: (...args) => replaced.push(args) };
 globalThis.window = new EventTarget();
-globalThis.location = { origin: 'http://ha.example' };
+globalThis.location = { origin: 'http://ha.example', pathname: '/panel-assistant' };
 let intervals = [];
 globalThis.setInterval = (fn, ms) => { const handle = { fn, ms, cleared: false }; intervals.push(handle); return handle; };
 globalThis.clearInterval = handle => { if (handle) handle.cleared = true; };
@@ -1097,4 +1097,25 @@ test('a foreign window cannot make the sidebar open a sign-in tab', async t => {
   startSignIn(frameWindow()); await tick();
   assert.equal(opened.length, 0);
   assert.equal(relayed.length, 0);
+});
+
+
+test('served tabs record the selected panel return route without replacing a device entry', async () => {
+  const { panel, $, subs } = await mount(fakeHass(), false, '/one');
+  $('#panels').fire('change', { target: { value: 'two' } }); await tick();
+  subs[1].callback({ kind: 'opened', url: url(TOKEN) });
+  const before = replaced.length;
+  subs[0].callback({ kind: 'page', page: 'configure' });
+  subs[1].callback({ kind: 'page', page: '../config' });
+  assert.equal(replaced.length, before, 'old sessions and invalid pages cannot rewrite history');
+  for (const page of ['', 'configure', 'profiles', 'entities', 'install', 'logs', 'setup']) {
+    subs[1].callback({ kind: 'page', page });
+    assert.equal(replaced.at(-1)?.[2], '/panel-assistant/two' + (page ? '/' + page : ''));
+  }
+  location.pathname = '/config/devices/device/two-device';
+  const leaving = replaced.length;
+  subs[1].callback({ kind: 'page', page: 'logs' });
+  assert.equal(replaced.length, leaving, 'a late response cannot overwrite the device-page entry');
+  location.pathname = '/panel-assistant';
+  panel.isConnected = false; panel.disconnectedCallback(); await tick(); store.clear();
 });
