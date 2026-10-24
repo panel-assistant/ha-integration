@@ -419,17 +419,6 @@ def async_get_sessions(hass: HomeAssistant) -> TransportSessions:
     return sessions
 
 
-def session_connected(hass: HomeAssistant, entry_id: str) -> bool:
-    """Return whether an entry's panel holds an open session.
-
-    An accepted hello is proof the panel is talking to Home Assistant, which is
-    what the device's availability answers. Whether the session has also
-    described and reported every channel is `session_available`, the native
-    entities' own bar; the two are different questions and stay separate.
-    """
-    return async_get_sessions(hass).get(entry_id) is not None
-
-
 def session_available(hass: HomeAssistant, entry_id: str) -> bool:
     """Return whether an entry holds a session with a completed full sync."""
     session = async_get_sessions(hass).get(entry_id)

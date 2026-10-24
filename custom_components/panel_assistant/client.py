@@ -28,7 +28,6 @@ from .const import (
     MAX_HEALTH_RESPONSE_BYTES,
     MAX_INSTALL_RESPONSE_BYTES,
     MAX_STATUS_RESPONSE_BYTES,
-    RESTORE_PATH,
     SETUP_PATH,
     STATUS_PATH,
 )
@@ -514,7 +513,6 @@ _MAX_DISPLAY_BYTES = 16 * 1024
 _HANDOVER_TIMEOUT_SECONDS = 20.0
 _MAX_BACKUP_BYTES = 64 * 1024 * 1024
 _BACKUP_TIMEOUT_SECONDS = 120.0
-_MAX_RESTORE_RESPONSE_BYTES = 64 * 1024
 # The panel allows 600 s to receive an upload; stop just after it gives up.
 _UPLOAD_TIMEOUT_SECONDS = 630.0
 _DIAG_FIRST_LINE = re.compile(
@@ -849,23 +847,6 @@ class HaPaneldClient:
         if status != 200:
             raise CannotConnectError
 
-    async def async_set_panel_id(self, panel_id: str) -> None:
-        """Give a panel its id through its own settings store.
-
-        Only the move uses it, to give the new app the old app's id before
-        the restore that brings the panel's own state back onto that id. A new
-        app that has just started answers only once it has reconfigured, which
-        took 10 s on a Sonoff panel.
-        """
-        status, _ = await self._async_post_bounded(
-            self.address.base_url.with_path(CONFIG_PATH),
-            {"panel_id": panel_id},
-            _MAX_SETUP_BYTES,
-            _BACKUP_TIMEOUT_SECONDS,
-        )
-        if status not in (200, 202):
-            raise CannotConnectError
-
     @property
     def setup_url(self) -> str:
         """The panel's own setup wizard."""
@@ -888,63 +869,6 @@ class HaPaneldClient:
         if 400 <= status < 500:
             raise UpdateRejectedError
         raise CannotConnectError
-
-    async def async_restore_panel(self, data: bytes) -> None:
-        """Start restoring one of the panel's own plaintext backups onto it.
-
-        The panel answers once the restore has started; it applies it in the
-        background, so a caller observes completion from health.
-        """
-        status, body = await self._async_post_bounded(
-            self.address.base_url.with_path(RESTORE_PATH),
-            data,
-            _MAX_RESTORE_RESPONSE_BYTES,
-            _BACKUP_TIMEOUT_SECONDS,
-        )
-        if status == 200:
-            return
-        if status == 202:
-            parse_update_approval_response(body)
-        if status == 409:
-            raise UpdateBusyError
-        if 400 <= status < 500:
-            raise UpdateRejectedError
-        raise CannotConnectError
-
-    async def async_get_restore_outcome(self) -> tuple[bool, int] | None:
-        """Return the finished restore's outcome: success, and state rows written.
-
-        None while an operation runs or when the last one was not a restore.
-        The panel writes carried state rows all together or not at all, and
-        reports how many landed.
-        """
-        try:
-            status = json.loads(
-                await self._async_get_bounded(
-                    self.install_status_url, MAX_INSTALL_RESPONSE_BYTES
-                )
-            )
-        except ValueError as err:
-            raise InvalidResponseError from err
-        if (
-            not isinstance(status, dict)
-            or status.get("running") is not False
-            or status.get("component") != "Restore"
-        ):
-            return None
-        result = status.get("result")
-        presentation = status.get("presentation")
-        succeeded = isinstance(result, dict) and result.get("status") == "succeeded"
-        rows = 0
-        if (
-            isinstance(presentation, dict)
-            and presentation.get("code") == "restore-completed-with-state"
-            and isinstance(presentation.get("params"), dict)
-        ):
-            count = presentation["params"].get("count")
-            if isinstance(count, str) and count.isdigit():
-                rows = int(count)
-        return succeeded, rows
 
     async def async_hand_back_home(self) -> str:
         """Give HOME back to another launcher; return the launcher's package.

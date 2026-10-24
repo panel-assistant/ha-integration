@@ -485,10 +485,6 @@ class AdbCredentialManager:
         except Exception as err:
             return None, err
 
-    async def async_get_signer(self) -> PythonRSASigner:
-        """Return the shared signer for existing ADB consumers."""
-        return (await self.async_get_credential()).signer
-
     async def async_get_durable_credential(self) -> AdbCredential:
         """Reload and verify the exact persisted identity without regenerating it."""
         async with self._lock:

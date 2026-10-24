@@ -200,8 +200,8 @@ async def test_manager_persists_and_reuses_one_credential(
             adb_credentials, "_generate_credential", side_effect=counted_generate
         ),
     ):
-        first = await AdbCredentialManager(hass).async_get_signer()
-        second = await AdbCredentialManager(hass).async_get_signer()
+        first = (await AdbCredentialManager(hass).async_get_credential()).signer
+        second = (await AdbCredentialManager(hass).async_get_credential()).signer
 
     assert generation_count == 1
     assert second.GetPublicKey() == first.GetPublicKey()
@@ -261,14 +261,14 @@ async def test_manager_serializes_concurrent_generation(
             return await persist(credential)
 
         with patch.object(manager, "_async_persist_locked", side_effect=gated_persist):
-            first_task = asyncio.create_task(manager.async_get_signer())
+            first_task = asyncio.create_task(manager.async_get_credential())
             await asyncio.wait_for(load_started.wait(), timeout=10)
-            waiting_tasks = [
-                asyncio.create_task(manager.async_get_signer()) for _ in range(15)
+            waiters = [
+                asyncio.create_task(manager.async_get_credential()) for _ in range(15)
             ]
             await asyncio.sleep(0)
             release_load.set()
-            signers = await asyncio.gather(first_task, *waiting_tasks)
+            signers = [c.signer for c in await asyncio.gather(first_task, *waiters)]
 
     assert generation_count == 1
     assert {signer.GetPublicKey() for signer in signers} == {signers[0].GetPublicKey()}
@@ -694,7 +694,7 @@ async def test_missing_loaded_data_with_store_evidence_never_regenerates(
         patch.object(adb_credentials, "_generate_credential") as generate,
         pytest.raises(AdbCredentialError),
     ):
-        await AdbCredentialManager(hass).async_get_signer()
+        await AdbCredentialManager(hass).async_get_credential()
 
     generate.assert_not_called()
     if presence == (True, False):
@@ -721,7 +721,7 @@ async def test_corrupt_loaded_credential_never_regenerates(
         patch.object(adb_credentials, "_generate_credential") as generate,
         pytest.raises(AdbCredentialError),
     ):
-        await AdbCredentialManager(hass).async_get_signer()
+        await AdbCredentialManager(hass).async_get_credential()
 
     generate.assert_not_called()
 
@@ -743,7 +743,7 @@ async def test_loaded_credential_is_refused_without_private_file(
         ),
         pytest.raises(AdbCredentialError),
     ):
-        await AdbCredentialManager(hass).async_get_signer()
+        await AdbCredentialManager(hass).async_get_credential()
 
 
 async def test_manager_translates_unexpected_store_failure(
@@ -763,7 +763,7 @@ async def test_manager_translates_unexpected_store_failure(
         ),
         pytest.raises(AdbCredentialError) as caught,
     ):
-        await AdbCredentialManager(hass).async_get_signer()
+        await AdbCredentialManager(hass).async_get_credential()
 
     assert isinstance(caught.value.__cause__, RuntimeError)
 
@@ -797,7 +797,7 @@ async def test_new_credential_is_refused_without_exact_persisted_readback(
     ):
         manager = AdbCredentialManager(hass)
         with pytest.raises(AdbCredentialError):
-            await manager.async_get_signer()
+            await manager.async_get_credential()
 
     initial_store.async_save.assert_awaited_once()
     read.assert_called_once_with(initial_store.path)
@@ -828,7 +828,7 @@ async def test_new_credential_is_refused_when_readback_is_not_exactly_private(
         patch.object(adb_credentials, "_generate_credential", return_value=credential),
         pytest.raises(AdbCredentialError),
     ):
-        await AdbCredentialManager(hass).async_get_signer()
+        await AdbCredentialManager(hass).async_get_credential()
 
     initial_store.async_save.assert_awaited_once_with(serialized)
 
