@@ -125,3 +125,62 @@ def test_both_failures_are_reported_separately() -> None:
 
 def test_a_passing_run_says_nothing() -> None:
     assert check_ci_budget.summary_lines(over=False, no_data=False) == []
+
+
+@pytest.mark.parametrize("history", ["quiet", "sparse", "empty", "unusable", "missing"])
+def test_main_measures_each_workflows_own_usable_history(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    history: str,
+) -> None:
+    """Busy unrelated workflows cannot hide a quiet workflow or create a pass."""
+    from urllib.parse import parse_qs, urlparse
+
+    budget = tmp_path / "budget.json"
+    budget.write_text(json.dumps({"sample_size": 10, "budgets": {"Quiet": 120}}))
+    monkeypatch.setenv("GITHUB_TOKEN", "test-token")
+    pages = []
+    fast = _run("2026-09-12T16:00:00Z", "2026-09-12T16:01:00Z")
+    slow = _run("2026-09-12T16:00:00Z", "2026-09-12T16:59:00Z")
+
+    def fetch(url: str, _token: str) -> dict:
+        parsed = urlparse(url)
+        query = parse_qs(parsed.query)
+        if parsed.path.endswith("/actions/workflows"):
+            return {
+                "workflows": []
+                if history == "missing"
+                else [{"name": "Quiet", "id": 7}]
+            }
+        if parsed.path.endswith("/actions/runs"):
+            return {"workflow_runs": [fast | {"name": "Busy"}] * 100}
+        assert parsed.path.endswith("/actions/workflows/7/runs")
+        assert query["branch"] == ["main"]
+        assert query["status"] == ["success"]
+        page = int(query["page"][0])
+        pages.append(page)
+        if history == "empty":
+            return {"workflow_runs": []}
+        if history == "unusable" or (history == "quiet" and page == 1):
+            return {"workflow_runs": [{"run_started_at": "invalid"}] * 100}
+        return {
+            "workflow_runs": [fast] * (3 if history == "sparse" else 10)
+            + ([slow] * 3 if history == "quiet" else [])
+        }
+
+    monkeypatch.setattr(check_ci_budget, "_fetch", fetch)
+    result = check_ci_budget.main(
+        ["--repository", "example/repo", "--budget-file", str(budget)]
+    )
+    output = capsys.readouterr().out
+    if history in {"quiet", "sparse"}:
+        assert result == 0
+        assert "median 60s" in output
+        assert ("10/10" if history == "quiet" else "3/10") in output
+        assert pages == ([1, 2] if history == "quiet" else [1])
+    else:
+        assert result == 1
+        assert "NO DATA" in output
+        if history == "unusable":
+            assert 1 <= len(pages) <= 10
