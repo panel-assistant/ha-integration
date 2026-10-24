@@ -2071,7 +2071,7 @@ async def test_returning_page_and_assets_match_before_update_health_refresh(
             await asyncio.sleep(0.001)
     coordinator.reachable = reachable
     progress = UpdateProgress(
-        entry.entry_id, coordinator, SimpleNamespace(), lambda: None, lambda: 2159
+        entry.entry_id, coordinator, SimpleNamespace(), lambda: None
     )
     progress.begin(hass, "1.0.0-rc1", "1.0.0-rc1")
     progress.enter("installing")

@@ -150,6 +150,6 @@ async def test_targetless_finished_result_stays_unknown_without_failure_repair(
     monkeypatch.setattr(update_progress, "_TERMINAL_STATUS_GRACE_SECONDS", 0)
     record = AsyncMock()
     monkeypatch.setattr(panel_update, "async_record_update_failure", record)
-    await entity._run_observer(None, recovered=True)
+    await entity._run_observer()
     record.assert_not_awaited()
     assert entity.in_progress is False

@@ -155,7 +155,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             coordinator,
             update_coordinator,
             lambda: self.async_write_ha_state(),
-            lambda: self._installed_code,
         )
         self._delivery = BuildDelivery(
             entry_id,
@@ -459,59 +458,47 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         ):
             return
         self._recovery_started = True
-        self._start_observer(None, recovered=True)
+        self._start_observer()
         # Found running after a reload: the panel already took the update.
         self._progress.enter("installing")
 
-    def _start_observer(
-        self, expected_version: str | None, *, recovered: bool = False
-    ) -> asyncio.Task[None]:
+    def _start_observer(self) -> asyncio.Task[None]:
         """Start or reuse the entity's sole bounded health observer."""
         if self._observer_task is not None and not self._observer_task.done():
             return self._observer_task
         self._progress.begin(self.hass, self.installed_version, self.latest_version)
         task = self.hass.async_create_task(
-            self._run_observer(expected_version, recovered=recovered),
+            self._run_observer(),
             f"observe ha-paneld update {self._entry_id}",
         )
         self._observer_task = task
         task.add_done_callback(self._observer_finished)
         return task
 
-    async def _run_observer(
-        self,
-        expected_version: str | None,
-        *,
-        recovered: bool,
-    ) -> None:
-        """Observe one target and release its latch before awaiters resume."""
+    async def _run_observer(self) -> None:
+        """Observe recovered work and release its latch before awaiters resume."""
         starting_health = (
-            self.coordinator.data.health
-            if recovered and self.coordinator.data
-            else None
+            self.coordinator.data.health if self.coordinator.data else None
         )
         try:
-            verified = await self._progress.async_wait_for_installed_version(
-                self.hass, expected_version
-            )
+            verified = await self._progress.async_wait_for_installed_version(self.hass)
         except Exception as err:
-            if recovered:
-                await async_record_update_failure(
-                    self.hass,
-                    self._entry_id,
-                    self._panel_name(),
-                    expected_version,
-                    err,
-                    observed_before=(
-                        starting_health.version,
-                        starting_health.version_code,
-                    )
-                    if starting_health is not None
-                    else None,
+            await async_record_update_failure(
+                self.hass,
+                self._entry_id,
+                self._panel_name(),
+                None,
+                err,
+                observed_before=(
+                    starting_health.version,
+                    starting_health.version_code,
                 )
+                if starting_health is not None
+                else None,
+            )
             raise
         else:
-            if recovered and verified:
+            if verified:
                 health = self.coordinator.data.health
                 await async_clear_update_failure_if_installed(
                     self.hass,
