@@ -566,7 +566,29 @@ export class PanelAssistantSidebar extends HTMLElement {
       this.#relays.set(request.command_id, relay);
       relay.catch(() => { if (this.#relays.get(request.command_id) === relay) this.#relays.delete(request.command_id); failed(); });
     } else {
-      Promise.resolve().then(() => this.#hass.callWS(message)).then(post, failed);
+      // Reserve sign-in during the frame's click, before the asynchronous panel answer. The
+      // opaque frame cannot detach an escaped popup's opener; its same-origin parent can.
+      let signInWindow = null;
+      if (request.op === 'ha.oauth.start') {
+        try {
+          signInWindow = window.open('', '_blank');
+          if (signInWindow) signInWindow.opener = null;
+        } catch {
+          signInWindow?.close();
+          signInWindow = null;
+        }
+      }
+      Promise.resolve().then(() => this.#hass.callWS(message)).then(reply => {
+        if (signInWindow && !signInWindow.closed) {
+          let url;
+          try { url = new URL(reply?.result?.authorization_url); } catch { /* A failed start has no destination. */ }
+          // The page is supplied by the panel: a script URL must never execute in this blank HA tab.
+          if (generation === this.#relayGeneration && reply?.outcome === 'applied' && ['http:', 'https:'].includes(url?.protocol)) {
+            signInWindow.location.replace(url.href);
+          } else signInWindow.close();
+        }
+        post(reply);
+      }, () => { signInWindow?.close(); failed(); });
     }
   }
 

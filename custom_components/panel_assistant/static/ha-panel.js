@@ -2290,7 +2290,26 @@ var oe = class extends HTMLElement {
 			this.#_.set(n.command_id, e), e.catch(() => {
 				this.#_.get(n.command_id) === e && this.#_.delete(n.command_id), s();
 			});
-		} else Promise.resolve().then(() => this.#t.callWS(c)).then(o, s);
+		} else {
+			let e = null;
+			if (n.op === "ha.oauth.start") try {
+				e = window.open("", "_blank"), e && (e.opener = null);
+			} catch {
+				e?.close(), e = null;
+			}
+			Promise.resolve().then(() => this.#t.callWS(c)).then((t) => {
+				if (e && !e.closed) {
+					let n;
+					try {
+						n = new URL(t?.result?.authorization_url);
+					} catch {}
+					a === this.#v && t?.outcome === "applied" && ["http:", "https:"].includes(n?.protocol) ? e.location.replace(n.href) : e.close();
+				}
+				o(t);
+			}, () => {
+				e?.close(), s();
+			});
+		}
 	}
 	#B() {
 		let e = this.shadowRoot, t = this.#t?.language;
