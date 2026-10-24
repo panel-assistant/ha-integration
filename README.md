@@ -50,7 +50,7 @@ That button opens this repository in the HACS on your own Home Assistant, ready 
 
 [![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=panel_assistant)
 
-HACS offers the latest release. To try new versions before they are released, turn on **Show beta versions** for Panel Assistant in HACS.
+HACS offers the latest release. To try new versions before they are released, open **Settings**, **Devices and services**, **HACS**, choose the **Panel Assistant** device, and turn on its **Pre-release** switch (it is under **Diagnostic** and disabled until you enable it).
 
 ## Add a panel
 
@@ -64,7 +64,7 @@ Once a panel is running, point it at the dashboard you want on the wall. The fou
 
 ## New, and moving fast
 
-Panel Assistant 1.0 is in preview: the direction is settled, and the internals are still changing. A panel that is already installed is updated from its update entity in Home Assistant. Getting every Android wall panel worth mounting onto the supported list takes real hardware in real houses, which is where you come in.
+Panel Assistant 1.0 is a release candidate: the direction is settled, and the internals are still changing. A panel that is already installed is updated from its update entity in Home Assistant. Getting every Android wall panel worth mounting onto the supported list takes real hardware in real houses, which is where you come in.
 
 - **Star this repository.** The simplest way to tell other Home Assistant users this exists.
 - **Report your panel.** Model name and what worked, in the [issues](https://github.com/panel-assistant/ha-integration/issues).

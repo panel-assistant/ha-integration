@@ -252,7 +252,7 @@ async def test_an_older_panel_is_refused_and_told_it_needs_app_1_0_0_preview1(
     assert issue.translation_placeholders == {
         "panel": "alpha",
         "version": "0.9.11",
-        "required_version": "1.0.0-preview1",
+        "required_version": "1.0.0-rc1",
     }
     response = await _hello_response(
         hass,
