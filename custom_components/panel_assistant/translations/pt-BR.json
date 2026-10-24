@@ -921,7 +921,7 @@
           "permissions_unreadable": "O Home Assistant não conseguiu verificar todas as permissões necessárias. Verifique se o painel está conectado e selecione Enviar novamente."
         },
         "abort": {
-          "entry_removed": "Este painel foi removido.\n\n[Saiba mais]({learn_more_url})"
+          "entry_removed": "Este painel não está mais configurado no Home Assistant.\n\nPara corrigir:\n1. [Abra os dispositivos do Panel Assistant](/config/integrations/integration/panel_assistant) se quiser adicioná-lo novamente.\n2. Caso contrário, feche esta caixa de diálogo.\n\n[Saiba mais]({learn_more_url})"
         }
       }
     },
@@ -940,7 +940,7 @@
           "proximity_unreadable": "O Home Assistant não conseguiu ler o estado de proximidade do painel. Verifique se o painel está conectado e envie novamente."
         },
         "abort": {
-          "entry_removed": "Este painel foi removido.\n\n[Saiba mais]({learn_more_url})"
+          "entry_removed": "Este painel não está mais configurado no Home Assistant.\n\nPara corrigir:\n1. [Abra os dispositivos do Panel Assistant](/config/integrations/integration/panel_assistant) se quiser adicioná-lo novamente.\n2. Caso contrário, feche esta caixa de diálogo.\n\n[Saiba mais]({learn_more_url})"
         }
       }
     },
@@ -993,8 +993,8 @@
           }
         },
         "abort": {
-          "entry_removed": "Este painel não está mais configurado no Home Assistant.\n\n[Saiba mais]({learn_more_url})",
-          "user_unavailable": "O usuário que fez a solicitação não existe mais ou está desativado; nada foi alterado.\n\n[Saiba mais]({learn_more_url})"
+          "entry_removed": "Este painel não está mais configurado no Home Assistant.\n\nPara corrigir:\n1. [Abra os dispositivos do Panel Assistant](/config/integrations/integration/panel_assistant) se quiser adicioná-lo novamente.\n2. Caso contrário, feche esta caixa de diálogo.\n\n[Saiba mais]({learn_more_url})",
+          "user_unavailable": "O usuário que fez a solicitação não existe mais ou está desativado; nada foi alterado.\n\nPara corrigir:\n1. [Verifique o login do painel]({configure_url}).\n2. Faça login com a conta ativa que você quer que este painel use e confirme somente uma solicitação que você reconheça.\n\n[Saiba mais]({learn_more_url})"
         }
       }
     },
@@ -1033,7 +1033,7 @@
           }
         },
         "progress": {
-          "retrying": "Verificando o painel e tentando novamente com segurança.\n\n[Saiba mais]({learn_more_url})"
+          "retrying": "O Home Assistant está verificando o painel e tentando executar novamente a operação salva.\n\nPara corrigir:\n1. Leia as [orientações para tentar novamente]({repair_url}), se necessário.\n2. Aguarde aqui o resultado antes de decidir o que fazer em seguida.\n\n[Saiba mais]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "O painel não corresponde mais ao destino salvo. Verifique-o antes de tentar novamente.",
@@ -1075,7 +1075,7 @@
           }
         },
         "progress": {
-          "retrying": "Verificando o painel e tentando novamente com segurança.\n\n[Saiba mais]({learn_more_url})"
+          "retrying": "O Home Assistant está verificando o painel e tentando executar novamente a operação salva.\n\nPara corrigir:\n1. Leia as [orientações para tentar novamente]({repair_url}), se necessário.\n2. Aguarde aqui o resultado antes de decidir o que fazer em seguida.\n\n[Saiba mais]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "O painel não corresponde mais ao destino salvo. Verifique-o antes de tentar novamente.",
@@ -1117,7 +1117,7 @@
           }
         },
         "progress": {
-          "retrying": "Verificando o painel e tentando novamente com segurança.\n\n[Saiba mais]({learn_more_url})"
+          "retrying": "O Home Assistant está verificando o painel e tentando executar novamente a operação salva.\n\nPara corrigir:\n1. Leia as [orientações para tentar novamente]({repair_url}), se necessário.\n2. Aguarde aqui o resultado antes de decidir o que fazer em seguida.\n\n[Saiba mais]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "O painel não corresponde mais ao destino salvo. Verifique-o antes de tentar novamente.",
@@ -1159,7 +1159,7 @@
           }
         },
         "progress": {
-          "retrying": "Verificando o painel e tentando novamente com segurança.\n\n[Saiba mais]({learn_more_url})"
+          "retrying": "O Home Assistant está verificando o painel e tentando executar novamente a operação salva.\n\nPara corrigir:\n1. Leia as [orientações para tentar novamente]({repair_url}), se necessário.\n2. Aguarde aqui o resultado antes de decidir o que fazer em seguida.\n\n[Saiba mais]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "O painel não corresponde mais ao destino salvo. Verifique-o antes de tentar novamente.",
@@ -1201,7 +1201,7 @@
           }
         },
         "progress": {
-          "retrying": "Verificando o painel e tentando novamente com segurança.\n\n[Saiba mais]({learn_more_url})"
+          "retrying": "O Home Assistant está verificando o painel e tentando executar novamente a operação salva.\n\nPara corrigir:\n1. Leia as [orientações para tentar novamente]({repair_url}), se necessário.\n2. Aguarde aqui o resultado antes de decidir o que fazer em seguida.\n\n[Saiba mais]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "O painel não corresponde mais ao destino salvo. Verifique-o antes de tentar novamente.",
@@ -1243,7 +1243,7 @@
           }
         },
         "progress": {
-          "retrying": "Verificando o painel e tentando novamente com segurança.\n\n[Saiba mais]({learn_more_url})"
+          "retrying": "O Home Assistant está verificando o painel e tentando executar novamente a operação salva.\n\nPara corrigir:\n1. Leia as [orientações para tentar novamente]({repair_url}), se necessário.\n2. Aguarde aqui o resultado antes de decidir o que fazer em seguida.\n\n[Saiba mais]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "O painel não corresponde mais ao destino salvo. Verifique-o antes de tentar novamente.",
@@ -1285,7 +1285,7 @@
           }
         },
         "progress": {
-          "retrying": "Verificando o painel e tentando novamente com segurança.\n\n[Saiba mais]({learn_more_url})"
+          "retrying": "O Home Assistant está verificando o painel e tentando executar novamente a operação salva.\n\nPara corrigir:\n1. Leia as [orientações para tentar novamente]({repair_url}), se necessário.\n2. Aguarde aqui o resultado antes de decidir o que fazer em seguida.\n\n[Saiba mais]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "O painel não corresponde mais ao destino salvo. Verifique-o antes de tentar novamente.",
@@ -1327,7 +1327,7 @@
           }
         },
         "progress": {
-          "retrying": "Verificando o painel e tentando novamente com segurança.\n\n[Saiba mais]({learn_more_url})"
+          "retrying": "O Home Assistant está verificando o painel e tentando executar novamente a operação salva.\n\nPara corrigir:\n1. Leia as [orientações para tentar novamente]({repair_url}), se necessário.\n2. Aguarde aqui o resultado antes de decidir o que fazer em seguida.\n\n[Saiba mais]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "O painel não corresponde mais ao destino salvo. Verifique-o antes de tentar novamente.",
@@ -1369,7 +1369,7 @@
           }
         },
         "progress": {
-          "retrying": "Verificando o painel e tentando novamente com segurança.\n\n[Saiba mais]({learn_more_url})"
+          "retrying": "O Home Assistant está verificando o painel e tentando executar novamente a operação salva.\n\nPara corrigir:\n1. Leia as [orientações para tentar novamente]({repair_url}), se necessário.\n2. Aguarde aqui o resultado antes de decidir o que fazer em seguida.\n\n[Saiba mais]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "O painel não corresponde mais ao destino salvo. Verifique-o antes de tentar novamente.",
@@ -1411,7 +1411,7 @@
           }
         },
         "progress": {
-          "retrying": "Verificando o painel e tentando novamente com segurança.\n\n[Saiba mais]({learn_more_url})"
+          "retrying": "O Home Assistant está verificando o painel e tentando executar novamente a operação salva.\n\nPara corrigir:\n1. Leia as [orientações para tentar novamente]({repair_url}), se necessário.\n2. Aguarde aqui o resultado antes de decidir o que fazer em seguida.\n\n[Saiba mais]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "O painel não corresponde mais ao destino salvo. Verifique-o antes de tentar novamente.",
@@ -1458,7 +1458,7 @@
           }
         },
         "progress": {
-          "retrying": "Verificando o painel e tentando novamente com segurança.\n\n[Saiba mais]({learn_more_url})",
+          "retrying": "O Home Assistant está verificando o painel e tentando executar novamente a operação salva.\n\nPara corrigir:\n1. Leia as [orientações para tentar novamente]({repair_url}), se necessário.\n2. Aguarde aqui o resultado antes de decidir o que fazer em seguida.\n\n[Saiba mais]({learn_more_url})",
           "authorize_adb": "A aprovação do Android em {panel} ainda é necessária.\n\nPara corrigir:\n1. Leia as [etapas de aprovação do ADB]({approval_url}).\n2. Em {panel}, marque **Sempre permitir a partir deste computador** e toque em **Permitir**.\n\nO processo continua automaticamente após a aprovação.\n\n[Saiba mais]({learn_more_url})"
         },
         "error": {
@@ -1486,7 +1486,7 @@
           "panel_identity_changed": "O endereço não responde mais como este painel configurado. Verifique o painel e seu endereço antes de tentar novamente."
         },
         "abort": {
-          "entry_removed": "Este painel foi removido.\n\n[Saiba mais]({learn_more_url})"
+          "entry_removed": "Este painel não está mais configurado no Home Assistant.\n\nPara corrigir:\n1. [Abra os dispositivos do Panel Assistant](/config/integrations/integration/panel_assistant) se quiser adicioná-lo novamente.\n2. Caso contrário, feche esta caixa de diálogo.\n\n[Saiba mais]({learn_more_url})"
         }
       }
     },
@@ -1517,7 +1517,7 @@
           }
         },
         "progress": {
-          "retrying": "Verificando o painel e tentando novamente com segurança.\n\n[Saiba mais]({learn_more_url})"
+          "retrying": "O Home Assistant está verificando o painel e tentando executar novamente a operação salva.\n\nPara corrigir:\n1. Leia as [orientações para tentar novamente]({repair_url}), se necessário.\n2. Aguarde aqui o resultado antes de decidir o que fazer em seguida.\n\n[Saiba mais]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "O painel não corresponde mais ao destino salvo. Verifique-o antes de tentar novamente.",
@@ -1531,7 +1531,7 @@
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         },
         "abort": {
-          "entry_removed": "Este painel foi removido.\n\n[Saiba mais]({learn_more_url})"
+          "entry_removed": "Este painel não está mais configurado no Home Assistant.\n\nPara corrigir:\n1. [Abra os dispositivos do Panel Assistant](/config/integrations/integration/panel_assistant) se quiser adicioná-lo novamente.\n2. Caso contrário, feche esta caixa de diálogo.\n\n[Saiba mais]({learn_more_url})"
         }
       }
     },
@@ -1561,8 +1561,8 @@
           }
         },
         "abort": {
-          "entry_removed": "Este painel foi removido.\n\n[Saiba mais]({learn_more_url})",
-          "identity_changed": "Um painel listado mudou enquanto esta confirmação estava aberta; abra o reparo mais recente e confira a lista novamente.\n\n[Saiba mais]({learn_more_url})"
+          "entry_removed": "Este painel não está mais configurado no Home Assistant.\n\nPara corrigir:\n1. [Abra os dispositivos do Panel Assistant](/config/integrations/integration/panel_assistant) se quiser adicioná-lo novamente.\n2. Caso contrário, feche esta caixa de diálogo.\n\n[Saiba mais]({learn_more_url})",
+          "identity_changed": "Um painel listado mudou enquanto esta confirmação estava aberta.\n\nPara corrigir:\n1. [Abra Reparos](/config/repairs) e abra a confirmação de painel mais recente.\n2. Verifique cada painel listado antes de selecionar Enviar.\n\n[Saiba mais]({learn_more_url})"
         },
         "error": {
           "cannot_connect": "Não é possível acessar todos os painéis listados; verifique suas conexões e tente novamente."
@@ -1601,7 +1601,7 @@
           }
         },
         "progress": {
-          "retrying": "Verificando o painel e tentando novamente com segurança.\n\n[Saiba mais]({learn_more_url})",
+          "retrying": "O Home Assistant está verificando o painel e tentando executar novamente a operação salva.\n\nPara corrigir:\n1. Leia as [orientações para tentar novamente]({repair_url}), se necessário.\n2. Aguarde aqui o resultado antes de decidir o que fazer em seguida.\n\n[Saiba mais]({learn_more_url})",
           "authorize_adb": "A aprovação do Android em {panel} ainda é necessária.\n\nPara corrigir:\n1. Leia as [etapas de aprovação do ADB]({approval_url}).\n2. Em {panel}, marque **Sempre permitir a partir deste computador** e toque em **Permitir**.\n\nO processo continua automaticamente após a aprovação.\n\n[Saiba mais]({learn_more_url})"
         },
         "error": {
@@ -1629,7 +1629,7 @@
           "panel_identity_changed": "O endereço deixou de responder como este painel configurado. Verifique o painel e seu endereço antes de tentar novamente."
         },
         "abort": {
-          "entry_removed": "Este painel foi removido.\n\n[Saiba mais]({learn_more_url})"
+          "entry_removed": "Este painel não está mais configurado no Home Assistant.\n\nPara corrigir:\n1. [Abra os dispositivos do Panel Assistant](/config/integrations/integration/panel_assistant) se quiser adicioná-lo novamente.\n2. Caso contrário, feche esta caixa de diálogo.\n\n[Saiba mais]({learn_more_url})"
         }
       }
     },
@@ -1658,7 +1658,7 @@
           "panel_identity_changed": "O endereço deixou de responder como este painel configurado. Verifique o painel e seu endereço antes de tentar novamente."
         },
         "abort": {
-          "entry_removed": "Este painel foi removido.\n\n[Saiba mais]({learn_more_url})"
+          "entry_removed": "Este painel não está mais configurado no Home Assistant.\n\nPara corrigir:\n1. [Abra os dispositivos do Panel Assistant](/config/integrations/integration/panel_assistant) se quiser adicioná-lo novamente.\n2. Caso contrário, feche esta caixa de diálogo.\n\n[Saiba mais]({learn_more_url})"
         },
         "progress": {
           "authorize_adb": "O Home Assistant está aguardando {panel} permitir atualizações.\n\nPara corrigir:\n1. Siga as [etapas de aprovação do ADB]({approval_url}) no painel.\n2. Marque **Sempre permitir a partir deste computador** e toque em **Permitir**.\n3. Aguarde aqui; o processo continua automaticamente após a aprovação.\n\n[Saiba mais]({learn_more_url})"

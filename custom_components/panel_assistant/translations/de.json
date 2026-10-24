@@ -913,15 +913,15 @@
         "step": {
           "commission_permissions": {
             "title": "Berechtigungen prüfen",
-            "description": "Fehlende Android-Berechtigungen verhindern, dass einige Funktionen auf {panel} arbeiten.\n\nSo behebst du das Problem:\n1. Folge am Panel der [Anleitung zu Android-Berechtigungen]({permissions_url}): Erlaube unter Einstellungen → Apps → Panel Assistant Kamera, Mikrofon und Benachrichtigungen, soweit aufgeführt.\n2. Erlaube unter „Spezieller App-Zugriff“ „Systemeinstellungen ändern“ und „Über anderen Apps einblenden“; aktiviere unter „Bedienungshilfen“ Panel Assistant.\n3. Kehre hierher zurück und wähle „Absenden“, um erneut zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Fehlende Android-Berechtigungen verhindern, dass einige Funktionen auf {panel} arbeiten.\n\nSo behebst du das Problem:\n1. Folge am Panel der [Anleitung zu Android-Berechtigungen]({permissions_url}): Erlaube unter Einstellungen → Apps → Panel Assistant Kamera, Mikrofon und Benachrichtigungen, soweit aufgeführt.\n2. Erlaube unter „Spezieller App-Zugriff“ „Systemeinstellungen ändern“ und „Über anderen Apps einblenden“; aktiviere unter „Bedienungshilfen“ Panel Assistant.\n3. Kehre hierher zurück und wähle „OK“, um erneut zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
         "error": {
-          "permissions_missing": "Eine Berechtigung fehlt noch. Führe die Schritte auf dem Panel aus und wähle dann erneut „Absenden“.",
-          "permissions_unreadable": "Home Assistant konnte nicht alle erforderlichen Berechtigungen prüfen. Prüfe, ob das Panel verbunden ist, und wähle dann erneut „Absenden“."
+          "permissions_missing": "Eine Berechtigung fehlt noch. Führe die Schritte auf dem Panel aus und wähle dann erneut „OK“.",
+          "permissions_unreadable": "Home Assistant konnte nicht alle erforderlichen Berechtigungen prüfen. Prüfe, ob das Panel verbunden ist, und wähle dann erneut „OK“."
         },
         "abort": {
-          "entry_removed": "Dieses Panel wurde entfernt.\n\n[Mehr erfahren]({learn_more_url})"
+          "entry_removed": "Dieses Panel ist nicht mehr in Home Assistant eingerichtet.\n\nSo behebst du das Problem:\n1. [Öffne die Panel Assistant-Geräte](/config/integrations/integration/panel_assistant), wenn du es erneut hinzufügen möchtest.\n2. Schließe andernfalls diesen Dialog.\n\n[Mehr erfahren]({learn_more_url})"
         }
       }
     },
@@ -931,7 +931,7 @@
         "step": {
           "set_up_proximity": {
             "title": "Näherung einrichten",
-            "description": "{panel} kann erst durch Winken aufgeweckt werden, wenn sein Näherungssensor eingerichtet ist.\n\nSo behebst du das Problem:\n1. Öffne die [Näherungseinrichtung]({configure_url}) und wähle „Näherung auf dem Panel einrichten“.\n2. Stelle dich vor {panel} und folge den Anweisungen auf seinem Bildschirm (etwa eine Minute).\n3. Wenn die Kalibrierung gespeichert ist, kehre hierher zurück und wähle „Absenden“.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "{panel} kann erst durch Winken aufgeweckt werden, wenn sein Näherungssensor eingerichtet ist.\n\nSo behebst du das Problem:\n1. Öffne die [Näherungseinrichtung]({configure_url}) und wähle „Näherung auf dem Panel einrichten“.\n2. Stelle dich vor {panel} und folge den Anweisungen auf seinem Bildschirm (etwa eine Minute).\n3. Wenn die Kalibrierung gespeichert ist, kehre hierher zurück und wähle „OK“.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
         "error": {
@@ -940,7 +940,7 @@
           "proximity_unreadable": "Home Assistant konnte den Näherungsstatus des Panels nicht lesen. Prüfe, ob das Panel verbunden ist, und sende dann erneut."
         },
         "abort": {
-          "entry_removed": "Dieses Panel wurde entfernt.\n\n[Mehr erfahren]({learn_more_url})"
+          "entry_removed": "Dieses Panel ist nicht mehr in Home Assistant eingerichtet.\n\nSo behebst du das Problem:\n1. [Öffne die Panel Assistant-Geräte](/config/integrations/integration/panel_assistant), wenn du es erneut hinzufügen möchtest.\n2. Schließe andernfalls diesen Dialog.\n\n[Mehr erfahren]({learn_more_url})"
         }
       }
     },
@@ -974,7 +974,7 @@
         "step": {
           "confirm_restart": {
             "title": "Home Assistant neu starten",
-            "description": "Home Assistant führt noch Panel Assistant {loaded} aus; der installierte Build {installed} ist daher noch nicht aktiv.\n\nSo behebst du das Problem:\n1. Prüfe bei Bedarf [Panel Assistant]({integration_url}) und kehre dann hierher zurück.\n2. Wähle „Absenden“, um Home Assistant jetzt neu zu starten.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Home Assistant führt noch Panel Assistant {loaded} aus; der installierte Build {installed} ist daher noch nicht aktiv.\n\nSo behebst du das Problem:\n1. Prüfe bei Bedarf [Panel Assistant]({integration_url}) und kehre dann hierher zurück.\n2. Wähle „OK“, um Home Assistant jetzt neu zu starten.\n\n[Mehr erfahren]({learn_more_url})"
           }
         }
       }
@@ -985,16 +985,16 @@
         "step": {
           "confirm_bind": {
             "title": "Benutzer des Panels bestätigen",
-            "description": "{panel} kann sich erst als {user} verbinden, wenn du dieses Konto bestätigst.\n\nSo behebst du das Problem:\n1. [Prüfe die Anmeldung des Panels]({configure_url}).\n2. Wähle „Absenden“ nur, wenn du {user} für dieses Panel eingerichtet hast; danach sollte es sich wieder verbinden.\n3. Wenn du die Anfrage nicht zuordnen kannst, schließe diesen Dialog und ignoriere das Problem: Jeder angemeldete Benutzer kann eine Panel-Verbindung anfordern.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "{panel} kann sich erst als {user} verbinden, wenn du dieses Konto bestätigst.\n\nSo behebst du das Problem:\n1. [Prüfe die Anmeldung des Panels]({configure_url}).\n2. Wähle „OK“ nur, wenn du {user} für dieses Panel eingerichtet hast; danach sollte es sich wieder verbinden.\n3. Wenn du die Anfrage nicht zuordnen kannst, schließe diesen Dialog und ignoriere das Problem: Jeder angemeldete Benutzer kann eine Panel-Verbindung anfordern.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "confirm_rebind": {
             "title": "Benutzer des Panels ändern",
-            "description": "{user} hat eine Verbindung als {panel} angefordert; das Panel akzeptiert derzeit {bound_user}.\n\nSo behebst du das Problem:\n1. [Prüfe die Anmeldung des Panels]({configure_url}).\n2. Wähle „Absenden“ nur, wenn du sein Konto auf {user} geändert hast; dadurch wird {bound_user} nicht mehr akzeptiert.\n3. Schließe andernfalls diesen Dialog und ignoriere das Problem: Dies könnte ein Übernahmeversuch sein.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "{user} hat eine Verbindung als {panel} angefordert; das Panel akzeptiert derzeit {bound_user}.\n\nSo behebst du das Problem:\n1. [Prüfe die Anmeldung des Panels]({configure_url}).\n2. Wähle „OK“ nur, wenn du sein Konto auf {user} geändert hast; dadurch wird {bound_user} nicht mehr akzeptiert.\n3. Schließe andernfalls diesen Dialog und ignoriere das Problem: Dies könnte ein Übernahmeversuch sein.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
         "abort": {
-          "entry_removed": "Dieses Panel ist nicht mehr in Home Assistant eingerichtet.\n\n[Mehr erfahren]({learn_more_url})",
-          "user_unavailable": "Der anfragende Benutzer existiert nicht mehr oder ist deaktiviert; es wurde nichts geändert.\n\n[Mehr erfahren]({learn_more_url})"
+          "entry_removed": "Dieses Panel ist nicht mehr in Home Assistant eingerichtet.\n\nSo behebst du das Problem:\n1. [Öffne die Panel Assistant-Geräte](/config/integrations/integration/panel_assistant), wenn du es erneut hinzufügen möchtest.\n2. Schließe andernfalls diesen Dialog.\n\n[Mehr erfahren]({learn_more_url})",
+          "user_unavailable": "Der anfragende Benutzer existiert nicht mehr oder ist deaktiviert; es wurde nichts geändert.\n\nSo behebst du das Problem:\n1. [Prüfe die Anmeldung des Panels]({configure_url}).\n2. Melde dich mit dem aktiven Konto an, das dieses Panel verwenden soll, und bestätige dann nur eine Anfrage, die du zuordnen kannst.\n\n[Mehr erfahren]({learn_more_url})"
         }
       }
     },
@@ -1025,15 +1025,15 @@
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **OK**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
             "title": "Erneuter Versuch unvollständig",
-            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **OK** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Das Panel wird geprüft und der Vorgang sicher erneut versucht.\n\n[Mehr erfahren]({learn_more_url})"
+          "retrying": "Home Assistant prüft das Panel und versucht den gespeicherten Vorgang erneut.\n\nSo behebst du das Problem:\n1. Lies bei Bedarf die [Hinweise zum erneuten Versuch]({repair_url}).\n2. Warte hier auf das Ergebnis, bevor du entscheidest, was du als Nächstes tust.\n\n[Mehr erfahren]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1067,15 +1067,15 @@
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **OK**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
             "title": "Erneuter Versuch unvollständig",
-            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **OK** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Das Panel wird geprüft und der Vorgang sicher erneut versucht.\n\n[Mehr erfahren]({learn_more_url})"
+          "retrying": "Home Assistant prüft das Panel und versucht den gespeicherten Vorgang erneut.\n\nSo behebst du das Problem:\n1. Lies bei Bedarf die [Hinweise zum erneuten Versuch]({repair_url}).\n2. Warte hier auf das Ergebnis, bevor du entscheidest, was du als Nächstes tust.\n\n[Mehr erfahren]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1109,15 +1109,15 @@
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **OK**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
             "title": "Erneuter Versuch unvollständig",
-            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **OK** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Das Panel wird geprüft und der Vorgang sicher erneut versucht.\n\n[Mehr erfahren]({learn_more_url})"
+          "retrying": "Home Assistant prüft das Panel und versucht den gespeicherten Vorgang erneut.\n\nSo behebst du das Problem:\n1. Lies bei Bedarf die [Hinweise zum erneuten Versuch]({repair_url}).\n2. Warte hier auf das Ergebnis, bevor du entscheidest, was du als Nächstes tust.\n\n[Mehr erfahren]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1151,15 +1151,15 @@
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **OK**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
             "title": "Erneuter Versuch unvollständig",
-            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **OK** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Das Panel wird geprüft und der Vorgang sicher erneut versucht.\n\n[Mehr erfahren]({learn_more_url})"
+          "retrying": "Home Assistant prüft das Panel und versucht den gespeicherten Vorgang erneut.\n\nSo behebst du das Problem:\n1. Lies bei Bedarf die [Hinweise zum erneuten Versuch]({repair_url}).\n2. Warte hier auf das Ergebnis, bevor du entscheidest, was du als Nächstes tust.\n\n[Mehr erfahren]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1193,15 +1193,15 @@
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **OK**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
             "title": "Erneuter Versuch unvollständig",
-            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **OK** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Das Panel wird geprüft und der Vorgang sicher erneut versucht.\n\n[Mehr erfahren]({learn_more_url})"
+          "retrying": "Home Assistant prüft das Panel und versucht den gespeicherten Vorgang erneut.\n\nSo behebst du das Problem:\n1. Lies bei Bedarf die [Hinweise zum erneuten Versuch]({repair_url}).\n2. Warte hier auf das Ergebnis, bevor du entscheidest, was du als Nächstes tust.\n\n[Mehr erfahren]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1235,15 +1235,15 @@
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **OK**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
             "title": "Erneuter Versuch unvollständig",
-            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **OK** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Das Panel wird geprüft und der Vorgang sicher erneut versucht.\n\n[Mehr erfahren]({learn_more_url})"
+          "retrying": "Home Assistant prüft das Panel und versucht den gespeicherten Vorgang erneut.\n\nSo behebst du das Problem:\n1. Lies bei Bedarf die [Hinweise zum erneuten Versuch]({repair_url}).\n2. Warte hier auf das Ergebnis, bevor du entscheidest, was du als Nächstes tust.\n\n[Mehr erfahren]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1277,15 +1277,15 @@
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **OK**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
             "title": "Erneuter Versuch unvollständig",
-            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **OK** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Das Panel wird geprüft und der Vorgang sicher erneut versucht.\n\n[Mehr erfahren]({learn_more_url})"
+          "retrying": "Home Assistant prüft das Panel und versucht den gespeicherten Vorgang erneut.\n\nSo behebst du das Problem:\n1. Lies bei Bedarf die [Hinweise zum erneuten Versuch]({repair_url}).\n2. Warte hier auf das Ergebnis, bevor du entscheidest, was du als Nächstes tust.\n\n[Mehr erfahren]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1319,15 +1319,15 @@
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **OK**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
             "title": "Erneuter Versuch unvollständig",
-            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **OK** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Das Panel wird geprüft und der Vorgang sicher erneut versucht.\n\n[Mehr erfahren]({learn_more_url})"
+          "retrying": "Home Assistant prüft das Panel und versucht den gespeicherten Vorgang erneut.\n\nSo behebst du das Problem:\n1. Lies bei Bedarf die [Hinweise zum erneuten Versuch]({repair_url}).\n2. Warte hier auf das Ergebnis, bevor du entscheidest, was du als Nächstes tust.\n\n[Mehr erfahren]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1361,15 +1361,15 @@
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **OK**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
             "title": "Erneuter Versuch unvollständig",
-            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **OK** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Das Panel wird geprüft und der Vorgang sicher erneut versucht.\n\n[Mehr erfahren]({learn_more_url})"
+          "retrying": "Home Assistant prüft das Panel und versucht den gespeicherten Vorgang erneut.\n\nSo behebst du das Problem:\n1. Lies bei Bedarf die [Hinweise zum erneuten Versuch]({repair_url}).\n2. Warte hier auf das Ergebnis, bevor du entscheidest, was du als Nächstes tust.\n\n[Mehr erfahren]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1403,15 +1403,15 @@
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **OK**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
             "title": "Erneuter Versuch unvollständig",
-            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **OK** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Das Panel wird geprüft und der Vorgang sicher erneut versucht.\n\n[Mehr erfahren]({learn_more_url})"
+          "retrying": "Home Assistant prüft das Panel und versucht den gespeicherten Vorgang erneut.\n\nSo behebst du das Problem:\n1. Lies bei Bedarf die [Hinweise zum erneuten Versuch]({repair_url}).\n2. Warte hier auf das Ergebnis, bevor du entscheidest, was du als Nächstes tust.\n\n[Mehr erfahren]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1446,19 +1446,19 @@
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **OK**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
             "title": "Erneuter Versuch unvollständig",
-            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **OK** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "authorize_adb": {
             "title": "Updates erlauben",
-            "description": "Home Assistant benötigt die Android-Zustimmung, bevor es {panel} aktualisieren kann.\n\nSo behebst du das Problem:\n1. Lies die [Schritte zur ADB-Zustimmung]({approval_url}).\n2. Wähle **Absenden**, aktiviere dann auf {panel} **Von diesem Computer immer zulassen** und tippe auf **Zulassen**.\n3. Wähle nach der Zustimmung in dieser Reparatur **Erneut versuchen**, um das Update erneut zu versuchen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Home Assistant benötigt die Android-Zustimmung, bevor es {panel} aktualisieren kann.\n\nSo behebst du das Problem:\n1. Lies die [Schritte zur ADB-Zustimmung]({approval_url}).\n2. Wähle **OK**, aktiviere dann auf {panel} **Von diesem Computer immer zulassen** und tippe auf **Zulassen**.\n3. Wähle nach der Zustimmung in dieser Reparatur **Erneut versuchen**, um das Update erneut zu versuchen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Das Panel wird geprüft und der Vorgang sicher erneut versucht.\n\n[Mehr erfahren]({learn_more_url})",
+          "retrying": "Home Assistant prüft das Panel und versucht den gespeicherten Vorgang erneut.\n\nSo behebst du das Problem:\n1. Lies bei Bedarf die [Hinweise zum erneuten Versuch]({repair_url}).\n2. Warte hier auf das Ergebnis, bevor du entscheidest, was du als Nächstes tust.\n\n[Mehr erfahren]({learn_more_url})",
           "authorize_adb": "Die Android-Zustimmung auf {panel} ist noch erforderlich.\n\nSo behebst du das Problem:\n1. Lies die [Schritte zur ADB-Zustimmung]({approval_url}).\n2. Aktiviere auf {panel} **Von diesem Computer immer zulassen** und tippe dann auf **Zulassen**.\n\nNach der Zustimmung wird der Vorgang automatisch fortgesetzt.\n\n[Mehr erfahren]({learn_more_url})"
         },
         "error": {
@@ -1486,7 +1486,7 @@
           "panel_identity_changed": "Die Adresse antwortet nicht mehr als dieses konfigurierte Panel. Prüfe das Panel und seine Adresse vor einem erneuten Versuch."
         },
         "abort": {
-          "entry_removed": "Dieses Panel wurde entfernt.\n\n[Mehr erfahren]({learn_more_url})"
+          "entry_removed": "Dieses Panel ist nicht mehr in Home Assistant eingerichtet.\n\nSo behebst du das Problem:\n1. [Öffne die Panel Assistant-Geräte](/config/integrations/integration/panel_assistant), wenn du es erneut hinzufügen möchtest.\n2. Schließe andernfalls diesen Dialog.\n\n[Mehr erfahren]({learn_more_url})"
         }
       }
     },
@@ -1509,15 +1509,15 @@
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **OK**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
             "title": "Erneuter Versuch unvollständig",
-            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **OK** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Das Panel wird geprüft und der Vorgang sicher erneut versucht.\n\n[Mehr erfahren]({learn_more_url})"
+          "retrying": "Home Assistant prüft das Panel und versucht den gespeicherten Vorgang erneut.\n\nSo behebst du das Problem:\n1. Lies bei Bedarf die [Hinweise zum erneuten Versuch]({repair_url}).\n2. Warte hier auf das Ergebnis, bevor du entscheidest, was du als Nächstes tust.\n\n[Mehr erfahren]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Das Panel stimmt nicht mehr mit dem gespeicherten Ziel überein. Prüfe es vor einem erneuten Versuch.",
@@ -1531,7 +1531,7 @@
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         },
         "abort": {
-          "entry_removed": "Dieses Panel wurde entfernt.\n\n[Mehr erfahren]({learn_more_url})"
+          "entry_removed": "Dieses Panel ist nicht mehr in Home Assistant eingerichtet.\n\nSo behebst du das Problem:\n1. [Öffne die Panel Assistant-Geräte](/config/integrations/integration/panel_assistant), wenn du es erneut hinzufügen möchtest.\n2. Schließe andernfalls diesen Dialog.\n\n[Mehr erfahren]({learn_more_url})"
         }
       }
     },
@@ -1557,12 +1557,12 @@
         "step": {
           "confirm_identity": {
             "title": "Einrichtungen behalten",
-            "description": "Die aufgeführten Panels müssen bestätigt werden, bevor ihre bisherigen Einrichtungen unter ihren neuen Geräteidentitäten erhalten bleiben können.\n\nSo behebst du das Problem:\n1. [Vergleiche die Panel Assistant-Geräte]({integration_url}) mit dieser Liste.\n2. Bestätige nur, wenn jedes Panel zu seiner bisherigen Einrichtung gehört.\n3. Wähle einmal „Absenden“, um alle aufgeführten Einrichtungen beizubehalten.\n\n{panels}\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Die aufgeführten Panels müssen bestätigt werden, bevor ihre bisherigen Einrichtungen unter ihren neuen Geräteidentitäten erhalten bleiben können.\n\nSo behebst du das Problem:\n1. [Vergleiche die Panel Assistant-Geräte]({integration_url}) mit dieser Liste.\n2. Bestätige nur, wenn jedes Panel zu seiner bisherigen Einrichtung gehört.\n3. Wähle einmal „OK“, um alle aufgeführten Einrichtungen beizubehalten.\n\n{panels}\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
         "abort": {
-          "entry_removed": "Dieses Panel wurde entfernt.\n\n[Mehr erfahren]({learn_more_url})",
-          "identity_changed": "Ein aufgeführtes Panel hat sich geändert, während diese Bestätigung geöffnet war. Öffne die neueste Reparatur und prüfe die Liste erneut.\n\n[Mehr erfahren]({learn_more_url})"
+          "entry_removed": "Dieses Panel ist nicht mehr in Home Assistant eingerichtet.\n\nSo behebst du das Problem:\n1. [Öffne die Panel Assistant-Geräte](/config/integrations/integration/panel_assistant), wenn du es erneut hinzufügen möchtest.\n2. Schließe andernfalls diesen Dialog.\n\n[Mehr erfahren]({learn_more_url})",
+          "identity_changed": "Ein aufgeführtes Panel hat sich geändert, während diese Bestätigung geöffnet war.\n\nSo behebst du das Problem:\n1. [Öffne Reparaturen](/config/repairs) und öffne die neueste Panel-Bestätigung.\n2. Prüfe jedes aufgeführte Panel, bevor du „OK“ wählst.\n\n[Mehr erfahren]({learn_more_url})"
         },
         "error": {
           "cannot_connect": "Nicht alle aufgeführten Panels sind erreichbar. Prüfe ihre Verbindungen und versuche es erneut."
@@ -1575,7 +1575,7 @@
         "step": {
           "init": {
             "title": "Panel-Fehler beheben",
-            "description": "Home Assistant darf {panel} noch nicht aktualisieren.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Updates erlauben**, dann **Absenden** und bestätige die Anfrage auf {panel}.\n\n[Mehr erfahren]({learn_more_url})",
+            "description": "Home Assistant darf {panel} noch nicht aktualisieren.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Updates erlauben**, dann **OK** und bestätige die Anfrage auf {panel}.\n\n[Mehr erfahren]({learn_more_url})",
             "menu_options": {
               "retry": "Erneut versuchen",
               "authorize_adb": "Updates erlauben",
@@ -1589,19 +1589,19 @@
           },
           "clear_error": {
             "title": "Fehler löschen",
-            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **OK**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
             "title": "Erneuter Versuch unvollständig",
-            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **OK** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "authorize_adb": {
             "title": "Updates erlauben",
-            "description": "Home Assistant benötigt die Android-Zustimmung, bevor es {panel} aktualisieren kann.\n\nSo behebst du das Problem:\n1. Lies die [Schritte zur ADB-Zustimmung]({approval_url}).\n2. Wähle **Absenden**, aktiviere dann auf {panel} **Von diesem Computer immer zulassen** und tippe auf **Zulassen**.\n3. Wähle nach der Zustimmung in dieser Reparatur **Erneut versuchen**, um das Update erneut zu versuchen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Home Assistant benötigt die Android-Zustimmung, bevor es {panel} aktualisieren kann.\n\nSo behebst du das Problem:\n1. Lies die [Schritte zur ADB-Zustimmung]({approval_url}).\n2. Wähle **OK**, aktiviere dann auf {panel} **Von diesem Computer immer zulassen** und tippe auf **Zulassen**.\n3. Wähle nach der Zustimmung in dieser Reparatur **Erneut versuchen**, um das Update erneut zu versuchen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Das Panel wird geprüft und der Vorgang sicher erneut versucht.\n\n[Mehr erfahren]({learn_more_url})",
+          "retrying": "Home Assistant prüft das Panel und versucht den gespeicherten Vorgang erneut.\n\nSo behebst du das Problem:\n1. Lies bei Bedarf die [Hinweise zum erneuten Versuch]({repair_url}).\n2. Warte hier auf das Ergebnis, bevor du entscheidest, was du als Nächstes tust.\n\n[Mehr erfahren]({learn_more_url})",
           "authorize_adb": "Die Android-Zustimmung auf {panel} ist noch erforderlich.\n\nSo behebst du das Problem:\n1. Lies die [Schritte zur ADB-Zustimmung]({approval_url}).\n2. Aktiviere auf {panel} **Von diesem Computer immer zulassen** und tippe dann auf **Zulassen**.\n\nNach der Zustimmung wird der Vorgang automatisch fortgesetzt.\n\n[Mehr erfahren]({learn_more_url})"
         },
         "error": {
@@ -1629,7 +1629,7 @@
           "panel_identity_changed": "Die Adresse antwortet nicht mehr als dieses konfigurierte Panel. Prüfe das Panel und seine Adresse vor einem erneuten Versuch."
         },
         "abort": {
-          "entry_removed": "Dieses Panel wurde entfernt.\n\n[Mehr erfahren]({learn_more_url})"
+          "entry_removed": "Dieses Panel ist nicht mehr in Home Assistant eingerichtet.\n\nSo behebst du das Problem:\n1. [Öffne die Panel Assistant-Geräte](/config/integrations/integration/panel_assistant), wenn du es erneut hinzufügen möchtest.\n2. Schließe andernfalls diesen Dialog.\n\n[Mehr erfahren]({learn_more_url})"
         }
       }
     },
@@ -1639,7 +1639,7 @@
         "step": {
           "authorize_adb": {
             "title": "Updates erlauben",
-            "description": "Home Assistant kann erst Updates auf {panel} installieren, wenn du seine ADB-Verbindung erlaubst.\n\nSo behebst du das Problem:\n1. Lies die [Schritte zur ADB-Zustimmung]({approval_url}) und wähle dann „Absenden“, um die Zustimmungsanfrage zu senden.\n2. Aktiviere auf {panel} **Von diesem Computer immer zulassen** und tippe dann auf **Zulassen**.\n3. Warte hier, bis die Zustimmung abgeschlossen ist; Android bezeichnet Home Assistant möglicherweise als Computer.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Home Assistant kann erst Updates auf {panel} installieren, wenn du seine ADB-Verbindung erlaubst.\n\nSo behebst du das Problem:\n1. Lies die [Schritte zur ADB-Zustimmung]({approval_url}) und wähle dann „OK“, um die Zustimmungsanfrage zu senden.\n2. Aktiviere auf {panel} **Von diesem Computer immer zulassen** und tippe dann auf **Zulassen**.\n3. Warte hier, bis die Zustimmung abgeschlossen ist; Android bezeichnet Home Assistant möglicherweise als Computer.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
         "error": {
@@ -1658,7 +1658,7 @@
           "panel_identity_changed": "Die Adresse antwortet nicht mehr als dieses konfigurierte Panel. Prüfe das Panel und seine Adresse vor einem erneuten Versuch."
         },
         "abort": {
-          "entry_removed": "Dieses Panel wurde entfernt.\n\n[Mehr erfahren]({learn_more_url})"
+          "entry_removed": "Dieses Panel ist nicht mehr in Home Assistant eingerichtet.\n\nSo behebst du das Problem:\n1. [Öffne die Panel Assistant-Geräte](/config/integrations/integration/panel_assistant), wenn du es erneut hinzufügen möchtest.\n2. Schließe andernfalls diesen Dialog.\n\n[Mehr erfahren]({learn_more_url})"
         },
         "progress": {
           "authorize_adb": "Home Assistant wartet darauf, dass {panel} Updates erlaubt.\n\nSo behebst du das Problem:\n1. Folge auf dem Panel den [Schritten zur ADB-Zustimmung]({approval_url}).\n2. Aktiviere **Von diesem Computer immer zulassen** und tippe dann auf **Zulassen**.\n3. Warte hier; nach der Zustimmung wird der Vorgang automatisch fortgesetzt.\n\n[Mehr erfahren]({learn_more_url})"

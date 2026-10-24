@@ -921,7 +921,7 @@
           "permissions_unreadable": "Home Assistant kon niet alle vereiste machtigingen controleren. Controleer of het paneel verbonden is en selecteer daarna opnieuw Verzenden."
         },
         "abort": {
-          "entry_removed": "Dit paneel is verwijderd.\n\n[Meer informatie]({learn_more_url})"
+          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten](/config/integrations/integration/panel_assistant) als je het opnieuw wilt toevoegen.\n2. Sluit anders dit dialoogvenster.\n\n[Meer informatie]({learn_more_url})"
         }
       }
     },
@@ -940,7 +940,7 @@
           "proximity_unreadable": "Home Assistant kon de nabijheidsstatus van het paneel niet lezen. Controleer of het paneel verbonden is en verzend opnieuw."
         },
         "abort": {
-          "entry_removed": "Dit paneel is verwijderd.\n\n[Meer informatie]({learn_more_url})"
+          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten](/config/integrations/integration/panel_assistant) als je het opnieuw wilt toevoegen.\n2. Sluit anders dit dialoogvenster.\n\n[Meer informatie]({learn_more_url})"
         }
       }
     },
@@ -993,8 +993,8 @@
           }
         },
         "abort": {
-          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\n[Meer informatie]({learn_more_url})",
-          "user_unavailable": "De gebruiker die het verzoek heeft gedaan, bestaat niet meer of is gedeactiveerd; er is niets gewijzigd.\n\n[Meer informatie]({learn_more_url})"
+          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten](/config/integrations/integration/panel_assistant) als je het opnieuw wilt toevoegen.\n2. Sluit anders dit dialoogvenster.\n\n[Meer informatie]({learn_more_url})",
+          "user_unavailable": "De gebruiker die het verzoek heeft gedaan, bestaat niet meer of is gedeactiveerd; er is niets gewijzigd.\n\nOm dit op te lossen:\n1. [Controleer de aanmelding van het paneel]({configure_url}).\n2. Meld je aan met het actieve account dat je voor dit paneel wilt gebruiken en bevestig daarna alleen een verzoek dat je herkent.\n\n[Meer informatie]({learn_more_url})"
         }
       }
     },
@@ -1033,7 +1033,7 @@
           }
         },
         "progress": {
-          "retrying": "Het paneel wordt gecontroleerd en de bewerking wordt veilig opnieuw geprobeerd.\n\n[Meer informatie]({learn_more_url})"
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1075,7 +1075,7 @@
           }
         },
         "progress": {
-          "retrying": "Het paneel wordt gecontroleerd en de bewerking wordt veilig opnieuw geprobeerd.\n\n[Meer informatie]({learn_more_url})"
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1117,7 +1117,7 @@
           }
         },
         "progress": {
-          "retrying": "Het paneel wordt gecontroleerd en de bewerking wordt veilig opnieuw geprobeerd.\n\n[Meer informatie]({learn_more_url})"
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1159,7 +1159,7 @@
           }
         },
         "progress": {
-          "retrying": "Het paneel wordt gecontroleerd en de bewerking wordt veilig opnieuw geprobeerd.\n\n[Meer informatie]({learn_more_url})"
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1201,7 +1201,7 @@
           }
         },
         "progress": {
-          "retrying": "Het paneel wordt gecontroleerd en de bewerking wordt veilig opnieuw geprobeerd.\n\n[Meer informatie]({learn_more_url})"
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1243,7 +1243,7 @@
           }
         },
         "progress": {
-          "retrying": "Het paneel wordt gecontroleerd en de bewerking wordt veilig opnieuw geprobeerd.\n\n[Meer informatie]({learn_more_url})"
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1285,7 +1285,7 @@
           }
         },
         "progress": {
-          "retrying": "Het paneel wordt gecontroleerd en de bewerking wordt veilig opnieuw geprobeerd.\n\n[Meer informatie]({learn_more_url})"
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1327,7 +1327,7 @@
           }
         },
         "progress": {
-          "retrying": "Het paneel wordt gecontroleerd en de bewerking wordt veilig opnieuw geprobeerd.\n\n[Meer informatie]({learn_more_url})"
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1369,7 +1369,7 @@
           }
         },
         "progress": {
-          "retrying": "Het paneel wordt gecontroleerd en de bewerking wordt veilig opnieuw geprobeerd.\n\n[Meer informatie]({learn_more_url})"
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1411,7 +1411,7 @@
           }
         },
         "progress": {
-          "retrying": "Het paneel wordt gecontroleerd en de bewerking wordt veilig opnieuw geprobeerd.\n\n[Meer informatie]({learn_more_url})"
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1458,7 +1458,7 @@
           }
         },
         "progress": {
-          "retrying": "Het paneel wordt gecontroleerd en de bewerking wordt veilig opnieuw geprobeerd.\n\n[Meer informatie]({learn_more_url})",
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})",
           "authorize_adb": "Er is nog toestemming van Android op {panel} nodig.\n\nOm dit op te lossen:\n1. Lees de [stappen voor ADB-toestemming]({approval_url}).\n2. Vink op {panel} **Altijd toestaan vanaf deze computer** aan en tik daarna op **Toestaan**.\n\nDit gaat vanzelf verder zodra toestemming is gegeven.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
@@ -1486,7 +1486,7 @@
           "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert."
         },
         "abort": {
-          "entry_removed": "Dit paneel is verwijderd.\n\n[Meer informatie]({learn_more_url})"
+          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten](/config/integrations/integration/panel_assistant) als je het opnieuw wilt toevoegen.\n2. Sluit anders dit dialoogvenster.\n\n[Meer informatie]({learn_more_url})"
         }
       }
     },
@@ -1517,7 +1517,7 @@
           }
         },
         "progress": {
-          "retrying": "Het paneel wordt gecontroleerd en de bewerking wordt veilig opnieuw geprobeerd.\n\n[Meer informatie]({learn_more_url})"
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1531,7 +1531,7 @@
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         },
         "abort": {
-          "entry_removed": "Dit paneel is verwijderd.\n\n[Meer informatie]({learn_more_url})"
+          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten](/config/integrations/integration/panel_assistant) als je het opnieuw wilt toevoegen.\n2. Sluit anders dit dialoogvenster.\n\n[Meer informatie]({learn_more_url})"
         }
       }
     },
@@ -1561,8 +1561,8 @@
           }
         },
         "abort": {
-          "entry_removed": "Dit paneel is verwijderd.\n\n[Meer informatie]({learn_more_url})",
-          "identity_changed": "Een vermeld paneel is gewijzigd terwijl deze bevestiging openstond; open de nieuwste reparatie en controleer de lijst opnieuw.\n\n[Meer informatie]({learn_more_url})"
+          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten](/config/integrations/integration/panel_assistant) als je het opnieuw wilt toevoegen.\n2. Sluit anders dit dialoogvenster.\n\n[Meer informatie]({learn_more_url})",
+          "identity_changed": "Een vermeld paneel is gewijzigd terwijl deze bevestiging openstond.\n\nOm dit op te lossen:\n1. [Open Reparaties](/config/repairs) en open de nieuwste paneelbevestiging.\n2. Controleer elk vermeld paneel voordat je Verzenden selecteert.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "cannot_connect": "Niet alle vermelde panelen zijn bereikbaar; controleer hun verbindingen en probeer het opnieuw."
@@ -1601,7 +1601,7 @@
           }
         },
         "progress": {
-          "retrying": "Het paneel wordt gecontroleerd en de bewerking wordt veilig opnieuw geprobeerd.\n\n[Meer informatie]({learn_more_url})",
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})",
           "authorize_adb": "Er is nog toestemming van Android op {panel} nodig.\n\nOm dit op te lossen:\n1. Lees de [stappen voor ADB-toestemming]({approval_url}).\n2. Vink op {panel} **Altijd toestaan vanaf deze computer** aan en tik daarna op **Toestaan**.\n\nDit gaat vanzelf verder zodra toestemming is gegeven.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
@@ -1629,7 +1629,7 @@
           "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert."
         },
         "abort": {
-          "entry_removed": "Dit paneel is verwijderd.\n\n[Meer informatie]({learn_more_url})"
+          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten](/config/integrations/integration/panel_assistant) als je het opnieuw wilt toevoegen.\n2. Sluit anders dit dialoogvenster.\n\n[Meer informatie]({learn_more_url})"
         }
       }
     },
@@ -1658,7 +1658,7 @@
           "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert."
         },
         "abort": {
-          "entry_removed": "Dit paneel is verwijderd.\n\n[Meer informatie]({learn_more_url})"
+          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten](/config/integrations/integration/panel_assistant) als je het opnieuw wilt toevoegen.\n2. Sluit anders dit dialoogvenster.\n\n[Meer informatie]({learn_more_url})"
         },
         "progress": {
           "authorize_adb": "Home Assistant wacht tot {panel} updates toestaat.\n\nOm dit op te lossen:\n1. Volg de [stappen voor ADB-toestemming]({approval_url}) op het paneel.\n2. Vink **Altijd toestaan vanaf deze computer** aan en tik daarna op **Toestaan**.\n3. Wacht hier; dit gaat vanzelf verder zodra toestemming is gegeven.\n\n[Meer informatie]({learn_more_url})"

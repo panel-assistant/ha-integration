@@ -921,7 +921,7 @@
           "permissions_unreadable": "Home Assistant non ha potuto verificare tutte le autorizzazioni necessarie. Verifica che il pannello sia connesso, poi seleziona di nuovo Invia."
         },
         "abort": {
-          "entry_removed": "Questo pannello è stato rimosso.\n\n[Scopri di più]({learn_more_url})"
+          "entry_removed": "Questo pannello non è più configurato in Home Assistant.\n\nPer risolvere:\n1. [Apri i dispositivi di Panel Assistant](/config/integrations/integration/panel_assistant) se vuoi aggiungerlo di nuovo.\n2. Altrimenti, chiudi questa finestra.\n\n[Scopri di più]({learn_more_url})"
         }
       }
     },
@@ -940,7 +940,7 @@
           "proximity_unreadable": "Home Assistant non ha potuto leggere lo stato di prossimità del pannello. Verifica che sia connesso e invia di nuovo."
         },
         "abort": {
-          "entry_removed": "Questo pannello è stato rimosso.\n\n[Scopri di più]({learn_more_url})"
+          "entry_removed": "Questo pannello non è più configurato in Home Assistant.\n\nPer risolvere:\n1. [Apri i dispositivi di Panel Assistant](/config/integrations/integration/panel_assistant) se vuoi aggiungerlo di nuovo.\n2. Altrimenti, chiudi questa finestra.\n\n[Scopri di più]({learn_more_url})"
         }
       }
     },
@@ -993,8 +993,8 @@
           }
         },
         "abort": {
-          "entry_removed": "Questo pannello non è più configurato in Home Assistant.\n\n[Scopri di più]({learn_more_url})",
-          "user_unavailable": "L'utente che ha effettuato la richiesta non esiste più o è disattivato; non è stato modificato nulla.\n\n[Scopri di più]({learn_more_url})"
+          "entry_removed": "Questo pannello non è più configurato in Home Assistant.\n\nPer risolvere:\n1. [Apri i dispositivi di Panel Assistant](/config/integrations/integration/panel_assistant) se vuoi aggiungerlo di nuovo.\n2. Altrimenti, chiudi questa finestra.\n\n[Scopri di più]({learn_more_url})",
+          "user_unavailable": "L'utente che ha effettuato la richiesta non esiste più o è disattivato; non è stato modificato nulla.\n\nPer risolvere:\n1. [Controlla l'accesso del pannello]({configure_url}).\n2. Effettua l'accesso con l'account attivo che vuoi usare su questo pannello, poi conferma solo una richiesta che riconosci.\n\n[Scopri di più]({learn_more_url})"
         }
       }
     },
@@ -1033,7 +1033,7 @@
           }
         },
         "progress": {
-          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza.\n\n[Scopri di più]({learn_more_url})"
+          "retrying": "Home Assistant sta controllando il pannello e ritentando l'operazione salvata.\n\nPer risolvere:\n1. Leggi le [indicazioni per il nuovo tentativo]({repair_url}) se necessario.\n2. Attendi qui il risultato prima di decidere come procedere.\n\n[Scopri di più]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
@@ -1075,7 +1075,7 @@
           }
         },
         "progress": {
-          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza.\n\n[Scopri di più]({learn_more_url})"
+          "retrying": "Home Assistant sta controllando il pannello e ritentando l'operazione salvata.\n\nPer risolvere:\n1. Leggi le [indicazioni per il nuovo tentativo]({repair_url}) se necessario.\n2. Attendi qui il risultato prima di decidere come procedere.\n\n[Scopri di più]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
@@ -1117,7 +1117,7 @@
           }
         },
         "progress": {
-          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza.\n\n[Scopri di più]({learn_more_url})"
+          "retrying": "Home Assistant sta controllando il pannello e ritentando l'operazione salvata.\n\nPer risolvere:\n1. Leggi le [indicazioni per il nuovo tentativo]({repair_url}) se necessario.\n2. Attendi qui il risultato prima di decidere come procedere.\n\n[Scopri di più]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
@@ -1159,7 +1159,7 @@
           }
         },
         "progress": {
-          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza.\n\n[Scopri di più]({learn_more_url})"
+          "retrying": "Home Assistant sta controllando il pannello e ritentando l'operazione salvata.\n\nPer risolvere:\n1. Leggi le [indicazioni per il nuovo tentativo]({repair_url}) se necessario.\n2. Attendi qui il risultato prima di decidere come procedere.\n\n[Scopri di più]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
@@ -1201,7 +1201,7 @@
           }
         },
         "progress": {
-          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza.\n\n[Scopri di più]({learn_more_url})"
+          "retrying": "Home Assistant sta controllando il pannello e ritentando l'operazione salvata.\n\nPer risolvere:\n1. Leggi le [indicazioni per il nuovo tentativo]({repair_url}) se necessario.\n2. Attendi qui il risultato prima di decidere come procedere.\n\n[Scopri di più]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
@@ -1243,7 +1243,7 @@
           }
         },
         "progress": {
-          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza.\n\n[Scopri di più]({learn_more_url})"
+          "retrying": "Home Assistant sta controllando il pannello e ritentando l'operazione salvata.\n\nPer risolvere:\n1. Leggi le [indicazioni per il nuovo tentativo]({repair_url}) se necessario.\n2. Attendi qui il risultato prima di decidere come procedere.\n\n[Scopri di più]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
@@ -1285,7 +1285,7 @@
           }
         },
         "progress": {
-          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza.\n\n[Scopri di più]({learn_more_url})"
+          "retrying": "Home Assistant sta controllando il pannello e ritentando l'operazione salvata.\n\nPer risolvere:\n1. Leggi le [indicazioni per il nuovo tentativo]({repair_url}) se necessario.\n2. Attendi qui il risultato prima di decidere come procedere.\n\n[Scopri di più]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
@@ -1327,7 +1327,7 @@
           }
         },
         "progress": {
-          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza.\n\n[Scopri di più]({learn_more_url})"
+          "retrying": "Home Assistant sta controllando il pannello e ritentando l'operazione salvata.\n\nPer risolvere:\n1. Leggi le [indicazioni per il nuovo tentativo]({repair_url}) se necessario.\n2. Attendi qui il risultato prima di decidere come procedere.\n\n[Scopri di più]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
@@ -1369,7 +1369,7 @@
           }
         },
         "progress": {
-          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza.\n\n[Scopri di più]({learn_more_url})"
+          "retrying": "Home Assistant sta controllando il pannello e ritentando l'operazione salvata.\n\nPer risolvere:\n1. Leggi le [indicazioni per il nuovo tentativo]({repair_url}) se necessario.\n2. Attendi qui il risultato prima di decidere come procedere.\n\n[Scopri di più]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
@@ -1411,7 +1411,7 @@
           }
         },
         "progress": {
-          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza.\n\n[Scopri di più]({learn_more_url})"
+          "retrying": "Home Assistant sta controllando il pannello e ritentando l'operazione salvata.\n\nPer risolvere:\n1. Leggi le [indicazioni per il nuovo tentativo]({repair_url}) se necessario.\n2. Attendi qui il risultato prima di decidere come procedere.\n\n[Scopri di più]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
@@ -1458,7 +1458,7 @@
           }
         },
         "progress": {
-          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza.\n\n[Scopri di più]({learn_more_url})",
+          "retrying": "Home Assistant sta controllando il pannello e ritentando l'operazione salvata.\n\nPer risolvere:\n1. Leggi le [indicazioni per il nuovo tentativo]({repair_url}) se necessario.\n2. Attendi qui il risultato prima di decidere come procedere.\n\n[Scopri di più]({learn_more_url})",
           "authorize_adb": "È ancora necessaria l'autorizzazione di Android su {panel}.\n\nPer risolvere:\n1. Leggi i [passaggi per autorizzare ADB]({approval_url}).\n2. Su {panel}, spunta **Consenti sempre da questo computer**, poi tocca **Consenti**.\n\nLa procedura prosegue automaticamente dopo l'autorizzazione.\n\n[Scopri di più]({learn_more_url})"
         },
         "error": {
@@ -1486,7 +1486,7 @@
           "panel_identity_changed": "L’indirizzo non risponde più come questo pannello configurato. Controlla il pannello e il suo indirizzo prima di riprovare."
         },
         "abort": {
-          "entry_removed": "Questo pannello è stato rimosso.\n\n[Scopri di più]({learn_more_url})"
+          "entry_removed": "Questo pannello non è più configurato in Home Assistant.\n\nPer risolvere:\n1. [Apri i dispositivi di Panel Assistant](/config/integrations/integration/panel_assistant) se vuoi aggiungerlo di nuovo.\n2. Altrimenti, chiudi questa finestra.\n\n[Scopri di più]({learn_more_url})"
         }
       }
     },
@@ -1517,7 +1517,7 @@
           }
         },
         "progress": {
-          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza.\n\n[Scopri di più]({learn_more_url})"
+          "retrying": "Home Assistant sta controllando il pannello e ritentando l'operazione salvata.\n\nPer risolvere:\n1. Leggi le [indicazioni per il nuovo tentativo]({repair_url}) se necessario.\n2. Attendi qui il risultato prima di decidere come procedere.\n\n[Scopri di più]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
@@ -1531,7 +1531,7 @@
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         },
         "abort": {
-          "entry_removed": "Questo pannello è stato rimosso.\n\n[Scopri di più]({learn_more_url})"
+          "entry_removed": "Questo pannello non è più configurato in Home Assistant.\n\nPer risolvere:\n1. [Apri i dispositivi di Panel Assistant](/config/integrations/integration/panel_assistant) se vuoi aggiungerlo di nuovo.\n2. Altrimenti, chiudi questa finestra.\n\n[Scopri di più]({learn_more_url})"
         }
       }
     },
@@ -1561,8 +1561,8 @@
           }
         },
         "abort": {
-          "entry_removed": "Questo pannello è stato rimosso.\n\n[Scopri di più]({learn_more_url})",
-          "identity_changed": "Un pannello elencato è cambiato mentre questa conferma era aperta; apri la riparazione più recente e controlla di nuovo l'elenco.\n\n[Scopri di più]({learn_more_url})"
+          "entry_removed": "Questo pannello non è più configurato in Home Assistant.\n\nPer risolvere:\n1. [Apri i dispositivi di Panel Assistant](/config/integrations/integration/panel_assistant) se vuoi aggiungerlo di nuovo.\n2. Altrimenti, chiudi questa finestra.\n\n[Scopri di più]({learn_more_url})",
+          "identity_changed": "Un pannello elencato è cambiato mentre questa conferma era aperta.\n\nPer risolvere:\n1. [Apri Riparazioni](/config/repairs) e apri la conferma dei pannelli più recente.\n2. Controlla ogni pannello elencato prima di selezionare Invia.\n\n[Scopri di più]({learn_more_url})"
         },
         "error": {
           "cannot_connect": "Non è possibile raggiungere tutti i pannelli elencati; controlla le loro connessioni e riprova."
@@ -1601,7 +1601,7 @@
           }
         },
         "progress": {
-          "retrying": "Controllo del pannello e nuovo tentativo in sicurezza.\n\n[Scopri di più]({learn_more_url})",
+          "retrying": "Home Assistant sta controllando il pannello e ritentando l'operazione salvata.\n\nPer risolvere:\n1. Leggi le [indicazioni per il nuovo tentativo]({repair_url}) se necessario.\n2. Attendi qui il risultato prima di decidere come procedere.\n\n[Scopri di più]({learn_more_url})",
           "authorize_adb": "È ancora necessaria l'autorizzazione di Android su {panel}.\n\nPer risolvere:\n1. Leggi i [passaggi per autorizzare ADB]({approval_url}).\n2. Su {panel}, spunta **Consenti sempre da questo computer**, poi tocca **Consenti**.\n\nLa procedura prosegue automaticamente dopo l'autorizzazione.\n\n[Scopri di più]({learn_more_url})"
         },
         "error": {
@@ -1629,7 +1629,7 @@
           "panel_identity_changed": "L’indirizzo non risponde più come questo pannello configurato. Controlla il pannello e il suo indirizzo prima di riprovare."
         },
         "abort": {
-          "entry_removed": "Questo pannello è stato rimosso.\n\n[Scopri di più]({learn_more_url})"
+          "entry_removed": "Questo pannello non è più configurato in Home Assistant.\n\nPer risolvere:\n1. [Apri i dispositivi di Panel Assistant](/config/integrations/integration/panel_assistant) se vuoi aggiungerlo di nuovo.\n2. Altrimenti, chiudi questa finestra.\n\n[Scopri di più]({learn_more_url})"
         }
       }
     },
@@ -1658,7 +1658,7 @@
           "panel_identity_changed": "L’indirizzo non risponde più come questo pannello configurato. Controlla il pannello e il suo indirizzo prima di riprovare."
         },
         "abort": {
-          "entry_removed": "Questo pannello è stato rimosso.\n\n[Scopri di più]({learn_more_url})"
+          "entry_removed": "Questo pannello non è più configurato in Home Assistant.\n\nPer risolvere:\n1. [Apri i dispositivi di Panel Assistant](/config/integrations/integration/panel_assistant) se vuoi aggiungerlo di nuovo.\n2. Altrimenti, chiudi questa finestra.\n\n[Scopri di più]({learn_more_url})"
         },
         "progress": {
           "authorize_adb": "Home Assistant attende che {panel} autorizzi gli aggiornamenti.\n\nPer risolvere:\n1. Segui i [passaggi per autorizzare ADB]({approval_url}) sul pannello.\n2. Spunta **Consenti sempre da questo computer**, poi tocca **Consenti**.\n3. Attendi qui; la procedura prosegue automaticamente dopo l'autorizzazione.\n\n[Scopri di più]({learn_more_url})"

@@ -921,7 +921,7 @@
           "permissions_unreadable": "Home Assistant nemohl ověřit všechna požadovaná oprávnění. Zkontrolujte, zda je panel připojený, a poté znovu zvolte Odeslat."
         },
         "abort": {
-          "entry_removed": "Tento panel byl odstraněn.\n\n[Další informace]({learn_more_url})"
+          "entry_removed": "Tento panel již není nastaven v Home Assistant.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant](/config/integrations/integration/panel_assistant), pokud ho chcete znovu přidat.\n2. Jinak tento dialog zavřete.\n\n[Další informace]({learn_more_url})"
         }
       }
     },
@@ -940,7 +940,7 @@
           "proximity_unreadable": "Home Assistant nemohl zjistit stav detekce přiblížení na panelu. Zkontrolujte, že je panel připojený, a poté formulář znovu odešlete."
         },
         "abort": {
-          "entry_removed": "Tento panel byl odstraněn.\n\n[Další informace]({learn_more_url})"
+          "entry_removed": "Tento panel již není nastaven v Home Assistant.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant](/config/integrations/integration/panel_assistant), pokud ho chcete znovu přidat.\n2. Jinak tento dialog zavřete.\n\n[Další informace]({learn_more_url})"
         }
       }
     },
@@ -993,8 +993,8 @@
           }
         },
         "abort": {
-          "entry_removed": "Tento panel již není nastaven v Home Assistant.\n\n[Další informace]({learn_more_url})",
-          "user_unavailable": "Žádající uživatel již neexistuje nebo je deaktivovaný; nic se nezměnilo.\n\n[Další informace]({learn_more_url})"
+          "entry_removed": "Tento panel již není nastaven v Home Assistant.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant](/config/integrations/integration/panel_assistant), pokud ho chcete znovu přidat.\n2. Jinak tento dialog zavřete.\n\n[Další informace]({learn_more_url})",
+          "user_unavailable": "Žádající uživatel již neexistuje nebo je deaktivovaný; nic se nezměnilo.\n\nPostup opravy:\n1. [Zkontrolujte přihlášení panelu]({configure_url}).\n2. Přihlaste se aktivním účtem, který má tento panel používat, a poté potvrďte pouze požadavek, který poznáváte.\n\n[Další informace]({learn_more_url})"
         }
       }
     },
@@ -1033,7 +1033,7 @@
           }
         },
         "progress": {
-          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
+          "retrying": "Home Assistant kontroluje panel a opakuje uloženou operaci.\n\nPostup opravy:\n1. V případě potřeby si přečtěte [pokyny k opakování pokusu]({repair_url}).\n2. Než se rozhodnete, co udělat dál, počkejte zde na výsledek.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1075,7 +1075,7 @@
           }
         },
         "progress": {
-          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
+          "retrying": "Home Assistant kontroluje panel a opakuje uloženou operaci.\n\nPostup opravy:\n1. V případě potřeby si přečtěte [pokyny k opakování pokusu]({repair_url}).\n2. Než se rozhodnete, co udělat dál, počkejte zde na výsledek.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1117,7 +1117,7 @@
           }
         },
         "progress": {
-          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
+          "retrying": "Home Assistant kontroluje panel a opakuje uloženou operaci.\n\nPostup opravy:\n1. V případě potřeby si přečtěte [pokyny k opakování pokusu]({repair_url}).\n2. Než se rozhodnete, co udělat dál, počkejte zde na výsledek.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1159,7 +1159,7 @@
           }
         },
         "progress": {
-          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
+          "retrying": "Home Assistant kontroluje panel a opakuje uloženou operaci.\n\nPostup opravy:\n1. V případě potřeby si přečtěte [pokyny k opakování pokusu]({repair_url}).\n2. Než se rozhodnete, co udělat dál, počkejte zde na výsledek.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1201,7 +1201,7 @@
           }
         },
         "progress": {
-          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
+          "retrying": "Home Assistant kontroluje panel a opakuje uloženou operaci.\n\nPostup opravy:\n1. V případě potřeby si přečtěte [pokyny k opakování pokusu]({repair_url}).\n2. Než se rozhodnete, co udělat dál, počkejte zde na výsledek.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1243,7 +1243,7 @@
           }
         },
         "progress": {
-          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
+          "retrying": "Home Assistant kontroluje panel a opakuje uloženou operaci.\n\nPostup opravy:\n1. V případě potřeby si přečtěte [pokyny k opakování pokusu]({repair_url}).\n2. Než se rozhodnete, co udělat dál, počkejte zde na výsledek.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1285,7 +1285,7 @@
           }
         },
         "progress": {
-          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
+          "retrying": "Home Assistant kontroluje panel a opakuje uloženou operaci.\n\nPostup opravy:\n1. V případě potřeby si přečtěte [pokyny k opakování pokusu]({repair_url}).\n2. Než se rozhodnete, co udělat dál, počkejte zde na výsledek.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1327,7 +1327,7 @@
           }
         },
         "progress": {
-          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
+          "retrying": "Home Assistant kontroluje panel a opakuje uloženou operaci.\n\nPostup opravy:\n1. V případě potřeby si přečtěte [pokyny k opakování pokusu]({repair_url}).\n2. Než se rozhodnete, co udělat dál, počkejte zde na výsledek.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1369,7 +1369,7 @@
           }
         },
         "progress": {
-          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
+          "retrying": "Home Assistant kontroluje panel a opakuje uloženou operaci.\n\nPostup opravy:\n1. V případě potřeby si přečtěte [pokyny k opakování pokusu]({repair_url}).\n2. Než se rozhodnete, co udělat dál, počkejte zde na výsledek.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1411,7 +1411,7 @@
           }
         },
         "progress": {
-          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
+          "retrying": "Home Assistant kontroluje panel a opakuje uloženou operaci.\n\nPostup opravy:\n1. V případě potřeby si přečtěte [pokyny k opakování pokusu]({repair_url}).\n2. Než se rozhodnete, co udělat dál, počkejte zde na výsledek.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1458,7 +1458,7 @@
           }
         },
         "progress": {
-          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})",
+          "retrying": "Home Assistant kontroluje panel a opakuje uloženou operaci.\n\nPostup opravy:\n1. V případě potřeby si přečtěte [pokyny k opakování pokusu]({repair_url}).\n2. Než se rozhodnete, co udělat dál, počkejte zde na výsledek.\n\n[Další informace]({learn_more_url})",
           "authorize_adb": "Na panelu {panel} je stále potřeba schválení v systému Android.\n\nPostup opravy:\n1. Přečtěte si [postup schválení ADB]({approval_url}).\n2. Na panelu {panel} zaškrtněte **Vždy povolit z tohoto počítače** a poté klepněte na **Povolit**.\n\nPo schválení se bude pokračovat automaticky.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
@@ -1486,7 +1486,7 @@
           "panel_identity_changed": "Zařízení na této adrese už neodpovídá jako tento nakonfigurovaný panel. Před opakovaným pokusem zkontrolujte panel a jeho adresu."
         },
         "abort": {
-          "entry_removed": "Tento panel byl odstraněn.\n\n[Další informace]({learn_more_url})"
+          "entry_removed": "Tento panel již není nastaven v Home Assistant.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant](/config/integrations/integration/panel_assistant), pokud ho chcete znovu přidat.\n2. Jinak tento dialog zavřete.\n\n[Další informace]({learn_more_url})"
         }
       }
     },
@@ -1517,7 +1517,7 @@
           }
         },
         "progress": {
-          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})"
+          "retrying": "Home Assistant kontroluje panel a opakuje uloženou operaci.\n\nPostup opravy:\n1. V případě potřeby si přečtěte [pokyny k opakování pokusu]({repair_url}).\n2. Než se rozhodnete, co udělat dál, počkejte zde na výsledek.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
@@ -1531,7 +1531,7 @@
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         },
         "abort": {
-          "entry_removed": "Tento panel byl odstraněn.\n\n[Další informace]({learn_more_url})"
+          "entry_removed": "Tento panel již není nastaven v Home Assistant.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant](/config/integrations/integration/panel_assistant), pokud ho chcete znovu přidat.\n2. Jinak tento dialog zavřete.\n\n[Další informace]({learn_more_url})"
         }
       }
     },
@@ -1561,8 +1561,8 @@
           }
         },
         "abort": {
-          "entry_removed": "Tento panel byl odstraněn.\n\n[Další informace]({learn_more_url})",
-          "identity_changed": "Některý uvedený panel se změnil, zatímco bylo toto potvrzení otevřené; otevřete nejnovější opravu a seznam znovu zkontrolujte.\n\n[Další informace]({learn_more_url})"
+          "entry_removed": "Tento panel již není nastaven v Home Assistant.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant](/config/integrations/integration/panel_assistant), pokud ho chcete znovu přidat.\n2. Jinak tento dialog zavřete.\n\n[Další informace]({learn_more_url})",
+          "identity_changed": "Některý uvedený panel se změnil, zatímco bylo toto potvrzení otevřené.\n\nPostup opravy:\n1. [Otevřete Opravy](/config/repairs) a otevřete nejnovější potvrzení panelů.\n2. Před volbou Odeslat zkontrolujte každý uvedený panel.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "cannot_connect": "Nelze se spojit se všemi uvedenými panely; zkontrolujte jejich připojení a zkuste to znovu."
@@ -1601,7 +1601,7 @@
           }
         },
         "progress": {
-          "retrying": "Probíhá kontrola panelu a bezpečné opakování pokusu.\n\n[Další informace]({learn_more_url})",
+          "retrying": "Home Assistant kontroluje panel a opakuje uloženou operaci.\n\nPostup opravy:\n1. V případě potřeby si přečtěte [pokyny k opakování pokusu]({repair_url}).\n2. Než se rozhodnete, co udělat dál, počkejte zde na výsledek.\n\n[Další informace]({learn_more_url})",
           "authorize_adb": "Na panelu {panel} je stále potřeba schválení v systému Android.\n\nPostup opravy:\n1. Přečtěte si [postup schválení ADB]({approval_url}).\n2. Na panelu {panel} zaškrtněte **Vždy povolit z tohoto počítače** a poté klepněte na **Povolit**.\n\nPo schválení se bude pokračovat automaticky.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
@@ -1629,7 +1629,7 @@
           "panel_identity_changed": "Na této adrese už neodpovídá nastavený panel. Před dalším pokusem zkontrolujte panel a jeho adresu."
         },
         "abort": {
-          "entry_removed": "Tento panel byl odstraněn.\n\n[Další informace]({learn_more_url})"
+          "entry_removed": "Tento panel již není nastaven v Home Assistant.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant](/config/integrations/integration/panel_assistant), pokud ho chcete znovu přidat.\n2. Jinak tento dialog zavřete.\n\n[Další informace]({learn_more_url})"
         }
       }
     },
@@ -1658,7 +1658,7 @@
           "panel_identity_changed": "Na této adrese už neodpovídá nastavený panel. Před dalším pokusem zkontrolujte panel a jeho adresu."
         },
         "abort": {
-          "entry_removed": "Tento panel byl odstraněn.\n\n[Další informace]({learn_more_url})"
+          "entry_removed": "Tento panel již není nastaven v Home Assistant.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant](/config/integrations/integration/panel_assistant), pokud ho chcete znovu přidat.\n2. Jinak tento dialog zavřete.\n\n[Další informace]({learn_more_url})"
         },
         "progress": {
           "authorize_adb": "Home Assistant čeká, až panel {panel} povolí aktualizace.\n\nPostup opravy:\n1. Na panelu postupujte podle [pokynů ke schválení ADB]({approval_url}).\n2. Zaškrtněte **Vždy povolit z tohoto počítače** a poté klepněte na **Povolit**.\n3. Počkejte zde; po schválení se bude pokračovat automaticky.\n\n[Další informace]({learn_more_url})"

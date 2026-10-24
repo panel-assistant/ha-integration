@@ -921,7 +921,7 @@
           "permissions_unreadable": "Home Assistant could not verify every required permission. Check that the panel is connected, then select Submit again."
         },
         "abort": {
-          "entry_removed": "This panel has been removed.\n\n[Learn more]({learn_more_url})"
+          "entry_removed": "This panel is no longer set up in Home Assistant.\n\nTo fix:\n1. [Open Panel Assistant devices](/config/integrations/integration/panel_assistant) if you want to add it again.\n2. Otherwise, close this dialog.\n\n[Learn more]({learn_more_url})"
         }
       }
     },
@@ -940,7 +940,7 @@
           "proximity_unreadable": "Home Assistant could not read the panel's proximity state. Check that the panel is connected, then submit again."
         },
         "abort": {
-          "entry_removed": "This panel has been removed.\n\n[Learn more]({learn_more_url})"
+          "entry_removed": "This panel is no longer set up in Home Assistant.\n\nTo fix:\n1. [Open Panel Assistant devices](/config/integrations/integration/panel_assistant) if you want to add it again.\n2. Otherwise, close this dialog.\n\n[Learn more]({learn_more_url})"
         }
       }
     },
@@ -993,8 +993,8 @@
           }
         },
         "abort": {
-          "entry_removed": "This panel is no longer set up in Home Assistant.\n\n[Learn more]({learn_more_url})",
-          "user_unavailable": "The requesting user no longer exists or is deactivated; nothing was changed.\n\n[Learn more]({learn_more_url})"
+          "entry_removed": "This panel is no longer set up in Home Assistant.\n\nTo fix:\n1. [Open Panel Assistant devices](/config/integrations/integration/panel_assistant) if you want to add it again.\n2. Otherwise, close this dialog.\n\n[Learn more]({learn_more_url})",
+          "user_unavailable": "The requesting user no longer exists or is deactivated; nothing was changed.\n\nTo fix:\n1. [Check the panel’s sign-in]({configure_url}).\n2. Sign in with the active account you want this panel to use, then confirm only a request you recognise.\n\n[Learn more]({learn_more_url})"
         }
       }
     },
@@ -1033,7 +1033,7 @@
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1075,7 +1075,7 @@
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1117,7 +1117,7 @@
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1159,7 +1159,7 @@
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1201,7 +1201,7 @@
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1243,7 +1243,7 @@
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1285,7 +1285,7 @@
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1327,7 +1327,7 @@
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1369,7 +1369,7 @@
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1411,7 +1411,7 @@
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1458,7 +1458,7 @@
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely.\n\n[Learn more]({learn_more_url})",
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})",
           "authorize_adb": "Android approval on {panel} is still needed.\n\nTo fix:\n1. Read the [ADB approval steps]({approval_url}).\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n\nThis continues automatically after approval.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
@@ -1486,7 +1486,7 @@
           "panel_identity_changed": "The address no longer answers as this configured panel. Check the panel and its address before retrying."
         },
         "abort": {
-          "entry_removed": "This panel has been removed.\n\n[Learn more]({learn_more_url})"
+          "entry_removed": "This panel is no longer set up in Home Assistant.\n\nTo fix:\n1. [Open Panel Assistant devices](/config/integrations/integration/panel_assistant) if you want to add it again.\n2. Otherwise, close this dialog.\n\n[Learn more]({learn_more_url})"
         }
       }
     },
@@ -1517,7 +1517,7 @@
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1531,7 +1531,7 @@
           "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
         },
         "abort": {
-          "entry_removed": "This panel has been removed.\n\n[Learn more]({learn_more_url})"
+          "entry_removed": "This panel is no longer set up in Home Assistant.\n\nTo fix:\n1. [Open Panel Assistant devices](/config/integrations/integration/panel_assistant) if you want to add it again.\n2. Otherwise, close this dialog.\n\n[Learn more]({learn_more_url})"
         }
       }
     },
@@ -1561,8 +1561,8 @@
           }
         },
         "abort": {
-          "entry_removed": "This panel has been removed.\n\n[Learn more]({learn_more_url})",
-          "identity_changed": "A listed panel changed while this confirmation was open; open the latest Repair and check the list again.\n\n[Learn more]({learn_more_url})"
+          "entry_removed": "This panel is no longer set up in Home Assistant.\n\nTo fix:\n1. [Open Panel Assistant devices](/config/integrations/integration/panel_assistant) if you want to add it again.\n2. Otherwise, close this dialog.\n\n[Learn more]({learn_more_url})",
+          "identity_changed": "A listed panel changed while this confirmation was open.\n\nTo fix:\n1. [Open Repairs](/config/repairs) and open the latest panel confirmation.\n2. Check every listed panel before selecting Submit.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "cannot_connect": "Cannot reach every listed panel; check their connections and try again."
@@ -1601,7 +1601,7 @@
           }
         },
         "progress": {
-          "retrying": "Checking the panel and retrying safely.\n\n[Learn more]({learn_more_url})",
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})",
           "authorize_adb": "Android approval on {panel} is still needed.\n\nTo fix:\n1. Read the [ADB approval steps]({approval_url}).\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n\nThis continues automatically after approval.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
@@ -1629,7 +1629,7 @@
           "panel_identity_changed": "The address no longer answers as this configured panel. Check the panel and its address before retrying."
         },
         "abort": {
-          "entry_removed": "This panel has been removed.\n\n[Learn more]({learn_more_url})"
+          "entry_removed": "This panel is no longer set up in Home Assistant.\n\nTo fix:\n1. [Open Panel Assistant devices](/config/integrations/integration/panel_assistant) if you want to add it again.\n2. Otherwise, close this dialog.\n\n[Learn more]({learn_more_url})"
         }
       }
     },
@@ -1658,7 +1658,7 @@
           "panel_identity_changed": "The address no longer answers as this configured panel. Check the panel and its address before retrying."
         },
         "abort": {
-          "entry_removed": "This panel has been removed.\n\n[Learn more]({learn_more_url})"
+          "entry_removed": "This panel is no longer set up in Home Assistant.\n\nTo fix:\n1. [Open Panel Assistant devices](/config/integrations/integration/panel_assistant) if you want to add it again.\n2. Otherwise, close this dialog.\n\n[Learn more]({learn_more_url})"
         },
         "progress": {
           "authorize_adb": "Home Assistant is waiting for {panel} to allow updates.\n\nTo fix:\n1. Follow the [ADB approval steps]({approval_url}) on the panel.\n2. Tick **Always allow from this computer**, then tap **Allow**.\n3. Wait here; this continues automatically after approval.\n\n[Learn more]({learn_more_url})"

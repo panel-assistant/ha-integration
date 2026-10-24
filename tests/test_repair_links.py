@@ -120,16 +120,17 @@ async def test_repair_descriptions_have_short_linked_fix_steps(
     """The published English copy contract is rendered by Core's real loader."""
     assert await async_setup_component(hass, DOMAIN, {})
     strings = await async_get_translations(hass, "en", "issues", {DOMAIN})
-    descriptions = {
-        key: value for key, value in strings.items() if key.endswith(".description")
+    bodies = {
+        key: value
+        for key, value in strings.items()
+        if key.endswith(".description")
+        or ".fix_flow.progress." in key
+        or ".fix_flow.abort." in key
     }
-    assert descriptions
-    for key, text in descriptions.items():
+    assert bodies
+    for key, text in bodies.items():
         steps = re.findall(r"^\d\. (.+)$", text, re.MULTILINE)
         assert "\n\nTo fix:\n" in text and 1 <= len(steps) <= 3, key
         assert re.search(r"\[[^]]+\]\([^)]+\)", steps[0]), key
-    for key, text in strings.items():
-        if ".fix_flow." in key and (
-            key.endswith(".description") or ".progress." in key or ".abort." in key
-        ):
+        if ".fix_flow." in key:
             assert "[Learn more]({learn_more_url})" in text, key

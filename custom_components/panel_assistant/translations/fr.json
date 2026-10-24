@@ -921,7 +921,7 @@
           "permissions_unreadable": "Home Assistant n’a pas pu vérifier toutes les autorisations requises. Vérifiez que le panneau est connecté, puis sélectionnez à nouveau Valider."
         },
         "abort": {
-          "entry_removed": "Ce panneau a été supprimé.\n\n[En savoir plus]({learn_more_url})"
+          "entry_removed": "Ce panneau n’est plus configuré dans Home Assistant.\n\nPour corriger le problème :\n1. [Ouvrez les appareils Panel Assistant](/config/integrations/integration/panel_assistant) si vous souhaitez l’ajouter à nouveau.\n2. Sinon, fermez cette boîte de dialogue.\n\n[En savoir plus]({learn_more_url})"
         }
       }
     },
@@ -940,7 +940,7 @@
           "proximity_unreadable": "Home Assistant n’a pas pu lire l’état de proximité du panneau. Vérifiez sa connexion, puis validez à nouveau."
         },
         "abort": {
-          "entry_removed": "Ce panneau a été supprimé.\n\n[En savoir plus]({learn_more_url})"
+          "entry_removed": "Ce panneau n’est plus configuré dans Home Assistant.\n\nPour corriger le problème :\n1. [Ouvrez les appareils Panel Assistant](/config/integrations/integration/panel_assistant) si vous souhaitez l’ajouter à nouveau.\n2. Sinon, fermez cette boîte de dialogue.\n\n[En savoir plus]({learn_more_url})"
         }
       }
     },
@@ -993,8 +993,8 @@
           }
         },
         "abort": {
-          "entry_removed": "Ce panneau n’est plus configuré dans Home Assistant.\n\n[En savoir plus]({learn_more_url})",
-          "user_unavailable": "L’utilisateur à l’origine de la demande n’existe plus ou est désactivé ; rien n’a été modifié.\n\n[En savoir plus]({learn_more_url})"
+          "entry_removed": "Ce panneau n’est plus configuré dans Home Assistant.\n\nPour corriger le problème :\n1. [Ouvrez les appareils Panel Assistant](/config/integrations/integration/panel_assistant) si vous souhaitez l’ajouter à nouveau.\n2. Sinon, fermez cette boîte de dialogue.\n\n[En savoir plus]({learn_more_url})",
+          "user_unavailable": "L’utilisateur à l’origine de la demande n’existe plus ou est désactivé ; rien n’a été modifié.\n\nPour corriger le problème :\n1. [Vérifiez la connexion du panneau]({configure_url}).\n2. Connectez-vous avec le compte actif que ce panneau doit utiliser, puis confirmez uniquement une demande que vous reconnaissez.\n\n[En savoir plus]({learn_more_url})"
         }
       }
     },
@@ -1033,7 +1033,7 @@
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
+          "retrying": "Home Assistant vérifie le panneau et relance l’opération enregistrée.\n\nPour corriger le problème :\n1. Lisez les [conseils pour la nouvelle tentative]({repair_url}) si nécessaire.\n2. Attendez ici le résultat avant de décider de la suite.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1075,7 +1075,7 @@
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
+          "retrying": "Home Assistant vérifie le panneau et relance l’opération enregistrée.\n\nPour corriger le problème :\n1. Lisez les [conseils pour la nouvelle tentative]({repair_url}) si nécessaire.\n2. Attendez ici le résultat avant de décider de la suite.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1117,7 +1117,7 @@
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
+          "retrying": "Home Assistant vérifie le panneau et relance l’opération enregistrée.\n\nPour corriger le problème :\n1. Lisez les [conseils pour la nouvelle tentative]({repair_url}) si nécessaire.\n2. Attendez ici le résultat avant de décider de la suite.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1159,7 +1159,7 @@
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
+          "retrying": "Home Assistant vérifie le panneau et relance l’opération enregistrée.\n\nPour corriger le problème :\n1. Lisez les [conseils pour la nouvelle tentative]({repair_url}) si nécessaire.\n2. Attendez ici le résultat avant de décider de la suite.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1201,7 +1201,7 @@
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
+          "retrying": "Home Assistant vérifie le panneau et relance l’opération enregistrée.\n\nPour corriger le problème :\n1. Lisez les [conseils pour la nouvelle tentative]({repair_url}) si nécessaire.\n2. Attendez ici le résultat avant de décider de la suite.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1243,7 +1243,7 @@
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
+          "retrying": "Home Assistant vérifie le panneau et relance l’opération enregistrée.\n\nPour corriger le problème :\n1. Lisez les [conseils pour la nouvelle tentative]({repair_url}) si nécessaire.\n2. Attendez ici le résultat avant de décider de la suite.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1285,7 +1285,7 @@
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
+          "retrying": "Home Assistant vérifie le panneau et relance l’opération enregistrée.\n\nPour corriger le problème :\n1. Lisez les [conseils pour la nouvelle tentative]({repair_url}) si nécessaire.\n2. Attendez ici le résultat avant de décider de la suite.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1327,7 +1327,7 @@
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
+          "retrying": "Home Assistant vérifie le panneau et relance l’opération enregistrée.\n\nPour corriger le problème :\n1. Lisez les [conseils pour la nouvelle tentative]({repair_url}) si nécessaire.\n2. Attendez ici le résultat avant de décider de la suite.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1369,7 +1369,7 @@
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
+          "retrying": "Home Assistant vérifie le panneau et relance l’opération enregistrée.\n\nPour corriger le problème :\n1. Lisez les [conseils pour la nouvelle tentative]({repair_url}) si nécessaire.\n2. Attendez ici le résultat avant de décider de la suite.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1411,7 +1411,7 @@
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
+          "retrying": "Home Assistant vérifie le panneau et relance l’opération enregistrée.\n\nPour corriger le problème :\n1. Lisez les [conseils pour la nouvelle tentative]({repair_url}) si nécessaire.\n2. Attendez ici le résultat avant de décider de la suite.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1458,7 +1458,7 @@
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})",
+          "retrying": "Home Assistant vérifie le panneau et relance l’opération enregistrée.\n\nPour corriger le problème :\n1. Lisez les [conseils pour la nouvelle tentative]({repair_url}) si nécessaire.\n2. Attendez ici le résultat avant de décider de la suite.\n\n[En savoir plus]({learn_more_url})",
           "authorize_adb": "L’autorisation Android sur {panel} est toujours nécessaire.\n\nPour corriger le problème :\n1. Lisez les [étapes d’autorisation ADB]({approval_url}).\n2. Sur {panel}, cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**.\n\nL’opération se poursuit automatiquement après l’autorisation.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
@@ -1486,7 +1486,7 @@
           "panel_identity_changed": "Cette adresse ne répond plus comme le panneau configuré. Vérifiez le panneau et son adresse avant de réessayer."
         },
         "abort": {
-          "entry_removed": "Ce panneau a été supprimé.\n\n[En savoir plus]({learn_more_url})"
+          "entry_removed": "Ce panneau n’est plus configuré dans Home Assistant.\n\nPour corriger le problème :\n1. [Ouvrez les appareils Panel Assistant](/config/integrations/integration/panel_assistant) si vous souhaitez l’ajouter à nouveau.\n2. Sinon, fermez cette boîte de dialogue.\n\n[En savoir plus]({learn_more_url})"
         }
       }
     },
@@ -1517,7 +1517,7 @@
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})"
+          "retrying": "Home Assistant vérifie le panneau et relance l’opération enregistrée.\n\nPour corriger le problème :\n1. Lisez les [conseils pour la nouvelle tentative]({repair_url}) si nécessaire.\n2. Attendez ici le résultat avant de décider de la suite.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
@@ -1531,7 +1531,7 @@
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         },
         "abort": {
-          "entry_removed": "Ce panneau a été supprimé.\n\n[En savoir plus]({learn_more_url})"
+          "entry_removed": "Ce panneau n’est plus configuré dans Home Assistant.\n\nPour corriger le problème :\n1. [Ouvrez les appareils Panel Assistant](/config/integrations/integration/panel_assistant) si vous souhaitez l’ajouter à nouveau.\n2. Sinon, fermez cette boîte de dialogue.\n\n[En savoir plus]({learn_more_url})"
         }
       }
     },
@@ -1561,8 +1561,8 @@
           }
         },
         "abort": {
-          "entry_removed": "Ce panneau a été supprimé.\n\n[En savoir plus]({learn_more_url})",
-          "identity_changed": "Un panneau de la liste a changé pendant que cette confirmation était ouverte ; ouvrez la réparation la plus récente et vérifiez à nouveau la liste.\n\n[En savoir plus]({learn_more_url})"
+          "entry_removed": "Ce panneau n’est plus configuré dans Home Assistant.\n\nPour corriger le problème :\n1. [Ouvrez les appareils Panel Assistant](/config/integrations/integration/panel_assistant) si vous souhaitez l’ajouter à nouveau.\n2. Sinon, fermez cette boîte de dialogue.\n\n[En savoir plus]({learn_more_url})",
+          "identity_changed": "Un panneau de la liste a changé pendant que cette confirmation était ouverte.\n\nPour corriger le problème :\n1. [Ouvrez Réparations](/config/repairs) et ouvrez la confirmation de panneau la plus récente.\n2. Vérifiez chaque panneau indiqué avant de sélectionner Valider.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "cannot_connect": "Impossible de joindre tous les panneaux indiqués ; vérifiez leurs connexions et réessayez."
@@ -1601,7 +1601,7 @@
           }
         },
         "progress": {
-          "retrying": "Vérification du panneau et nouvelle tentative en toute sécurité.\n\n[En savoir plus]({learn_more_url})",
+          "retrying": "Home Assistant vérifie le panneau et relance l’opération enregistrée.\n\nPour corriger le problème :\n1. Lisez les [conseils pour la nouvelle tentative]({repair_url}) si nécessaire.\n2. Attendez ici le résultat avant de décider de la suite.\n\n[En savoir plus]({learn_more_url})",
           "authorize_adb": "L’autorisation Android sur {panel} est toujours nécessaire.\n\nPour corriger le problème :\n1. Lisez les [étapes d’autorisation ADB]({approval_url}).\n2. Sur {panel}, cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**.\n\nL’opération se poursuit automatiquement après l’autorisation.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
@@ -1629,7 +1629,7 @@
           "panel_identity_changed": "Cette adresse ne répond plus comme le panneau configuré. Vérifiez le panneau et son adresse avant de réessayer."
         },
         "abort": {
-          "entry_removed": "Ce panneau a été supprimé.\n\n[En savoir plus]({learn_more_url})"
+          "entry_removed": "Ce panneau n’est plus configuré dans Home Assistant.\n\nPour corriger le problème :\n1. [Ouvrez les appareils Panel Assistant](/config/integrations/integration/panel_assistant) si vous souhaitez l’ajouter à nouveau.\n2. Sinon, fermez cette boîte de dialogue.\n\n[En savoir plus]({learn_more_url})"
         }
       }
     },
@@ -1658,7 +1658,7 @@
           "panel_identity_changed": "Cette adresse ne répond plus comme le panneau configuré. Vérifiez le panneau et son adresse avant de réessayer."
         },
         "abort": {
-          "entry_removed": "Ce panneau a été supprimé.\n\n[En savoir plus]({learn_more_url})"
+          "entry_removed": "Ce panneau n’est plus configuré dans Home Assistant.\n\nPour corriger le problème :\n1. [Ouvrez les appareils Panel Assistant](/config/integrations/integration/panel_assistant) si vous souhaitez l’ajouter à nouveau.\n2. Sinon, fermez cette boîte de dialogue.\n\n[En savoir plus]({learn_more_url})"
         },
         "progress": {
           "authorize_adb": "Home Assistant attend que {panel} autorise les mises à jour.\n\nPour corriger le problème :\n1. Suivez les [étapes d’autorisation ADB]({approval_url}) sur le panneau.\n2. Cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**.\n3. Attendez ici ; l’opération se poursuit automatiquement après l’autorisation.\n\n[En savoir plus]({learn_more_url})"

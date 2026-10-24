@@ -921,7 +921,7 @@
           "permissions_unreadable": "Home Assistant no ha podido verificar todos los permisos necesarios. Comprueba que el panel esté conectado y vuelve a seleccionar Enviar."
         },
         "abort": {
-          "entry_removed": "Este panel se ha eliminado.\n\n[Más información]({learn_more_url})"
+          "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant](/config/integrations/integration/panel_assistant) si quieres volver a añadirlo.\n2. En caso contrario, cierra este diálogo.\n\n[Más información]({learn_more_url})"
         }
       }
     },
@@ -940,7 +940,7 @@
           "proximity_unreadable": "Home Assistant no pudo leer el estado de proximidad del panel. Comprueba que esté conectado y vuelve a enviar."
         },
         "abort": {
-          "entry_removed": "Este panel se ha eliminado.\n\n[Más información]({learn_more_url})"
+          "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant](/config/integrations/integration/panel_assistant) si quieres volver a añadirlo.\n2. En caso contrario, cierra este diálogo.\n\n[Más información]({learn_more_url})"
         }
       }
     },
@@ -993,8 +993,8 @@
           }
         },
         "abort": {
-          "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\n[Más información]({learn_more_url})",
-          "user_unavailable": "El usuario que ha hecho la solicitud ya no existe o está desactivado; no se ha cambiado nada.\n\n[Más información]({learn_more_url})"
+          "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant](/config/integrations/integration/panel_assistant) si quieres volver a añadirlo.\n2. En caso contrario, cierra este diálogo.\n\n[Más información]({learn_more_url})",
+          "user_unavailable": "El usuario que ha hecho la solicitud ya no existe o está desactivado; no se ha cambiado nada.\n\nPara solucionarlo:\n1. [Comprueba el inicio de sesión del panel]({configure_url}).\n2. Inicia sesión con la cuenta activa que quieras que use este panel y después confirma solo una solicitud que reconozcas.\n\n[Más información]({learn_more_url})"
         }
       }
     },
@@ -1033,7 +1033,7 @@
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura.\n\n[Más información]({learn_more_url})"
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1075,7 +1075,7 @@
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura.\n\n[Más información]({learn_more_url})"
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1117,7 +1117,7 @@
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura.\n\n[Más información]({learn_more_url})"
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1159,7 +1159,7 @@
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura.\n\n[Más información]({learn_more_url})"
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1201,7 +1201,7 @@
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura.\n\n[Más información]({learn_more_url})"
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1243,7 +1243,7 @@
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura.\n\n[Más información]({learn_more_url})"
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1285,7 +1285,7 @@
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura.\n\n[Más información]({learn_more_url})"
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1327,7 +1327,7 @@
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura.\n\n[Más información]({learn_more_url})"
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1369,7 +1369,7 @@
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura.\n\n[Más información]({learn_more_url})"
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1411,7 +1411,7 @@
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura.\n\n[Más información]({learn_more_url})"
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1458,7 +1458,7 @@
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura.\n\n[Más información]({learn_more_url})",
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})",
           "authorize_adb": "Aún se necesita la autorización de Android en {panel}.\n\nPara solucionarlo:\n1. Lee los [pasos de autorización de ADB]({approval_url}).\n2. En {panel}, marca **Permitir siempre desde este ordenador** y después toca **Permitir**.\n\nEl proceso continúa automáticamente tras la autorización.\n\n[Más información]({learn_more_url})"
         },
         "error": {
@@ -1486,7 +1486,7 @@
           "panel_identity_changed": "La dirección ya no responde como este panel configurado. Comprueba el panel y su dirección antes de reintentar."
         },
         "abort": {
-          "entry_removed": "Este panel se ha eliminado.\n\n[Más información]({learn_more_url})"
+          "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant](/config/integrations/integration/panel_assistant) si quieres volver a añadirlo.\n2. En caso contrario, cierra este diálogo.\n\n[Más información]({learn_more_url})"
         }
       }
     },
@@ -1517,7 +1517,7 @@
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura.\n\n[Más información]({learn_more_url})"
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
@@ -1531,7 +1531,7 @@
           "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
         },
         "abort": {
-          "entry_removed": "Este panel se ha eliminado.\n\n[Más información]({learn_more_url})"
+          "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant](/config/integrations/integration/panel_assistant) si quieres volver a añadirlo.\n2. En caso contrario, cierra este diálogo.\n\n[Más información]({learn_more_url})"
         }
       }
     },
@@ -1561,8 +1561,8 @@
           }
         },
         "abort": {
-          "entry_removed": "Este panel se ha eliminado.\n\n[Más información]({learn_more_url})",
-          "identity_changed": "Un panel de la lista ha cambiado mientras esta confirmación estaba abierta; abre la reparación más reciente y vuelve a comprobar la lista.\n\n[Más información]({learn_more_url})"
+          "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant](/config/integrations/integration/panel_assistant) si quieres volver a añadirlo.\n2. En caso contrario, cierra este diálogo.\n\n[Más información]({learn_more_url})",
+          "identity_changed": "Un panel de la lista ha cambiado mientras esta confirmación estaba abierta.\n\nPara solucionarlo:\n1. [Abre Reparaciones](/config/repairs) y abre la confirmación de paneles más reciente.\n2. Comprueba todos los paneles de la lista antes de seleccionar Enviar.\n\n[Más información]({learn_more_url})"
         },
         "error": {
           "cannot_connect": "No se puede acceder a todos los paneles de la lista; comprueba sus conexiones y vuelve a intentarlo."
@@ -1601,7 +1601,7 @@
           }
         },
         "progress": {
-          "retrying": "Comprobando el panel y reintentando de forma segura.\n\n[Más información]({learn_more_url})",
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})",
           "authorize_adb": "Aún se necesita la autorización de Android en {panel}.\n\nPara solucionarlo:\n1. Lee los [pasos de autorización de ADB]({approval_url}).\n2. En {panel}, marca **Permitir siempre desde este ordenador** y después toca **Permitir**.\n\nEl proceso continúa automáticamente tras la autorización.\n\n[Más información]({learn_more_url})"
         },
         "error": {
@@ -1629,7 +1629,7 @@
           "panel_identity_changed": "La dirección ya no responde como este panel configurado. Comprueba el panel y su dirección antes de reintentar."
         },
         "abort": {
-          "entry_removed": "Este panel se ha eliminado.\n\n[Más información]({learn_more_url})"
+          "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant](/config/integrations/integration/panel_assistant) si quieres volver a añadirlo.\n2. En caso contrario, cierra este diálogo.\n\n[Más información]({learn_more_url})"
         }
       }
     },
@@ -1658,7 +1658,7 @@
           "panel_identity_changed": "La dirección ya no responde como este panel configurado. Comprueba el panel y su dirección antes de reintentar."
         },
         "abort": {
-          "entry_removed": "Este panel se ha eliminado.\n\n[Más información]({learn_more_url})"
+          "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant](/config/integrations/integration/panel_assistant) si quieres volver a añadirlo.\n2. En caso contrario, cierra este diálogo.\n\n[Más información]({learn_more_url})"
         },
         "progress": {
           "authorize_adb": "Home Assistant está esperando a que {panel} permita las actualizaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de autorización de ADB]({approval_url}) en el panel.\n2. Marca **Permitir siempre desde este ordenador** y después toca **Permitir**.\n3. Espera aquí; el proceso continúa automáticamente tras la autorización.\n\n[Más información]({learn_more_url})"

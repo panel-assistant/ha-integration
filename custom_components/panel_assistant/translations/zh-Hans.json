@@ -921,7 +921,7 @@
           "permissions_unreadable": "Home Assistant 无法确认所有必需的权限。请检查面板是否已连接，然后再次选择“提交”。"
         },
         "abort": {
-          "entry_removed": "此面板已被移除。\n\n[了解更多]({learn_more_url})"
+          "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})"
         }
       }
     },
@@ -940,7 +940,7 @@
           "proximity_unreadable": "Home Assistant 无法读取面板的接近传感器状态。请检查面板是否已连接，然后再次提交。"
         },
         "abort": {
-          "entry_removed": "此面板已被移除。\n\n[了解更多]({learn_more_url})"
+          "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})"
         }
       }
     },
@@ -993,8 +993,8 @@
           }
         },
         "abort": {
-          "entry_removed": "Home Assistant 中已不再设置此面板。\n\n[了解更多]({learn_more_url})",
-          "user_unavailable": "发起请求的用户已不存在或已停用；未作任何更改。\n\n[了解更多]({learn_more_url})"
+          "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})",
+          "user_unavailable": "发起请求的用户已不存在或已停用；未作任何更改。\n\n解决方法：\n1. [检查面板的登录账户]({configure_url})。\n2. 使用希望此面板使用的有效账户登录，然后仅确认您认识的请求。\n\n[了解更多]({learn_more_url})"
         }
       }
     },
@@ -1033,7 +1033,7 @@
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全重试。\n\n[了解更多]({learn_more_url})"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1075,7 +1075,7 @@
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全重试。\n\n[了解更多]({learn_more_url})"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1117,7 +1117,7 @@
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全重试。\n\n[了解更多]({learn_more_url})"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1159,7 +1159,7 @@
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全重试。\n\n[了解更多]({learn_more_url})"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1201,7 +1201,7 @@
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全重试。\n\n[了解更多]({learn_more_url})"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1243,7 +1243,7 @@
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全重试。\n\n[了解更多]({learn_more_url})"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1285,7 +1285,7 @@
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全重试。\n\n[了解更多]({learn_more_url})"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1327,7 +1327,7 @@
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全重试。\n\n[了解更多]({learn_more_url})"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1369,7 +1369,7 @@
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全重试。\n\n[了解更多]({learn_more_url})"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1411,7 +1411,7 @@
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全重试。\n\n[了解更多]({learn_more_url})"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1458,7 +1458,7 @@
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全重试。\n\n[了解更多]({learn_more_url})",
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})",
           "authorize_adb": "仍需在 {panel} 上获得 Android 批准。\n\n解决方法：\n1. 阅读 [ADB 授权步骤]({approval_url})。\n2. 在 {panel} 上勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。\n\n获得批准后将自动继续。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
@@ -1486,7 +1486,7 @@
           "panel_identity_changed": "该地址上响应的已不再是此已配置的面板。请检查面板及其地址后重试。"
         },
         "abort": {
-          "entry_removed": "此面板已被移除。\n\n[了解更多]({learn_more_url})"
+          "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})"
         }
       }
     },
@@ -1517,7 +1517,7 @@
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全重试。\n\n[了解更多]({learn_more_url})"
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
@@ -1531,7 +1531,7 @@
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         },
         "abort": {
-          "entry_removed": "此面板已被移除。\n\n[了解更多]({learn_more_url})"
+          "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})"
         }
       }
     },
@@ -1561,8 +1561,8 @@
           }
         },
         "abort": {
-          "entry_removed": "此面板已被移除。\n\n[了解更多]({learn_more_url})",
-          "identity_changed": "此确认窗口打开期间，列表中的某个面板发生了变化；请打开最新的修复提示，重新检查列表。\n\n[了解更多]({learn_more_url})"
+          "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})",
+          "identity_changed": "此确认窗口打开期间，列表中的某个面板发生了变化。\n\n解决方法：\n1. [打开“修复”](/config/repairs)，然后打开最新的面板确认。\n2. 检查列出的每个面板后，再选择“提交”。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "cannot_connect": "无法连接列出的所有面板；请检查其连接并重试。"
@@ -1601,7 +1601,7 @@
           }
         },
         "progress": {
-          "retrying": "正在检查面板并安全重试。\n\n[了解更多]({learn_more_url})",
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})",
           "authorize_adb": "仍需在 {panel} 上获得 Android 批准。\n\n解决方法：\n1. 阅读 [ADB 授权步骤]({approval_url})。\n2. 在 {panel} 上勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。\n\n获得批准后将自动继续。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
@@ -1629,7 +1629,7 @@
           "panel_identity_changed": "该地址上响应的已不再是此已配置的面板。请检查面板及其地址后重试。"
         },
         "abort": {
-          "entry_removed": "此面板已被移除。\n\n[了解更多]({learn_more_url})"
+          "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})"
         }
       }
     },
@@ -1658,7 +1658,7 @@
           "panel_identity_changed": "该地址上响应的已不再是此已配置的面板。请检查面板及其地址后重试。"
         },
         "abort": {
-          "entry_removed": "此面板已被移除。\n\n[了解更多]({learn_more_url})"
+          "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})"
         },
         "progress": {
           "authorize_adb": "Home Assistant 正在等待 {panel} 允许更新。\n\n解决方法：\n1. 在面板上按照 [ADB 授权步骤]({approval_url})操作。\n2. 勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。\n3. 在此处等待；获得批准后将自动继续。\n\n[了解更多]({learn_more_url})"
