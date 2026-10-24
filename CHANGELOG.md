@@ -38,6 +38,9 @@ Pairs with the 1.0.0-rc1 panel app. The panel app is published first, because Pa
 
 ### Changed
 
+- **Repairs show how to fix the problem.** Every Repair now has short, numbered steps, a link to the setting or instructions you need, and a Learn more link for the full explanation. The instructions are translated into every supported language, headings fit better on phones, and Repairs saved before the update get the new links too.
+- **The sidebar remembers how you configure panels.** Your Basic or Advanced view, Descriptions choice and setting filter stay with you when you switch panels or reload the sidebar.
+- **Refreshed Pickles artwork.** The sidebar's disconnected-panel illustration has been redrawn.
 - **A themed wait while a panel restarts.** The sidebar fills the pane with a waiting card during a reboot, update or recovery, follows Home Assistant’s light or dark choice, and returns to the panel on its own without a blank white frame.
 
 - **MQTT is gone.** Panel Assistant no longer offers a transport choice: every panel talks to Home Assistant over its native connection.
@@ -58,6 +61,13 @@ Pairs with the 1.0.0-rc1 panel app. The panel app is published first, because Pa
 
 ### Fixed
 
+- **Switching panels keeps the tab you are viewing.** Moving from one panel to another in the sidebar opens the same tab, instead of returning to Dashboard; if the other panel does not offer that tab, it opens Dashboard.
+- **Reloading the sidebar keeps the current tab.** A browser reload reopens the panel and tab you were viewing.
+- **Back from a device page returns to the right panel and tab.** Opening a panel's Home Assistant device page from the sidebar now leaves a return point for the browser's Back button, including in Safari.
+- **Reconnect opens a separate sign-in window.** Signing a panel back into Home Assistant from the sidebar now opens sign-in outside the panel's embedded page, so the browser can complete it.
+- **The sidebar recovers after waiting in Safari.** When a panel's page is not ready yet, the sidebar keeps its waiting card visible and shows the page once it returns, instead of getting stuck waiting.
+- **A panel's pages load together after an update.** The sidebar now uses the scripts and styles that belong to the page the panel returns, even before Home Assistant has caught up with its new build, so the page does not mix old and new versions.
+- **Preparing synchronised speech has a time limit.** If preparing synchronised speech takes too long or the audio is too large, announcements and spoken replies fall back to playing on each panel independently.
 - Losing a panel connection mid reply ends the turn at once: the voice assistant no longer shows Responding after the panel reconnects, and ducked room speakers get their volume back, whether the reply was streamed or sent by URL. Stopping an announcement during preparation withdraws that listener while other panels continue.
 - Sidebar subscriptions clean up when their reply arrives late. The USB release picker waits for bounded signature verification instead of giving up after fifteen seconds.
 - With the matching panel app update, synchronised speech recovers when its audio connection closes, without disconnecting panel controls or replaying interrupted speech. Recovery also settles speech whose final audio is still draining, so it cannot leave the panel waiting indefinitely.
