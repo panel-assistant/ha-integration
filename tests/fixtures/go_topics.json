@@ -1,5 +1,5 @@
 {
-  "$comment": "Topic names mirrored from the site table worker/topics.json in panel-assistant.io at f9cfba2, with report-issue and support-report verified at 2124252fc4469e7e6e83e0da0fc9084446c5fcf5, removal-risks added with its page, and install-recovery added with its troubleshooting section. Names only: destinations are the site's to re-point. Topics are never removed there, so this list only grows, and a topic must be added on the site before the integration links to it.",
+  "$comment": "Topic names and the Repair section map mirrored from worker/topics.json in panel-assistant.io. Topics are permanent; the site may re-point their destinations. Keep every bundled issue key in the repair map. Before a public integration release, the release workflow checks the live topic redirects.",
   "topics": [
     "add-a-panel",
     "connect-a-panel",
