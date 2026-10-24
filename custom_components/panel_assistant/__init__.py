@@ -45,7 +45,7 @@ from .embed import (
     async_setup_embed,
     panel_state,
 )
-from .entry_issues import async_delete_entry_issues, async_delete_orphan_issues
+from .entry_issues import async_delete_entry_issues, async_reconcile_issues
 from .feed_coordinator import CONF_BUILD_FEED, DATA_BUILD_FEED, BuildFeedCoordinator
 from .foreign_ha import async_clear_foreign_ha_issue
 from .ha_url import async_setup_connection_info
@@ -114,7 +114,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             DOMAIN,
             CONF_NATIVE_ENTITIES,
         )
-    await async_delete_orphan_issues(hass)
+    await async_reconcile_issues(hass)
     # Before the commands exist, so no hello is answered without them.
     await async_load_removed_panels(hass)
     await async_setup_connection_info(hass)
