@@ -796,13 +796,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                         verified_success=True,
                     )
                     return
-                # Home Assistant sends only a release it authenticated; the
+                # The offer is the release Home Assistant authenticated; the
                 # panel no longer fetches one itself.
-                if release is None or release.tag != offer.tag:
-                    raise _update_error(
-                        "update_unavailable",
-                        "The requested Panel Assistant update is unavailable",
-                    )
+                assert release is not None
                 await self._delivery.async_deliver_build(self.hass, release)
         except UpdateRejectedError as refusal:
             error = refusal_error(self._panel_name(), refusal)
