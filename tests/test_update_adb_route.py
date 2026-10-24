@@ -61,6 +61,7 @@ from custom_components.panel_assistant.update_coordinator import (
     PanelUpdateCoordinator,
     PanelUpdateSnapshot,
 )
+from tests.test_repair_links import assert_repair_links
 
 
 def _backup() -> bytes:
@@ -426,7 +427,12 @@ async def test_existing_protected_panel_requires_explicit_authorization(
         DOMAIN, adb_authorization_issue_id(entry.entry_id)
     )
     assert issue is not None
-    assert issue.translation_placeholders == {"panel": "Kitchen display"}
+    assert issue.translation_placeholders == {
+        "panel": "Kitchen display",
+        "approval_url": issue.learn_more_url,
+        "learn_more_url": issue.learn_more_url,
+    }
+    assert_repair_links(issue)
     assert issue.data == {"entry_id": entry.entry_id}
     # A missing ADB authorization is a problem for the owner, never a bridge waiting.
     assert "ADB authorization" in (

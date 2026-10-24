@@ -26,6 +26,7 @@ from custom_components.panel_assistant.repairs_update_route import (
     no_update_route_issue_id,
 )
 from custom_components.panel_assistant.status import PanelStatus
+from tests.test_repair_links import assert_repair_links
 
 pytest_plugins = ["tests.test_update_adb_route"]
 
@@ -75,9 +76,12 @@ async def test_a_lost_route_is_noticed_although_nothing_else_changed(
     issue = _issue(hass, entry)
     assert issue is not None
     assert issue.translation_key == "no_update_route"
-    assert issue.translation_placeholders == {"panel": "Study display"}
+    assert issue.translation_placeholders == {
+        "panel": "Study display",
+        "recovery_url": issue.learn_more_url,
+    }
+    assert_repair_links(issue)
     assert issue.severity is ir.IssueSeverity.WARNING
-    assert "panel-cannot-update" in issue.learn_more_url
     # Raw details remain available to support without being interpolated into
     # the user's translated Repair.
     assert route.entity.extra_state_attributes["update_unavailable_reason"]
