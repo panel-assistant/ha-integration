@@ -104,7 +104,7 @@ test('only the embed view root URL yields a token', () => {
   }
 });
 
-test('copy is keyed, markup carries no text and the frame is a titled, unsandboxed iframe', async () => {
+test('copy is keyed, markup carries no text and the frame is a titled iframe sandboxed without the same origin', async () => {
   markup.length = 0;
   const { $ } = await mount(fakeHass());
   assert.doesNotMatch(markup[0].replace(/<style>[^]*?<\/style>/, ''), />\s*[^<\s]/, 'fixed markup contains no copy');
@@ -119,7 +119,7 @@ test('copy is keyed, markup carries no text and the frame is a titled, unsandbox
   assert.equal($('#device').getAttribute('aria-label'), SIDEBAR_MESSAGES.device);
   assert.equal($('#device').getAttribute('title'), SIDEBAR_MESSAGES.device);
   assert.equal($('#frame').getAttribute('title'), SIDEBAR_MESSAGES.frameTitle);
-  assert.equal($('#frame').getAttribute('sandbox'), null);
+  assert.deepEqual($('#frame').getAttribute('sandbox').split(' ').sort(), ['allow-downloads', 'allow-forms', 'allow-modals', 'allow-popups', 'allow-popups-to-escape-sandbox', 'allow-scripts']);
 });
 
 test('a non-administrator sees the admin message and no WebSocket call is made', async () => {

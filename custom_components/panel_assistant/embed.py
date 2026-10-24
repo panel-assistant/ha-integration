@@ -116,9 +116,10 @@ PAGES: Final = {
 BUNDLE_FILES: Final = frozenset({"info.js", "info.css", "icon.svg", "favicon.svg"})
 # Every document here comes from a panel's session, which a non-administrator
 # account may hold, so it runs with an opaque origin and never reaches Home
-# Assistant's frontend. The header, not the frame, carries the sandbox: it holds
-# for a top-level visit and for any document the frame navigates to. Each token
-# is one the panel's pages use: dialogs, downloads, new-tab links and forms.
+# Assistant's frontend. The header carries the sandbox for a top-level visit and
+# for any document the frame navigates to; the sidebar's frame carries the same
+# tokens (FRAME_SANDBOX). Each token is one the panel's pages use: dialogs,
+# downloads, new-tab links and forms.
 SECURITY_HEADERS: Final = {
     "Content-Security-Policy": (
         "frame-ancestors 'self'; sandbox allow-scripts allow-forms allow-downloads "

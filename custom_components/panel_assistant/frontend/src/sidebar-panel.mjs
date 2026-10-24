@@ -2,7 +2,7 @@ import { frontendMessages, frontendLocale, formatFrontendMessage } from './front
 import { TOKENS_CSS, COMPONENTS_CSS } from './tokens.mjs';
 import { BRAND_ICON, versionText } from './wizard-look.mjs';
 // The Panel Assistant sidebar: a top menu owned by the integration above a
-// same-origin frame of the selected panel's own interface, served by Home
+// sandboxed frame of the selected panel's own interface, served by Home
 // Assistant from the panel's session. The frame's requests reach the panel
 // through this element (relayFrame below). Copy follows the current Home
 // Assistant user language.
@@ -27,6 +27,10 @@ function configView(value) {
 const WAIT_TYPE = 'panel-assistant-wait';
 // What every page the embed view serves posts from its own load: it is a page to show.
 const READY_TYPE = 'panel-assistant-ready';
+// The frame's own sandbox, the same tokens as the embed view's sandbox header (embed.py
+// SECURITY_HEADERS): never allow-same-origin, so a page never runs on Home Assistant's
+// origin even if a response reached the frame without that header.
+export const FRAME_SANDBOX = 'allow-scripts allow-forms allow-downloads allow-modals allow-popups allow-popups-to-escape-sandbox';
 export const ADD_PANEL_PATH = '/config/integrations/dashboard/add?domain=panel_assistant';
 export const SETTINGS_PATH = '/config/integrations/integration/panel_assistant';
 const STATES = new Set(['reachable', 'unreachable', 'not_loaded', 'restarting']);
@@ -49,7 +53,7 @@ export function parsePanels(value) {
   });
 }
 
-// Only the embed view's own root path is ever loaded into the same-origin frame.
+// Only the embed view's own root path is ever loaded into the frame.
 export function embedToken(url) {
   return typeof url === 'string' ? url.match(/^\/api\/panel_assistant\/embed\/([A-Za-z0-9_-]{43})\/$/)?.[1] ?? null : null;
 }
@@ -194,7 +198,7 @@ export class PanelAssistantSidebar extends HTMLElement {
       <a id="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg><span class="item-label" data-message="integrationSettings"></span></a>
       </div>
       <div id="slot"></div>
-    </header><div id="failure" class="state" hidden><section class="card"><span id="failure-pill" class="pill dot"></span><img id="pickles" src="/panel_assistant/usb/pickles.svg" alt=""><p id="failure-status" class="title" role="status" aria-live="polite"></p><p id="pickles-story" data-message="picklesStory"></p><p id="next-step" class="dim"></p></section></div><p id="status" role="status" aria-live="polite"></p><div id="loading" class="state" hidden><section class="card"><span id="loading-pill" class="pill dot" data-message="pillOpening"></span><p id="loading-text" class="title" role="status" aria-live="polite"></p><p id="loading-hint" class="wiz-status dim" data-message="loadingHint"></p></section></div><iframe id="frame"></iframe></div>`;
+    </header><div id="failure" class="state" hidden><section class="card"><span id="failure-pill" class="pill dot"></span><img id="pickles" src="/panel_assistant/usb/pickles.svg" alt=""><p id="failure-status" class="title" role="status" aria-live="polite"></p><p id="pickles-story" data-message="picklesStory"></p><p id="next-step" class="dim"></p></section></div><p id="status" role="status" aria-live="polite"></p><div id="loading" class="state" hidden><section class="card"><span id="loading-pill" class="pill dot" data-message="pillOpening"></span><p id="loading-text" class="title" role="status" aria-live="polite"></p><p id="loading-hint" class="wiz-status dim" data-message="loadingHint"></p></section></div><iframe id="frame" sandbox="${FRAME_SANDBOX}"></iframe></div>`;
     // Pickles art: https://github.com/maxlyth/pickles. Refresh static/pickles.svg with: node pickles/sync.mjs <pickles checkout> <commit>
     const root = this.shadowRoot;
     for (const element of root.querySelectorAll('[data-message]')) element.textContent = this.#messages[element.dataset.message];
