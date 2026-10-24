@@ -45,7 +45,8 @@ globalThis.customElements = { get() {}, define() {} };
 const store = new Map();
 globalThis.localStorage = { getItem: key => store.get(key) ?? null, setItem: (key, value) => store.set(key, value) };
 const pushed = [];
-globalThis.history = { pushState: (...args) => pushed.push(args) };
+const replaced = [];
+globalThis.history = { pushState: (...args) => pushed.push(args), replaceState: (...args) => replaced.push(args) };
 globalThis.window = new EventTarget();
 globalThis.location = { origin: 'http://ha.example', pathname: '/panel-assistant' };
 let intervals = [];
@@ -1113,4 +1114,56 @@ test('the device icon leaves a top-level return entry for the selected panel and
     '/panel-assistant/two/entities', '/config/devices/device/two-device',
   ]);
   panel.isConnected = false; panel.disconnectedCallback(); await tick(); store.clear();
+});
+
+test('served tabs replace the reload route without adding history or accepting stale pages', async () => {
+  const { panel, $, subs } = await mount(fakeHass(), false, '/one/configure/voice');
+  subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  const before = replaced.length, historyBefore = pushed.length;
+  for (const page of ['configure', 'profiles', 'entities', 'install', 'logs', '']) subs[0].callback({ kind: 'page', page });
+  assert.deepEqual(replaced.slice(before).map(args => args[2]),
+    ['configure', 'profiles', 'entities', 'install', 'logs', ''].map(page => '/panel-assistant/one' + (page ? '/' + page : '')));
+  $('#panels').fire('change', { target: { value: 'two' } }); await tick();
+  subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
+  subs[1].callback({ kind: 'page', page: 'logs' });
+  const count = replaced.length;
+  subs[0].callback({ kind: 'page', page: 'install' });
+  subs[1].callback({ kind: 'page', page: '../config' });
+  assert.equal(replaced.length, count);
+  assert.equal(replaced.at(-1)[2], '/panel-assistant/two/logs');
+  assert.equal(pushed.length, historyBefore, 'tab reporting adds no top-level history entry');
+  panel.disconnectedCallback(); store.clear();
+});
+
+test('Configure preferences are shared by panels and survive remount with foreign messages ignored', async () => {
+  store.clear();
+  const value = { advanced: true, descriptions: false, revealed: ['Display'], filter: 'brightness' };
+  let mounted = await relaying(fakeHass());
+  fromWindow(frameWindow(), { type: 'panel-assistant-config-view', value });
+  fromWindow(mounted.target, { type: 'panel-assistant-config-view', read: true });
+  assert.deepEqual(mounted.target.posted.at(-1)?.[0], { type: 'panel-assistant-config-view', value: null });
+  fromWindow(mounted.target, { type: 'panel-assistant-config-view', value });
+  mounted.$('#panels').fire('change', { target: { value: 'two' } }); await tick();
+  mounted.subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
+  fromWindow(mounted.target, { type: 'panel-assistant-config-view', read: true });
+  assert.deepEqual(mounted.target.posted.at(-1)[0], { type: 'panel-assistant-config-view', value });
+  mounted.panel.disconnectedCallback();
+  mounted = await relaying(fakeHass());
+  fromWindow(mounted.target, { type: 'panel-assistant-config-view', value: { advanced: 'yes', descriptions: false, revealed: [], filter: '' } });
+  fromWindow(mounted.target, { type: 'panel-assistant-config-view', read: true });
+  assert.deepEqual(mounted.target.posted.at(-1)[0], { type: 'panel-assistant-config-view', value });
+  mounted.panel.disconnectedCallback(); store.clear();
+});
+
+test('storage refusal still retains Configure preferences while switching panels', async t => {
+  const mounted = await relaying(fakeHass());
+  t.mock.method(localStorage, 'getItem', () => { throw Error('denied'); });
+  t.mock.method(localStorage, 'setItem', () => { throw Error('denied'); });
+  const value = { advanced: false, descriptions: false, revealed: [], filter: '' };
+  fromWindow(mounted.target, { type: 'panel-assistant-config-view', value });
+  mounted.$('#panels').fire('change', { target: { value: 'two' } }); await tick();
+  mounted.subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
+  fromWindow(mounted.target, { type: 'panel-assistant-config-view', read: true });
+  assert.deepEqual(mounted.target.posted.at(-1)?.[0], { type: 'panel-assistant-config-view', value });
+  mounted.panel.disconnectedCallback();
 });

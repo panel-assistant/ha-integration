@@ -14,6 +14,15 @@ const GH_ICON = 'M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.
 
 export const SELECTION_KEY = 'panel_assistant.sidebar.entry';
 export const RELAY_TYPE = 'panel-assistant-ui';
+const CONFIG_VIEW_TYPE = 'panel-assistant-config-view';
+const CONFIG_VIEW_KEY = 'ha-paneld.configure.view.v1';
+function configView(value) {
+  if (!value || typeof value.advanced !== 'boolean' || typeof value.descriptions !== 'boolean' ||
+    !Array.isArray(value.revealed) || value.revealed.length > 100 ||
+    !value.revealed.every(group => typeof group === 'string' && group.length <= 128) ||
+    (value.filter !== undefined && (typeof value.filter !== 'string' || value.filter.length > 512))) return null;
+  return { advanced: value.advanced, descriptions: value.descriptions, revealed: value.revealed, filter: value.filter ?? '' };
+}
 // What the embed view's retry document posts: the panel is not back yet.
 const WAIT_TYPE = 'panel-assistant-wait';
 export const ADD_PANEL_PATH = '/config/integrations/dashboard/add?domain=panel_assistant';
@@ -82,9 +91,20 @@ export class PanelAssistantSidebar extends HTMLElement {
   // Set when the panel's session closed the relayed subscriptions: the page reopens them
   // once the list shows the panel reachable again.
   #relaysClosed = false;
+  #configView = null;
   #onMessage = event => {
     const frame = this.shadowRoot.querySelector('#frame');
-    if (event.data?.type === WAIT_TYPE && event.source && event.source === frame.contentWindow) {
+    if (event.data?.type === CONFIG_VIEW_TYPE && event.source && event.source === frame.contentWindow && this.#session?.state === 'open') {
+      if (event.data.read === true) {
+        try { this.#configView = configView(JSON.parse(localStorage.getItem(CONFIG_VIEW_KEY))) ?? this.#configView; } catch { /* storage unavailable */ }
+        this.#postToFrame({ type: CONFIG_VIEW_TYPE, value: this.#configView });
+      } else {
+        const value = configView(event.data.value);
+        if (!value) return;
+        this.#configView = value;
+        try { localStorage.setItem(CONFIG_VIEW_KEY, JSON.stringify(value)); } catch { /* keep this sidebar's view */ }
+      }
+    } else if (event.data?.type === WAIT_TYPE && event.source && event.source === frame.contentWindow) {
       // Posted while the document parses, so it arrives before that document's load.
       this.#frameWaiting = true;
       frame.dataset.ready = 'false';
@@ -483,7 +503,11 @@ export class PanelAssistantSidebar extends HTMLElement {
       this.#render();
     } else if (event.kind === 'page') {
       // The embed view sees navigation inside the opaque frame; the sidebar cannot read its URL.
-      if (event.page === '' || ROUTE_PAGES.has(event.page)) session.page = event.page;
+      if (event.page === '' || ROUTE_PAGES.has(event.page)) {
+        session.page = event.page;
+        // Reuse the normal deep-link route on reload without adding a history entry per tab.
+        history.replaceState(history.state, '', `/panel-assistant/${session.entryId}${event.page ? '/' + event.page : ''}`);
+      }
     } else if (event.kind === 'closed') {
       // The server has ended this subscription; drop it and let the list decide when to reopen.
       this.#postToFrame({ type: RELAY_TYPE, closed: true });
