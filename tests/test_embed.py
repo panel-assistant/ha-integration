@@ -1883,3 +1883,294 @@ async def test_timed_out_subscription_cleanup_survives_late_map_eviction(
     assert not remote
     assert not session.ui_relays
     await browser.close()
+
+
+@pytest.mark.parametrize("same_version", [True, False])
+@pytest.mark.parametrize("reachable", [True, False])
+@pytest.mark.parametrize("health_current", [True, False])
+async def test_returning_page_and_assets_match_before_update_health_refresh(
+    hass,
+    hass_ws_client,
+    hass_client,
+    hass_client_no_auth,
+    hass_read_only_user,
+    hass_read_only_access_token,
+    session_panels,
+    entry,
+    monkeypatch,
+    reachable,
+    health_current,
+    same_version,
+):
+    """Use real hello/embed and update wait while its health I/O is pending."""
+    from custom_components.panel_assistant.transport_sessions import async_get_sessions
+    from custom_components.panel_assistant.update_progress import UpdateProgress
+
+    coordinator = entry.runtime_data.coordinator
+    coordinator.data = dataclasses.replace(
+        coordinator.data,
+        health=dataclasses.replace(
+            coordinator.data.health,
+            version="1.0.0-rc1",
+            version_code=2159,
+        ),
+    )
+    connect_args = (
+        hass,
+        hass_ws_client,
+        hass_client,
+        session_panels,
+        entry,
+        hass_read_only_user.id,
+        hass_read_only_access_token,
+    )
+    old = await _connect_panel(
+        *connect_args, HELLO | {"app": {"version": "1.0.0-rc1", "version_code": 2159}}
+    )
+    old.answers["bundle"] = _bundle(
+        old, {"info.js": b"old-script", "info.css": b"old-style"}
+    )
+    admin = await hass_ws_client(hass)
+    _, first = await _open_session(admin, entry.entry_id)
+    browser = await hass_client_no_auth()
+    assert await (await browser.get(first + "info.js")).read() == b"old-script"
+    old.task.cancel()
+    await old.ws.close()
+    await hass.async_block_till_done()
+    async with asyncio.timeout(3):
+        while coordinator.connected:  # noqa: ASYNC110 - observe real session teardown
+            await asyncio.sleep(0.001)
+    coordinator.reachable = reachable
+    progress = UpdateProgress(
+        entry.entry_id, coordinator, SimpleNamespace(), lambda: None, lambda: 2159
+    )
+    progress.begin(hass, "1.0.0-rc1", "1.0.0-rc1")
+    progress.enter("installing")
+    progress.hold_through_restart(hass)
+    sessions = async_get_sessions(hass)
+    if not reachable:
+        assert sessions.restart_notice(entry.entry_id) is not None
+    entered, release = asyncio.Event(), asyncio.Event()
+    new_snapshot = dataclasses.replace(
+        coordinator.data,
+        health=dataclasses.replace(
+            coordinator.data.health,
+            build="2000",
+            version_code=2159 if same_version else 2160,
+        ),
+    )
+
+    async def delayed_snapshot(session):
+        entered.set()
+        await release.wait()
+        return new_snapshot
+
+    monkeypatch.setattr(coordinator, "_async_read_session", delayed_snapshot)
+    monkeypatch.setattr(
+        coordinator, "_async_probe_address", AsyncMock(return_value=True)
+    )
+    returning = await _connect_panel(
+        *connect_args,
+        HELLO
+        | {
+            "app": {
+                "version": "1.0.0-rc1",
+                "version_code": 2159 if same_version else 2160,
+            }
+        },
+    )
+    assert sessions.restart_notice(entry.entry_id) is None
+    if health_current:
+        coordinator.async_set_updated_data(new_snapshot)
+
+    async def new_bundle(event):
+        blob = await returning.upload(
+            event, _zip({"info.js": b"new-script", "info.css": b"new-style"})
+        )
+        return {"outcome": "applied", "result": {"blob": blob, "build": "2000"}}
+
+    returning.answers["bundle"] = new_bundle
+
+    async def page(event):
+        return {
+            "outcome": "applied",
+            "result": PAGE.replace("<body ", '<body data-build="2000" ').replace(
+                "</body>",
+                '<script src="info.js"></script>'
+                '<link href="info.css" rel="stylesheet"></body>',
+            ),
+        }
+
+    returning.answers["page.info"] = page
+    waiter = asyncio.create_task(
+        progress.async_wait_for_build(
+            hass, SimpleNamespace(descriptor=None, version="1.0.0-rc1"), ("1000", None)
+        )
+    )
+    await asyncio.wait_for(entered.wait(), 3)
+    _, current = await _open_session(admin, entry.entry_id)
+    try:
+        html = await (await browser.get(current)).text()
+        assert 'data-build="2000"' in html
+        resources = re.findall(r'(?:src|href)="((?:info\.js|info\.css))"', html)
+        assert resources == ["info.js", "info.css"]
+        responses = await asyncio.gather(
+            *(browser.get(current + path) for path in resources)
+        )
+        assert [await response.read() for response in responses] == [
+            b"new-script",
+            b"new-style",
+        ]
+        assert sum(e.get("op") == "bundle" for e in returning.events) == 1
+        assert not waiter.done()
+        release.set()
+        waiter.cancel()
+        await asyncio.gather(waiter, return_exceptions=True)
+        assert await (await browser.get(current + "info.js")).read() == b"new-script"
+        assert sum(e.get("op") == "bundle" for e in returning.events) == 1
+    finally:
+        waiter.cancel()
+        release.set()
+        await asyncio.gather(waiter, return_exceptions=True)
+        progress.end()
+
+
+@pytest.mark.parametrize("warm_returning_bundle", [False, True])
+async def test_same_install_reconnect_reuses_its_page_bundle(
+    hass,
+    hass_ws_client,
+    hass_client,
+    hass_client_no_auth,
+    hass_read_only_user,
+    hass_read_only_access_token,
+    session_panels,
+    entry,
+    live,
+    warm_returning_bundle,
+):
+    """Reconnect between the returning HTML and its assets must keep its token."""
+    live.answers["bundle"] = _bundle(
+        live, {"info.js": b"old-js", "info.css": b"old-css"}
+    )
+    admin = await hass_ws_client(hass)
+    _, url = await _open_session(admin, entry.entry_id)
+    browser = await hass_client_no_auth()
+    assert await (await browser.get(url + "info.js")).read() == b"old-js"
+    connect_args = (
+        hass,
+        hass_ws_client,
+        hass_client,
+        session_panels,
+        entry,
+        hass_read_only_user.id,
+        hass_read_only_access_token,
+        HELLO,
+    )
+
+    async def bundle(event):
+        blob = await current.upload(
+            event, _zip({"info.js": b"new-js", "info.css": b"new-css"})
+        )
+        return {"outcome": "applied", "result": {"blob": blob, "build": "2000"}}
+
+    async def page(_event):
+        return {
+            "outcome": "applied",
+            "result": PAGE.replace("<body ", '<body data-build="2000" ').replace(
+                "</body>",
+                '<script src="info.js"></script><link href="info.css"></body>',
+            ),
+        }
+
+    live.task.cancel()
+    await live.ws.close()
+    await hass.async_block_till_done()
+    current = await _connect_panel(*connect_args)
+    current.answers.update({"page.info": page, "bundle": bundle})
+    html = await (await browser.get(url)).text()
+    resources = re.findall(r'(?:src|href)="((?:info\.js|info\.css))"', html)
+    assert resources == ["info.js", "info.css"]
+    if warm_returning_bundle:
+        assert await (await browser.get(url + "info.js")).read() == b"new-js"
+    current.task.cancel()
+    await current.ws.close()
+    await hass.async_block_till_done()
+    current = await _connect_panel(*connect_args)
+    current.answers["bundle"] = bundle
+    # Use the document already returned; no fresh page request can repair the hint.
+    responses = await asyncio.gather(*(browser.get(url + path) for path in resources))
+    assert [await response.read() for response in responses] == [b"new-js", b"new-css"]
+    asks = [
+        event["args"]["build"] for event in current.events if event["op"] == "bundle"
+    ]
+    assert asks == ([] if warm_returning_bundle else ["2000"])
+
+
+async def test_a_retired_sessions_delayed_bundle_cannot_replace_current_page_assets(
+    hass,
+    hass_ws_client,
+    hass_client,
+    hass_client_no_auth,
+    hass_read_only_user,
+    hass_read_only_access_token,
+    session_panels,
+    entry,
+    live,
+    monkeypatch,
+):
+    """An old upload finishing unzip after reconnect cannot restore its cache alias."""
+    import threading
+
+    parsing = asyncio.Event()
+    release = threading.Event()
+    loop = asyncio.get_running_loop()
+    unzip = ui_relay._unzip
+
+    def delayed(data):
+        files = unzip(data)
+        if files and files.get("info.js") == b"old":
+            loop.call_soon_threadsafe(parsing.set)
+            assert release.wait(10)
+        return files
+
+    monkeypatch.setattr(ui_relay, "_unzip", delayed)
+    live.answers["bundle"] = _bundle(live, {"info.js": b"old"})
+    admin = await hass_ws_client(hass)
+    _, url = await _open_session(admin, entry.entry_id)
+    browser = await hass_client_no_auth()
+    old_request = asyncio.create_task(browser.get(url + "info.js"))
+    try:
+        await asyncio.wait_for(parsing.wait(), 3)
+        live.task.cancel()
+        await live.ws.close()
+        returning = await _connect_panel(
+            hass,
+            hass_ws_client,
+            hass_client,
+            session_panels,
+            entry,
+            hass_read_only_user.id,
+            hass_read_only_access_token,
+            HELLO,
+        )
+
+        async def page(_event):
+            return {
+                "outcome": "applied",
+                "result": PAGE.replace("<body ", '<body data-build="2000" '),
+            }
+
+        async def bundle(event):
+            blob = await returning.upload(event, _zip({"info.js": b"new"}))
+            return {"outcome": "applied", "result": {"blob": blob, "build": "2000"}}
+
+        returning.answers.update({"page.info": page, "bundle": bundle})
+        assert (await browser.get(url)).status == 200
+        assert await (await browser.get(url + "info.js")).read() == b"new"
+        release.set()
+        assert (await old_request).status == 404
+        assert await (await browser.get(url + "info.js")).read() == b"new"
+        assert sum(event["op"] == "bundle" for event in returning.events) == 1
+    finally:
+        release.set()
+        await asyncio.gather(old_request, return_exceptions=True)

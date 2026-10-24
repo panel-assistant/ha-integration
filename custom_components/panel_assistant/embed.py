@@ -20,6 +20,7 @@ import secrets
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from html.parser import HTMLParser
 from typing import Any, Final
 
 import voluptuous as vol
@@ -52,6 +53,17 @@ from .ui_relay import (
 
 DATA_EMBED: Final = "embed"
 EMBED_PREFIX: Final = "/api/panel_assistant/embed"
+
+
+class _PageBuild(HTMLParser):
+    """Read the shell's install token, ignoring script and comment literals."""
+
+    build: str | None = None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "body":
+            self.build = dict(attrs).get("data-build") or None
+
 
 REASON_ENTRY_UNLOADED: Final = "entry_unloaded"
 REASON_USER_REMOVED: Final = "user_removed"
@@ -535,6 +547,13 @@ class EmbedView(HomeAssistantView):
             data = outcome.result.encode()
         if data is None or (outcome.outcome != OUTCOME_APPLIED and not outcome.status):
             return _respond(502)
+        if live_ui_session(self.hass, entry.entry_id) is not panel:
+            return _retry(session)
+        if (outcome.status or 200) == 200:
+            shell = _PageBuild()
+            shell.feed(data.decode("utf-8", errors="replace"))
+            if shell.build is not None:
+                async_get_bundles(self.hass).observe_build(entry, panel, shell.build)
         return _respond(
             outcome.status or 200,
             body=_rebase(data, f"{EMBED_PREFIX}/{session.token}"),

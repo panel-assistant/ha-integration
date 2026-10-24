@@ -690,11 +690,12 @@ class BundleStore:
         self._hass = hass
         self._bundles: dict[tuple[str, str], dict[str, bytes]] = {}
         self._fetching: dict[
-            tuple[str, str], asyncio.Task[dict[str, bytes] | None]
+            tuple[str, str, str], asyncio.Task[dict[str, bytes] | None]
         ] = {}
-        # A panel that answered another build than its entry reports (it was
-        # updated since the last poll), by entry: (reported, answered).
-        self._answered: dict[str, tuple[str, str]] = {}
+        # A page or bundle can name a newer install before health catches up.
+        # Keep that page's token across socket reconnects; only a live response
+        # may replace it, so delayed answers from retired sessions cannot win.
+        self._answered: dict[str, tuple[str | None, str]] = {}
         # When a fetch of a build last failed (monotonic seconds).
         self._failed: dict[tuple[str, str], float] = {}
 
@@ -709,6 +710,13 @@ class BundleStore:
         # The entry has caught up, or moved on: what it reports is current.
         del self._answered[entry.entry_id]
         return reported
+
+    def observe_build(
+        self, entry: ConfigEntry, session: PanelSession, build: str
+    ) -> None:
+        """Use a live page's install token before its first script or style GET."""
+        if live_ui_session(self._hass, entry.entry_id) is session:
+            self._answered[entry.entry_id] = (reported_build(entry), build)
 
     def _prune(self) -> None:
         kept = {
@@ -730,9 +738,9 @@ class BundleStore:
         self._prune()
         files = self._bundles.get((entry.entry_id, build))
         if files is None:
-            key = (entry.entry_id, reported)
+            key = (entry.entry_id, build, session.token)
             fetch = self._fetching.get(key)
-            failed = self._failed.get(key)
+            failed = self._failed.get((entry.entry_id, build))
             if (
                 fetch is None
                 and failed is not None
@@ -741,7 +749,7 @@ class BundleStore:
                 return None
             if fetch is None:
                 fetch = self._fetching[key] = self._hass.async_create_task(
-                    self._fetch(entry.entry_id, session, reported),
+                    self._fetch(entry.entry_id, session, build),
                     f"{DOMAIN} fetch page bundle",
                 )
                 fetch.add_done_callback(lambda _: self._fetching.pop(key, None))
@@ -752,6 +760,8 @@ class BundleStore:
         self, entry_id: str, session: PanelSession, build: str
     ) -> dict[str, bytes] | None:
         files = await self._fetch_once(entry_id, session, build)
+        if live_ui_session(self._hass, entry_id) is not session:
+            return None
         if files is None:
             self._failed[(entry_id, build)] = time.monotonic()
         else:
@@ -783,10 +793,15 @@ class BundleStore:
         ):
             return None
         files = await self._hass.async_add_executor_job(_unzip, data)
-        if files is not None:
+        if live_ui_session(self._hass, entry_id) is not session:
+            return None
+        if (
+            files is not None
+            and (entry := self._hass.config_entries.async_get_entry(entry_id))
+            is not None
+        ):
             self._bundles[(entry_id, answered)] = files
-            if answered != build:
-                self._answered[entry_id] = (build, answered)
+            self.observe_build(entry, session, answered)
             self._prune()
         return files
 
