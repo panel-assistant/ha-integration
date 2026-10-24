@@ -842,6 +842,135 @@ async def test_a_page_comes_over_the_session_with_its_base_rewritten(
     assert not panel.requests
 
 
+async def test_page_events_follow_navigation_inside_the_embed_frame(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    entry: MockConfigEntry,
+    live: SessionPanel,
+) -> None:
+    """The sidebar learns the current tab even when the frame navigates itself."""
+
+    async def configure(event: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "outcome": "applied",
+            "result": PAGE.replace(
+                '<a href="configure">c</a>',
+                '<div class="nav"><a class="active" href="configure">Configure</a>'
+                '<a href="logs">Logs</a></div>',
+            ),
+        }
+
+    async def logs(event: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "outcome": "applied",
+            "result": PAGE.replace(
+                '<a href="configure">c</a>',
+                '<div class="nav"><a href="configure">Configure</a>'
+                '<a class="active" href="logs">Logs</a></div>',
+            ),
+        }
+
+    live.answers.update({"page.configure": configure, "page.logs": logs})
+    ws = await hass_ws_client(hass)
+    subscription, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+    response = await browser.get(url + "configure")
+    assert response.status == 200
+    assert await _receive(ws) == {
+        "id": subscription,
+        "type": "event",
+        "event": {"kind": "page", "page": "configure"},
+    }
+
+    # Follow the frame's own link; no sidebar command changes the selected tab.
+    document = await response.text()
+    link = re.search(r'<a href="([^"]+)">Logs</a>', document)
+    assert link is not None
+    response = await browser.get(url + link.group(1))
+    assert response.status == 200
+    assert await _receive(ws) == {
+        "id": subscription,
+        "type": "event",
+        "event": {"kind": "page", "page": "logs"},
+    }
+
+
+@pytest.mark.parametrize("missing", [False, True])
+async def test_unavailable_page_falls_back_to_default_before_reporting_current_tab(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    entry: MockConfigEntry,
+    live: SessionPanel,
+    missing: bool,
+) -> None:
+    """A tab hidden or not served by this panel resolves to its default page."""
+
+    async def hidden_setup(event: dict[str, Any]) -> dict[str, Any]:
+        if missing:
+            return {"outcome": "refused", "code": "unknown_command", "status": 404}
+        return {
+            "outcome": "applied",
+            "result": PAGE.replace(
+                '<a href="configure">c</a>',
+                '<div class="nav"><a href="">Dashboard</a>'
+                '<a href="configure">Configure</a></div>'
+                '<main><a class="active" href="setup">Unrelated active link</a></main>',
+            ),
+        }
+
+    live.answers["page.setup"] = hidden_setup
+    ws = await hass_ws_client(hass)
+    subscription, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+    response = await browser.get(url + "setup?theme=light", allow_redirects=False)
+    assert response.status == 302
+    assert response.headers["Location"] == url
+    # Ordering against a WS command proves the redirect emitted no page event.
+    await ws.send_json_auto_id({"type": "panel_assistant/embed_panels"})
+    assert (await _receive(ws))["type"] == "result"
+
+    response = await browser.get(response.headers["Location"])
+    assert response.status == 200
+    assert await _receive(ws) == {
+        "id": subscription,
+        "type": "event",
+        "event": {"kind": "page", "page": ""},
+    }
+
+
+@pytest.mark.parametrize("status", [None, 503])
+async def test_failed_page_does_not_replace_the_current_tab(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    entry: MockConfigEntry,
+    live: SessionPanel,
+    status: int | None,
+) -> None:
+    """Only a successfully rendered page changes the sidebar's current tab."""
+
+    async def failed(event: dict[str, Any]) -> dict[str, Any]:
+        answer: dict[str, Any] = {
+            "outcome": "refused",
+            "code": "failed",
+            "result": PAGE,
+        }
+        if status is not None:
+            answer["status"] = status
+        return answer
+
+    live.answers["page.configure"] = failed
+    ws = await hass_ws_client(hass)
+    _, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+    response = await browser.get(url + "configure")
+    assert response.status == (status or 502)
+    await ws.send_json_auto_id({"type": "panel_assistant/embed_panels"})
+    assert (await _receive(ws))["type"] == "result"
+
+
 @pytest.mark.parametrize("theme", ["light", "dark"])
 async def test_a_page_asked_for_while_the_panel_session_is_down_asks_again(
     hass: HomeAssistant,

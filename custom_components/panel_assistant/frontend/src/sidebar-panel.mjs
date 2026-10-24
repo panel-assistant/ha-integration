@@ -45,7 +45,7 @@ export function embedToken(url) {
 
 // A route `/<entry>/<page>/<anchor>` opens that panel at one of its pages, scrolled to the element
 // the anchor names (a Repair's link to a settings card). Anything else after the entry is ignored.
-const ROUTE_PAGES = new Set(['configure']);
+const ROUTE_PAGES = new Set(['configure', 'setup', 'profiles', 'install', 'logs', 'entities']);
 export function routeTarget(path) {
   const [entryId = '', page, anchor] = typeof path === 'string' ? path.slice(1).split('/') : [];
   if (!ROUTE_PAGES.has(page)) return { entryId, suffix: '' };
@@ -232,7 +232,12 @@ export class PanelAssistantSidebar extends HTMLElement {
         navigate(path);
       });
     }
-    root.querySelector('#panels').addEventListener('change', event => this.#choose(event.target.value));
+    root.querySelector('#panels').addEventListener('change', event => {
+      const entryId = event.target.value;
+      const page = this.#session?.page;
+      this.#deepLink = page ? { entryId, suffix: page } : null;
+      this.#choose(entryId);
+    });
     this.#render();
   }
 
@@ -429,7 +434,7 @@ export class PanelAssistantSidebar extends HTMLElement {
   #subscribe(entryId, resume, url) {
     const hass = this.#hass;
     // A resumed session follows a closed signal to the page (see #reconnected).
-    const session = { entryId, token: resume, url, state: 'opening', code: null, unsubscribe: null, reopen: Boolean(resume) };
+    const session = { entryId, token: resume, url, state: 'opening', code: null, unsubscribe: null, reopen: Boolean(resume), page: resume ? this.#session?.page : undefined };
     this.#session = session;
     const message = {
       type: 'panel_assistant/embed_session', entry_id: entryId, language: hass.language,
@@ -473,6 +478,9 @@ export class PanelAssistantSidebar extends HTMLElement {
       else if (session.reopen) this.#postToFrame({ type: RELAY_TYPE, open: true });
       session.reopen = false;
       this.#render();
+    } else if (event.kind === 'page') {
+      // The embed view sees navigation inside the opaque frame; the sidebar cannot read its URL.
+      if (event.page === '' || ROUTE_PAGES.has(event.page)) session.page = event.page;
     } else if (event.kind === 'closed') {
       // The server has ended this subscription; drop it and let the list decide when to reopen.
       this.#postToFrame({ type: RELAY_TYPE, closed: true });

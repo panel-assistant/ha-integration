@@ -294,6 +294,40 @@ test('a Repair link opens its panel at the Configure card once; a reconnect keep
   store.clear();
 });
 
+test('the panel picker keeps the served tab, drops its anchor, and follows later frame navigation', async () => {
+  const { $, subs } = await mount(fakeHass(), false, `/one/configure/${CARD}`);
+  subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  subs[0].callback({ kind: 'page', page: 'configure' });
+  $('#panels').fire('change', { target: { value: 'two' } }); await tick();
+  assert.equal(subs[1].message.entry_id, 'two');
+  subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
+  assert.equal($('#frame').getAttribute('src'), `${url(TOKEN2)}configure`);
+  subs[0].callback({ kind: 'page', page: 'install' }); // A late old-session event cannot replace the tab.
+  subs[1].callback({ kind: 'page', page: 'logs' });
+  $('#panels').fire('change', { target: { value: 'one' } }); await tick();
+  subs[2].callback({ kind: 'opened', url: url(TOKEN) });
+  assert.equal($('#frame').getAttribute('src'), `${url(TOKEN)}logs`);
+  subs[2].callback({ kind: 'page', page: '' });
+  subs[2].callback({ kind: 'page', page: '../configure' });
+  $('#panels').fire('change', { target: { value: 'two' } }); await tick();
+  subs[3].callback({ kind: 'opened', url: url(TOKEN2) });
+  assert.equal($('#frame').getAttribute('src'), url(TOKEN2), 'the default tab and invalid pages never add a path');
+  store.clear();
+});
+
+test('the panel picker keeps the tab after the sidebar connection resumes', async () => {
+  const hass = fakeHass();
+  const { $, subs } = await mount(hass, false, '/one');
+  subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  subs[0].callback({ kind: 'page', page: 'entities' });
+  hass.connection.listeners.get('ready')(); await tick();
+  subs[1].callback({ kind: 'opened', url: url(TOKEN) });
+  $('#panels').fire('change', { target: { value: 'two' } }); await tick();
+  subs[2].callback({ kind: 'opened', url: url(TOKEN2) });
+  assert.equal($('#frame').getAttribute('src'), `${url(TOKEN2)}entities`);
+  store.clear();
+});
+
 test('a Repair link to the panel already shown reopens it at the card', async () => {
   const { panel, $, subs } = await mount(fakeHass(), false, '/one');
   subs[0].callback({ kind: 'opened', url: url(TOKEN) });
@@ -326,7 +360,7 @@ test('a Repair link falls back safely: unknown panel, another choice, unreachabl
   mounted.subs[0].callback({ kind: 'opened', url: url(TOKEN) });
   assert.equal(mounted.$('#frame').getAttribute('src'), `${url(TOKEN)}configure#${CARD}`, 'the link waits for the panel to be reachable');
 
-  for (const [path, suffix] of [['/one/logs/x', ''], ['/one/configure/%22x', 'configure'], ['/one/configure', 'configure']]) {
+  for (const [path, suffix] of [['/one/unknown/x', ''], ['/one/configure/%22x', 'configure'], ['/one/configure', 'configure']]) {
     mounted = await mount(fakeHass(), false, path);
     mounted.subs[0].callback({ kind: 'opened', url: url(TOKEN) });
     assert.equal(mounted.$('#frame').getAttribute('src'), url(TOKEN) + suffix, path);

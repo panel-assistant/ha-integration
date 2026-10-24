@@ -55,14 +55,31 @@ DATA_EMBED: Final = "embed"
 EMBED_PREFIX: Final = "/api/panel_assistant/embed"
 
 
-class _PageBuild(HTMLParser):
-    """Read the shell's install token, ignoring script and comment literals."""
+class _PageShell(HTMLParser):
+    """Read the shell's build and whether its requested tab is visible."""
 
     build: str | None = None
+    has_nav = False
+    active_tab = False
+    _nav_depth = 0
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attributes = dict(attrs)
+        classes = (attributes.get("class") or "").split()
         if tag == "body":
-            self.build = dict(attrs).get("data-build") or None
+            self.build = attributes.get("data-build") or None
+        if tag == "div":
+            if self._nav_depth:
+                self._nav_depth += 1
+            elif "nav" in classes:
+                self.has_nav = True
+                self._nav_depth = 1
+        if self._nav_depth and tag == "a" and "active" in classes:
+            self.active_tab = True
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "div" and self._nav_depth:
+            self._nav_depth -= 1
 
 
 REASON_ENTRY_UNLOADED: Final = "entry_unloaded"
@@ -545,15 +562,30 @@ class EmbedView(HomeAssistantView):
             return _retry(session)
         if data is None and isinstance(outcome.result, str):
             data = outcome.result.encode()
-        if data is None or (outcome.outcome != OUTCOME_APPLIED and not outcome.status):
-            return _respond(502)
         if live_ui_session(self.hass, entry.entry_id) is not panel:
             return _retry(session)
+        if name != "info" and outcome.status == 404:
+            return _respond(
+                302, headers={"Location": f"{EMBED_PREFIX}/{session.token}/"}
+            )
+        if data is None or (outcome.outcome != OUTCOME_APPLIED and not outcome.status):
+            return _respond(502)
         if (outcome.status or 200) == 200:
-            shell = _PageBuild()
+            shell = _PageShell()
             shell.feed(data.decode("utf-8", errors="replace"))
             if shell.build is not None:
                 async_get_bundles(self.hass).observe_build(entry, panel, shell.build)
+            if name != "info" and shell.has_nav and not shell.active_tab:
+                return _respond(
+                    302, headers={"Location": f"{EMBED_PREFIX}/{session.token}/"}
+                )
+            if session.connection is not None and session.subscription_id is not None:
+                session.connection.send_message(
+                    event_message(
+                        session.subscription_id,
+                        {"kind": "page", "page": "" if name == "info" else name},
+                    )
+                )
         return _respond(
             outcome.status or 200,
             body=_rebase(data, f"{EMBED_PREFIX}/{session.token}"),
