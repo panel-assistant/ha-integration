@@ -912,7 +912,7 @@
       "fix_flow": {
         "step": {
           "commission_permissions": {
-            "title": "Check permissions on {panel}",
+            "title": "Check permissions",
             "description": "Missing Android permissions prevent some features on {panel} from working.\n\nTo fix:\n1. At the panel, follow the [Android permission guide]({permissions_url}): in Settings → Apps → Panel Assistant, allow camera, microphone and notifications where listed.\n2. Under Special app access, allow Modify system settings and Display over other apps; under Accessibility, enable Panel Assistant.\n3. Return here and select Submit to check again.\n\n[Learn more]({learn_more_url})"
           }
         },
@@ -930,7 +930,7 @@
       "fix_flow": {
         "step": {
           "set_up_proximity": {
-            "title": "Set up proximity on {panel}",
+            "title": "Set up proximity",
             "description": "{panel} cannot wake on a wave until its proximity sensor is set up.\n\nTo fix:\n1. Open [proximity setup]({configure_url}) and select Set up proximity on panel.\n2. Stand in front of {panel} and follow its screen instructions (about a minute).\n3. When calibration is saved, return here and select Submit.\n\n[Learn more]({learn_more_url})"
           }
         },
@@ -984,11 +984,11 @@
       "fix_flow": {
         "step": {
           "confirm_bind": {
-            "title": "Confirm the panel's user",
+            "title": "Confirm panel user",
             "description": "{panel} cannot connect as {user} until you confirm this account.\n\nTo fix:\n1. [Check the panel’s sign-in]({configure_url}).\n2. Select Submit only if you set up {user} for this panel; it should then reconnect.\n3. If you do not recognise the request, close this dialog and ignore the issue: anyone signed in can request a panel connection.\n\n[Learn more]({learn_more_url})"
           },
           "confirm_rebind": {
-            "title": "Change the panel's user",
+            "title": "Change panel user",
             "description": "{user} asked to connect as {panel}, which currently accepts {bound_user}.\n\nTo fix:\n1. [Check the panel’s sign-in]({configure_url}).\n2. Select Submit only if you changed its account to {user}; this stops accepting {bound_user}.\n3. Otherwise close this dialog and ignore the issue: this may be a takeover attempt.\n\n[Learn more]({learn_more_url})"
           }
         },
@@ -1028,7 +1028,7 @@
             "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
+            "title": "Retry incomplete",
             "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
@@ -1070,7 +1070,7 @@
             "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
+            "title": "Retry incomplete",
             "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
@@ -1112,7 +1112,7 @@
             "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
+            "title": "Retry incomplete",
             "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
@@ -1154,7 +1154,7 @@
             "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
+            "title": "Retry incomplete",
             "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
@@ -1196,7 +1196,7 @@
             "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
+            "title": "Retry incomplete",
             "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
@@ -1238,7 +1238,7 @@
             "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
+            "title": "Retry incomplete",
             "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
@@ -1280,7 +1280,7 @@
             "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
+            "title": "Retry incomplete",
             "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
@@ -1322,7 +1322,7 @@
             "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
+            "title": "Retry incomplete",
             "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
@@ -1364,7 +1364,7 @@
             "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
+            "title": "Retry incomplete",
             "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
@@ -1406,7 +1406,7 @@
             "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
+            "title": "Retry incomplete",
             "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
@@ -1449,11 +1449,11 @@
             "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
+            "title": "Retry incomplete",
             "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Allow updates on {panel}",
+            "title": "Allow updates",
             "description": "Home Assistant needs Android approval before it can update {panel}.\n\nTo fix:\n1. Read the [ADB approval steps]({approval_url}).\n2. Select **Submit**, then on {panel} tick **Always allow from this computer** and tap **Allow**.\n3. After approval, select **Try again** from this Repair to retry the update.\n\n[Learn more]({learn_more_url})"
           }
         },
@@ -1512,7 +1512,7 @@
             "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
+            "title": "Retry incomplete",
             "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           }
         },
@@ -1556,7 +1556,7 @@
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "Keep the listed panel setups",
+            "title": "Keep setups",
             "description": "The listed panels need confirmation before their existing setups can be kept under their new device identities.\n\nTo fix:\n1. [Check Panel Assistant devices]({integration_url}) against this list.\n2. Confirm only if every panel belongs to its existing setup.\n3. Select Submit once to keep all listed setups.\n\n{panels}\n\n[Learn more]({learn_more_url})"
           }
         },
@@ -1592,11 +1592,11 @@
             "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Retry could not finish",
+            "title": "Retry incomplete",
             "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Allow updates on {panel}",
+            "title": "Allow updates",
             "description": "Home Assistant needs Android approval before it can update {panel}.\n\nTo fix:\n1. Read the [ADB approval steps]({approval_url}).\n2. Select **Submit**, then on {panel} tick **Always allow from this computer** and tap **Allow**.\n3. After approval, select **Try again** from this Repair to retry the update.\n\n[Learn more]({learn_more_url})"
           }
         },
@@ -1638,7 +1638,7 @@
       "fix_flow": {
         "step": {
           "authorize_adb": {
-            "title": "Allow updates on {panel}",
+            "title": "Allow updates",
             "description": "Home Assistant cannot install updates on {panel} until you allow its ADB connection.\n\nTo fix:\n1. Read the [ADB approval steps]({approval_url}), then select Submit to send the approval request.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n3. Wait here for approval to finish; Android may call Home Assistant a computer.\n\n[Learn more]({learn_more_url})"
           }
         },

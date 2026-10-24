@@ -912,7 +912,7 @@
       "fix_flow": {
         "step": {
           "commission_permissions": {
-            "title": "Comprobar los permisos de {panel}",
+            "title": "Comprobar los permisos",
             "description": "La falta de permisos de Android impide que funcionen algunas funciones de {panel}.\n\nPara solucionarlo:\n1. En el panel, sigue la [guía de permisos de Android]({permissions_url}): en Ajustes → Aplicaciones → Panel Assistant, permite el acceso a la cámara, al micrófono y a las notificaciones cuando aparezcan.\n2. En Acceso especial de aplicaciones, permite Modificar ajustes del sistema y Mostrar sobre otras aplicaciones; en Accesibilidad, activa Panel Assistant.\n3. Vuelve aquí y selecciona Enviar para comprobarlo de nuevo.\n\n[Más información]({learn_more_url})"
           }
         },
@@ -930,7 +930,7 @@
       "fix_flow": {
         "step": {
           "set_up_proximity": {
-            "title": "Configurar la proximidad en {panel}",
+            "title": "Configurar la proximidad",
             "description": "{panel} no puede activarse al pasar la mano hasta que se configure su sensor de proximidad.\n\nPara solucionarlo:\n1. Abre la [configuración de proximidad]({configure_url}) y selecciona Configurar proximidad en el panel.\n2. Ponte delante de {panel} y sigue las instrucciones de su pantalla (aproximadamente un minuto).\n3. Cuando se guarde la calibración, vuelve aquí y selecciona Enviar.\n\n[Más información]({learn_more_url})"
           }
         },
@@ -1028,7 +1028,7 @@
             "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
+            "title": "Reintento incompleto",
             "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
@@ -1070,7 +1070,7 @@
             "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
+            "title": "Reintento incompleto",
             "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
@@ -1112,7 +1112,7 @@
             "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
+            "title": "Reintento incompleto",
             "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
@@ -1154,7 +1154,7 @@
             "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
+            "title": "Reintento incompleto",
             "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
@@ -1196,7 +1196,7 @@
             "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
+            "title": "Reintento incompleto",
             "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
@@ -1238,7 +1238,7 @@
             "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
+            "title": "Reintento incompleto",
             "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
@@ -1280,7 +1280,7 @@
             "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
+            "title": "Reintento incompleto",
             "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
@@ -1322,7 +1322,7 @@
             "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
+            "title": "Reintento incompleto",
             "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
@@ -1364,7 +1364,7 @@
             "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
+            "title": "Reintento incompleto",
             "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
@@ -1406,7 +1406,7 @@
             "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
+            "title": "Reintento incompleto",
             "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
@@ -1449,11 +1449,11 @@
             "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
+            "title": "Reintento incompleto",
             "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Permitir actualizaciones en {panel}",
+            "title": "Permitir actualizaciones",
             "description": "Home Assistant necesita la autorización de Android para poder actualizar {panel}.\n\nPara solucionarlo:\n1. Lee los [pasos de autorización de ADB]({approval_url}).\n2. Selecciona **Enviar** y después, en {panel}, marca **Permitir siempre desde este ordenador** y toca **Permitir**.\n3. Tras autorizarlo, selecciona **Reintentar** en esta reparación para volver a intentar la actualización.\n\n[Más información]({learn_more_url})"
           }
         },
@@ -1512,7 +1512,7 @@
             "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
+            "title": "Reintento incompleto",
             "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
@@ -1556,7 +1556,7 @@
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "Conservar las configuraciones de los paneles indicados",
+            "title": "Conservar configuraciones",
             "description": "Los paneles de la lista necesitan confirmación para poder conservar sus configuraciones existentes con sus nuevas identidades de dispositivo.\n\nPara solucionarlo:\n1. [Comprueba los dispositivos de Panel Assistant]({integration_url}) con esta lista.\n2. Confirma solo si cada panel corresponde a su configuración existente.\n3. Selecciona Enviar una vez para conservar todas las configuraciones de la lista.\n\n{panels}\n\n[Más información]({learn_more_url})"
           }
         },
@@ -1592,11 +1592,11 @@
             "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
           },
           "retry_error": {
-            "title": "No se pudo completar el reintento",
+            "title": "Reintento incompleto",
             "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Permitir actualizaciones en {panel}",
+            "title": "Permitir actualizaciones",
             "description": "Home Assistant necesita la autorización de Android para poder actualizar {panel}.\n\nPara solucionarlo:\n1. Lee los [pasos de autorización de ADB]({approval_url}).\n2. Selecciona **Enviar** y después, en {panel}, marca **Permitir siempre desde este ordenador** y toca **Permitir**.\n3. Tras autorizarlo, selecciona **Reintentar** en esta reparación para volver a intentar la actualización.\n\n[Más información]({learn_more_url})"
           }
         },
@@ -1638,7 +1638,7 @@
       "fix_flow": {
         "step": {
           "authorize_adb": {
-            "title": "Permitir actualizaciones en {panel}",
+            "title": "Permitir actualizaciones",
             "description": "Home Assistant no puede instalar actualizaciones en {panel} hasta que permitas su conexión ADB.\n\nPara solucionarlo:\n1. Lee los [pasos de autorización de ADB]({approval_url}) y después selecciona Enviar para enviar la solicitud de autorización.\n2. En {panel}, marca **Permitir siempre desde este ordenador** y después toca **Permitir**.\n3. Espera aquí a que termine la autorización; Android puede referirse a Home Assistant como un ordenador.\n\n[Más información]({learn_more_url})"
           }
         },

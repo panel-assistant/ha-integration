@@ -912,7 +912,7 @@
       "fix_flow": {
         "step": {
           "commission_permissions": {
-            "title": "Verifica le autorizzazioni su {panel}",
+            "title": "Verifica le autorizzazioni",
             "description": "Le autorizzazioni Android mancanti impediscono il funzionamento di alcune funzioni su {panel}.\n\nPer risolvere:\n1. Sul pannello, segui la [guida alle autorizzazioni Android]({permissions_url}): in Impostazioni → App → Panel Assistant, consenti fotocamera, microfono e notifiche dove elencati.\n2. In Accesso speciale per le app, consenti Modifica impostazioni di sistema e Mostra sopra altre app; in Accessibilità, attiva Panel Assistant.\n3. Torna qui e seleziona Invia per controllare di nuovo.\n\n[Scopri di più]({learn_more_url})"
           }
         },
@@ -930,7 +930,7 @@
       "fix_flow": {
         "step": {
           "set_up_proximity": {
-            "title": "Configura la prossimità su {panel}",
+            "title": "Configura la prossimità",
             "description": "{panel} non può riattivarsi con un gesto della mano finché il sensore di prossimità non è configurato.\n\nPer risolvere:\n1. Apri la [configurazione della prossimità]({configure_url}) e seleziona Configura prossimità sul pannello.\n2. Mettiti davanti a {panel} e segui le istruzioni sul suo schermo (circa un minuto).\n3. Quando la calibrazione è salvata, torna qui e seleziona Invia.\n\n[Scopri di più]({learn_more_url})"
           }
         },
@@ -1028,7 +1028,7 @@
             "description": "Cancellare questo errore elimina il rapporto salvato senza modificare il pannello.\n\nPer risolvere:\n1. [Salva prima un rapporto di assistenza]({guide_url}) se ti serve.\n2. Seleziona **Invia** per rimuovere questo errore e il rapporto.\n\n[Scopri di più]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Nuovo tentativo non riuscito",
+            "title": "Nuovo tentativo incompleto",
             "description": "Il nuovo tentativo non è stato completato, quindi questo errore e il suo rapporto rimangono in Riparazioni.\n\nPer risolvere:\n1. Segui i [passaggi di ripristino]({repair_url}).\n2. Seleziona **Invia**, poi **Rapporto di assistenza** per verificare la causa prima di riprovare.\n\n[Scopri di più]({learn_more_url})"
           }
         },
@@ -1070,7 +1070,7 @@
             "description": "Cancellare questo errore elimina il rapporto salvato senza modificare il pannello.\n\nPer risolvere:\n1. [Salva prima un rapporto di assistenza]({guide_url}) se ti serve.\n2. Seleziona **Invia** per rimuovere questo errore e il rapporto.\n\n[Scopri di più]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Nuovo tentativo non riuscito",
+            "title": "Nuovo tentativo incompleto",
             "description": "Il nuovo tentativo non è stato completato, quindi questo errore e il suo rapporto rimangono in Riparazioni.\n\nPer risolvere:\n1. Segui i [passaggi di ripristino]({repair_url}).\n2. Seleziona **Invia**, poi **Rapporto di assistenza** per verificare la causa prima di riprovare.\n\n[Scopri di più]({learn_more_url})"
           }
         },
@@ -1112,7 +1112,7 @@
             "description": "Cancellare questo errore elimina il rapporto salvato senza modificare il pannello.\n\nPer risolvere:\n1. [Salva prima un rapporto di assistenza]({guide_url}) se ti serve.\n2. Seleziona **Invia** per rimuovere questo errore e il rapporto.\n\n[Scopri di più]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Nuovo tentativo non riuscito",
+            "title": "Nuovo tentativo incompleto",
             "description": "Il nuovo tentativo non è stato completato, quindi questo errore e il suo rapporto rimangono in Riparazioni.\n\nPer risolvere:\n1. Segui i [passaggi di ripristino]({repair_url}).\n2. Seleziona **Invia**, poi **Rapporto di assistenza** per verificare la causa prima di riprovare.\n\n[Scopri di più]({learn_more_url})"
           }
         },
@@ -1154,7 +1154,7 @@
             "description": "Cancellare questo errore elimina il rapporto salvato senza modificare il pannello.\n\nPer risolvere:\n1. [Salva prima un rapporto di assistenza]({guide_url}) se ti serve.\n2. Seleziona **Invia** per rimuovere questo errore e il rapporto.\n\n[Scopri di più]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Nuovo tentativo non riuscito",
+            "title": "Nuovo tentativo incompleto",
             "description": "Il nuovo tentativo non è stato completato, quindi questo errore e il suo rapporto rimangono in Riparazioni.\n\nPer risolvere:\n1. Segui i [passaggi di ripristino]({repair_url}).\n2. Seleziona **Invia**, poi **Rapporto di assistenza** per verificare la causa prima di riprovare.\n\n[Scopri di più]({learn_more_url})"
           }
         },
@@ -1196,7 +1196,7 @@
             "description": "Cancellare questo errore elimina il rapporto salvato senza modificare il pannello.\n\nPer risolvere:\n1. [Salva prima un rapporto di assistenza]({guide_url}) se ti serve.\n2. Seleziona **Invia** per rimuovere questo errore e il rapporto.\n\n[Scopri di più]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Nuovo tentativo non riuscito",
+            "title": "Nuovo tentativo incompleto",
             "description": "Il nuovo tentativo non è stato completato, quindi questo errore e il suo rapporto rimangono in Riparazioni.\n\nPer risolvere:\n1. Segui i [passaggi di ripristino]({repair_url}).\n2. Seleziona **Invia**, poi **Rapporto di assistenza** per verificare la causa prima di riprovare.\n\n[Scopri di più]({learn_more_url})"
           }
         },
@@ -1238,7 +1238,7 @@
             "description": "Cancellare questo errore elimina il rapporto salvato senza modificare il pannello.\n\nPer risolvere:\n1. [Salva prima un rapporto di assistenza]({guide_url}) se ti serve.\n2. Seleziona **Invia** per rimuovere questo errore e il rapporto.\n\n[Scopri di più]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Nuovo tentativo non riuscito",
+            "title": "Nuovo tentativo incompleto",
             "description": "Il nuovo tentativo non è stato completato, quindi questo errore e il suo rapporto rimangono in Riparazioni.\n\nPer risolvere:\n1. Segui i [passaggi di ripristino]({repair_url}).\n2. Seleziona **Invia**, poi **Rapporto di assistenza** per verificare la causa prima di riprovare.\n\n[Scopri di più]({learn_more_url})"
           }
         },
@@ -1280,7 +1280,7 @@
             "description": "Cancellare questo errore elimina il rapporto salvato senza modificare il pannello.\n\nPer risolvere:\n1. [Salva prima un rapporto di assistenza]({guide_url}) se ti serve.\n2. Seleziona **Invia** per rimuovere questo errore e il rapporto.\n\n[Scopri di più]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Nuovo tentativo non riuscito",
+            "title": "Nuovo tentativo incompleto",
             "description": "Il nuovo tentativo non è stato completato, quindi questo errore e il suo rapporto rimangono in Riparazioni.\n\nPer risolvere:\n1. Segui i [passaggi di ripristino]({repair_url}).\n2. Seleziona **Invia**, poi **Rapporto di assistenza** per verificare la causa prima di riprovare.\n\n[Scopri di più]({learn_more_url})"
           }
         },
@@ -1322,7 +1322,7 @@
             "description": "Cancellare questo errore elimina il rapporto salvato senza modificare il pannello.\n\nPer risolvere:\n1. [Salva prima un rapporto di assistenza]({guide_url}) se ti serve.\n2. Seleziona **Invia** per rimuovere questo errore e il rapporto.\n\n[Scopri di più]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Nuovo tentativo non riuscito",
+            "title": "Nuovo tentativo incompleto",
             "description": "Il nuovo tentativo non è stato completato, quindi questo errore e il suo rapporto rimangono in Riparazioni.\n\nPer risolvere:\n1. Segui i [passaggi di ripristino]({repair_url}).\n2. Seleziona **Invia**, poi **Rapporto di assistenza** per verificare la causa prima di riprovare.\n\n[Scopri di più]({learn_more_url})"
           }
         },
@@ -1364,7 +1364,7 @@
             "description": "Cancellare questo errore elimina il rapporto salvato senza modificare il pannello.\n\nPer risolvere:\n1. [Salva prima un rapporto di assistenza]({guide_url}) se ti serve.\n2. Seleziona **Invia** per rimuovere questo errore e il rapporto.\n\n[Scopri di più]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Nuovo tentativo non riuscito",
+            "title": "Nuovo tentativo incompleto",
             "description": "Il nuovo tentativo non è stato completato, quindi questo errore e il suo rapporto rimangono in Riparazioni.\n\nPer risolvere:\n1. Segui i [passaggi di ripristino]({repair_url}).\n2. Seleziona **Invia**, poi **Rapporto di assistenza** per verificare la causa prima di riprovare.\n\n[Scopri di più]({learn_more_url})"
           }
         },
@@ -1406,7 +1406,7 @@
             "description": "Cancellare questo errore elimina il rapporto salvato senza modificare il pannello.\n\nPer risolvere:\n1. [Salva prima un rapporto di assistenza]({guide_url}) se ti serve.\n2. Seleziona **Invia** per rimuovere questo errore e il rapporto.\n\n[Scopri di più]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Nuovo tentativo non riuscito",
+            "title": "Nuovo tentativo incompleto",
             "description": "Il nuovo tentativo non è stato completato, quindi questo errore e il suo rapporto rimangono in Riparazioni.\n\nPer risolvere:\n1. Segui i [passaggi di ripristino]({repair_url}).\n2. Seleziona **Invia**, poi **Rapporto di assistenza** per verificare la causa prima di riprovare.\n\n[Scopri di più]({learn_more_url})"
           }
         },
@@ -1449,11 +1449,11 @@
             "description": "Cancellare questo errore elimina il rapporto salvato senza modificare il pannello.\n\nPer risolvere:\n1. [Salva prima un rapporto di assistenza]({guide_url}) se ti serve.\n2. Seleziona **Invia** per rimuovere questo errore e il rapporto.\n\n[Scopri di più]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Nuovo tentativo non riuscito",
+            "title": "Nuovo tentativo incompleto",
             "description": "Il nuovo tentativo non è stato completato, quindi questo errore e il suo rapporto rimangono in Riparazioni.\n\nPer risolvere:\n1. Segui i [passaggi di ripristino]({repair_url}).\n2. Seleziona **Invia**, poi **Rapporto di assistenza** per verificare la causa prima di riprovare.\n\n[Scopri di più]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Consenti aggiornamenti su {panel}",
+            "title": "Consenti aggiornamenti",
             "description": "Home Assistant ha bisogno dell'autorizzazione di Android per aggiornare {panel}.\n\nPer risolvere:\n1. Leggi i [passaggi per autorizzare ADB]({approval_url}).\n2. Seleziona **Invia**, poi su {panel} spunta **Consenti sempre da questo computer** e tocca **Consenti**.\n3. Dopo l'autorizzazione, seleziona **Riprova** da questa riparazione per ritentare l'aggiornamento.\n\n[Scopri di più]({learn_more_url})"
           }
         },
@@ -1512,7 +1512,7 @@
             "description": "Cancellare questo errore elimina il rapporto salvato senza modificare il pannello.\n\nPer risolvere:\n1. [Salva prima un rapporto di assistenza]({guide_url}) se ti serve.\n2. Seleziona **Invia** per rimuovere questo errore e il rapporto.\n\n[Scopri di più]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Nuovo tentativo non riuscito",
+            "title": "Nuovo tentativo incompleto",
             "description": "Il nuovo tentativo non è stato completato, quindi questo errore e il suo rapporto rimangono in Riparazioni.\n\nPer risolvere:\n1. Segui i [passaggi di ripristino]({repair_url}).\n2. Seleziona **Invia**, poi **Rapporto di assistenza** per verificare la causa prima di riprovare.\n\n[Scopri di più]({learn_more_url})"
           }
         },
@@ -1556,7 +1556,7 @@
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "Mantieni le configurazioni elencate",
+            "title": "Mantieni le configurazioni",
             "description": "I pannelli elencati richiedono una conferma prima di poter mantenere le configurazioni esistenti con le nuove identità del dispositivo.\n\nPer risolvere:\n1. [Confronta i dispositivi di Panel Assistant]({integration_url}) con questo elenco.\n2. Conferma solo se ogni pannello corrisponde alla propria configurazione esistente.\n3. Seleziona Invia una sola volta per mantenere tutte le configurazioni elencate.\n\n{panels}\n\n[Scopri di più]({learn_more_url})"
           }
         },
@@ -1592,11 +1592,11 @@
             "description": "Cancellare questo errore elimina il rapporto salvato senza modificare il pannello.\n\nPer risolvere:\n1. [Salva prima un rapporto di assistenza]({guide_url}) se ti serve.\n2. Seleziona **Invia** per rimuovere questo errore e il rapporto.\n\n[Scopri di più]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Nuovo tentativo non riuscito",
+            "title": "Nuovo tentativo incompleto",
             "description": "Il nuovo tentativo non è stato completato, quindi questo errore e il suo rapporto rimangono in Riparazioni.\n\nPer risolvere:\n1. Segui i [passaggi di ripristino]({repair_url}).\n2. Seleziona **Invia**, poi **Rapporto di assistenza** per verificare la causa prima di riprovare.\n\n[Scopri di più]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Consenti aggiornamenti su {panel}",
+            "title": "Consenti aggiornamenti",
             "description": "Home Assistant ha bisogno dell'autorizzazione di Android per aggiornare {panel}.\n\nPer risolvere:\n1. Leggi i [passaggi per autorizzare ADB]({approval_url}).\n2. Seleziona **Invia**, poi su {panel} spunta **Consenti sempre da questo computer** e tocca **Consenti**.\n3. Dopo l'autorizzazione, seleziona **Riprova** da questa riparazione per ritentare l'aggiornamento.\n\n[Scopri di più]({learn_more_url})"
           }
         },
@@ -1638,7 +1638,7 @@
       "fix_flow": {
         "step": {
           "authorize_adb": {
-            "title": "Consenti aggiornamenti su {panel}",
+            "title": "Consenti aggiornamenti",
             "description": "Home Assistant non può installare aggiornamenti su {panel} finché non autorizzi la sua connessione ADB.\n\nPer risolvere:\n1. Leggi i [passaggi per autorizzare ADB]({approval_url}), poi seleziona Invia per inviare la richiesta di autorizzazione.\n2. Su {panel}, spunta **Consenti sempre da questo computer**, poi tocca **Consenti**.\n3. Attendi qui che l'autorizzazione sia completata; Android potrebbe chiamare Home Assistant un computer.\n\n[Scopri di più]({learn_more_url})"
           }
         },

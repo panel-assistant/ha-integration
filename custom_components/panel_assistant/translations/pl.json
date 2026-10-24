@@ -912,7 +912,7 @@
       "fix_flow": {
         "step": {
           "commission_permissions": {
-            "title": "Sprawdź uprawnienia na {panel}",
+            "title": "Sprawdź uprawnienia",
             "description": "Brak uprawnień systemu Android uniemożliwia działanie niektórych funkcji panelu {panel}.\n\nAby rozwiązać problem:\n1. Na panelu postępuj zgodnie z [instrukcją uprawnień systemu Android]({permissions_url}): w Ustawienia → Aplikacje → Panel Assistant zezwól na dostęp do aparatu i mikrofonu oraz na powiadomienia, jeśli są wymienione.\n2. W sekcji Specjalny dostęp aplikacji zezwól na Modyfikowanie ustawień systemu i Wyświetlanie nad innymi aplikacjami; w sekcji Ułatwienia dostępu włącz Panel Assistant.\n3. Wróć tutaj i wybierz Zatwierdź, aby sprawdzić ponownie.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
@@ -930,7 +930,7 @@
       "fix_flow": {
         "step": {
           "set_up_proximity": {
-            "title": "Konfiguracja czujnika zbliżeniowego na panelu {panel}",
+            "title": "Skonfiguruj czujnik zbliżeniowy",
             "description": "Panel {panel} nie może wybudzać się po machnięciu, dopóki jego czujnik zbliżeniowy nie zostanie skonfigurowany.\n\nAby rozwiązać problem:\n1. Otwórz [konfigurację czujnika zbliżeniowego]({configure_url}) i wybierz Skonfiguruj czujnik zbliżeniowy na panelu.\n2. Stań przed panelem {panel} i postępuj zgodnie z instrukcjami na jego ekranie (około minuty).\n3. Po zapisaniu kalibracji wróć tutaj i wybierz Zatwierdź.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
@@ -1028,7 +1028,7 @@
             "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Ponowna próba nie powiodła się",
+            "title": "Ponowna próba nieukończona",
             "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
@@ -1070,7 +1070,7 @@
             "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Ponowna próba nie powiodła się",
+            "title": "Ponowna próba nieukończona",
             "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
@@ -1112,7 +1112,7 @@
             "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Ponowna próba nie powiodła się",
+            "title": "Ponowna próba nieukończona",
             "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
@@ -1154,7 +1154,7 @@
             "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Ponowna próba nie powiodła się",
+            "title": "Ponowna próba nieukończona",
             "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
@@ -1196,7 +1196,7 @@
             "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Ponowna próba nie powiodła się",
+            "title": "Ponowna próba nieukończona",
             "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
@@ -1238,7 +1238,7 @@
             "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Ponowna próba nie powiodła się",
+            "title": "Ponowna próba nieukończona",
             "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
@@ -1280,7 +1280,7 @@
             "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Ponowna próba nie powiodła się",
+            "title": "Ponowna próba nieukończona",
             "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
@@ -1322,7 +1322,7 @@
             "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Ponowna próba nie powiodła się",
+            "title": "Ponowna próba nieukończona",
             "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
@@ -1364,7 +1364,7 @@
             "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Ponowna próba nie powiodła się",
+            "title": "Ponowna próba nieukończona",
             "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
@@ -1406,7 +1406,7 @@
             "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Ponowna próba nie powiodła się",
+            "title": "Ponowna próba nieukończona",
             "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
@@ -1449,11 +1449,11 @@
             "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Ponowna próba nie powiodła się",
+            "title": "Ponowna próba nieukończona",
             "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Zezwól na aktualizacje panelu {panel}",
+            "title": "Zezwól na aktualizacje",
             "description": "Home Assistant potrzebuje zgody w systemie Android, aby zaktualizować panel {panel}.\n\nAby rozwiązać problem:\n1. Przeczytaj [instrukcję zatwierdzania ADB]({approval_url}).\n2. Wybierz **Zatwierdź**, a następnie na panelu {panel} zaznacz **Zawsze zezwalaj z tego komputera** i dotknij **Zezwól**.\n3. Po udzieleniu zgody wybierz **Spróbuj ponownie** w tym problemie, aby ponowić aktualizację.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
@@ -1512,7 +1512,7 @@
             "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Ponowna próba nie powiodła się",
+            "title": "Ponowna próba nieukończona",
             "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
@@ -1556,7 +1556,7 @@
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "Zachowaj konfiguracje wymienionych paneli",
+            "title": "Zachowaj konfiguracje",
             "description": "Panele z listy wymagają potwierdzenia, aby można było zachować ich istniejące konfiguracje pod nowymi tożsamościami urządzeń.\n\nAby rozwiązać problem:\n1. [Sprawdź urządzenia Panel Assistant]({integration_url}), porównując je z tą listą.\n2. Potwierdź tylko wtedy, gdy każdy panel odpowiada swojej istniejącej konfiguracji.\n3. Wybierz Zatwierdź raz, aby zachować wszystkie wymienione konfiguracje.\n\n{panels}\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
@@ -1592,11 +1592,11 @@
             "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Ponowna próba nie powiodła się",
+            "title": "Ponowna próba nieukończona",
             "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Zezwól na aktualizacje panelu {panel}",
+            "title": "Zezwól na aktualizacje",
             "description": "Home Assistant potrzebuje zgody w systemie Android, aby zaktualizować panel {panel}.\n\nAby rozwiązać problem:\n1. Przeczytaj [instrukcję zatwierdzania ADB]({approval_url}).\n2. Wybierz **Zatwierdź**, a następnie na panelu {panel} zaznacz **Zawsze zezwalaj z tego komputera** i dotknij **Zezwól**.\n3. Po udzieleniu zgody wybierz **Spróbuj ponownie** w tym problemie, aby ponowić aktualizację.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
@@ -1638,7 +1638,7 @@
       "fix_flow": {
         "step": {
           "authorize_adb": {
-            "title": "Zezwól na aktualizacje panelu {panel}",
+            "title": "Zezwól na aktualizacje",
             "description": "Home Assistant nie może instalować aktualizacji na panelu {panel}, dopóki nie zezwolisz na jego połączenie ADB.\n\nAby rozwiązać problem:\n1. Przeczytaj [instrukcję zatwierdzania ADB]({approval_url}), a następnie wybierz Zatwierdź, aby wysłać prośbę o zgodę.\n2. Na panelu {panel} zaznacz **Zawsze zezwalaj z tego komputera**, a następnie dotknij **Zezwól**.\n3. Poczekaj tutaj na zakończenie zatwierdzania; Android może nazywać Home Assistant komputerem.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },

@@ -912,7 +912,7 @@
       "fix_flow": {
         "step": {
           "commission_permissions": {
-            "title": "Machtigingen op {panel} controleren",
+            "title": "Machtigingen controleren",
             "description": "Door ontbrekende Android-machtigingen werken sommige functies op {panel} niet.\n\nOm dit op te lossen:\n1. Volg op het paneel de [handleiding voor Android-machtigingen]({permissions_url}): sta onder Instellingen → Apps → Panel Assistant camera, microfoon en meldingen toe waar vermeld.\n2. Sta onder Speciale app-toegang Systeeminstellingen aanpassen en Weergeven over andere apps toe; schakel onder Toegankelijkheid Panel Assistant in.\n3. Kom hier terug en selecteer Verzenden om opnieuw te controleren.\n\n[Meer informatie]({learn_more_url})"
           }
         },
@@ -930,7 +930,7 @@
       "fix_flow": {
         "step": {
           "set_up_proximity": {
-            "title": "Nabijheid instellen op {panel}",
+            "title": "Nabijheid instellen",
             "description": "{panel} kan pas met een handgebaar worden gewekt als de nabijheidssensor is ingesteld.\n\nOm dit op te lossen:\n1. Open de [nabijheidsinstellingen]({configure_url}) en selecteer Nabijheid instellen op paneel.\n2. Ga voor {panel} staan en volg de aanwijzingen op het scherm (ongeveer een minuut).\n3. Kom hier terug zodra de kalibratie is opgeslagen en selecteer Verzenden.\n\n[Meer informatie]({learn_more_url})"
           }
         },
@@ -984,11 +984,11 @@
       "fix_flow": {
         "step": {
           "confirm_bind": {
-            "title": "Bevestig de gebruiker van het paneel",
+            "title": "Paneelgebruiker bevestigen",
             "description": "{panel} kan pas als {user} verbinden als je dit account bevestigt.\n\nOm dit op te lossen:\n1. [Controleer de aanmelding van het paneel]({configure_url}).\n2. Selecteer Verzenden alleen als je {user} voor dit paneel hebt ingesteld; het zou daarna opnieuw verbinding moeten maken.\n3. Herken je het verzoek niet, sluit dan dit dialoogvenster en negeer het probleem: iedereen die is aangemeld, kan een paneelverbinding aanvragen.\n\n[Meer informatie]({learn_more_url})"
           },
           "confirm_rebind": {
-            "title": "De gebruiker van het paneel wijzigen",
+            "title": "Paneelgebruiker wijzigen",
             "description": "{user} heeft gevraagd om als {panel} te verbinden, dat momenteel {bound_user} accepteert.\n\nOm dit op te lossen:\n1. [Controleer de aanmelding van het paneel]({configure_url}).\n2. Selecteer Verzenden alleen als je het account ervan hebt gewijzigd naar {user}; daarna wordt {bound_user} niet meer geaccepteerd.\n3. Sluit anders dit dialoogvenster en negeer het probleem: dit kan een overnamepoging zijn.\n\n[Meer informatie]({learn_more_url})"
           }
         },
@@ -1028,7 +1028,7 @@
             "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
+            "title": "Opnieuw proberen niet voltooid",
             "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
@@ -1070,7 +1070,7 @@
             "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
+            "title": "Opnieuw proberen niet voltooid",
             "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
@@ -1112,7 +1112,7 @@
             "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
+            "title": "Opnieuw proberen niet voltooid",
             "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
@@ -1154,7 +1154,7 @@
             "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
+            "title": "Opnieuw proberen niet voltooid",
             "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
@@ -1196,7 +1196,7 @@
             "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
+            "title": "Opnieuw proberen niet voltooid",
             "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
@@ -1238,7 +1238,7 @@
             "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
+            "title": "Opnieuw proberen niet voltooid",
             "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
@@ -1280,7 +1280,7 @@
             "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
+            "title": "Opnieuw proberen niet voltooid",
             "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
@@ -1322,7 +1322,7 @@
             "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
+            "title": "Opnieuw proberen niet voltooid",
             "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
@@ -1364,7 +1364,7 @@
             "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
+            "title": "Opnieuw proberen niet voltooid",
             "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
@@ -1406,7 +1406,7 @@
             "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
+            "title": "Opnieuw proberen niet voltooid",
             "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
@@ -1449,11 +1449,11 @@
             "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
+            "title": "Opnieuw proberen niet voltooid",
             "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Updates op {panel} toestaan",
+            "title": "Updates toestaan",
             "description": "Home Assistant heeft toestemming van Android nodig voordat het {panel} kan bijwerken.\n\nOm dit op te lossen:\n1. Lees de [stappen voor ADB-toestemming]({approval_url}).\n2. Selecteer **Verzenden**, vink daarna op {panel} **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**.\n3. Selecteer na het geven van toestemming **Opnieuw proberen** in deze reparatie om de update opnieuw te proberen.\n\n[Meer informatie]({learn_more_url})"
           }
         },
@@ -1512,7 +1512,7 @@
             "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
+            "title": "Opnieuw proberen niet voltooid",
             "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
@@ -1556,7 +1556,7 @@
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "Instellingen van vermelde panelen behouden",
+            "title": "Configuraties behouden",
             "description": "De vermelde panelen moeten worden bevestigd voordat hun bestaande configuraties onder hun nieuwe apparaatidentiteiten behouden kunnen blijven.\n\nOm dit op te lossen:\n1. [Controleer de Panel Assistant-apparaten]({integration_url}) aan de hand van deze lijst.\n2. Bevestig alleen als elk paneel bij de bestaande configuratie ervan hoort.\n3. Selecteer één keer Verzenden om alle vermelde configuraties te behouden.\n\n{panels}\n\n[Meer informatie]({learn_more_url})"
           }
         },
@@ -1592,11 +1592,11 @@
             "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
+            "title": "Opnieuw proberen niet voltooid",
             "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Updates op {panel} toestaan",
+            "title": "Updates toestaan",
             "description": "Home Assistant heeft toestemming van Android nodig voordat het {panel} kan bijwerken.\n\nOm dit op te lossen:\n1. Lees de [stappen voor ADB-toestemming]({approval_url}).\n2. Selecteer **Verzenden**, vink daarna op {panel} **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**.\n3. Selecteer na het geven van toestemming **Opnieuw proberen** in deze reparatie om de update opnieuw te proberen.\n\n[Meer informatie]({learn_more_url})"
           }
         },
@@ -1638,7 +1638,7 @@
       "fix_flow": {
         "step": {
           "authorize_adb": {
-            "title": "Updates op {panel} toestaan",
+            "title": "Updates toestaan",
             "description": "Home Assistant kan pas updates op {panel} installeren als je de ADB-verbinding ervan toestaat.\n\nOm dit op te lossen:\n1. Lees de [stappen voor ADB-toestemming]({approval_url}) en selecteer daarna Verzenden om het toestemmingsverzoek te versturen.\n2. Vink op {panel} **Altijd toestaan vanaf deze computer** aan en tik daarna op **Toestaan**.\n3. Wacht hier tot de toestemming is afgerond; Android kan Home Assistant een computer noemen.\n\n[Meer informatie]({learn_more_url})"
           }
         },

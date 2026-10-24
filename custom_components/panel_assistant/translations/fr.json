@@ -912,7 +912,7 @@
       "fix_flow": {
         "step": {
           "commission_permissions": {
-            "title": "Vérifier les autorisations de {panel}",
+            "title": "Vérifier les autorisations",
             "description": "Des autorisations Android manquantes empêchent certaines fonctions de {panel} de fonctionner.\n\nPour corriger le problème :\n1. Sur le panneau, suivez le [guide des autorisations Android]({permissions_url}) : dans Paramètres → Applications → Panel Assistant, autorisez l’appareil photo, le microphone et les notifications lorsqu’ils sont proposés.\n2. Dans Accès spéciaux des applications, autorisez Modifier les paramètres système et Afficher par-dessus les autres applications ; dans Accessibilité, activez Panel Assistant.\n3. Revenez ici et sélectionnez Valider pour vérifier à nouveau.\n\n[En savoir plus]({learn_more_url})"
           }
         },
@@ -930,7 +930,7 @@
       "fix_flow": {
         "step": {
           "set_up_proximity": {
-            "title": "Configurer la proximité sur {panel}",
+            "title": "Configurer la proximité",
             "description": "{panel} ne peut pas se réveiller d’un geste tant que son capteur de proximité n’est pas configuré.\n\nPour corriger le problème :\n1. Ouvrez la [configuration de la proximité]({configure_url}) et sélectionnez Configurer la proximité sur le panneau.\n2. Placez-vous devant {panel} et suivez les instructions à l’écran (environ une minute).\n3. Une fois l’étalonnage enregistré, revenez ici et sélectionnez Valider.\n\n[En savoir plus]({learn_more_url})"
           }
         },
@@ -1453,7 +1453,7 @@
             "description": "La nouvelle tentative n’a pas pu se terminer ; cette erreur et son rapport restent donc dans Réparations.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Valider**, puis **Rapport d’assistance** pour vérifier la cause avant de réessayer.\n\n[En savoir plus]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Autoriser les mises à jour sur {panel}",
+            "title": "Autoriser les mises à jour",
             "description": "Home Assistant a besoin d’une autorisation Android avant de pouvoir mettre à jour {panel}.\n\nPour corriger le problème :\n1. Lisez les [étapes d’autorisation ADB]({approval_url}).\n2. Sélectionnez **Valider**, puis, sur {panel}, cochez **Toujours autoriser sur cet ordinateur** et touchez **Autoriser**.\n3. Après l’autorisation, sélectionnez **Réessayer** dans cette réparation pour relancer la mise à jour.\n\n[En savoir plus]({learn_more_url})"
           }
         },
@@ -1556,7 +1556,7 @@
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "Conserver les configurations des panneaux indiqués",
+            "title": "Conserver les configurations",
             "description": "Les panneaux indiqués doivent être confirmés avant de pouvoir conserver leurs configurations existantes sous leurs nouvelles identités d’appareil.\n\nPour corriger le problème :\n1. [Comparez les appareils Panel Assistant]({integration_url}) à cette liste.\n2. Confirmez uniquement si chaque panneau correspond à sa configuration existante.\n3. Sélectionnez Valider une seule fois pour conserver toutes les configurations indiquées.\n\n{panels}\n\n[En savoir plus]({learn_more_url})"
           }
         },
@@ -1596,7 +1596,7 @@
             "description": "La nouvelle tentative n’a pas pu se terminer ; cette erreur et son rapport restent donc dans Réparations.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Valider**, puis **Rapport d’assistance** pour vérifier la cause avant de réessayer.\n\n[En savoir plus]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Autoriser les mises à jour sur {panel}",
+            "title": "Autoriser les mises à jour",
             "description": "Home Assistant a besoin d’une autorisation Android avant de pouvoir mettre à jour {panel}.\n\nPour corriger le problème :\n1. Lisez les [étapes d’autorisation ADB]({approval_url}).\n2. Sélectionnez **Valider**, puis, sur {panel}, cochez **Toujours autoriser sur cet ordinateur** et touchez **Autoriser**.\n3. Après l’autorisation, sélectionnez **Réessayer** dans cette réparation pour relancer la mise à jour.\n\n[En savoir plus]({learn_more_url})"
           }
         },
@@ -1638,7 +1638,7 @@
       "fix_flow": {
         "step": {
           "authorize_adb": {
-            "title": "Autoriser les mises à jour sur {panel}",
+            "title": "Autoriser les mises à jour",
             "description": "Home Assistant ne peut pas installer de mises à jour sur {panel} tant que vous n’avez pas autorisé sa connexion ADB.\n\nPour corriger le problème :\n1. Lisez les [étapes d’autorisation ADB]({approval_url}), puis sélectionnez Valider pour envoyer la demande d’autorisation.\n2. Sur {panel}, cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**.\n3. Attendez ici la fin de l’autorisation ; Android peut décrire Home Assistant comme un ordinateur.\n\n[En savoir plus]({learn_more_url})"
           }
         },

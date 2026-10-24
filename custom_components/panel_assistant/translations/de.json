@@ -912,7 +912,7 @@
       "fix_flow": {
         "step": {
           "commission_permissions": {
-            "title": "Berechtigungen auf {panel} prüfen",
+            "title": "Berechtigungen prüfen",
             "description": "Fehlende Android-Berechtigungen verhindern, dass einige Funktionen auf {panel} arbeiten.\n\nSo behebst du das Problem:\n1. Folge am Panel der [Anleitung zu Android-Berechtigungen]({permissions_url}): Erlaube unter Einstellungen → Apps → Panel Assistant Kamera, Mikrofon und Benachrichtigungen, soweit aufgeführt.\n2. Erlaube unter „Spezieller App-Zugriff“ „Systemeinstellungen ändern“ und „Über anderen Apps einblenden“; aktiviere unter „Bedienungshilfen“ Panel Assistant.\n3. Kehre hierher zurück und wähle „Absenden“, um erneut zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
@@ -930,7 +930,7 @@
       "fix_flow": {
         "step": {
           "set_up_proximity": {
-            "title": "Näherung auf {panel} einrichten",
+            "title": "Näherung einrichten",
             "description": "{panel} kann erst durch Winken aufgeweckt werden, wenn sein Näherungssensor eingerichtet ist.\n\nSo behebst du das Problem:\n1. Öffne die [Näherungseinrichtung]({configure_url}) und wähle „Näherung auf dem Panel einrichten“.\n2. Stelle dich vor {panel} und folge den Anweisungen auf seinem Bildschirm (etwa eine Minute).\n3. Wenn die Kalibrierung gespeichert ist, kehre hierher zurück und wähle „Absenden“.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
@@ -1028,7 +1028,7 @@
             "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Erneuter Versuch fehlgeschlagen",
+            "title": "Erneuter Versuch unvollständig",
             "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
@@ -1070,7 +1070,7 @@
             "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Erneuter Versuch fehlgeschlagen",
+            "title": "Erneuter Versuch unvollständig",
             "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
@@ -1112,7 +1112,7 @@
             "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Erneuter Versuch fehlgeschlagen",
+            "title": "Erneuter Versuch unvollständig",
             "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
@@ -1154,7 +1154,7 @@
             "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Erneuter Versuch fehlgeschlagen",
+            "title": "Erneuter Versuch unvollständig",
             "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
@@ -1196,7 +1196,7 @@
             "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Erneuter Versuch fehlgeschlagen",
+            "title": "Erneuter Versuch unvollständig",
             "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
@@ -1238,7 +1238,7 @@
             "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Erneuter Versuch fehlgeschlagen",
+            "title": "Erneuter Versuch unvollständig",
             "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
@@ -1280,7 +1280,7 @@
             "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Erneuter Versuch fehlgeschlagen",
+            "title": "Erneuter Versuch unvollständig",
             "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
@@ -1322,7 +1322,7 @@
             "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Erneuter Versuch fehlgeschlagen",
+            "title": "Erneuter Versuch unvollständig",
             "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
@@ -1364,7 +1364,7 @@
             "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Erneuter Versuch fehlgeschlagen",
+            "title": "Erneuter Versuch unvollständig",
             "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
@@ -1406,7 +1406,7 @@
             "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Erneuter Versuch fehlgeschlagen",
+            "title": "Erneuter Versuch unvollständig",
             "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
@@ -1449,11 +1449,11 @@
             "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Erneuter Versuch fehlgeschlagen",
+            "title": "Erneuter Versuch unvollständig",
             "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Updates auf {panel} erlauben",
+            "title": "Updates erlauben",
             "description": "Home Assistant benötigt die Android-Zustimmung, bevor es {panel} aktualisieren kann.\n\nSo behebst du das Problem:\n1. Lies die [Schritte zur ADB-Zustimmung]({approval_url}).\n2. Wähle **Absenden**, aktiviere dann auf {panel} **Von diesem Computer immer zulassen** und tippe auf **Zulassen**.\n3. Wähle nach der Zustimmung in dieser Reparatur **Erneut versuchen**, um das Update erneut zu versuchen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
@@ -1512,7 +1512,7 @@
             "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Erneuter Versuch fehlgeschlagen",
+            "title": "Erneuter Versuch unvollständig",
             "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
@@ -1556,7 +1556,7 @@
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "Aufgeführte Panel-Einrichtungen behalten",
+            "title": "Einrichtungen behalten",
             "description": "Die aufgeführten Panels müssen bestätigt werden, bevor ihre bisherigen Einrichtungen unter ihren neuen Geräteidentitäten erhalten bleiben können.\n\nSo behebst du das Problem:\n1. [Vergleiche die Panel Assistant-Geräte]({integration_url}) mit dieser Liste.\n2. Bestätige nur, wenn jedes Panel zu seiner bisherigen Einrichtung gehört.\n3. Wähle einmal „Absenden“, um alle aufgeführten Einrichtungen beizubehalten.\n\n{panels}\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
@@ -1592,11 +1592,11 @@
             "description": "Das Löschen dieses Fehlers entfernt seinen gespeicherten Bericht, ohne das Panel zu ändern.\n\nSo behebst du das Problem:\n1. [Speichere zuerst einen Supportbericht]({guide_url}), falls du ihn benötigst.\n2. Wähle **Absenden**, um diesen Fehler und den Bericht zu entfernen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Erneuter Versuch fehlgeschlagen",
+            "title": "Erneuter Versuch unvollständig",
             "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **Absenden** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Updates auf {panel} erlauben",
+            "title": "Updates erlauben",
             "description": "Home Assistant benötigt die Android-Zustimmung, bevor es {panel} aktualisieren kann.\n\nSo behebst du das Problem:\n1. Lies die [Schritte zur ADB-Zustimmung]({approval_url}).\n2. Wähle **Absenden**, aktiviere dann auf {panel} **Von diesem Computer immer zulassen** und tippe auf **Zulassen**.\n3. Wähle nach der Zustimmung in dieser Reparatur **Erneut versuchen**, um das Update erneut zu versuchen.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
@@ -1638,7 +1638,7 @@
       "fix_flow": {
         "step": {
           "authorize_adb": {
-            "title": "Updates auf {panel} erlauben",
+            "title": "Updates erlauben",
             "description": "Home Assistant kann erst Updates auf {panel} installieren, wenn du seine ADB-Verbindung erlaubst.\n\nSo behebst du das Problem:\n1. Lies die [Schritte zur ADB-Zustimmung]({approval_url}) und wähle dann „Absenden“, um die Zustimmungsanfrage zu senden.\n2. Aktiviere auf {panel} **Von diesem Computer immer zulassen** und tippe dann auf **Zulassen**.\n3. Warte hier, bis die Zustimmung abgeschlossen ist; Android bezeichnet Home Assistant möglicherweise als Computer.\n\n[Mehr erfahren]({learn_more_url})"
           }
         },

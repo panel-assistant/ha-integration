@@ -912,7 +912,7 @@
       "fix_flow": {
         "step": {
           "commission_permissions": {
-            "title": "Verificar as permissões em {panel}",
+            "title": "Verificar permissões",
             "description": "A falta de permissões do Android impede que alguns recursos de {panel} funcionem.\n\nPara corrigir:\n1. No painel, siga o [guia de permissões do Android]({permissions_url}): em Configurações → Apps → Panel Assistant, permita o acesso à câmera e ao microfone e as notificações, quando listados.\n2. Em Acesso especial para apps, permita Alterar configurações do sistema e Sobreposição a outros apps; em Acessibilidade, ative o Panel Assistant.\n3. Volte aqui e selecione Enviar para verificar novamente.\n\n[Saiba mais]({learn_more_url})"
           }
         },
@@ -930,7 +930,7 @@
       "fix_flow": {
         "step": {
           "set_up_proximity": {
-            "title": "Configurar a proximidade em {panel}",
+            "title": "Configurar proximidade",
             "description": "{panel} não pode despertar com um aceno até que seu sensor de proximidade seja configurado.\n\nPara corrigir:\n1. Abra a [configuração de proximidade]({configure_url}) e selecione Configurar proximidade no painel.\n2. Fique em frente a {panel} e siga as instruções na tela dele (cerca de um minuto).\n3. Quando a calibração for salva, volte aqui e selecione Enviar.\n\n[Saiba mais]({learn_more_url})"
           }
         },
@@ -1028,7 +1028,7 @@
             "description": "Limpar este erro exclui seu relatório salvo sem alterar o painel.\n\nPara corrigir:\n1. [Salve um relatório de suporte]({guide_url}) primeiro, se precisar dele.\n2. Selecione **Enviar** para remover este erro e seu relatório.\n\n[Saiba mais]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Não foi possível concluir a nova tentativa",
+            "title": "Nova tentativa incompleta",
             "description": "A nova tentativa não pôde ser concluída, então este erro e seu relatório continuam em Reparos.\n\nPara corrigir:\n1. Siga as [etapas de recuperação]({repair_url}).\n2. Selecione **Enviar** e depois **Relatório de suporte** para verificar a causa antes de tentar novamente.\n\n[Saiba mais]({learn_more_url})"
           }
         },
@@ -1070,7 +1070,7 @@
             "description": "Limpar este erro exclui seu relatório salvo sem alterar o painel.\n\nPara corrigir:\n1. [Salve um relatório de suporte]({guide_url}) primeiro, se precisar dele.\n2. Selecione **Enviar** para remover este erro e seu relatório.\n\n[Saiba mais]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Não foi possível concluir a nova tentativa",
+            "title": "Nova tentativa incompleta",
             "description": "A nova tentativa não pôde ser concluída, então este erro e seu relatório continuam em Reparos.\n\nPara corrigir:\n1. Siga as [etapas de recuperação]({repair_url}).\n2. Selecione **Enviar** e depois **Relatório de suporte** para verificar a causa antes de tentar novamente.\n\n[Saiba mais]({learn_more_url})"
           }
         },
@@ -1112,7 +1112,7 @@
             "description": "Limpar este erro exclui seu relatório salvo sem alterar o painel.\n\nPara corrigir:\n1. [Salve um relatório de suporte]({guide_url}) primeiro, se precisar dele.\n2. Selecione **Enviar** para remover este erro e seu relatório.\n\n[Saiba mais]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Não foi possível concluir a nova tentativa",
+            "title": "Nova tentativa incompleta",
             "description": "A nova tentativa não pôde ser concluída, então este erro e seu relatório continuam em Reparos.\n\nPara corrigir:\n1. Siga as [etapas de recuperação]({repair_url}).\n2. Selecione **Enviar** e depois **Relatório de suporte** para verificar a causa antes de tentar novamente.\n\n[Saiba mais]({learn_more_url})"
           }
         },
@@ -1154,7 +1154,7 @@
             "description": "Limpar este erro exclui seu relatório salvo sem alterar o painel.\n\nPara corrigir:\n1. [Salve um relatório de suporte]({guide_url}) primeiro, se precisar dele.\n2. Selecione **Enviar** para remover este erro e seu relatório.\n\n[Saiba mais]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Não foi possível concluir a nova tentativa",
+            "title": "Nova tentativa incompleta",
             "description": "A nova tentativa não pôde ser concluída, então este erro e seu relatório continuam em Reparos.\n\nPara corrigir:\n1. Siga as [etapas de recuperação]({repair_url}).\n2. Selecione **Enviar** e depois **Relatório de suporte** para verificar a causa antes de tentar novamente.\n\n[Saiba mais]({learn_more_url})"
           }
         },
@@ -1196,7 +1196,7 @@
             "description": "Limpar este erro exclui seu relatório salvo sem alterar o painel.\n\nPara corrigir:\n1. [Salve um relatório de suporte]({guide_url}) primeiro, se precisar dele.\n2. Selecione **Enviar** para remover este erro e seu relatório.\n\n[Saiba mais]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Não foi possível concluir a nova tentativa",
+            "title": "Nova tentativa incompleta",
             "description": "A nova tentativa não pôde ser concluída, então este erro e seu relatório continuam em Reparos.\n\nPara corrigir:\n1. Siga as [etapas de recuperação]({repair_url}).\n2. Selecione **Enviar** e depois **Relatório de suporte** para verificar a causa antes de tentar novamente.\n\n[Saiba mais]({learn_more_url})"
           }
         },
@@ -1238,7 +1238,7 @@
             "description": "Limpar este erro exclui seu relatório salvo sem alterar o painel.\n\nPara corrigir:\n1. [Salve um relatório de suporte]({guide_url}) primeiro, se precisar dele.\n2. Selecione **Enviar** para remover este erro e seu relatório.\n\n[Saiba mais]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Não foi possível concluir a nova tentativa",
+            "title": "Nova tentativa incompleta",
             "description": "A nova tentativa não pôde ser concluída, então este erro e seu relatório continuam em Reparos.\n\nPara corrigir:\n1. Siga as [etapas de recuperação]({repair_url}).\n2. Selecione **Enviar** e depois **Relatório de suporte** para verificar a causa antes de tentar novamente.\n\n[Saiba mais]({learn_more_url})"
           }
         },
@@ -1280,7 +1280,7 @@
             "description": "Limpar este erro exclui seu relatório salvo sem alterar o painel.\n\nPara corrigir:\n1. [Salve um relatório de suporte]({guide_url}) primeiro, se precisar dele.\n2. Selecione **Enviar** para remover este erro e seu relatório.\n\n[Saiba mais]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Não foi possível concluir a nova tentativa",
+            "title": "Nova tentativa incompleta",
             "description": "A nova tentativa não pôde ser concluída, então este erro e seu relatório continuam em Reparos.\n\nPara corrigir:\n1. Siga as [etapas de recuperação]({repair_url}).\n2. Selecione **Enviar** e depois **Relatório de suporte** para verificar a causa antes de tentar novamente.\n\n[Saiba mais]({learn_more_url})"
           }
         },
@@ -1322,7 +1322,7 @@
             "description": "Limpar este erro exclui seu relatório salvo sem alterar o painel.\n\nPara corrigir:\n1. [Salve um relatório de suporte]({guide_url}) primeiro, se precisar dele.\n2. Selecione **Enviar** para remover este erro e seu relatório.\n\n[Saiba mais]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Não foi possível concluir a nova tentativa",
+            "title": "Nova tentativa incompleta",
             "description": "A nova tentativa não pôde ser concluída, então este erro e seu relatório continuam em Reparos.\n\nPara corrigir:\n1. Siga as [etapas de recuperação]({repair_url}).\n2. Selecione **Enviar** e depois **Relatório de suporte** para verificar a causa antes de tentar novamente.\n\n[Saiba mais]({learn_more_url})"
           }
         },
@@ -1364,7 +1364,7 @@
             "description": "Limpar este erro exclui seu relatório salvo sem alterar o painel.\n\nPara corrigir:\n1. [Salve um relatório de suporte]({guide_url}) primeiro, se precisar dele.\n2. Selecione **Enviar** para remover este erro e seu relatório.\n\n[Saiba mais]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Não foi possível concluir a nova tentativa",
+            "title": "Nova tentativa incompleta",
             "description": "A nova tentativa não pôde ser concluída, então este erro e seu relatório continuam em Reparos.\n\nPara corrigir:\n1. Siga as [etapas de recuperação]({repair_url}).\n2. Selecione **Enviar** e depois **Relatório de suporte** para verificar a causa antes de tentar novamente.\n\n[Saiba mais]({learn_more_url})"
           }
         },
@@ -1406,7 +1406,7 @@
             "description": "Limpar este erro exclui seu relatório salvo sem alterar o painel.\n\nPara corrigir:\n1. [Salve um relatório de suporte]({guide_url}) primeiro, se precisar dele.\n2. Selecione **Enviar** para remover este erro e seu relatório.\n\n[Saiba mais]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Não foi possível concluir a nova tentativa",
+            "title": "Nova tentativa incompleta",
             "description": "A nova tentativa não pôde ser concluída, então este erro e seu relatório continuam em Reparos.\n\nPara corrigir:\n1. Siga as [etapas de recuperação]({repair_url}).\n2. Selecione **Enviar** e depois **Relatório de suporte** para verificar a causa antes de tentar novamente.\n\n[Saiba mais]({learn_more_url})"
           }
         },
@@ -1449,11 +1449,11 @@
             "description": "Limpar este erro exclui seu relatório salvo sem alterar o painel.\n\nPara corrigir:\n1. [Salve um relatório de suporte]({guide_url}) primeiro, se precisar dele.\n2. Selecione **Enviar** para remover este erro e seu relatório.\n\n[Saiba mais]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Não foi possível concluir a nova tentativa",
+            "title": "Nova tentativa incompleta",
             "description": "A nova tentativa não pôde ser concluída, então este erro e seu relatório continuam em Reparos.\n\nPara corrigir:\n1. Siga as [etapas de recuperação]({repair_url}).\n2. Selecione **Enviar** e depois **Relatório de suporte** para verificar a causa antes de tentar novamente.\n\n[Saiba mais]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Permitir atualizações em {panel}",
+            "title": "Permitir atualizações",
             "description": "O Home Assistant precisa da aprovação do Android antes de atualizar {panel}.\n\nPara corrigir:\n1. Leia as [etapas de aprovação do ADB]({approval_url}).\n2. Selecione **Enviar** e, em {panel}, marque **Sempre permitir a partir deste computador** e toque em **Permitir**.\n3. Após a aprovação, selecione **Tentar novamente** neste reparo para tentar a atualização novamente.\n\n[Saiba mais]({learn_more_url})"
           }
         },
@@ -1512,7 +1512,7 @@
             "description": "Limpar este erro exclui seu relatório salvo sem alterar o painel.\n\nPara corrigir:\n1. [Salve um relatório de suporte]({guide_url}) primeiro, se precisar dele.\n2. Selecione **Enviar** para remover este erro e seu relatório.\n\n[Saiba mais]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Não foi possível concluir a nova tentativa",
+            "title": "Nova tentativa incompleta",
             "description": "A nova tentativa não pôde ser concluída, então este erro e seu relatório continuam em Reparos.\n\nPara corrigir:\n1. Siga as [etapas de recuperação]({repair_url}).\n2. Selecione **Enviar** e depois **Relatório de suporte** para verificar a causa antes de tentar novamente.\n\n[Saiba mais]({learn_more_url})"
           }
         },
@@ -1556,7 +1556,7 @@
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "Manter as configurações dos painéis listados",
+            "title": "Manter configurações",
             "description": "Os painéis listados precisam de confirmação para que suas configurações existentes possam ser mantidas com suas novas identidades de dispositivo.\n\nPara corrigir:\n1. [Confira os dispositivos do Panel Assistant]({integration_url}) com esta lista.\n2. Confirme somente se cada painel corresponde à sua configuração existente.\n3. Selecione Enviar uma vez para manter todas as configurações listadas.\n\n{panels}\n\n[Saiba mais]({learn_more_url})"
           }
         },
@@ -1592,11 +1592,11 @@
             "description": "Limpar este erro exclui seu relatório salvo sem alterar o painel.\n\nPara corrigir:\n1. [Salve um relatório de suporte]({guide_url}) primeiro, se precisar dele.\n2. Selecione **Enviar** para remover este erro e seu relatório.\n\n[Saiba mais]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Não foi possível concluir a nova tentativa",
+            "title": "Nova tentativa incompleta",
             "description": "A nova tentativa não pôde ser concluída, então este erro e seu relatório continuam em Reparos.\n\nPara corrigir:\n1. Siga as [etapas de recuperação]({repair_url}).\n2. Selecione **Enviar** e depois **Relatório de suporte** para verificar a causa antes de tentar novamente.\n\n[Saiba mais]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Permitir atualizações em {panel}",
+            "title": "Permitir atualizações",
             "description": "O Home Assistant precisa da aprovação do Android antes de atualizar {panel}.\n\nPara corrigir:\n1. Leia as [etapas de aprovação do ADB]({approval_url}).\n2. Selecione **Enviar** e, em {panel}, marque **Sempre permitir a partir deste computador** e toque em **Permitir**.\n3. Após a aprovação, selecione **Tentar novamente** neste reparo para tentar a atualização novamente.\n\n[Saiba mais]({learn_more_url})"
           }
         },
@@ -1638,7 +1638,7 @@
       "fix_flow": {
         "step": {
           "authorize_adb": {
-            "title": "Permitir atualizações em {panel}",
+            "title": "Permitir atualizações",
             "description": "O Home Assistant não consegue instalar atualizações em {panel} até que você permita sua conexão ADB.\n\nPara corrigir:\n1. Leia as [etapas de aprovação do ADB]({approval_url}) e selecione Enviar para enviar a solicitação de aprovação.\n2. Em {panel}, marque **Sempre permitir a partir deste computador** e toque em **Permitir**.\n3. Aguarde aqui até a aprovação ser concluída; o Android pode se referir ao Home Assistant como um computador.\n\n[Saiba mais]({learn_more_url})"
           }
         },

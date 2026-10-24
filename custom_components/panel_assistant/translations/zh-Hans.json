@@ -912,7 +912,7 @@
       "fix_flow": {
         "step": {
           "commission_permissions": {
-            "title": "检查 {panel} 的权限",
+            "title": "检查权限",
             "description": "缺少 Android 权限，导致 {panel} 上的部分功能无法使用。\n\n解决方法：\n1. 在面板上按照 [Android 权限指南]({permissions_url})操作：在“设置 → 应用 → Panel Assistant”中，允许所列出的相机、麦克风和通知权限。\n2. 在“特殊应用权限”中，允许“修改系统设置”和“显示在其他应用的上层”；在“无障碍”中，启用 Panel Assistant。\n3. 返回此处并选择“提交”，重新检查。\n\n[了解更多]({learn_more_url})"
           }
         },
@@ -930,7 +930,7 @@
       "fix_flow": {
         "step": {
           "set_up_proximity": {
-            "title": "在 {panel} 上设置接近传感器",
+            "title": "设置接近传感器",
             "description": "{panel} 的接近传感器尚未设置，无法通过挥手唤醒。\n\n解决方法：\n1. 打开[接近传感器设置]({configure_url})，选择“在面板上设置接近传感器”。\n2. 站在 {panel} 前，按照屏幕上的说明操作（约一分钟）。\n3. 校准保存后，返回此处并选择“提交”。\n\n[了解更多]({learn_more_url})"
           }
         },
@@ -1453,7 +1453,7 @@
             "description": "重试未能完成，因此此错误及其报告仍保留在“修复”中。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**提交**”，然后选择“**支持报告**”，在重试前查看原因。\n\n[了解更多]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "允许更新 {panel}",
+            "title": "允许更新",
             "description": "Home Assistant 需要获得 Android 批准，才能更新 {panel}。\n\n解决方法：\n1. 阅读 [ADB 授权步骤]({approval_url})。\n2. 选择“**提交**”，然后在 {panel} 上勾选“**一律允许使用这台计算机进行调试**”并点按“**允许**”。\n3. 获得批准后，在此修复提示中选择“**重试**”，再次尝试更新。\n\n[了解更多]({learn_more_url})"
           }
         },
@@ -1556,7 +1556,7 @@
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "保留所列面板的设置",
+            "title": "保留配置",
             "description": "列出的面板需要确认，才能以新的设备身份保留其现有设置。\n\n解决方法：\n1. 对照此列表[检查 Panel Assistant 设备]({integration_url})。\n2. 只有在每个面板都确实对应其现有设置时，才进行确认。\n3. 选择一次“提交”，保留列出的所有设置。\n\n{panels}\n\n[了解更多]({learn_more_url})"
           }
         },
@@ -1596,7 +1596,7 @@
             "description": "重试未能完成，因此此错误及其报告仍保留在“修复”中。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**提交**”，然后选择“**支持报告**”，在重试前查看原因。\n\n[了解更多]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "允许更新 {panel}",
+            "title": "允许更新",
             "description": "Home Assistant 需要获得 Android 批准，才能更新 {panel}。\n\n解决方法：\n1. 阅读 [ADB 授权步骤]({approval_url})。\n2. 选择“**提交**”，然后在 {panel} 上勾选“**一律允许使用这台计算机进行调试**”并点按“**允许**”。\n3. 获得批准后，在此修复提示中选择“**重试**”，再次尝试更新。\n\n[了解更多]({learn_more_url})"
           }
         },
@@ -1638,7 +1638,7 @@
       "fix_flow": {
         "step": {
           "authorize_adb": {
-            "title": "允许更新 {panel}",
+            "title": "允许更新",
             "description": "允许 ADB 连接之前，Home Assistant 无法在 {panel} 上安装更新。\n\n解决方法：\n1. 阅读 [ADB 授权步骤]({approval_url})，然后选择“提交”，发送授权请求。\n2. 在 {panel} 上勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。\n3. 在此处等待授权完成；Android 可能会将 Home Assistant 称为一台计算机。\n\n[了解更多]({learn_more_url})"
           }
         },

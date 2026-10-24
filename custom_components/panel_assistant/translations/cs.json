@@ -912,7 +912,7 @@
       "fix_flow": {
         "step": {
           "commission_permissions": {
-            "title": "Zkontrolovat oprávnění na panelu {panel}",
+            "title": "Zkontrolovat oprávnění",
             "description": "Kvůli chybějícím oprávněním systému Android nefungují některé funkce na panelu {panel}.\n\nPostup opravy:\n1. Na panelu postupujte podle [průvodce oprávněními systému Android]({permissions_url}): v Nastavení → Aplikace → Panel Assistant povolte kameru, mikrofon a oznámení, pokud jsou uvedeny.\n2. V části Speciální přístup aplikací povolte Úpravu nastavení systému a Zobrazení přes jiné aplikace; v části Přístupnost zapněte Panel Assistant.\n3. Vraťte se sem a zvolte Odeslat pro opětovnou kontrolu.\n\n[Další informace]({learn_more_url})"
           }
         },
@@ -930,7 +930,7 @@
       "fix_flow": {
         "step": {
           "set_up_proximity": {
-            "title": "Nastavení detekce přiblížení na panelu {panel}",
+            "title": "Nastavit detekci přiblížení",
             "description": "Panel {panel} se nemůže probouzet mávnutím, dokud není nastaven jeho senzor přiblížení.\n\nPostup opravy:\n1. Otevřete [nastavení detekce přiblížení]({configure_url}) a zvolte Nastavit detekci přiblížení na panelu.\n2. Postavte se před panel {panel} a postupujte podle pokynů na jeho obrazovce (asi minutu).\n3. Po uložení kalibrace se vraťte sem a zvolte Odeslat.\n\n[Další informace]({learn_more_url})"
           }
         },
@@ -973,7 +973,7 @@
       "fix_flow": {
         "step": {
           "confirm_restart": {
-            "title": "Restartovat systém Home Assistant",
+            "title": "Restartovat Home Assistant",
             "description": "Home Assistant stále používá Panel Assistant {loaded}, takže nainstalované sestavení {installed} ještě není aktivní.\n\nPostup opravy:\n1. V případě potřeby zkontrolujte [Panel Assistant]({integration_url}) a poté se vraťte sem.\n2. Zvolte Odeslat pro okamžité restartování Home Assistant.\n\n[Další informace]({learn_more_url})"
           }
         }
@@ -1453,7 +1453,7 @@
             "description": "Opakovaný pokus se nemohl dokončit, takže tato chyba a její zpráva zůstávají v Opravách.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Odeslat** a poté **Zpráva pro podporu**, abyste před dalším pokusem zjistili příčinu.\n\n[Další informace]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Povolit aktualizace na {panel}",
+            "title": "Povolit aktualizace",
             "description": "Home Assistant potřebuje schválení v systému Android, aby mohl aktualizovat panel {panel}.\n\nPostup opravy:\n1. Přečtěte si [postup schválení ADB]({approval_url}).\n2. Zvolte **Odeslat** a poté na panelu {panel} zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**.\n3. Po schválení zvolte v této opravě **Zkusit znovu** pro opakování aktualizace.\n\n[Další informace]({learn_more_url})"
           }
         },
@@ -1556,7 +1556,7 @@
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "Zachovat uvedená nastavení panelů",
+            "title": "Zachovat konfigurace",
             "description": "Uvedené panely vyžadují potvrzení, aby bylo možné zachovat jejich stávající nastavení pod novými identitami zařízení.\n\nPostup opravy:\n1. [Porovnejte zařízení Panel Assistant]({integration_url}) s tímto seznamem.\n2. Potvrďte pouze tehdy, pokud každý panel patří ke svému stávajícímu nastavení.\n3. Jednou zvolte Odeslat pro zachování všech uvedených nastavení.\n\n{panels}\n\n[Další informace]({learn_more_url})"
           }
         },
@@ -1596,7 +1596,7 @@
             "description": "Opakovaný pokus se nemohl dokončit, takže tato chyba a její zpráva zůstávají v Opravách.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Odeslat** a poté **Zpráva pro podporu**, abyste před dalším pokusem zjistili příčinu.\n\n[Další informace]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Povolit aktualizace na panelu {panel}",
+            "title": "Povolit aktualizace",
             "description": "Home Assistant potřebuje schválení v systému Android, aby mohl aktualizovat panel {panel}.\n\nPostup opravy:\n1. Přečtěte si [postup schválení ADB]({approval_url}).\n2. Zvolte **Odeslat** a poté na panelu {panel} zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**.\n3. Po schválení zvolte v této opravě **Zkusit znovu** pro opakování aktualizace.\n\n[Další informace]({learn_more_url})"
           }
         },
@@ -1638,7 +1638,7 @@
       "fix_flow": {
         "step": {
           "authorize_adb": {
-            "title": "Povolit aktualizace na panelu {panel}",
+            "title": "Povolit aktualizace",
             "description": "Home Assistant nemůže instalovat aktualizace na panelu {panel}, dokud nepovolíte jeho připojení ADB.\n\nPostup opravy:\n1. Přečtěte si [postup schválení ADB]({approval_url}) a poté zvolte Odeslat pro odeslání žádosti o schválení.\n2. Na panelu {panel} zaškrtněte **Vždy povolit z tohoto počítače** a poté klepněte na **Povolit**.\n3. Počkejte zde na dokončení schválení; Android může Home Assistant označovat jako počítač.\n\n[Další informace]({learn_more_url})"
           }
         },
