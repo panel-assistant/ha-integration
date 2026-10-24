@@ -32,8 +32,6 @@ export const buildTagPackageId = tag => !isBuildTag(tag) ? null :
   tag.endsWith('-successor') ? PACKAGE_ID : LEGACY_PACKAGE_ID;
 /** A feed build's versionName: free-form within this pattern, unlike a GitHub tag. */
 export const isBuildVersionName = value => matches(VERSION_NAME, value);
-/** How Home Assistant names a feed build, and how the release list carries it. */
-export const buildLabel = (versionName, versionCode) => `${versionName} build ${versionCode}`;
 // One stem per application id, the same rule the integration applies. The
 // old app's `ha-paneld` stem is frozen in the asset names of old releases; no
 // release this installer can drive is named by it.
@@ -49,19 +47,6 @@ export const githubApkName = (tag, packageId = PACKAGE_ID) =>
 const UNLISTED_SUFFIX = '.bin';
 /** Every APK asset name a release of this tag may carry for this app. */
 export const githubApkNames = tag => [githubApkName(tag), githubApkName(tag) + UNLISTED_SUFFIX];
-/** The tag this app's GitHub release APK asset name carries, or null. An
- * old-app asset name names no release this installer can drive. */
-export function githubApkNameTag(name) {
-  const prefix = `${apkStem(PACKAGE_ID)}-`;
-  if (typeof name !== 'string' || !name.endsWith(APK_SUFFIX) || !name.startsWith(prefix)) return null;
-  const tag = name.slice(prefix.length, -APK_SUFFIX.length);
-  return isGithubTag(tag) ? tag : null;
-}
-// The install descriptor's asset name does not follow the application id: it
-// is frozen on the legacy spelling, like the descriptor schema identifier.
-/** The exact asset name a GitHub release publishes its install descriptor under. */
-export const githubDescriptorName = tag => `ha-paneld-${tag}-install.json`;
-
 /** Whether a v1 install descriptor carries the identity its tag requires. A
  * GitHub release names the APK and version after its tag; a feed build names the
  * APK by its content and its tag number is exactly its versionCode.

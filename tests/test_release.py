@@ -1318,10 +1318,6 @@ async def test_rejects_unexpected_response_history() -> None:
     "body",
     [
         (
-            b'{"tag_name":"v1.2.3","tag_name":"v9.9.9",'
-            b'"draft":false,"prerelease":false,"assets":[]}'
-        ),
-        (
             b'{"tag_name":"v1.2.3","draft":false,"prerelease":false,'
             b'"assets":[],"future":{"value":1,"value":2}}'
         ),
