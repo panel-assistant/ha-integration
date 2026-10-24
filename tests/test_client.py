@@ -377,60 +377,6 @@ def test_stable_update_comparison_never_offers_a_downgrade(
     assert is_newer_stable_version(candidate, installed) is expected
 
 
-async def test_client_uses_the_cached_exact_tag_in_the_panel_update_request() -> None:
-    """The integration sends only a cached Android-owned tag to the updater."""
-    session = _session(body=b'{"status":"started"}')
-    client = HaPaneldClient(session, normalize_address("panel.local"))  # type: ignore[arg-type]
-
-    await client.async_start_panel_update("v0.9.10")
-
-    assert session.requests
-    url, kwargs = session.requests[-1]
-    assert str(url) == "http://panel.local:8888/api/v1/install/component"
-    assert kwargs["data"] == {
-        "name": "paneld",
-        "action": "update",
-        "version": "v0.9.10",
-    }
-
-
-@pytest.mark.parametrize(
-    ("status", "body", "error"),
-    [
-        (200, b'{"status":"busy"}', UpdateBusyError),
-        (200, b'{"status":"other"}', UpdateRejectedError),
-        (
-            202,
-            b'{"error":"approval-required","approval_id":"opaque"}',
-            UpdateApprovalRequiredError,
-        ),
-        (202, b'{"error":"other"}', UpdateRejectedError),
-        (403, b'{"status":"denied"}', UpdateRejectedError),
-    ],
-)
-async def test_client_rejects_nonstarted_panel_update(
-    status: int, body: bytes, error: type[Exception]
-) -> None:
-    """Hardened-mode and busy outcomes never become a successful update start."""
-    client = HaPaneldClient(  # type: ignore[arg-type]
-        _session(status=status, body=body), normalize_address("panel.local")
-    )
-
-    with pytest.raises(error):
-        await client.async_start_panel_update("v0.9.10")
-
-
-@pytest.mark.parametrize("tag", ["", "tag/escape", "tag space", "x" * 65])
-async def test_client_refuses_noncanonical_update_tags(tag: str) -> None:
-    """Only an Android-validated release tag can reach the destructive endpoint."""
-    client = HaPaneldClient(  # type: ignore[arg-type]
-        _session(), normalize_address("panel.local")
-    )
-
-    with pytest.raises(InvalidResponseError):
-        await client.async_start_panel_update(tag)
-
-
 def test_parse_panel_install_status_keeps_only_progress_ownership() -> None:
     """Operation prose remains on the panel, outside Home Assistant state."""
     status = parse_panel_install_status(

@@ -62,17 +62,14 @@ from .update_errors import (
     route_unavailable_reason,
 )
 from .update_offer import UpdateOffer
-from .update_panel_install import (
-    async_repair_update_permissions,
-    async_request_panel_download,
-)
+from .update_panel_install import async_repair_update_permissions
 from .update_policy import feed_build_newer, prereleases_allowed
 from .update_progress import UpdateProgress
 from .update_route import (
     ROUTE_ADB,
     ROUTE_ATTRIBUTE,
-    ROUTE_PANEL,
     ROUTE_SESSION,
+    ROUTE_STAGED,
     ROUTE_UNAVAILABLE_ATTRIBUTE,
     api_capability,
     async_admit_adb_target,
@@ -352,7 +349,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         if key == self._route_key():
             self._route_checked_key = key
             self._adb_ready_key = key if route == ROUTE_ADB else None
-            self._legacy_api_ready_key = key if route == ROUTE_PANEL else None
+            self._legacy_api_ready_key = key if route == ROUTE_STAGED else None
             attributes = dict(self._attr_extra_state_attributes)
             if not self._has_install_route():
                 attributes[ROUTE_UNAVAILABLE_ATTRIBUTE] = route_unavailable_reason(
@@ -799,24 +796,14 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                         verified_success=True,
                     )
                     return
-                if route == ROUTE_SESSION:
-                    # The panel's own download is not carried by its session.
-                    if release is None or release.tag != offer.tag:
-                        raise _update_error(
-                            "update_unavailable",
-                            "The requested Panel Assistant update is unavailable",
-                        )
-                    await self._delivery.async_deliver_build(self.hass, release)
-                # Home Assistant sends the release over the LAN whenever it could
-                # authenticate it. Only a panel that cannot take an upload at all
-                # downloads the release itself, and verifies it itself.
-                elif release is not None and release.tag == offer.tag:
-                    if not await self._delivery.async_deliver_build(
-                        self.hass, release, fallback=True
-                    ):
-                        await self._async_start_panel_download(offer, release)
-                else:
-                    await self._async_start_panel_download(offer, release)
+                # Home Assistant sends only a release it authenticated; the
+                # panel no longer fetches one itself.
+                if release is None or release.tag != offer.tag:
+                    raise _update_error(
+                        "update_unavailable",
+                        "The requested Panel Assistant update is unavailable",
+                    )
+                await self._delivery.async_deliver_build(self.hass, release)
         except UpdateRejectedError as refusal:
             error = refusal_error(self._panel_name(), refusal)
             await async_record_update_failure(
@@ -889,19 +876,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self._delivery.session = False
             self._progress.end()
             self.async_write_ha_state()
-
-    async def _async_start_panel_download(
-        self, offer: PanelCachedUpdate, artifact: ReleaseArtifact | None
-    ) -> None:
-        """Ask the panel to fetch only the host-admitted release, then follow it."""
-        await async_request_panel_download(
-            self.coordinator.client, offer, artifact, self._offer.async_admit
-        )
-        self._record_route(ROUTE_PANEL, offer.tag)
-        self._progress.enter("installing")
-        observer = self._start_observer(offer.target_version)
-        self.async_write_ha_state()
-        await observer
 
     def _remember_code(self, code: int, key: tuple[str, str]) -> None:
         """Keep the build number a delivery proved, for the version just read."""

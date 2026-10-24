@@ -14,15 +14,16 @@ from homeassistant.helpers.translation import async_get_translations
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.panel_assistant import release as release_module
 from custom_components.panel_assistant import update_staging
 from custom_components.panel_assistant.app_identity import PACKAGE_ID
-from custom_components.panel_assistant.build_feed import BuildDownloadError
 from custom_components.panel_assistant.client import (
     CannotConnectError,
     HaPaneldClient,
     InvalidResponseError,
     PanelHealth,
     PanelInstallStatus,
+    StagedApk,
     normalize_address,
 )
 from custom_components.panel_assistant.const import DOMAIN
@@ -370,16 +371,19 @@ async def test_successful_panel_update_keeps_its_dashboard_and_permission_warnin
     )
     release = StableReleaseCoordinator(hass)
     release._candidates[artifact.tag, PACKAGE_ID] = artifact
-    # The authenticated PA offer owns admission. A failed host download still
-    # exercises the production panel-download route and its success observer.
+    # The authenticated PA offer owns admission; the release is staged as is.
     monkeypatch.setattr(
-        update_staging,
-        "async_download_build",
-        AsyncMock(side_effect=BuildDownloadError("host download unavailable")),
+        update_staging, "async_download_build", AsyncMock(return_value=b"apk")
+    )
+    staged = StagedApk(
+        token="tok-1",
+        package=PACKAGE_ID,
+        version="0.9.10",
+        signer=release_module._RELEASE_SIGNER_CERTIFICATE_SHA256,
     )
 
-    async def installed(tag: str) -> None:
-        assert tag == "v0.9.10"
+    async def installed(token: str) -> None:
+        assert token == "tok-1"
         health.return_value = replace(HEALTH, version="0.9.10", build="101")
 
     with (
@@ -395,9 +399,15 @@ async def test_successful_panel_update_keeps_its_dashboard_and_permission_warnin
             ),
         ),
         patch.object(
+            coordinator.client, "async_stage_apk", AsyncMock(return_value=staged)
+        ),
+        patch.object(
+            coordinator.client, "async_commit_apk", AsyncMock(side_effect=installed)
+        ),
+        patch.object(
             coordinator.client,
-            "async_start_panel_update",
-            AsyncMock(side_effect=installed),
+            "async_get_version_code",
+            AsyncMock(return_value=("0.9.10", 101)),
         ),
         patch.object(
             coordinator.client,
@@ -427,7 +437,9 @@ async def test_successful_panel_update_keeps_its_dashboard_and_permission_warnin
         assert coordinator.available
         assert coordinator.data.status.home_ui["state"] == "ready"
         assert _issue(hass, entry) is not None
-        assert entity.extra_state_attributes["update_route"] == "downloaded_by_panel"
+        assert (
+            entity.extra_state_attributes["update_route"] == "staged_by_home_assistant"
+        )
         await updates.async_shutdown()
 
 

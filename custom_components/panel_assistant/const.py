@@ -70,7 +70,6 @@ MAX_ZIGBEE_CPU_PERCENT = 1000
 
 HEALTH_PATH = "/api/v1/health"
 STATUS_PATH = "/api/v1/status"
-INSTALL_COMPONENT_PATH = "/api/v1/install/component"
 INSTALL_STATUS_PATH = "/api/v1/install/status"
 APK_STAGE_PATH = "/api/v1/install/apk"
 APK_COMMIT_PATH = "/api/v1/install/apk/commit"

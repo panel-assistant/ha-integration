@@ -305,7 +305,6 @@ _HTTP_UPDATE_CALLS = (
     "async_discard_apk",
     "async_get_panel_install_status",
     "async_get_version_code",
-    "async_start_panel_update",
 )
 
 

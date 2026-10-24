@@ -30,7 +30,6 @@ from .client import (
     CannotConnectError,
     HaPaneldError,
     InvalidResponseError,
-    StagingUnavailableError,
     UpdateApprovalRequiredError,
     UpdateBusyError,
     UpdateRejectedError,
@@ -102,14 +101,8 @@ class BuildDelivery:
         artifact: ReleaseArtifact,
         *,
         apk: bytes | None = None,
-        fallback: bool = False,
-    ) -> bool:
-        """Back up, verify, upload and commit one signed build, then prove it.
-
-        With ``fallback``, a download that fetched nothing, or a panel that
-        cannot take an upload at all, returns False before anything is
-        installed, so the caller can use the panel's own route.
-        """
+    ) -> None:
+        """Back up, verify, upload and commit one signed build, then prove it."""
         if self._coordinator.identity_mismatch:
             raise _update_error("update_unavailable", "The panel identity has changed")
         if not self._offer.allowed(artifact):
@@ -142,23 +135,13 @@ class BuildDelivery:
                     async_get_clientsession(hass), artifact
                 )
             except BuildDownloadError as err:
-                if fallback:
-                    # Nothing was fetched, so nothing failed a check: the panel
-                    # can still fetch and verify the release itself.
-                    _LOGGER.warning("Could not download %s here: %s", artifact.tag, err)
-                    return False
                 raise _update_error(
                     "release_download_failed", "The app release could not be downloaded"
                 ) from err
             except BuildFeedError as err:
                 raise _verification_error(artifact) from err
         try:
-            try:
-                staged = await carrier.async_stage_apk(apk)
-            except StagingUnavailableError:
-                if fallback:
-                    return False
-                raise
+            staged = await carrier.async_stage_apk(apk)
             health = self._coordinator.data.health if self._coordinator.data else None
             panel_changed = health is None or not reports_package(
                 health.package, package_id
@@ -241,7 +224,6 @@ class BuildDelivery:
                 refusal,
             )
             await self.async_deliver_adb(hass, artifact, *adb, apk=apk)
-        return True
 
     async def _async_backup_panel(self, hass: HomeAssistant) -> None:
         """Keep the existing verified backup gate for both install routes."""

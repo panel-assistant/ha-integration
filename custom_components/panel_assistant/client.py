@@ -22,7 +22,6 @@ from .const import (
     DIAG_PATH,
     DISPLAY_PATH,
     HEALTH_PATH,
-    INSTALL_COMPONENT_PATH,
     INSTALL_STATUS_PATH,
     MAX_ANDROID_INTEGER,
     MAX_HEALTH_RESPONSE_BYTES,
@@ -58,7 +57,6 @@ _PROTOCOL_RANGE_PATTERN = re.compile(r"^([1-9][0-9]{0,2})-([1-9][0-9]{0,2})$")
 _RESTART_PATTERN = re.compile(
     r"^(app|panel),(update|settings|recovery|reboot),([1-9][0-9]{0,5})$"
 )
-_RELEASE_TAG_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 _MAX_VERSION_LENGTH = 63
 _MAX_ANDROID_LONG = 2**63 - 1
 _KNOWN_HEALTH_FIELDS = frozenset(
@@ -594,11 +592,6 @@ class HaPaneldClient:
         """Return the panel-owned component-operation status endpoint."""
         return self.address.base_url.with_path(INSTALL_STATUS_PATH)
 
-    @property
-    def install_component_url(self) -> URL:
-        """Return the panel-owned component-update endpoint."""
-        return self.address.base_url.with_path(INSTALL_COMPONENT_PATH)
-
     async def _async_get_bounded(self, url: URL, maximum_bytes: int) -> bytes:
         try:
             async with self._session.get(
@@ -721,24 +714,6 @@ class HaPaneldClient:
             self.install_status_url, MAX_INSTALL_RESPONSE_BYTES
         )
         return parse_panel_install_status(body)
-
-    async def async_start_panel_update(self, tag: str) -> None:
-        """Ask the panel to install one exact cached panel-approved release tag."""
-        if not isinstance(tag, str) or _RELEASE_TAG_PATTERN.fullmatch(tag) is None:
-            raise InvalidResponseError
-        status, body = await self._async_post_bounded(
-            self.install_component_url,
-            {"name": "paneld", "action": "update", "version": tag},
-            MAX_INSTALL_RESPONSE_BYTES,
-        )
-        if status == 200:
-            parse_update_start_response(body)
-            return
-        if status == 202:
-            parse_update_approval_response(body)
-        if 400 <= status < 500:
-            raise UpdateRejectedError
-        raise CannotConnectError
 
     async def async_get_version_code(self) -> tuple[str, int]:
         """Read the running app's version name and build number.
@@ -913,7 +888,7 @@ class HaPaneldClient:
         if status == 403:
             raise UploadDisabledError
         if status == 503:
-            # No root to install with; the panel's own update may still work.
+            # No root to install with.
             raise StagingUnavailableError
         if status == 409:
             raise UpdateBusyError

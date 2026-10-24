@@ -69,13 +69,12 @@ from custom_components.panel_assistant.app_identity import (
 from custom_components.panel_assistant.build_feed import BuildDownloadError
 from custom_components.panel_assistant.client import (
     CannotConnectError,
+    HaPaneldClient,
     PanelHealth,
     PanelInstallStatus,
     StagedApk,
-    StagingUnavailableError,
     UpdateBusyError,
     UpdateRejectedError,
-    UploadDisabledError,
     normalize_address,
 )
 from custom_components.panel_assistant.const import DOMAIN
@@ -102,7 +101,7 @@ from custom_components.panel_assistant.update_coordinator import (
     PanelUpdateSnapshot,
 )
 
-from .http_fakes import FakeResponse
+from .http_fakes import FakeResponse, FakeSession
 from .install_adb_fakes import _install_fakes, _preflight_output, _section
 from .test_install_adb import signer  # noqa: F401
 from .test_install_adb_grants import (
@@ -320,7 +319,6 @@ async def _entity(
         async_stage_apk=AsyncMock(return_value=_preview()),
         async_commit_apk=AsyncMock(),
         async_discard_apk=AsyncMock(),
-        async_start_panel_update=AsyncMock(),
         async_get_panel_install_status=AsyncMock(
             return_value=PanelInstallStatus(running=True, component="APK")
         ),
@@ -359,7 +357,6 @@ async def _entity(
             health.data = _snapshot(VERSION, "2000", package)
 
     client.async_commit_apk.side_effect = install_started
-    client.async_start_panel_update.side_effect = install_started
     health.async_request_refresh = AsyncMock(side_effect=refresh)  # type: ignore[method-assign]
     updates = PanelUpdateCoordinator(hass, client)  # type: ignore[arg-type]
     updates.data = PanelUpdateSnapshot(operation=None, error=None)
@@ -403,7 +400,7 @@ async def test_adb_only_panel_offers_the_host_release(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, trust: None, key: Any
 ) -> None:
     """A panel with no route of its own still gets the release over ADB."""
-    entity, client = await _entity(hass, monkeypatch, _GitHub(key))
+    entity, _ = await _entity(hass, monkeypatch, _GitHub(key))
     snapshot = entity.coordinator.data
     entity.coordinator.data = PanelSnapshot(
         health=snapshot.health,
@@ -428,7 +425,6 @@ async def test_adb_only_panel_offers_the_host_release(
 
     delivered.assert_awaited_once()
     assert delivered.await_args.args[1].tag == TAG
-    client.async_start_panel_update.assert_not_awaited()
 
 
 async def test_a_stable_update_is_staged_by_home_assistant_not_fetched_by_the_panel(
@@ -446,7 +442,6 @@ async def test_a_stable_update_is_staged_by_home_assistant_not_fetched_by_the_pa
     assert github.apk_downloaded
     client.async_stage_apk.assert_awaited_once_with(APK)
     client.async_commit_apk.assert_awaited_once_with("tok-1")
-    client.async_start_panel_update.assert_not_awaited()
     assert entity.extra_state_attributes == {"update_route": "staged_by_home_assistant"}
     assert entity.installed_version == VERSION
     assert entity.in_progress is False
@@ -478,23 +473,45 @@ async def test_staged_commit_retries_only_the_unstarted_call(
 
     client.async_stage_apk.assert_awaited_once_with(APK)
     assert client.async_commit_apk.await_args_list == [call("tok-1"), call("tok-1")]
-    client.async_start_panel_update.assert_not_awaited()
     assert entity.installed_version == VERSION
     assert entity.in_progress is False
 
 
-@pytest.mark.parametrize("route", ["staged", "panel"])
+async def test_a_retried_commit_checks_the_offer_again(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, trust: None, key: Any
+) -> None:
+    """A retry is a fresh command: an offer no longer allowed is not committed."""
+    entity, client = await _entity(hass, monkeypatch, _GitHub(key))
+    connect_error = CannotConnectError()
+    connect_error.__cause__ = ClientConnectorError(
+        SimpleNamespace(host="panel.local", port=8888, ssl=False),
+        OSError(111, "Connection refused"),
+    )
+
+    async def commit(_token: str) -> None:
+        # The panel moved past the release while the first call went unanswered,
+        # and from 1.0 an older release is never installed over a newer one.
+        entity.coordinator.data = _snapshot("1.0.1", "3000", PACKAGE_ID)
+        raise connect_error
+
+    client.async_commit_apk.side_effect = commit
+
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install(None, backup=False)
+
+    _assert_translated(error.value, "update_unavailable")
+    client.async_commit_apk.assert_awaited_once_with("tok-1")
+    client.async_discard_apk.assert_awaited_once_with("tok-1")
+
+
 async def test_accepted_update_projects_restart_when_panel_disappears(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     trust: None,
     key: Any,
-    route: str,
 ) -> None:
     """An accepted install makes the absent panel Restarting until it returns."""
     entity, client = await _entity(hass, monkeypatch, _GitHub(key), package=PACKAGE_ID)
-    if route == "panel":
-        client.async_stage_apk.side_effect = StagingUnavailableError
     entity.coordinator.reachable = True
     waiting_for_return = asyncio.Event()
     allow_return = asyncio.Event()
@@ -516,10 +533,7 @@ async def test_accepted_update_projects_restart_when_panel_disappears(
     sessions = async_get_sessions(hass)
     try:
         await asyncio.wait_for(waiting_for_return.wait(), 5)
-        if route == "staged":
-            client.async_commit_apk.assert_awaited_once_with("tok-1")
-        else:
-            client.async_start_panel_update.assert_awaited_once_with(TAG)
+        client.async_commit_apk.assert_awaited_once_with("tok-1")
         notice = sessions.restart_notice("entry-id")
         assert notice is not None
         assert (notice.scope, notice.reason) == ("app", "update")
@@ -529,13 +543,11 @@ async def test_accepted_update_projects_restart_when_panel_disappears(
         sessions.clear_restart_notice("entry-id")
 
 
-@pytest.mark.parametrize("route", ["update", "panel-download"])
 async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     trust: None,
     key: Any,
-    route: str,
 ) -> None:
     """Never Unavailable, a bar that only rises, and the new version only at the end."""
     # A wait that can never succeed fails in a second, not fourteen minutes.
@@ -593,11 +605,7 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
         return unrendered if client.async_get_status.await_count % 2 else rendered
 
     client.async_get_status = AsyncMock(side_effect=status)
-    client.async_stage_apk.side_effect = (
-        StagingUnavailableError if route == "panel-download" else None
-    )
     client.async_commit_apk.side_effect = accept
-    client.async_start_panel_update.side_effect = accept
     coordinator.async_request_refresh = AsyncMock(side_effect=refresh)  # type: ignore[method-assign]
     try:
         await entity.async_install(None, backup=False)
@@ -622,7 +630,6 @@ async def test_an_update_reads_as_one_steady_sequence_through_its_restart(
     assert shown[-1]["in_progress"] is False
     assert shown[-1]["installed_version"] == VERSION
     assert client.async_stage_apk.await_count == 1
-    assert client.async_start_panel_update.await_count == (route == "panel-download")
     assert client.async_get_status.await_count == 2
 
 
@@ -672,24 +679,77 @@ async def test_the_update_bar_redraws_itself_between_polls_until_the_end(
     assert await redraws() == []
 
 
-@pytest.mark.parametrize("refusal", [UploadDisabledError, StagingUnavailableError])
-async def test_a_panel_that_cannot_take_an_upload_downloads_the_release_itself(
+def _app_panel(upload_status: int) -> FakeSession:
+    """The 1.0 app's own answers: its upload refusal, and no `paneld` component."""
+    install = "http://panel.local:8888/api/v1/install"
+    reason = b"disabled" if upload_status == 403 else b"no-root"
+    return FakeSession(
+        {
+            f"{install}/apk": FakeResponse(
+                upload_status, b'{"ok":false,"error":"' + reason + b'"}'
+            ),
+            f"{install}/component": FakeResponse(400, b'{"status":"bad-component"}'),
+        }
+    )
+
+
+@pytest.mark.parametrize(
+    ("asset_status", "upload_status", "translation_key"),
+    [
+        (200, 403, "upload_disabled"),
+        (200, 503, "update_rejected"),
+        (503, 403, "release_download_failed"),
+    ],
+)
+async def test_an_update_the_panel_cannot_take_says_why_and_leaves_the_app(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     trust: None,
     key: Any,
-    refusal: type[Exception],
+    asset_status: int,
+    upload_status: int,
+    translation_key: str,
 ) -> None:
-    """Only a panel that takes no upload at all falls back to its own download."""
-    entity, client = await _entity(hass, monkeypatch, _GitHub(key))
-    client.async_stage_apk.side_effect = refusal
+    """A refused upload or a failed download is reported as itself.
 
-    await entity.async_install(None, backup=False)
+    The panel is never asked to fetch the release, a request the app no longer
+    takes, and its installed app is left as it was.
+    """
+    github = _GitHub(key, asset_status=asset_status)
+    entity, client = await _entity(hass, monkeypatch, github)
+    MockConfigEntry(
+        domain=DOMAIN,
+        entry_id="entry-id",
+        title="Panel",
+        data={CONF_ADDRESS: "192.168.1.30"},
+    ).add_to_hass(hass)
+    panel = _app_panel(upload_status)
+    app = HaPaneldClient(panel, normalize_address("panel.local"))  # type: ignore[arg-type]
+    # Every panel request this test does not script goes to the real client.
+    scripted = {
+        "async_backup_panel",
+        "async_commit_apk",
+        "async_discard_apk",
+        "async_get_panel_install_status",
+        "async_get_status",
+        "async_get_version_code",
+    }
+    for name in dir(app):
+        if name.startswith("async_") and name not in scripted:
+            setattr(client, name, getattr(app, name))
 
-    client.async_start_panel_update.assert_awaited_once_with(TAG)
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install(None, backup=False)
+
+    assert error.value.translation_key == translation_key
+    assert [url for url, _ in panel.requests if url.endswith("/component")] == []
     client.async_commit_apk.assert_not_awaited()
-    assert entity.extra_state_attributes == {"update_route": "downloaded_by_panel"}
-    assert entity.installed_version == VERSION
+    assert entity.installed_version == "0.9.9"
+    assert entity.in_progress is False
+    # The owner keeps the reason as a Repair, not only in the action's reply.
+    assert ir.async_get(hass).async_get_issue(
+        DOMAIN, panel_failure_issue_id("update:entry-id")
+    )
 
 
 async def test_a_panel_already_past_the_release_is_offered_nothing(
@@ -782,21 +842,6 @@ async def test_a_refused_release_listing_names_githubs_answer(
     assert "could not be authenticated: HTTP 403" in caplog.text
 
 
-async def test_a_release_home_assistant_cannot_download_is_left_to_the_panel(
-    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, trust: None, key: Any
-) -> None:
-    """A download that fetched nothing checked nothing; the panel fetches it."""
-    github = _GitHub(key, asset_status=503)
-    entity, client = await _entity(hass, monkeypatch, github)
-
-    await entity.async_install(None, backup=False)
-
-    assert github.apk_downloaded
-    client.async_stage_apk.assert_not_awaited()
-    client.async_start_panel_update.assert_awaited_once_with(TAG)
-    assert entity.extra_state_attributes == {"update_route": "downloaded_by_panel"}
-
-
 async def test_a_panel_older_than_lan_updates_is_never_offered_what_it_cannot_take(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
@@ -811,13 +856,11 @@ async def test_a_panel_older_than_lan_updates_is_never_offered_what_it_cannot_ta
         status=entity.coordinator.data.status,
         status_error=None,
     )
-    client.async_start_panel_update.side_effect = UpdateBusyError
 
     assert entity.latest_version == entity.installed_version == "0.8.5"
     with pytest.raises(HomeAssistantError) as error:
         await entity.async_install(None, backup=False)
     _assert_translated(error.value, "update_unavailable")
-    client.async_start_panel_update.assert_not_awaited()
     client.async_backup_panel.assert_not_awaited()
     client.async_stage_apk.assert_not_awaited()
     assert not github.apk_downloaded
@@ -854,7 +897,6 @@ async def test_an_old_app_panel_is_refused_its_update_before_any_delivery(
     client.async_backup_panel.assert_not_awaited()
     client.async_stage_apk.assert_not_awaited()
     client.async_commit_apk.assert_not_awaited()
-    client.async_start_panel_update.assert_not_awaited()
     assert not github.apk_downloaded
 
 
@@ -873,7 +915,6 @@ async def test_an_update_waits_while_another_operation_holds_the_panel(
     _assert_translated(error.value, "update_busy")
     client.async_backup_panel.assert_not_awaited()
     client.async_stage_apk.assert_not_awaited()
-    client.async_start_panel_update.assert_not_awaited()
 
     # The claim is the other operation's: refusing never releases it.
     assert not claim_panel_operation(hass, entity._entry_id)
@@ -977,7 +1018,6 @@ async def test_an_apk_that_does_not_match_its_signed_hash_is_refused_on_both_rou
     assert github.apk_downloaded
     client.async_stage_apk.assert_not_awaited()
     client.async_commit_apk.assert_not_awaited()
-    client.async_start_panel_update.assert_not_awaited()
     assert entity.in_progress is False
 
 
@@ -1007,7 +1047,6 @@ async def test_a_staged_app_that_is_not_the_signed_release_is_discarded_on_both_
     _assert_translated(error.value, "staged_app_mismatch")
     client.async_discard_apk.assert_awaited_once_with("tok-1")
     client.async_commit_apk.assert_not_awaited()
-    client.async_start_panel_update.assert_not_awaited()
 
 
 async def test_release_metadata_with_a_bad_signature_is_never_offered_or_downloaded(
@@ -1025,7 +1064,6 @@ async def test_release_metadata_with_a_bad_signature_is_never_offered_or_downloa
     _assert_translated(error.value, "update_unavailable")
     assert not github.apk_downloaded
     client.async_stage_apk.assert_not_awaited()
-    client.async_start_panel_update.assert_not_awaited()
 
 
 @pytest.mark.parametrize(
@@ -1036,7 +1074,7 @@ async def test_release_metadata_with_a_bad_signature_is_never_offered_or_downloa
         (CannotConnectError, "update_not_accepted"),
     ],
 )
-async def test_a_stage_that_fails_for_any_other_reason_never_falls_back(
+async def test_a_stage_that_fails_for_any_other_reason_says_so(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     trust: None,
@@ -1044,7 +1082,7 @@ async def test_a_stage_that_fails_for_any_other_reason_never_falls_back(
     failure: type[Exception],
     key_name: str,
 ) -> None:
-    """A busy, full or interrupted panel is an error, not a reason to switch routes."""
+    """A busy, full or interrupted panel is reported as itself."""
     entity, client = await _entity(hass, monkeypatch, _GitHub(key))
     client.async_stage_apk.side_effect = failure
 
@@ -1053,7 +1091,6 @@ async def test_a_stage_that_fails_for_any_other_reason_never_falls_back(
 
     _assert_translated(error.value, key_name)
     client.async_commit_apk.assert_not_awaited()
-    client.async_start_panel_update.assert_not_awaited()
 
 
 async def test_a_release_for_another_app_id_is_not_offered(
@@ -1064,7 +1101,6 @@ async def test_a_release_for_another_app_id_is_not_offered(
     assert entity.latest_version == entity.installed_version
     with pytest.raises(HomeAssistantError, match="unavailable"):
         await entity.async_install(None, backup=False)
-    client.async_start_panel_update.assert_not_awaited()
     client.async_stage_apk.assert_not_awaited()
 
 
