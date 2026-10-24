@@ -16,10 +16,10 @@ INTEGRATION_VERSION: str = json.loads(
 
 # The native transport range this running integration can serve. Protocol 5 is
 # the first without MQTT: an app that speaks only 4 or older is refused, told
-# that it needs app 1.0.0-preview1, the first release speaking 5, and offered it.
+# that it needs app 1.0.0-rc1, the first release speaking 5, and offered it.
 PROTOCOL_MIN = 5
 PROTOCOL_MAX = 5
-REQUIRED_APP_VERSION = "1.0.0-preview1"
+REQUIRED_APP_VERSION = "1.0.0-rc1"
 
 # Every outward link goes through the site's own redirect rather than a page
 # path, so pages can move. The version and build travel with it, so a later
