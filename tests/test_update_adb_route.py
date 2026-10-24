@@ -103,7 +103,6 @@ def route(
         async_get_version_code=AsyncMock(return_value=("0.9.7-rc4", 771)),
         async_stage_apk=AsyncMock(),
         async_commit_apk=AsyncMock(),
-        async_start_panel_update=AsyncMock(),
     )
     coordinator = HaPaneldDataUpdateCoordinator(hass, client)  # type: ignore[arg-type]
     coordinator.data = PanelSnapshot(
@@ -344,7 +343,6 @@ async def test_existing_keyless_shelly_offers_and_installs_from_ha(
     assert (await adb_credentials.async_get_durable_adb_credential(hass)).generation_id
     assert route.probe_target.await_args_list[0].args == (route.pinned.pinned,)
     deliver.assert_awaited_once()
-    route.client.async_start_panel_update.assert_not_awaited()
     route.client.async_stage_apk.assert_not_awaited()
 
 
@@ -376,7 +374,6 @@ async def test_an_app_on_an_older_protocol_is_updated_over_adb(
 
     deliver.assert_awaited_once()
     legacy_probe.assert_not_awaited()
-    route.client.async_start_panel_update.assert_not_awaited()
     route.client.async_stage_apk.assert_not_awaited()
 
 

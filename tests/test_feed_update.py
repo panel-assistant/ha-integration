@@ -189,7 +189,6 @@ def _entity(
     """A panel on the app by default; pass `package` for another report."""
     staged_package = LEGACY_PACKAGE_ID if package is None else package
     client = SimpleNamespace(
-        async_start_panel_update=AsyncMock(),
         async_get_panel_install_status=AsyncMock(
             return_value=PanelInstallStatus(running=True, component="APK")
         ),
@@ -583,7 +582,6 @@ async def test_rootless_panel_uses_its_existing_authorized_adb_route(
     preflight.assert_awaited()
     client.async_stage_apk.assert_not_awaited()
     client.async_commit_apk.assert_not_awaited()
-    client.async_start_panel_update.assert_not_awaited()
     assert entity.extra_state_attributes == {
         "update_route": "installed_by_home_assistant_adb"
     }
@@ -1008,7 +1006,6 @@ async def test_stage_503_refusal_reports_one_named_actionable_error(
     assert error.value.translation_placeholders == {"panel": "Example panel"}
     staging._async_post_bounded.assert_awaited_once()
     client.async_commit_apk.assert_not_awaited()
-    client.async_start_panel_update.assert_not_awaited()
     assert entity.in_progress is False
 
     async def install_service(_call: Any) -> None:
