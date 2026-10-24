@@ -447,7 +447,7 @@ async def test_unload_cancels_recovered_observer_without_install_retry(
     entity.async_write_ha_state = MagicMock()
     waiting = asyncio.Event()
 
-    async def wait_forever(_hass: HomeAssistant, _expected_version: str) -> None:
+    async def wait_forever(_hass: HomeAssistant) -> None:
         await waiting.wait()
 
     monkeypatch.setattr(
