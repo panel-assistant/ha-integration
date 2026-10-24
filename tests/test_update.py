@@ -409,6 +409,32 @@ async def test_reload_observer_latches_through_transient_and_terminal_status(
     assert entity.in_progress is False
 
 
+async def test_a_recovered_update_still_running_at_its_deadline_is_reported(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A panel-owned update found after reload that never finishes is a failure."""
+    running = PanelInstallStatus(running=True, component="ha-paneld")
+    entity, _ = _entity(hass, operation=running)
+    entity.hass = hass
+    entity.async_write_ha_state = MagicMock()
+    entity.coordinator.async_request_refresh = AsyncMock()
+    entity._update_coordinator.async_request_refresh = AsyncMock()
+    failure = AsyncMock()
+    monkeypatch.setattr(panel_update, "async_record_update_failure", failure)
+    monkeypatch.setattr(update_progress, "_UPDATE_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(update_progress, "_UPDATE_RECHECK_SECONDS", 0.001)
+
+    entity._handle_update_coordinator_update()
+    observer = entity._observer_task
+    assert observer is not None
+    with pytest.raises(HomeAssistantError) as error:
+        await observer
+
+    _assert_translated(error.value, "update_not_complete")
+    failure.assert_awaited_once()
+    assert failure.await_args.args[4] is error.value
+
+
 async def test_unload_cancels_recovered_observer_without_install_retry(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
