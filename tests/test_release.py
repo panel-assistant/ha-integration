@@ -1315,30 +1315,30 @@ async def test_rejects_unexpected_response_history() -> None:
 
 
 @pytest.mark.parametrize(
-    "body",
-    [
-        (
-            b'{"tag_name":"v1.2.3","draft":false,"prerelease":false,'
-            b'"assets":[],"future":{"value":1,"value":2}}'
-        ),
-        (
-            b'{"tag_name":"v1.2.3","draft":false,"prerelease":false,'
-            b'"assets":[],"future":NaN}'
-        ),
-    ],
+    "future_value",
+    [b'{"value":1,"value":2}', b"NaN"],
+    ids=["nested-duplicate", "nonstandard-number"],
 )
-async def test_rejects_duplicate_keys_and_nonstandard_numbers(body: bytes) -> None:
-    """Duplicate keys are not resolved by last-wins JSON behavior."""
-    session = FakeSession(
-        {
-            str(release._LATEST_RELEASE_URL): FakeResponse(
-                200, body, release._LATEST_RELEASE_URL
-            )
-        }
+async def test_rejects_duplicate_keys_and_nonstandard_numbers(
+    future_value: bytes, monkeypatch: pytest.MonkeyPatch, signing_key: rsa.RSAPrivateKey
+) -> None:
+    """Strict JSON rejection cannot be masked by asset or signature refusal."""
+    _install_test_key(monkeypatch, signing_key)
+    session = _successful_session(signing_key)
+    body = (
+        json.dumps(_release_document()).encode()[:-1]
+        + b',"future":'
+        + future_value
+        + b"}"
     )
-
+    session.responses[str(release._LATEST_RELEASE_URL)] = FakeResponse(
+        200, body, release._LATEST_RELEASE_URL
+    )
     with pytest.raises(ReleaseResolutionError):
         await release._async_resolve_release(session, release._LATEST_RELEASE_URL)  # type: ignore[arg-type]
+    assert [url for url, _kwargs in session.requests] == [
+        str(release._LATEST_RELEASE_URL)
+    ]
 
 
 def test_duplicate_key_is_rejected_in_otherwise_valid_document() -> None:

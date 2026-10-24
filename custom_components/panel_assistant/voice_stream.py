@@ -36,6 +36,7 @@ from collections.abc import Callable, Hashable, Iterable, Mapping
 from contextlib import suppress
 from dataclasses import dataclass, field
 from io import BytesIO
+from time import monotonic
 from typing import Any, Final, cast
 
 import av
@@ -88,30 +89,61 @@ MAX_INBOX: Final = 256
 DRAIN_TIMEOUT: Final = 2.0
 # Used when a clip does not state its rate.
 FALLBACK_RATE: Final = 48_000
+# Bound each shared chime/speech preparation. 16 MiB PCM holds about 175 s of
+# 48 kHz mono audio; longer clips use the existing independent URL playback.
+# These are retained-buffer limits, not a bound on codec internals or all groups.
+MAX_ENCODED_BYTES: Final = 16 * 1024 * 1024
+MAX_PCM_BYTES: Final = 16 * 1024 * 1024
+PREPARATION_TIMEOUT: Final = 15.0
 
 
-def decode_clips(clips: Iterable[bytes]) -> tuple[bytes, int]:
+def decode_clips(
+    clips: Iterable[bytes], deadline: float | None = None
+) -> tuple[bytes, int]:
     """Decode clips back to back to mono PCM; return it and its rate.
 
     Each clip keeps its own rate, or the lowest of them all when they differ,
     so nothing is upsampled: the server converts for each player. Blocking:
     run in an executor.
     """
+    if deadline is None:
+        deadline = monotonic() + PREPARATION_TIMEOUT
+
+    def check_deadline() -> None:
+        # Canceling the async wait cannot terminate its executor thread. Check
+        # between native operations too; a blocked codec call is not interruptible.
+        if monotonic() >= deadline:
+            raise TimeoutError("speech preparation deadline exceeded")
+
     clips = list(clips)
     rates = []
     for data in clips:
+        check_deadline()
         with av.open(BytesIO(data), "r") as container:
+            check_deadline()
             rates.append(container.streams.audio[0].rate or FALLBACK_RATE)
     rate = min(rates, default=FALLBACK_RATE)
     out = bytearray()
+
+    def append(frame: av.AudioFrame) -> None:
+        check_deadline()
+        size = frame.samples * 2
+        if size > MAX_PCM_BYTES - len(out):
+            raise ValueError("speech PCM exceeds preparation limit")
+        out.extend(memoryview(frame.planes[0])[:size])
+
     for data in clips:
+        check_deadline()
         with av.open(BytesIO(data), "r") as container:
+            check_deadline()
             resampler = av.AudioResampler(format="s16", layout="mono", rate=rate)
             for frame in container.decode(container.streams.audio[0]):
+                check_deadline()
                 for res in resampler.resample(frame):
-                    out += bytes(res.planes[0])[: res.samples * 2]
+                    append(res)
             for res in resampler.resample(None):
-                out += bytes(res.planes[0])[: res.samples * 2]
+                append(res)
+    check_deadline()
     return bytes(out), rate
 
 
@@ -524,12 +556,26 @@ class VoiceStream:
     async def _async_prepare(self, urls: Iterable[str]) -> tuple[bytes, int]:
         """Fetch and decode, chime and speech back to back in one run."""
         session = async_get_clientsession(self._hass)
+        deadline = monotonic() + PREPARATION_TIMEOUT
         clips = []
-        for url in urls:
-            async with session.get(url) as response:
-                response.raise_for_status()
-                clips.append(await response.read())
-        return await self._hass.async_add_executor_job(decode_clips, clips)
+        total = 0
+        async with asyncio.timeout(PREPARATION_TIMEOUT):
+            for url in urls:
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    body = bytearray()
+                    async for chunk in response.content.iter_chunked(64 * 1024):
+                        total += len(chunk)
+                        if total > MAX_ENCODED_BYTES:
+                            raise ValueError(
+                                "speech download exceeds preparation limit"
+                            )
+                        body.extend(chunk)
+                    clips.append(bytes(body))
+                    del body
+            return await self._hass.async_add_executor_job(
+                decode_clips, clips, deadline
+            )
 
     async def _async_start(
         self, listeners: list[Listener], pcm: bytes, rate: int

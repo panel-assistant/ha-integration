@@ -598,6 +598,7 @@ async def test_unverified_session_address_is_refused_and_reported(
         "panel": "alpha",
         "address": STORED,
         "session_address": MOVED,
+        "integration_url": "/config/integrations/integration/panel_assistant",
     }
     # Refused is not unavailable: the panel is still connected.
     assert _state(hass, STATUS_ENTITY) == "connected"
@@ -627,6 +628,7 @@ async def test_session_without_a_usable_address_is_reported_as_unreachable(
         "panel": "alpha",
         "address": STORED,
         "session_address": remote or STORED,
+        "integration_url": "/config/integrations/integration/panel_assistant",
     }
     assert _state(hass, STATUS_ENTITY) == "connected"
 
