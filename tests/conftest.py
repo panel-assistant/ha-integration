@@ -182,3 +182,32 @@ def _no_saved_foreign_account_unless_served(
             "async_get_configured_ha_url",
             AsyncMock(return_value=None),
         )
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption(
+        "--shard",
+        default=None,
+        help="run one part of the suite, as INDEX/COUNT (1/2 and 2/2 cover every test)",
+    )
+
+
+def pytest_collection_modifyitems(
+    config: pytest.Config, items: list[pytest.Item]
+) -> None:
+    """Keep every COUNT-th test from INDEX, in collection order.
+
+    Taking tests in turn spreads each file and each parametrized test, which
+    is where the slow ones sit, evenly across the parts.
+    """
+    shard = config.getoption("--shard")
+    if not shard:
+        return
+    index, count = (int(part) for part in shard.split("/"))
+    if not 1 <= index <= count:
+        raise pytest.UsageError(f"--shard {shard}: INDEX must be 1 to COUNT")
+    keep = [item for n, item in enumerate(items) if n % count == index - 1]
+    config.hook.pytest_deselected(
+        items=[item for n, item in enumerate(items) if n % count != index - 1]
+    )
+    items[:] = keep

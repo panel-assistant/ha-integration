@@ -42,7 +42,7 @@ jobs:
         run: .github/scripts/already_passed.sh
 
   tests:
-    name: Home Assistant ${{ matrix.home-assistant }}
+    name: Home Assistant ${{ matrix.home-assistant }} · ${{ matrix.shard }}/2
     needs: gate
     if: needs.gate.outputs.run == 'true'
     # Blacksmith trial (2026-10-16): push and dispatch runs use Blacksmith while the Actions variable
@@ -51,6 +51,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Each version's suite runs as two halves on two runners, which keeps the
+        # check near five minutes; --shard takes every second test in turn.
+        shard: [1, 2]
+        home-assistant: ["2026.8.3", "2026.9.0"]
         include:
           - home-assistant: "2026.8.3"
             fixture: "0.13.357"
@@ -123,8 +127,9 @@ jobs:
       - name: Run type checks
         run: mypy custom_components/panel_assistant
       - name: Run tests
-        run: python -m pytest -n auto
+        run: python -m pytest -n auto --shard ${{ matrix.shard }}/2
       - name: Prove restart and replay safety in real Core processes
+        if: matrix.shard == 1
         run: >-
           python tests/runtime/core_negative_harness.py
           --hass "$(command -v hass)"
