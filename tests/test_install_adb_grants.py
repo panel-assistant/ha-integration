@@ -613,7 +613,7 @@ async def test_an_unreadable_grant_readback_says_the_missing_grants_are_unknown(
 
 
 @pytest.mark.parametrize("identity", list(_CLASS_SETS))
-async def test_the_new_app_is_made_a_device_admin_once(
+async def test_install_leaves_admin_inactive_until_setup_completes(
     monkeypatch: pytest.MonkeyPatch,
     signer: PythonRSASigner,  # noqa: F811
     target: AdbInstallTarget,  # noqa: F811
@@ -621,7 +621,7 @@ async def test_the_new_app_is_made_a_device_admin_once(
     tmp_path: Path,
     identity: str,
 ) -> None:
-    """The screen-off's lock fallback, asked for at install and kept by updates."""
+    """Fresh installs and retries remain removable in Android Settings."""
     installed = replace(descriptor, launch_component=_CLASS_SETS[identity][0])
 
     await _launch_on(monkeypatch, signer, target, installed, tmp_path)
@@ -629,11 +629,8 @@ async def test_the_new_app_is_made_a_device_admin_once(
 
     calls = (tmp_path / "calls").read_text().splitlines()
     admin_calls = [call for call in calls if call.startswith("dpm ")]
-    assert (tmp_path / f"admin.{installed.package_id}").exists()
-    assert admin_calls == [
-        f"dpm set-active-admin {installed.package_id}/"
-        f"{app_identity.DEVICE_ADMIN_RECEIVER}"
-    ]
+    assert not (tmp_path / f"admin.{installed.package_id}").exists()
+    assert admin_calls == []
 
 
 def _seed_granted_panel(

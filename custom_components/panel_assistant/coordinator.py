@@ -6,6 +6,7 @@ import asyncio
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
+from time import monotonic
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS
@@ -103,6 +104,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         self.client = client
         self._entry_id = entry_id
         self.identity_mismatch = False
+        self._admin_key: tuple[str, str, int | None, str] | None = None
+        self._admin_done = False
+        self._admin_retry_at = 0.0
         # True until the first poll answers otherwise, as `last_update_success` starts.
         self.reachable = True
         # Where the panel last said it was in an accepted session:
@@ -228,12 +232,123 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                     raise outcome
             assert isinstance(snapshot, PanelSnapshot)
             self._vendor_recovery.observe(snapshot)
+            await self._async_activate_completed_admin(snapshot.health)
             return snapshot
         self.reachable = False
         snapshot = await self._async_poll_address()
         self.reachable = True
         self._vendor_recovery.observe(snapshot)
+        await self._async_activate_completed_admin(snapshot.health)
         return snapshot
+
+    async def _async_activate_completed_admin(self, health: PanelHealth) -> None:
+        """Restore the lock-screen fallback only after durable setup completion.
+
+        The ordinary poll drives attempts at most once every five minutes.
+        Success needs Android readback and ends further ADB work. Nothing
+        keeps an ADB connection or adds a timer.
+        """
+        from . import adb_protocol as adb
+        from .adb_credentials import (
+            AdbCredentialError,
+            async_get_durable_adb_credential,
+        )
+        from .app_identity import DEVICE_ADMIN_RECEIVER, LAUNCH_COMPONENTS
+        from .install_adb import _async_target_section
+        from .install_jobs import async_get_install_job_manager
+        from .install_network import (
+            InstallNetworkError,
+            async_pin_entry_target,
+            async_revalidate_install_target,
+        )
+        from .install_receipt import InstallJobError
+        from .panel_operations import claim_panel_operation, release_panel_operation
+        from .provisioning import InstallTargetState, async_probe_install_target
+
+        entry = self._entry()
+        if (
+            not health.setup_complete
+            or not self.reachable
+            or entry is None
+            or not health.discovery_id
+            or health.discovery_id != entry.unique_id
+            or health.package not in LAUNCH_COMPONENTS
+            or self.identity_mismatch
+            or self.hass.is_stopping
+        ):
+            return
+        package = health.package
+        assert package is not None
+        address = entry.data[CONF_ADDRESS]
+        key = (health.discovery_id, package, health.version_code, address)
+        if self._admin_key != key:
+            self._admin_key = key
+            self._admin_done = False
+            self._admin_retry_at = 0.0
+        if (
+            self._admin_done
+            or monotonic() < self._admin_retry_at
+            or not claim_panel_operation(self.hass, entry.entry_id)
+        ):
+            return
+        try:
+            async with asyncio.timeout(15):
+                manager = await async_get_install_job_manager(self.hass)
+                self._admin_retry_at = monotonic() + 300
+                credential = await async_get_durable_adb_credential(self.hass)
+                pinned = await async_pin_entry_target(
+                    self.hass, self.client.address, health, entry.unique_id
+                )
+                if pinned is None:
+                    return
+                if await manager.async_find_active(address, pinned.pinned.stored_value):
+                    return
+                probe = await async_probe_install_target(
+                    pinned.pinned, credential.signer
+                )
+                target = probe.adb_target(pinned.pinned)
+                if probe.state is not InstallTargetState.INSTALLED or target is None:
+                    return
+                await async_revalidate_install_target(self.hass, pinned)
+                if (
+                    self._entry() is not entry
+                    or entry.unique_id != health.discovery_id
+                    or entry.data[CONF_ADDRESS] != address
+                    or await manager.async_find_active(
+                        address, pinned.pinned.stored_value
+                    )
+                ):
+                    return
+                listed = f"{package}/{DEVICE_ADMIN_RECEIVER.removeprefix(package)}:"
+
+                def command(nonce: str) -> str:
+                    return "; ".join(
+                        (
+                            f"echo HAPANELD_ADMIN_BEGIN:{nonce}",
+                            adb.device_admin_claim_command(package),
+                            # Only a successful, matching readback proves admin.
+                            "policy=$(dumpsys device_policy 2>/dev/null); result=$?",
+                            f'case "$result:$policy" in 0:*"{listed}"*) echo active ;; '
+                            "*) echo unknown ;; esac",
+                            f"echo HAPANELD_ADMIN_END:{nonce}:0",
+                        )
+                    )
+
+                self._admin_done = await _async_target_section(
+                    target, credential.signer, command, "ADMIN"
+                ) == ["active"]
+        except (
+            AdbCredentialError,
+            InstallNetworkError,
+            InstallJobError,
+            HaPaneldError,
+            adb.InstallAdbError,
+            OSError,
+            TimeoutError,
+        ):
+            _LOGGER.debug("Deferred panel device admin could not be activated")
+        finally:
+            release_panel_operation(self.hass, entry.entry_id)
 
     async def _async_read_session(self, session: PanelSession) -> PanelSnapshot:
         """Read health and status from the panel's own session."""

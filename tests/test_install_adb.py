@@ -1386,6 +1386,35 @@ async def test_launch_root_drift_or_signal_proof_blocks_activity_mutation(
     assert "am start" not in fake.commands[0]
 
 
+async def test_original_home_transfer_failure_blocks_permission_claim_and_launch(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+) -> None:
+    fake = FakeDevice(
+        [
+            _identity_root_output(NONCES[0]),
+            f"HAPANELD_PREVIOUS_HOME:{NONCES[1]}:1\n".encode(),
+        ]
+    )
+    _install_fakes(monkeypatch, [fake])
+    with pytest.raises(InstallAdbError):
+        await async_launch_installed_app(
+            target,
+            signer,
+            descriptor,
+            expected_root_mode=AdbRootMode.ROOTLESS,
+            previous_home_job_id=JOB_ID,
+        )
+    assert len(fake.commands) == 2
+    assert REMOTE_PATH + ".previous-home" in fake.commands[1]
+    assert not any(
+        "set-home-activity" in command or "am start" in command
+        for command in fake.commands
+    )
+
+
 async def test_launch_uses_exact_descriptor_package_and_component_once(
     monkeypatch: pytest.MonkeyPatch,
     signer: PythonRSASigner,
@@ -1579,7 +1608,8 @@ async def test_cleanup_deletes_only_exact_job_path_after_definite_outcome(
     assert len(fake.commands) == 2
     assert "HAPANELD_POSTURE_BEGIN" in fake.commands[0]
     assert "HAPANELD_CLEANUP_BEGIN" in fake.commands[1]
-    assert cleanup_command.count(REMOTE_PATH) == 3
+    # The sibling HOME snapshot shares this exact job path and custody checks.
+    assert REMOTE_PATH + ".previous-home" in cleanup_command
     assert f"rm -f {REMOTE_PATH}" in cleanup_command
     assert "/data/local/tmp" in cleanup_command
     assert "*" not in cleanup_command

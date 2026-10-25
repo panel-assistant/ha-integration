@@ -160,6 +160,7 @@ class Harness:
             ]
         ] = []
         self.health_client_addresses: list[object] = []
+        self.launch_previous_home_job_ids: list[str | None] = []
         self.mutation_barrier_arguments: list[tuple[str, int, InstallPhase]] = []
         self.cleanup_barrier_arguments: list[tuple[str, int, InstallPhase]] = []
         self.credential_calls = 0
@@ -567,8 +568,10 @@ class Harness:
         descriptor: InstallDescriptor,
         *,
         expected_root_mode: AdbRootMode,
+        previous_home_job_id: str | None = None,
     ) -> LaunchOutcome:
         self.events.append("launch")
+        self.launch_previous_home_job_ids.append(previous_home_job_id)
         self.launch_arguments.append((target, signer, descriptor, expected_root_mode))
         if self.launch_error is not None:
             raise self.launch_error

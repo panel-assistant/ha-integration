@@ -111,13 +111,14 @@ ${buildPermissionGrant(nonce, 33, 'null', packageId, launchComponent)}`;
   return {...result, calls: existsSync(calls) ? readFileSync(calls, 'utf8') : '', active: existsSync(join(dir, 'admin'))};
 }
 
-test('the app is made a device admin unless it already is, whichever classes it carries', () => {
+test('USB installation leaves fresh admin inactive and preserves existing admin', () => {
   for (const launchComponent of [OLD_CLASSES, NEW_CLASSES]) {
     const fresh = executeAdminGrant(false, PACKAGE_ID, launchComponent);
-    assert.equal(fresh.active, true);
-    assert.equal(fresh.calls,
-      'dpm set-active-admin io.panelassistant.android/io.panelassistant.android.platform.PanelDeviceAdminReceiver\n');
-    assert.equal(executeAdminGrant(true, PACKAGE_ID, launchComponent).calls, '');
+    assert.equal(fresh.active, false);
+    assert.equal(fresh.calls, '');
+    const existing = executeAdminGrant(true, PACKAGE_ID, launchComponent);
+    assert.equal(existing.active, true);
+    assert.equal(existing.calls, '');
   }
 });
 

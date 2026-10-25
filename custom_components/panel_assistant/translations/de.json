@@ -636,6 +636,9 @@
       },
       "back": {
         "name": "Zurück"
+      },
+      "remove_from_panel": {
+        "name": "Von diesem Panel entfernen"
       }
     },
     "event": {
@@ -1668,6 +1671,32 @@
     "another_home_assistant": {
       "title": "{panel} ist bei einem anderen Home Assistant angemeldet",
       "description": "{panel} ist hier hinzugefügt, bleibt aber bei einem anderen Home Assistant angemeldet.\n\nSo behebst du das Problem:\n1. [Öffne die Home Assistant-Verbindung des Panels]({configure_url}).\n2. Wenn du es hier verbinden möchtest, gib die Adresse dieses Home Assistant ein und speichere.\n3. Verbinde es neu und melde dich mit dem Konto an, das das Panel verwenden soll; behalte andernfalls seinen aktuellen Server bei und ignoriere diese Reparatur."
+    },
+    "remove_from_panel": {
+      "title": "Panel Assistant von {panel} entfernen",
+      "description": "Panel Assistant von {panel} entfernen\n\n[Mehr erfahren]({learn_more_url})",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Panel Assistant von {panel} entfernen",
+            "description": "Zuerst gibt Panel Assistant den Startbildschirm an den eigenen Launcher des Panels zurück und schaltet die Hersteller-Apps, die es deaktiviert hat, wieder ein; danach deinstalliert es sich selbst. Seine Einstellungen auf dem Panel werden gelöscht.\n\nAuf manchen Panels und Firmware-Versionen gibt es nach dem Entfernen keinen Weg mehr zurück zu den Android-Einstellungen oder zum Debugging über das Netzwerk, sodass die App nicht erneut installiert werden kann, ohne das Panel zu öffnen. Lies, [was das Entfernen bei diesem Panel bewirken kann]({risks_url}), bevor du „OK“ wählst.\n\nNach der Deinstallation wird dieses Panel auch aus Home Assistant gelöscht.\n\n[Mehr erfahren]({learn_more_url})"
+          }
+        },
+        "error": {
+          "removal_busy": "Ein anderer Vorgang verändert dieses Panel bereits. Es wurde nichts entfernt; versuche es erneut, wenn er abgeschlossen ist.",
+          "removal_adb_unreachable": "Home Assistant konnte das Panel nicht über die Android Debug Bridge (Port 5555) erreichen. Es wurde nichts entfernt. Prüfe, ob das Panel eingeschaltet und das Debugging über das Netzwerk noch aktiviert ist, und versuche es erneut.",
+          "removal_adb_authorization": "Das Panel hat diese Home Assistant-Instanz für die Android Debug Bridge noch nicht akzeptiert. Es wurde nichts entfernt. Wähle zuerst „Updates erlauben“ und versuche es dann erneut.",
+          "removal_panel_changed": "Unter der Adresse dieses Panels antwortet jetzt ein anderes Gerät. Es wurde nichts entfernt.",
+          "removal_approval_required": "Die erhöhte Sicherheit ist aktiviert. Deshalb muss die Rückgabe des Startbildschirms auf dem Panel selbst genehmigt werden. Es wurde nichts geändert und Panel Assistant ist weiterhin installiert. Genehmige die Anfrage auf dem Panel und sende das Formular dann erneut ab.",
+          "removal_no_replacement_home": "Das Panel konnte seinen Startbildschirm keinem anderen Launcher geben: Es ist keine andere Startbildschirm-App installiert, daher kann es nur Panel Assistant anzeigen. Es wurde nichts entfernt und das Panel funktioniert weiterhin. Installiere einen Launcher oder schalte den des Herstellers wieder ein und versuche es erneut.",
+          "removal_ownership_unreadable": "Das Panel konnte seine eigene Aufzeichnung der deaktivierten Hersteller-Apps nicht lesen. Es wurde nichts entfernt. Starte Panel Assistant auf dem Panel erneut und versuche es dann noch einmal.",
+          "removal_package_state_unknown": "Das Panel konnte nicht lesen, welche Apps installiert sind oder welche sein Startbildschirm ist. Es wurde nichts entfernt. Versuche es gleich noch einmal.",
+          "removal_home_not_handed": "Das Panel hat nicht bestätigt, dass ein anderer Launcher den Startbildschirm übernommen hat, daher wurde Panel Assistant nicht entfernt. Installiere einen Launcher oder schalte den des Herstellers wieder ein und versuche es erneut.",
+          "removal_hand_back_unsupported": "Die Panel Assistant-App auf diesem Panel ist zu alt, um den Startbildschirm zurückzugeben. Es wurde nichts entfernt. Aktualisiere sie zuerst und versuche es dann erneut.",
+          "removal_app_unreachable": "Panel Assistant hat nicht geantwortet und ist noch der Startbildschirm des Panels; es jetzt zu entfernen, würde das Panel ohne Startbildschirm lassen. Es wurde nichts entfernt. Starte Panel Assistant auf dem Panel und versuche es erneut.",
+          "removal_remove_failed": "Das Panel hat seinen Startbildschirm bereits zurück, aber Panel Assistant konnte nicht vollständig entfernt werden. Versuche es erneut: Ein neuer Versuch erledigt den Rest."
+        }
+      }
     }
   },
   "options": {
@@ -1679,7 +1708,7 @@
           "onboarding": "Einrichtung fortsetzen",
           "authorize_adb": "Updates erlauben",
           "updates": "Panel-Updates",
-          "remove_app": "Panel Assistant von diesem Panel entfernen"
+          "remove_app": "Von diesem Panel entfernen"
         },
         "menu_option_descriptions": {
           "remove_app": "Gibt den Startbildschirm an den eigenen Launcher des Panels zurück und deinstalliert dann die App."
@@ -1706,13 +1735,7 @@
       },
       "remove_app": {
         "title": "Panel Assistant von {panel} entfernen",
-        "description": "Zuerst gibt Panel Assistant den Startbildschirm an den eigenen Launcher des Panels zurück und schaltet die Hersteller-Apps, die es deaktiviert hat, wieder ein; danach deinstalliert es sich selbst. Seine Einstellungen auf dem Panel werden gelöscht.\n\nAuf manchen Panels und Firmware-Versionen gibt es nach dem Entfernen keinen Weg mehr zurück zu den Android-Einstellungen oder zum Debugging über das Netzwerk, sodass die App nicht erneut installiert werden kann, ohne das Panel zu öffnen. Lies, [was das Entfernen bei diesem Panel bewirken kann]({risks_url}), bevor du „OK“ wählst.",
-        "data": {
-          "delete_entry": "Dieses Panel auch aus Home Assistant löschen"
-        },
-        "data_description": {
-          "delete_entry": "Lass die Option aus, um seine Entitäten und seinen Verlauf zu behalten, falls du Panel Assistant erneut installierst."
-        }
+        "description": "Zuerst gibt Panel Assistant den Startbildschirm an den eigenen Launcher des Panels zurück und schaltet die Hersteller-Apps, die es deaktiviert hat, wieder ein; danach deinstalliert es sich selbst. Seine Einstellungen auf dem Panel werden gelöscht.\n\nAuf manchen Panels und Firmware-Versionen gibt es nach dem Entfernen keinen Weg mehr zurück zu den Android-Einstellungen oder zum Debugging über das Netzwerk, sodass die App nicht erneut installiert werden kann, ohne das Panel zu öffnen. Lies, [was das Entfernen bei diesem Panel bewirken kann]({risks_url}), bevor du „OK“ wählst.\n\nNach der Deinstallation wird dieses Panel auch aus Home Assistant gelöscht."
       }
     },
     "error": {
@@ -1745,7 +1768,6 @@
     },
     "abort": {
       "removed_entry_deleted": "Panel Assistant wurde entfernt und das Panel aus Home Assistant gelöscht.",
-      "removed_entry_kept": "Panel Assistant wurde entfernt. Das Panel bleibt in Home Assistant, bis du es löschst.",
       "panel_connected": "Das Panel ist eingerichtet und mit Home Assistant verbunden."
     },
     "progress": {

@@ -86,6 +86,25 @@ def test_parse_health_fixture() -> None:
     assert health.ha_state == "normal"
 
 
+@pytest.mark.parametrize(
+    "token, expected",
+    [
+        ("", False),
+        ("setup_complete=0", False),
+        ("setup_complete=1", True),
+        ("setup_complete=true", False),
+        ("setup_complete=2", False),
+    ],
+)
+def test_health_requires_explicit_durable_setup_completion(
+    token: str, expected: bool
+) -> None:
+    health = parse_health_response(
+        f"ha-paneld 1.2.3 panel=test build=1234 cfg=0123abcd {token}".strip()
+    )
+    assert health.setup_complete is expected
+
+
 def test_restart_health_token_is_bounded_optional_status() -> None:
     base = "ha-paneld 1.2.3 panel=test build=1234 cfg=0123abcd"
     assert parse_health_response(

@@ -186,7 +186,7 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       binding(receipt, release);
       const n = newNonce();
       if (parseLaunch(await readShell(adb, buildLaunch(n, release.descriptor.packageId,
-        release.descriptor.launchComponent, receipt.target.androidSdk),
+        release.descriptor.launchComponent, receipt.target.androidSdk, receipt.id),
         { timeoutMs: 30000 }), n) !== 'started') fail('launch_refused');
       binding(receipt, release);
     }),

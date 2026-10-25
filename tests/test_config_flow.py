@@ -2847,8 +2847,10 @@ async def test_adopting_a_panel_mid_setup_tells_it_where_home_assistant_is(
         assert form["step_id"] == "confirm_discovery"
         result = await hass.config_entries.flow.async_configure(form["flow_id"], {})
 
-    assert result["type"] is FlowResultType.CREATE_ENTRY
-    hand_over.assert_awaited_once_with("http://192.0.2.5:8123")
+    assert result["type"] is FlowResultType.EXTERNAL_STEP
+    assert result["step_id"] == "panel_setup"
+    assert not hass.config_entries.async_entries(DOMAIN)
+    assert hand_over.await_args.args == ("http://192.0.2.5:8123",)
 
 
 async def test_adopting_an_older_panel_sends_it_no_key_it_would_refuse(
@@ -2884,7 +2886,8 @@ async def test_adopting_an_older_panel_sends_it_no_key_it_would_refuse(
         )
         result = await hass.config_entries.flow.async_configure(form["flow_id"], {})
 
-    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["type"] is FlowResultType.EXTERNAL_STEP
+    assert not hass.config_entries.async_entries(DOMAIN)
     hand_over.assert_not_awaited()
 
 

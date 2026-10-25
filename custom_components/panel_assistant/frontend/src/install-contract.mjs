@@ -1,6 +1,7 @@
 /** Fixed package-manager/activity-manager commands and bounded response contracts. */
 export const MAX_INSTALL_RESPONSE_BYTES = 32 * 1024;
 import { isLaunchComponent } from './app-identity.mjs';
+import { snapshotPreviousHome, transferPreviousHome } from './previous-home.mjs';
 import { decodeLines } from './shell-session.mjs';
 
 export class InstallContractError extends Error {
@@ -17,7 +18,7 @@ export function buildInstall(nonce, jobId, sdk) {
   checkId(jobId);
   if (!Number.isInteger(sdk) || sdk < 1 || sdk > 100) fail('invalid_request');
   const path = `/data/local/tmp/ha-paneld-install-${jobId}.apk`;
-  return `echo HAPANELD_INSTALL_BEGIN:${nonce}; pm install ${sdk >= 28 ? '-R ' : ''}${path}; echo HAPANELD_INSTALL_END:${nonce}:$?`;
+  return `echo HAPANELD_INSTALL_BEGIN:${nonce}; if ${snapshotPreviousHome(path)}; then pm install ${sdk >= 28 ? '-R ' : ''}${path}; hp_install=$?; if [ "$hp_install" -eq 0 ]; then ${transferPreviousHome(path)}; else (exit "$hp_install"); fi; else false; fi; echo HAPANELD_INSTALL_END:${nonce}:$?`;
 }
 
 /**
@@ -32,13 +33,15 @@ export function buildInstall(nonce, jobId, sdk) {
  * and its status is not the launch's, because the permission step after
  * `healthy` reads the result back and fails the install if the panel refused it.
  */
-export function buildLaunch(nonce, packageId, launchComponent, sdk) {
+export function buildLaunch(nonce, packageId, launchComponent, sdk, previousHomeJobId = null) {
   checkId(nonce);
   if (!isLaunchComponent(packageId, launchComponent)) fail('invalid_request');
   if (!Number.isInteger(sdk) || sdk < 1 || sdk > 100) fail('invalid_request');
+  if (previousHomeJobId !== null) checkId(previousHomeJobId);
+  const transfer = previousHomeJobId === null ? '' : `${transferPreviousHome(`/data/local/tmp/ha-paneld-install-${previousHomeJobId}.apk`)} && `;
   const permission = 'android.permission.POST_NOTIFICATIONS';
   const grant = sdk >= 33 ? `pm grant ${packageId} ${permission} >/dev/null 2>&1; ` : '';
-  return `echo HAPANELD_LAUNCH_BEGIN:${nonce}; ${grant}am start -W -n ${launchComponent} -p ${packageId}; echo HAPANELD_LAUNCH_END:${nonce}:$?`;
+  return `echo HAPANELD_LAUNCH_BEGIN:${nonce}; ${grant}${transfer}am start -W -n ${launchComponent} -p ${packageId}; echo HAPANELD_LAUNCH_END:${nonce}:$?`;
 }
 
 function parseSection(body, nonce, prefix) {

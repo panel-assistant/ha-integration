@@ -214,6 +214,9 @@ async def test_happy_path_stops_unclaimed_and_binds_every_operation(
     assert harness.events.count("stage") == 1
     assert harness.events.count("install") == 1
     assert harness.events.count("launch") == 1
+    # A launch retry recovers the marker belonging to the staged APK, whose
+    # remote slot is deliberately different from the durable receipt id.
+    assert harness.launch_previous_home_job_ids == [harness.stage_arguments[0][3]]
     assert harness.events.count("remote_cleanup:install_succeeded") == 1
     assert harness.events == [
         "credential",

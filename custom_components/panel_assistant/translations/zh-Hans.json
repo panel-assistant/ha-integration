@@ -636,6 +636,9 @@
       },
       "back": {
         "name": "返回"
+      },
+      "remove_from_panel": {
+        "name": "从此面板移除"
       }
     },
     "event": {
@@ -1668,6 +1671,32 @@
     "another_home_assistant": {
       "title": "{panel} 已登录另一个 Home Assistant",
       "description": "{panel} 已添加到此处，但仍登录着另一个 Home Assistant。\n\n解决方法：\n1. [打开面板的 Home Assistant 连接设置]({configure_url})。\n2. 如果确实要连接到此处，请输入此 Home Assistant 的地址并保存。\n3. 重新连接，并使用希望面板使用的账户登录；否则，请保留当前服务器并忽略此修复提示。"
+    },
+    "remove_from_panel": {
+      "title": "从 {panel} 移除 Panel Assistant",
+      "description": "从 {panel} 移除 Panel Assistant\n\n[了解更多]({learn_more_url})",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "从 {panel} 移除 Panel Assistant",
+            "description": "Panel Assistant 会先把主屏幕交还给面板自带的启动器，并重新启用它停用的厂商应用；之后才会将其卸载。它在面板上的设置会被删除。\n\n在某些面板和固件版本上，移除后将无法再回到 Android 设置或网络调试，因此不打开面板就无法再次安装该应用。选择“提交”之前，请阅读[移除可能对此面板造成的影响]({risks_url})。\n\n卸载应用后，此面板也将从 Home Assistant 中删除。\n\n[了解更多]({learn_more_url})"
+          }
+        },
+        "error": {
+          "removal_busy": "另一项操作正在更改此面板。未移除任何内容；请在该操作完成后重试。",
+          "removal_adb_unreachable": "Home Assistant 无法通过 Android Debug Bridge（端口 5555）连接到面板。未移除任何内容。请确认面板已开启且网络调试仍处于启用状态，然后重试。",
+          "removal_adb_authorization": "面板尚未接受此 Home Assistant 实例的 Android Debug Bridge 连接。未移除任何内容。请先选择“允许更新”，然后重试。",
+          "removal_panel_changed": "此面板的地址现在由另一台设备响应。未移除任何内容。",
+          "removal_approval_required": "已开启强化安全模式，因此交还主屏幕必须在面板上批准。未做任何更改，Panel Assistant 仍已安装。请在面板上批准请求，然后再次提交。",
+          "removal_no_replacement_home": "面板无法把主屏幕交给其他启动器：面板上没有其他主屏幕应用，因此只能显示 Panel Assistant。未移除任何内容，面板仍可正常使用。请安装一个启动器或重新启用厂商启动器，然后重试。",
+          "removal_ownership_unreadable": "面板无法读取它自己关于已停用厂商应用的记录。未移除任何内容。请在面板上重新启动 Panel Assistant，然后重试。",
+          "removal_package_state_unknown": "面板无法读取已安装哪些应用或哪个是其主屏幕。未移除任何内容。请稍后重试。",
+          "removal_home_not_handed": "面板没有确认其他启动器已接管主屏幕，因此未移除 Panel Assistant。请安装一个启动器或重新启用厂商启动器，然后重试。",
+          "removal_hand_back_unsupported": "此面板上的 Panel Assistant 应用版本过旧，无法交还主屏幕。未移除任何内容。请先更新应用，然后重试。",
+          "removal_app_unreachable": "Panel Assistant 没有响应，而它仍是面板的主屏幕，现在移除会让面板没有主屏幕。未移除任何内容。请在面板上启动 Panel Assistant，然后重试。",
+          "removal_remove_failed": "面板已经拿回主屏幕，但 Panel Assistant 未能完全移除。请重试：重试会完成剩余部分。"
+        }
+      }
     }
   },
   "options": {
@@ -1679,7 +1708,7 @@
           "onboarding": "继续设置",
           "authorize_adb": "允许更新",
           "updates": "面板更新",
-          "remove_app": "从此面板移除 Panel Assistant"
+          "remove_app": "从此面板移除"
         },
         "menu_option_descriptions": {
           "remove_app": "把主屏幕交还给面板自带的启动器，然后卸载该应用。"
@@ -1706,13 +1735,7 @@
       },
       "remove_app": {
         "title": "从 {panel} 移除 Panel Assistant",
-        "description": "Panel Assistant 会先把主屏幕交还给面板自带的启动器，并重新启用它停用的厂商应用；之后才会将其卸载。它在面板上的设置会被删除。\n\n在某些面板和固件版本上，移除后将无法再回到 Android 设置或网络调试，因此不打开面板就无法再次安装该应用。选择“提交”之前，请阅读[移除可能对此面板造成的影响]({risks_url})。",
-        "data": {
-          "delete_entry": "同时从 Home Assistant 中删除此面板"
-        },
-        "data_description": {
-          "delete_entry": "保持关闭可保留其实体和历史记录，以便你再次安装 Panel Assistant 时使用。"
-        }
+        "description": "Panel Assistant 会先把主屏幕交还给面板自带的启动器，并重新启用它停用的厂商应用；之后才会将其卸载。它在面板上的设置会被删除。\n\n在某些面板和固件版本上，移除后将无法再回到 Android 设置或网络调试，因此不打开面板就无法再次安装该应用。选择“提交”之前，请阅读[移除可能对此面板造成的影响]({risks_url})。\n\n卸载应用后，此面板也将从 Home Assistant 中删除。"
       }
     },
     "error": {
@@ -1745,7 +1768,6 @@
     },
     "abort": {
       "removed_entry_deleted": "已移除 Panel Assistant，并已从 Home Assistant 删除该面板。",
-      "removed_entry_kept": "已移除 Panel Assistant。在您删除之前，面板会保留在 Home Assistant 中。",
       "panel_connected": "面板已设置完成，并已连接到 Home Assistant。"
     },
     "progress": {

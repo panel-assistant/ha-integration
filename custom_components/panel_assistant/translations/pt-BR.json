@@ -250,6 +250,9 @@
       },
       "back": {
         "name": "Voltar"
+      },
+      "remove_from_panel": {
+        "name": "Remover deste painel"
       }
     },
     "event": {
@@ -1668,6 +1671,32 @@
     "another_home_assistant": {
       "title": "{panel} está com sessão iniciada em outro Home Assistant",
       "description": "{panel} foi adicionado aqui, mas continua com sessão iniciada em outro Home Assistant.\n\nPara corrigir:\n1. [Abra a conexão do painel com o Home Assistant]({configure_url}).\n2. Se pretende conectá-lo aqui, digite o endereço deste Home Assistant e salve.\n3. Reconecte e faça login com a conta que você quer que o painel use; caso contrário, mantenha o servidor atual dele e ignore este reparo."
+    },
+    "remove_from_panel": {
+      "title": "Remover Panel Assistant de {panel}",
+      "description": "Remover Panel Assistant de {panel}\n\n[Saiba mais]({learn_more_url})",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Remover Panel Assistant de {panel}",
+            "description": "Primeiro, o Panel Assistant devolve a tela inicial do painel ao inicializador do próprio painel e reativa os aplicativos do fabricante que havia desativado; só então ele é desinstalado. Suas configurações no painel são excluídas.\n\nEm alguns painéis e versões de firmware, a remoção deixa você sem acesso às Configurações do Android ou à depuração pela rede, impedindo a reinstalação do aplicativo sem abrir o painel. Leia [o que a remoção pode causar neste painel]({risks_url}) antes de selecionar Enviar.\n\nApós a desinstalação, este painel também será excluído do Home Assistant.\n\n[Saiba mais]({learn_more_url})"
+          }
+        },
+        "error": {
+          "removal_busy": "Outra operação já está alterando este painel. Nada foi removido; tente novamente quando ela terminar.",
+          "removal_adb_unreachable": "O Home Assistant não conseguiu acessar o painel pelo Android Debug Bridge (porta 5555). Nada foi removido. Verifique se o painel está ligado e se a depuração pela rede continua ativada. Depois, tente novamente.",
+          "removal_adb_authorization": "O painel não aceitou esta instância do Home Assistant para o Android Debug Bridge. Nada foi removido. Primeiro escolha “Permitir atualizações” e depois tente novamente.",
+          "removal_panel_changed": "Outro dispositivo está respondendo no endereço deste painel. Nada foi removido.",
+          "removal_approval_required": "A segurança reforçada está ativada, então a devolução da tela inicial precisa ser aprovada no próprio painel. Nada foi alterado e o Panel Assistant continua instalado. Aprove a solicitação no painel e depois envie o formulário novamente.",
+          "removal_no_replacement_home": "O painel não conseguiu entregar sua tela inicial a outro inicializador: não há outro aplicativo de tela inicial instalado, então o Panel Assistant é a única opção que ele pode exibir. Nada foi removido e o painel continua funcionando. Instale um inicializador ou reative o do fabricante e tente novamente.",
+          "removal_ownership_unreadable": "O painel não conseguiu ler seu próprio registro dos aplicativos do fabricante que desativou. Nada foi removido. Inicie o Panel Assistant novamente no painel e tente novamente.",
+          "removal_package_state_unknown": "O painel não conseguiu ler quais aplicativos estão instalados ou qual deles é sua tela inicial. Nada foi removido. Tente novamente em instantes.",
+          "removal_home_not_handed": "O painel não confirmou que outro inicializador assumiu sua tela inicial, por isso o Panel Assistant não foi removido. Instale um inicializador ou reative o do fabricante e tente novamente.",
+          "removal_hand_back_unsupported": "O aplicativo Panel Assistant neste painel é antigo demais para devolver a tela inicial. Nada foi removido. Atualize-o primeiro e depois tente novamente.",
+          "removal_app_unreachable": "O Panel Assistant não respondeu e ainda é a tela inicial do painel, então removê-lo agora deixaria o painel sem tela inicial. Nada foi removido. Inicie o Panel Assistant no painel e tente novamente.",
+          "removal_remove_failed": "O painel já recuperou sua tela inicial, mas não foi possível remover completamente o Panel Assistant. Tente novamente: uma nova tentativa conclui o que falta."
+        }
+      }
     }
   },
   "options": {
@@ -1679,7 +1708,7 @@
           "onboarding": "Continuar configuração",
           "authorize_adb": "Permitir atualizações",
           "updates": "Atualizações do painel",
-          "remove_app": "Remover Panel Assistant deste painel"
+          "remove_app": "Remover deste painel"
         },
         "menu_option_descriptions": {
           "remove_app": "Devolve a tela inicial ao inicializador do próprio painel e depois desinstala o aplicativo."
@@ -1706,13 +1735,7 @@
       },
       "remove_app": {
         "title": "Remover Panel Assistant de {panel}",
-        "description": "Primeiro, o Panel Assistant devolve a tela inicial do painel ao inicializador do próprio painel e reativa os aplicativos do fabricante que havia desativado; só então ele é desinstalado. Suas configurações no painel são excluídas.\n\nEm alguns painéis e versões de firmware, a remoção deixa você sem acesso às Configurações do Android ou à depuração pela rede, impedindo a reinstalação do aplicativo sem abrir o painel. Leia [o que a remoção pode causar neste painel]({risks_url}) antes de selecionar Enviar.",
-        "data": {
-          "delete_entry": "Excluir também este painel do Home Assistant"
-        },
-        "data_description": {
-          "delete_entry": "Deixe desativado para manter as entidades e o histórico dele para quando você instalar o Panel Assistant novamente."
-        }
+        "description": "Primeiro, o Panel Assistant devolve a tela inicial do painel ao inicializador do próprio painel e reativa os aplicativos do fabricante que havia desativado; só então ele é desinstalado. Suas configurações no painel são excluídas.\n\nEm alguns painéis e versões de firmware, a remoção deixa você sem acesso às Configurações do Android ou à depuração pela rede, impedindo a reinstalação do aplicativo sem abrir o painel. Leia [o que a remoção pode causar neste painel]({risks_url}) antes de selecionar Enviar.\n\nApós a desinstalação, este painel também será excluído do Home Assistant."
       }
     },
     "error": {
@@ -1745,7 +1768,6 @@
     },
     "abort": {
       "removed_entry_deleted": "O Panel Assistant foi removido e o painel foi excluído do Home Assistant.",
-      "removed_entry_kept": "O Panel Assistant foi removido. O painel permanece no Home Assistant até que você o exclua.",
       "panel_connected": "O painel está configurado e conectado ao Home Assistant."
     },
     "progress": {

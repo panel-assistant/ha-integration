@@ -1,6 +1,6 @@
 // Fixed, explicitly confirmed post-install grants for the authenticated APK.
 // Nothing here configures MQTT, networking, device ownership or app data.
-import { DEVICE_ADMIN_RECEIVER, OBSOLETE_ACCESSIBILITY_COMPONENTS,
+import { OBSOLETE_ACCESSIBILITY_COMPONENTS,
   accessibilityComponentFor, accessibilityComponentsFor, homeComponentsFor, isLaunchComponent } from './app-identity.mjs';
 import { CHOOSER_OUTCOMES, HOME_QUERY, buildHomeClaim } from './home-chooser.mjs';
 
@@ -16,13 +16,6 @@ const listed = feature => `hp_has=; for hp_f in $hp_features; do case "$hp_f" in
 // Lets full screen-off lift a firmware's keep-screen-on-while-plugged-in
 // setting (the Shelly X2i); granted after every install like the network path.
 const SECURE_SETTINGS = 'android.permission.WRITE_SECURE_SETTINGS';
-// Makes the app a device admin, which only locks the screen, unless Android
-// already lists it: the network installer's device_admin_claim_command, as text.
-export function buildDeviceAdminClaim(packageId) {
-  const listed = `${packageId}/${DEVICE_ADMIN_RECEIVER.slice(packageId.length)}:`;
-  return `case "$(dumpsys device_policy 2>/dev/null)" in *"${listed}"*) ;; ` +
-    `*) dpm set-active-admin ${packageId}/${DEVICE_ADMIN_RECEIVER} >/dev/null 2>&1 ;; esac`;
-}
 // Every refusal carries the same code; `detail` names the check that refused,
 // for "Details for support" only, so the next failure names its cause.
 const fail = detail => { throw Object.assign(new Error('permissions_unverified'), { detail }); };
@@ -111,7 +104,6 @@ hp_features=$(pm list features 2>/dev/null) || hp_features=
 ${RUNTIME_GRANTS.map(([feature, permission]) => `${listed(feature)}
 [ -z "$hp_has" ] || pm grant ${PACKAGE} android.permission.${permission} >/dev/null 2>&1`).join('\n')}
 pm grant ${PACKAGE} ${SECURE_SETTINGS} >/dev/null 2>&1
-${buildDeviceAdminClaim(PACKAGE)}
 ${buildHomeClaim(launchComponent)}
 echo "home_chooser:$hp_chooser"
 :

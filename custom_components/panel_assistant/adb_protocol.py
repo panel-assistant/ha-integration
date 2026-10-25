@@ -45,6 +45,11 @@ from .app_identity import (
 from .client import PanelAddress
 from .home_chooser import CHOOSER_OUTCOMES, home_claim_command
 from .home_chooser import HOME_QUERY as _HOME_QUERY
+from .previous_home import (
+    discard_previous_home,
+    snapshot_previous_home,
+    transfer_previous_home,
+)
 from .release import (
     _MAX_APK_BYTES,
     InstallDescriptor,
@@ -515,7 +520,10 @@ def _install_command(nonce: str, remote_path: str, android_sdk: int) -> str:
     return "; ".join(
         (
             f"echo HAPANELD_INSTALL_BEGIN:{nonce}",
-            f"pm install {no_replace}{remote_path}",
+            f"if {snapshot_previous_home(remote_path)}; then "
+            f"pm install {no_replace}{remote_path}; hp_install=$?; "
+            f'if [ "$hp_install" -eq 0 ]; then {transfer_previous_home(remote_path)}; '
+            'else (exit "$hp_install"); fi; else false; fi',
             f"echo HAPANELD_INSTALL_END:{nonce}:$?",
         )
     )
@@ -679,8 +687,7 @@ def _permission_grant_command(
     the write is printed so the readback can prove nothing was dropped. Grant
     output is discarded; only the readback decides.
 
-    The new app is also made a device admin (``device_admin_claim_command``);
-    the panel's own diagnostics report whether its screen-off can use it.
+    Device admin is deferred until health proves setup has completed.
 
     The build's dashboard is made the panel's HOME whenever HOME resolves to
     anything else: Android forgets a preferred HOME when the set of packages
@@ -756,7 +763,6 @@ def _permission_grant_command(
             "(default|deny|ignore|foreground|errored)(; [ -~]+)?|"
             'No operations\\.)$"; then '
             f'appops set {package_id} "$operation" allow {quiet}; fi; done',
-            device_admin_claim_command(package_id),
             f"observed=$({_SERVICES_SETTING}); observed_status=$?; "
             'if [ "$before_status" -eq 0 ] && [ "$valid" -eq 1 ] && '
             '[ "$observed_status" -eq 0 ] && [ "$observed" = "$after" ]; then '
@@ -892,12 +898,15 @@ def _launch_command(nonce: str, package_id: str, launch_component: str) -> str:
     )
 
 
-def _cleanup_command(nonce: str, remote_path: str) -> str:
+def _cleanup_command(
+    nonce: str, remote_path: str, *, preserve_previous_home: bool = False
+) -> str:
+    discard = "true" if preserve_previous_home else discard_previous_home(remote_path)
     return "; ".join(
         (
             f"echo HAPANELD_CLEANUP_BEGIN:{nonce}",
             f"echo HAPANELD_CLEANUP_RM_BEGIN:{nonce}",
-            f"rm -f {remote_path}",
+            f"{discard} && rm -f {remote_path}",
             f"echo HAPANELD_CLEANUP_RM_END:{nonce}:$?",
             f"echo HAPANELD_CLEANUP_STATE_BEGIN:{nonce}",
             f"if [ -e {remote_path} ] || [ -L {remote_path} ]; then "

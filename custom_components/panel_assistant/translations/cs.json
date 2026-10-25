@@ -250,6 +250,9 @@
       },
       "back": {
         "name": "Zpět"
+      },
+      "remove_from_panel": {
+        "name": "Odebrat z tohoto panelu"
       }
     },
     "event": {
@@ -1668,6 +1671,32 @@
     "another_home_assistant": {
       "title": "{panel} je přihlášen k jiné instanci Home Assistant",
       "description": "Panel {panel} je zde přidaný, ale zůstává přihlášený k jiné instanci Home Assistant.\n\nPostup opravy:\n1. [Otevřete připojení panelu k Home Assistant]({configure_url}).\n2. Pokud ho chcete připojit sem, zadejte adresu této instance Home Assistant a uložte ji.\n3. Znovu se připojte a přihlaste se účtem, který má panel používat; jinak ponechte jeho současný server a tuto opravu ignorujte."
+    },
+    "remove_from_panel": {
+      "title": "Odebrat Panel Assistant z panelu {panel}",
+      "description": "Odebrat Panel Assistant z panelu {panel}\n\n[Další informace]({learn_more_url})",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Odebrat Panel Assistant z panelu {panel}",
+            "description": "Panel Assistant nejprve vrátí domovskou obrazovku panelu jeho vlastnímu spouštěči a znovu zapne aplikace výrobce, které vypnul; teprve potom se odinstaluje. Jeho nastavení na panelu budou smazána.\n\nNa některých panelech a verzích firmwaru po odebrání nezůstane žádná cesta zpět do nastavení systému Android nebo k ladění po síti, takže aplikaci nebude možné znovu nainstalovat bez otevření panelu. Před výběrem možnosti Odeslat si přečtěte [jak může odebrání ovlivnit tento panel]({risks_url}).\n\nPo odinstalaci bude tento panel také odstraněn z Home Assistant.\n\n[Další informace]({learn_more_url})"
+          }
+        },
+        "error": {
+          "removal_busy": "Tento panel už mění jiná operace. Nic nebylo odebráno; zkuste to znovu, až tato operace skončí.",
+          "removal_adb_unreachable": "Home Assistant se nedokázal spojit s panelem přes Android Debug Bridge (port 5555). Nic nebylo odebráno. Zkontrolujte, že je panel zapnutý a ladění po síti je stále povolené, a pak to zkuste znovu.",
+          "removal_adb_authorization": "Panel nepřijal tuto instanci Home Assistant pro Android Debug Bridge. Nic nebylo odebráno. Nejdřív vyberte „Povolit aktualizace“ a potom to zkuste znovu.",
+          "removal_panel_changed": "Na adrese tohoto panelu nyní odpovídá jiné zařízení. Nic nebylo odebráno.",
+          "removal_approval_required": "Je zapnuté posílené zabezpečení, takže předání domovské obrazovky zpět musí být schváleno na samotném panelu. Nic se nezměnilo a Panel Assistant je stále nainstalovaný. Schvalte požadavek na panelu a potom znovu odešlete formulář.",
+          "removal_no_replacement_home": "Panel nemohl předat svou domovskou obrazovku jinému spouštěči: nemá jinou aplikaci domovské obrazovky, takže může zobrazit pouze Panel Assistant. Nic nebylo odebráno a panel stále funguje. Nainstalujte spouštěč nebo znovu zapněte ten od výrobce a pak to zkuste znovu.",
+          "removal_ownership_unreadable": "Panel nedokázal přečíst vlastní záznam o aplikacích výrobce, které vypnul. Nic nebylo odebráno. Znovu na panelu spusťte Panel Assistant a pak to zkuste znovu.",
+          "removal_package_state_unknown": "Panel nedokázal zjistit, které aplikace jsou nainstalované nebo která z nich slouží jako domovská obrazovka. Nic nebylo odebráno. Zkuste to znovu za chvíli.",
+          "removal_home_not_handed": "Panel nepotvrdil, že jeho domovskou obrazovku převzal jiný spouštěč, takže Panel Assistant nebyl odebrán. Nainstalujte spouštěč nebo znovu zapněte ten od výrobce a pak to zkuste znovu.",
+          "removal_hand_back_unsupported": "Aplikace Panel Assistant na tomto panelu je příliš stará, aby předala domovskou obrazovku zpět. Nic nebylo odebráno. Nejdřív ji aktualizujte a potom to zkuste znovu.",
+          "removal_app_unreachable": "Panel Assistant neodpověděl a stále slouží jako domovská obrazovka panelu, takže jeho odebrání by nyní nechalo panel bez domovské obrazovky. Nic nebylo odebráno. Spusťte na panelu Panel Assistant a pak to zkuste znovu.",
+          "removal_remove_failed": "Panel už má svou domovskou obrazovku zpět, ale Panel Assistant se nepodařilo úplně odebrat. Zkuste to znovu: další pokus dokončí zbývající kroky."
+        }
+      }
     }
   },
   "options": {
@@ -1679,7 +1708,7 @@
           "onboarding": "Pokračovat v nastavení",
           "authorize_adb": "Povolit aktualizace",
           "updates": "Aktualizace panelu",
-          "remove_app": "Odebrat Panel Assistant z tohoto panelu"
+          "remove_app": "Odebrat z tohoto panelu"
         },
         "menu_option_descriptions": {
           "remove_app": "Vrátí domovskou obrazovku vlastnímu spouštěči panelu a poté aplikaci odinstaluje."
@@ -1706,13 +1735,7 @@
       },
       "remove_app": {
         "title": "Odebrat Panel Assistant z panelu {panel}",
-        "description": "Panel Assistant nejprve vrátí domovskou obrazovku panelu jeho vlastnímu spouštěči a znovu zapne aplikace výrobce, které vypnul; teprve potom se odinstaluje. Jeho nastavení na panelu budou smazána.\n\nNa některých panelech a verzích firmwaru po odebrání nezůstane žádná cesta zpět do nastavení systému Android nebo k ladění po síti, takže aplikaci nebude možné znovu nainstalovat bez otevření panelu. Před výběrem možnosti Odeslat si přečtěte [jak může odebrání ovlivnit tento panel]({risks_url}).",
-        "data": {
-          "delete_entry": "Smazat tento panel také z Home Assistant"
-        },
-        "data_description": {
-          "delete_entry": "Nechte vypnuté, pokud chcete zachovat jeho entity a historii pro případ, že Panel Assistant nainstalujete znovu."
-        }
+        "description": "Panel Assistant nejprve vrátí domovskou obrazovku panelu jeho vlastnímu spouštěči a znovu zapne aplikace výrobce, které vypnul; teprve potom se odinstaluje. Jeho nastavení na panelu budou smazána.\n\nNa některých panelech a verzích firmwaru po odebrání nezůstane žádná cesta zpět do nastavení systému Android nebo k ladění po síti, takže aplikaci nebude možné znovu nainstalovat bez otevření panelu. Před výběrem možnosti Odeslat si přečtěte [jak může odebrání ovlivnit tento panel]({risks_url}).\n\nPo odinstalaci bude tento panel také odstraněn z Home Assistant."
       }
     },
     "error": {
@@ -1745,7 +1768,6 @@
     },
     "abort": {
       "removed_entry_deleted": "Panel Assistant byl odebrán a panel byl smazán z Home Assistant.",
-      "removed_entry_kept": "Panel Assistant byl odebrán. Panel zůstane v Home Assistant, dokud ho nesmažete.",
       "panel_connected": "Panel je nastaven a připojen k Home Assistant."
     },
     "progress": {
