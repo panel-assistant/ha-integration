@@ -47,6 +47,7 @@ from .home_chooser import CHOOSER_OUTCOMES, home_claim_command
 from .home_chooser import HOME_QUERY as _HOME_QUERY
 from .previous_home import (
     discard_previous_home,
+    receiver_absence_check,
     snapshot_previous_home,
     transfer_previous_home,
 )
@@ -683,13 +684,9 @@ def _setup_home_claim_command(package_id: str, launch_component: str) -> str:
         "--es operation setup_eligibility 2>/dev/null); hp_setup_status=$?; "
         'hp_eligible=0; if [ "$hp_setup_status" -eq 0 ] && '
         f"printf '%s\\n' \"$hp_setup\" | grep -Fxq '{eligible}'; "
-        "then hp_eligible=1; else "
-        f"hp_package=$(dumpsys package {package_id} 2>/dev/null); "
-        "hp_package_status=$?; "
-        'if [ "$hp_package_status" -eq 0 ] && '
-        "printf '%s\\n' \"$hp_package\" | grep -Fq 'Package [' && "
-        "! printf '%s\\n' \"$hp_package\" | grep -Fq PreservePreviousHomeReceiver; "
-        "then hp_eligible=1; fi; fi; "
+        "then hp_eligible=1; else if "
+        + receiver_absence_check(package_id)
+        + "; then hp_eligible=1; fi; fi; "
         'if [ "$hp_eligible" -eq 1 ]; then '
         + home_claim_command(launch_component)
         # Only native verified HOME readback clears pending intent. If the

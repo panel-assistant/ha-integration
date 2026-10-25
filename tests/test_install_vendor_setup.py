@@ -934,7 +934,15 @@ async def test_an_unreadable_vendor_probe_is_reported_and_runs_no_vendor_setup(
 
 
 @pytest.mark.parametrize(
-    "scenario", ["first_setup", "old_receiver", "unreadable", "legacy_app"]
+    "scenario",
+    [
+        "first_setup",
+        "old_receiver",
+        "unreadable",
+        "query_error",
+        "disabled_receiver",
+        "legacy_app",
+    ],
 )
 async def test_home_and_vendor_ownership_require_completed_setup_or_proven_legacy_app(
     monkeypatch: pytest.MonkeyPatch,
@@ -953,6 +961,10 @@ async def test_home_and_vendor_ownership_require_completed_setup_or_proven_legac
         (tmp_path / "legacy.receiver").touch()
     elif scenario == "unreadable":
         (tmp_path / "package.unreadable").touch()
+    elif scenario == "disabled_receiver":
+        (tmp_path / "receiver.disabled").touch()
+    elif scenario == "query_error":
+        (tmp_path / "receiver.query.error").touch()
     elif scenario == "legacy_app":
         (tmp_path / "receiver.absent").touch()
 

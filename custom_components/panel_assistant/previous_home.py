@@ -37,6 +37,28 @@ def snapshot_previous_home(remote_apk: str) -> str:
     )
 
 
+def receiver_absence_check(package_id: str) -> str:
+    """Prove the explicit receiver absent, including disabled components.
+
+    Package summaries omit receivers without intent filters. Only a successful
+    PackageManager query's exact empty result, plus installed-package evidence,
+    admits old apps. Unknown commands, denied reads and other output fail closed.
+    """
+    receiver = (
+        f"{package_id}/io.panelassistant.android.platform.PreservePreviousHomeReceiver"
+    )
+    return (
+        "hp_receivers=$(cmd package query-receivers --query-flags 512 --user 0 "
+        f"--brief --components -n {receiver} 2>/dev/null); hp_receivers_status=$?; "
+        f"hp_package=$(dumpsys package {package_id} 2>/dev/null); "
+        "hp_package_status=$?; "
+        '[ "$hp_receivers_status" -eq 0 ] && '
+        '[ "$hp_receivers" = "No receivers found" ] && '
+        '[ "$hp_package_status" -eq 0 ] && '
+        f"printf '%s\\n' \"$hp_package\" | grep -Fq 'Package [{package_id}]'"
+    )
+
+
 def transfer_previous_home(remote_apk: str) -> str:
     """Return success only after the shell record reaches the canonical app store."""
     path = remote_apk + ".previous-home"
@@ -57,12 +79,8 @@ def transfer_previous_home(remote_apk: str) -> str:
         f"else hp_record=$({broadcast} 2>/dev/null); fi; "
         'case "$hp_record" in *"Broadcast completed: result=1"*) '
         f"rm {path} ;; "
-        # Legacy app compatibility requires readable installed-package evidence.
-        f"*) hp_package=$(dumpsys package {PACKAGE_ID} 2>/dev/null); hp_status=$?; "
-        'if [ "$hp_status" -eq 0 ] && '
-        "printf '%s\\n' \"$hp_package\" | grep -Fq 'Package [' && "
-        "! printf '%s\\n' \"$hp_package\" | "
-        "grep -Fq PreservePreviousHomeReceiver; "
+        # Only a direct receiver query can prove this is an old supported app.
+        "*) if " + receiver_absence_check(PACKAGE_ID) + "; "
         f"then rm {path}; else false; fi ;; esac; else false; fi; else false; fi"
     )
 

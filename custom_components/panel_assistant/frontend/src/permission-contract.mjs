@@ -3,6 +3,7 @@
 import { OBSOLETE_ACCESSIBILITY_COMPONENTS,
   accessibilityComponentFor, accessibilityComponentsFor, homeComponentsFor, isLaunchComponent } from './app-identity.mjs';
 import { CHOOSER_OUTCOMES, HOME_QUERY, buildHomeClaim } from './home-chooser.mjs';
+import { receiverAbsenceCheck } from './previous-home.mjs';
 
 // What HOME resolves to now, as the network installer reads it.
 export { HOME_QUERY };
@@ -24,9 +25,7 @@ function buildSetupHomeClaim(packageId, launchComponent) {
   const eligible = 'Broadcast completed: result=1, data="panel-assistant-setup-eligible"';
   return `hp_setup=$(am broadcast --include-stopped-packages -n ${receiver} --es operation setup_eligibility 2>/dev/null); hp_setup_status=$?; ` +
     `hp_eligible=0; if [ "$hp_setup_status" -eq 0 ] && printf '%s\\n' "$hp_setup" | grep -Fxq '${eligible}'; then hp_eligible=1; else ` +
-    `hp_package=$(dumpsys package ${packageId} 2>/dev/null); hp_package_status=$?; ` +
-    `if [ "$hp_package_status" -eq 0 ] && printf '%s\\n' "$hp_package" | grep -Fq 'Package [' && ` +
-    `! printf '%s\\n' "$hp_package" | grep -Fq PreservePreviousHomeReceiver; then hp_eligible=1; fi; fi; ` +
+    `if ${receiverAbsenceCheck(packageId)}; then hp_eligible=1; fi; fi; ` +
     `if [ "$hp_eligible" -eq 1 ]; then ${buildHomeClaim(launchComponent)}; ` +
     // Native acknowledges only a fresh verified HOME claim; failure leaves
     // the pending intent in health for a later completion pass.

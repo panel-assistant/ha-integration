@@ -7,6 +7,8 @@ import shlex
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from custom_components.panel_assistant.adb_protocol import _install_command
 from custom_components.panel_assistant.previous_home import (
     snapshot_previous_home,
@@ -14,22 +16,42 @@ from custom_components.panel_assistant.previous_home import (
 )
 
 
-def _shell(program: str, tmp_path: Path, *, receiver_success: bool = True) -> str:
+def _shell(
+    program: str,
+    tmp_path: Path,
+    *,
+    receiver_success: bool = True,
+    query_response: str = (
+        "io.panelassistant.android/.platform.PreservePreviousHomeReceiver"
+    ),
+    query_status: int = 0,
+    package_status: int = 0,
+    expected_status: int = 0,
+) -> str:
     log = shlex.quote(str(tmp_path / "captured"))
     # Installing can invalidate Android's HOME preference. Only the pre-install
     # snapshot can supply this exact original component to the receiver.
+    query = (
+        'if [ "$1 $2" = "package query-receivers" ]; then '
+        f"printf '%s\\n' {shlex.quote(query_response)}; return {query_status}; fi; "
+    )
     prelude = (
-        "cmd() { echo com.vendor.launcher/com.vendor.launcher.OriginalHome; }; "
-        "pm() { cmd() { echo android/ResolverActivity; }; echo Success; }; "
-        "dumpsys() { printf '%s\\n' 'Package [io.panelassistant.android]' "
-        "'PreservePreviousHomeReceiver'; }; "
+        "cmd() { "
+        + query
+        + "echo com.vendor.launcher/com.vendor.launcher.OriginalHome; }; "
+        "pm() { cmd() { "
+        + query
+        + "echo android/ResolverActivity; }; echo Success; }; "
+        # Real package summaries can omit an explicit receiver without filters.
+        "dumpsys() { printf '%s\\n' 'Package [io.panelassistant.android]'; "
+        f"return {package_status}; }}; "
         f"am() {{ printf '%s\\n' \"$*\" >> {log}; "
         f'echo "Broadcast completed: result={1 if receiver_success else 0}"; }}; '
     )
     result = subprocess.run(
         ["sh", "-c", prelude + program], capture_output=True, text=True, check=False
     )
-    assert result.returncode == 0, result.stderr
+    assert result.returncode == expected_status, result.stderr
     return result.stdout
 
 
@@ -152,3 +174,64 @@ def test_usb_retry_cannot_launch_before_original_home_is_durable(
     assert "HAPANELD_LAUNCH_END:" + "0" * 32 + ":1" in output
     assert "start -W" not in (tmp_path / "captured").read_text()
     assert Path(apk + ".previous-home").exists()
+
+
+@pytest.mark.parametrize(
+    "query_response,query_status,package_status,legacy",
+    [
+        (
+            "io.panelassistant.android/.platform.PreservePreviousHomeReceiver",
+            0,
+            0,
+            False,
+        ),
+        ("No receivers found", 0, 0, True),
+        ("No receivers found", 1, 0, False),
+        ("", 0, 0, False),
+        ("Unknown command: query-receivers", 0, 0, False),
+        ("No receivers found", 0, 1, False),
+    ],
+)
+@pytest.mark.parametrize("carrier", ["network", "usb"])
+def test_failed_capture_requires_direct_receiver_absence_before_discarding_custody(
+    tmp_path: Path,
+    query_response: str,
+    query_status: int,
+    package_status: int,
+    legacy: bool,
+    carrier: str,
+) -> None:
+    apk = str(tmp_path / "install.apk")
+    record = Path(apk + ".previous-home")
+    record.write_text("com.original/com.original.Home\n")
+    record.chmod(0o600)
+    program = transfer_previous_home(apk)
+    if carrier == "usb":
+        source = (
+            Path(__file__).parents[1]
+            / "custom_components/panel_assistant/frontend/src/previous-home.mjs"
+        )
+        script = (
+            f"import {{transferPreviousHome}} from {json.dumps(source.as_uri())}; "
+            f"console.log(JSON.stringify(transferPreviousHome({json.dumps(apk)})));"
+        )
+        program = json.loads(
+            subprocess.run(
+                ["node", "--input-type=module", "-e", script],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout
+        )
+    _shell(
+        program,
+        tmp_path,
+        receiver_success=False,
+        query_response=query_response,
+        query_status=query_status,
+        package_status=package_status,
+        expected_status=0 if legacy else 1,
+    )
+    assert record.exists() is not legacy
+    if not legacy:
+        assert record.read_text() == "com.original/com.original.Home\n"

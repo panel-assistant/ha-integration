@@ -93,7 +93,15 @@ appops() {
   if [ "$1" = get ]; then [ ! -f "$STATE/read_fail.$3" ]; fi
 }
 cmd() {
-  if [ "$1 $2" = "package resolve-activity" ]; then
+  if [ "$1 $2" = "package query-receivers" ]; then
+    if [ -f "$STATE/receiver.disabled" ]; then
+      case " $* " in *" --query-flags 512 "*) ;;
+        *) echo "No receivers found"; return ;; esac
+    fi
+    if [ -f "$STATE/receiver.query.error" ]; then echo "No receivers found"; return 1
+    elif [ -f "$STATE/receiver.absent" ]; then echo "No receivers found"
+    else echo io.panelassistant.android/.platform.PreservePreviousHomeReceiver; fi
+  elif [ "$1 $2" = "package resolve-activity" ]; then
     echo "priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true"
     if [ -f "$STATE/home" ]; then cat "$STATE/home"
     else echo android/com.android.internal.app.ResolverActivity; fi
@@ -166,7 +174,7 @@ dumpsys() {
     done
     return 0
   fi
-  if [ -f "$STATE/receiver.absent" ]; then echo "Package [$2]"; return; fi
+  echo "Package [$2]"
   if [ -f "$STATE/package.unreadable" ]; then return 1; fi
   if [ -f "$STATE/unreadable.permissions" ]; then
     cat "$STATE/unreadable.permissions"

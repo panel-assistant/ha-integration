@@ -45,7 +45,7 @@ pm() {
   elif [ "$1" = grant ]; then echo "pm $*" >> "$STATE/calls"; echo true > "$STATE/permission.$3"; fi
 }
 dumpsys() {
-  if [ -f "$STATE/receiver.absent" ]; then echo "Package [$2]"; fi
+  echo "Package [$2]"
   if [ -f "$STATE/package.unreadable" ]; then
     mv "$STATE/package.unreadable" "$STATE/package.unreadable.read"; return 1
   fi
@@ -55,7 +55,15 @@ dumpsys() {
   done
 }
 cmd() {
-  if [ "$2" = resolve-activity ]; then
+  if [ "$2" = query-receivers ]; then
+    if [ -f "$STATE/receiver.disabled" ]; then
+      case " $* " in *" --query-flags 512 "*) ;;
+        *) echo "No receivers found"; return ;; esac
+    fi
+    if [ -f "$STATE/receiver.query.error" ]; then echo "No receivers found"; return 1
+    elif [ -f "$STATE/receiver.absent" ]; then echo "No receivers found"
+    else echo io.panelassistant.android/.platform.PreservePreviousHomeReceiver; fi
+  elif [ "$2" = resolve-activity ]; then
     echo "priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true"
     if [ -f "$STATE/home" ]; then cat "$STATE/home"; else echo android/com.android.internal.app.ResolverActivity; fi
   elif [ "$2" = set-home-activity ]; then
@@ -328,7 +336,7 @@ test('a Shelly Wall Display has its launcher overlay denied once, with the mode 
 
 
 test('incomplete USB setup keeps the previous HOME and vendor settings until durable completion', async () => {
-  for (const refusal of ['incomplete.setup', 'legacy.receiver', 'package.unreadable']) {
+  for (const refusal of ['incomplete.setup', 'legacy.receiver', 'package.unreadable', 'receiver.query.error', 'receiver.disabled']) {
     const p = panel({portal: true});
     try {
       writeFileSync(join(p.state, 'home'), 'com.vendor.launcher/.Home\n');
