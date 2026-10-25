@@ -739,6 +739,26 @@ class HaPaneldClient:
         )
         return _load_json_object(body)
 
+    async def async_get_webview(self) -> dict[str, Any]:
+        """Read the optional panel-owned provider transaction without mutation."""
+        body = await self._async_get_bounded(
+            self.address.base_url.with_path("/api/v1/webview"), 16_384
+        )
+        return _load_json_object(body)
+
+    async def async_install_webview(
+        self, request_id: str, artifact_sha256: str
+    ) -> dict[str, Any]:
+        """Request one core-pinned provider; the panel owns durable execution."""
+        status, body = await self._async_post_bounded(
+            self.address.base_url.with_path("/api/v1/webview"),
+            {"request_id": request_id, "artifact_sha256": artifact_sha256},
+            16_384,
+        )
+        if status not in (200, 202, 409):
+            raise InvalidResponseError
+        return _load_json_object(body)
+
     async def async_get_setup_complete(self) -> bool:
         """Whether the panel's own setup wizard reports itself finished."""
         return (await self.async_get_setup_state()).complete

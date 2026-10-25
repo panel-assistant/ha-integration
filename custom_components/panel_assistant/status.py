@@ -23,6 +23,7 @@ from .const import (
     MIN_ANDROID_INTEGER,
 )
 from .release import strict_json_hooks
+from .webview import WebViewStatus, parse_webview
 
 type StatusValue = str | bool | int | float | list[str] | None
 type ComponentStatus = Mapping[str, StatusValue]
@@ -53,6 +54,7 @@ class PanelStatus:
     panel_assistant_hardware: ComponentStatus | None = None
     permissions: ComponentStatus | None = None
     proximity: ComponentStatus | None = None
+    webview: WebViewStatus | None = None
 
     def as_dict(self) -> dict[str, object]:
         """Return a serializable copy suitable for diagnostics."""
@@ -68,6 +70,7 @@ class PanelStatus:
             "power_safety": _copy_component(self.power_safety),
             "permissions": _copy_component(self.permissions),
             "proximity": _copy_component(self.proximity),
+            "webview": self.webview.as_dict() if self.webview is not None else None,
             "panel_assistant_device": (
                 self.panel_assistant_device.as_dict()
                 if self.panel_assistant_device is not None
@@ -587,4 +590,7 @@ def parse_status_response(body: str) -> PanelStatus:
         proximity=_sanitize_component(
             parsed, "proximity", _PROXIMITY_FIELDS, frozenset({"state"})
         ),
+        webview=parse_webview(parsed["webview"])
+        if parsed.get("webview") is not None
+        else None,
     )

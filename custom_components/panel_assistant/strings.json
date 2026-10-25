@@ -1697,6 +1697,27 @@
           "removal_remove_failed": "The panel already has its home screen back, but Panel Assistant could not be removed completely. Try again: a retry finishes what is left."
         }
       }
+    },
+    "panel_webview": {
+      "title": "Update the browser engine on {panel}.",
+      "fix_flow": {
+        "step": {
+          "update_webview": {
+            "title": "Update browser engine",
+            "description": "{panel} has an older browser engine or an unfinished update. Setup and pairing remain available.\n\nTo fix:\n1. Read the [WebView guide]({learn_more_url}) if the panel has no permitted installer.\n2. Select Submit to request the panel's verified compatible update, or check an update already running.\n3. If verification fails, follow the guide or submit again to retry.\n\n[Learn more]({learn_more_url})"
+          }
+        },
+        "error": {
+          "webview_deferred": "The update was not verified. Setup remains available. Follow the guide, or select Submit to retry.",
+          "webview_unavailable": "Home Assistant could not verify the result. Reconnect the panel, then select Submit to check before retrying."
+        },
+        "abort": {
+          "entry_removed": "This panel is no longer set up in Home Assistant.\n\nTo fix:\n1. [Open Panel Assistant devices](/config/integrations/integration/panel_assistant) if you want to add it again.\n2. Otherwise, close this dialog.\n\n[Learn more]({learn_more_url})"
+        },
+        "progress": {
+          "updating_webview": "Updating the browser engine and checking the result.\n\nTo fix:\n1. Keep the panel powered on; [open the guide]({learn_more_url}) if the update cannot finish.\n\n[Learn more]({learn_more_url})"
+        }
+      }
     }
   },
   "options": {

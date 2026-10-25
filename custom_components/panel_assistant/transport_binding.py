@@ -184,3 +184,8 @@ def async_unbind_user(hass: HomeAssistant, entry: ConfigEntry) -> None:
         data = dict(entry.data)
         del data[CONF_TRANSPORT_USER_ID]
         hass.config_entries.async_update_entry(entry, data=data)
+    # WebView setup advice belongs to a paired panel. Do not wait for another
+    # status poll, which may never arrive after its account is removed.
+    from .repairs_webview import webview_issue_id
+
+    ir.async_delete_issue(hass, DOMAIN, webview_issue_id(entry.entry_id))

@@ -155,6 +155,7 @@
     "networkAdb": "ADB réseau",
     "copiedDetail": "{bytes} octets envoyés ; en attente de confirmation du panneau",
     "none": "aucun",
-    "setupMissing": "introuvable ; la configuration continue sur le panneau"
+    "setupMissing": "introuvable ; la configuration continue sur le panneau",
+    "webview": "WebView"
   }
 }

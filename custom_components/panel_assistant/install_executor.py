@@ -964,6 +964,11 @@ class InstallExecutor:
                         # address the installer already knew. Best-effort: an
                         # install that worked must not be failed by a
                         # convenience that did not.
+                        from .webview import async_provision_webview
+
+                        await async_provision_webview(
+                            panel, f"pa-install-{receipt.job_id}"
+                        )
                         setup_state = await async_offer_ha_url(self._hass, panel)
                         # A rootless panel gets its recommended display and
                         # text size at setup, and only then: a reinstall over

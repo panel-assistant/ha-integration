@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## 1.0.0-rc2
 
+### New
+
+- Installation can update a supported panel's WebView to its newest known-good build. If the update cannot finish, pairing can continue and a Repair offers an explicit retry. Already installed panels receive the same Repair. Updates never run on a schedule, downgrade the provider or replace a Play-managed WebView.
+
 ### Development
 
 - Split the Python test suite across two runners per Home Assistant version and speed up voice grammar collision checks.
