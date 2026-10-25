@@ -1305,15 +1305,15 @@ async def test_local_removal_proves_surviving_network_before_uninstall(
         27,
         local_shell=object(),
     )
-    fake.adb_authorized = False
+    # A failed recovery may leave a listener open; its acknowledgement is
+    # still required. Keep this outside the call the mutation removes.
+    fake.adb_authorized = recovery == "failed"
     monkeypatch.setattr(local_adb, "async_target", AsyncMock(return_value=target))
 
     async def recover(*_args: Any) -> None:
         assert PACKAGE_ID in fake.installed, "recovery must precede terminal uninstall"
         assert fake.read()["home"] == VENDOR_HOME
         if recovery == "failed":
-            # An open listener alone is not recovery acknowledgement.
-            fake.adb_authorized = True
             raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE)
         fake.adb_authorized = True
         if recovery == "different-panel":
