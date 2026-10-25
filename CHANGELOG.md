@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## 1.0.0-rc1
+## 1.0.0-rc1 - 2026-10-25
 
 This is the first release candidate of Panel Assistant 1.0, the Home Assistant integration. Read the caveats below before you install it, and please open an issue with the panel model and what you saw. The story of 1.0 is that MQTT and the move from the old panel app are gone for good, so this release only manages panels that 0.9.0 has already moved. In exchange Panel Assistant and the panel now talk over one connection for everything: the sidebar, updates, voice and settings, which is what makes most of the changes below possible. A lot changed; I have listed what you will notice rather than every commit.
 
@@ -43,7 +43,6 @@ Pairs with the 1.0.0-rc1 panel app. The panel app is published first, because Pa
 - **The sidebar remembers how you configure panels.** Your Basic or Advanced view, Descriptions choice and setting filter stay with you when you switch panels or reload the sidebar.
 - **Refreshed Pickles artwork.** The sidebar's disconnected-panel illustration has been redrawn.
 - **A themed wait while a panel restarts.** The sidebar fills the pane with a waiting card during a reboot, update or recovery, follows Home Assistant’s light or dark choice, and returns to the panel on its own without a blank white frame.
-
 - **MQTT is gone.** Panel Assistant no longer offers a transport choice: every panel talks to Home Assistant over its native connection.
 - **The sidebar works for a panel Panel Assistant cannot reach.** The sidebar no longer fetches a panel's pages from the panel. It shows the panel's own pages and passes their requests over the connection the panel keeps to Home Assistant, so a panel Panel Assistant cannot reach directly, for example on another network segment or behind a firewall, can still be viewed and configured from the sidebar, and while the panel restarts the sidebar retries on its own. A panel needs this release's panel app for its pages to open in the sidebar; until it updates, the sidebar shows that it could not be opened.
 - **Visit reaches a panel Panel Assistant cannot.** On a panel's device page, Visit opens the panel in the sidebar whenever Panel Assistant can reach it. When it cannot, Visit opens the panel's own page at its last known address instead, from a browser on the panel's network, so you can put right whatever disconnected it; Visit returns to the sidebar once the panel answers. Panel Assistant also looks for a disconnected panel at the addresses its last connection reported, not only at the one it stored.
@@ -75,7 +74,6 @@ Pairs with the 1.0.0-rc1 panel app. The panel app is published first, because Pa
 - Sidebar subscriptions clean up when their reply arrives late. The USB release picker waits for bounded signature verification instead of giving up after fifteen seconds.
 - With the matching panel app update, synchronised speech recovers when its audio connection closes, without disconnecting panel controls or replaying interrupted speech. Recovery also settles speech whose final audio is still draining, so it cannot leave the panel waiting indefinitely.
 - Spoken replies and announcements keep their rescheduled final audio after a delay producing the stream.
-
 - **Installs and updates no longer fail on Magisk-rooted panels whose `su 0` waits for input.** Panel Assistant checks root on a su-rooted panel by trying each form of the `su` command in turn, but a form that never answered stopped the whole check, so on a Magisk panel, whose `su 0` waits for input, an install or update failed as unreachable. A form that does not answer within a few seconds now gives way to the next one, over the network and in the USB installer.
 - **Every dialog after an install says what it is.** After a network install, Continue setup used to open a dialog with no title or text, only an Open website button. It now explains that the panel's setup page opens in a new tab, links to it, and asks you to select Done when you have finished. After a USB install, the dialog that opened the installer now closes with a message that the panel has been added, and the version page says the install is finished instead of still asking you to continue in the new window.
 - **A panel shows once under Discovered.** A panel that announces itself in more than one way, such as a Shelly Wall Display known to the Shelly integration that also runs the panel app, used to appear twice under **Settings, Devices & services, Discovered**, and the second card stayed even after the panel was added. Now it appears once: the panel app's own announcement replaces any other card for it, adding the panel closes its other cards, a panel already added and running is not offered again, and **Ignore** on any of its cards hides the panel.
