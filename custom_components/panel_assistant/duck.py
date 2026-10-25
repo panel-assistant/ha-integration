@@ -1,10 +1,12 @@
 """Turn down the other players in a panel's area while it holds a voice turn.
 
 The area is the one Core gives the satellite (its entity's area, else its
-device's), so the room turned down is the room "pause the music" acts on.
-Every media player there that is making sound, other than the panel's own,
-is lowered when the satellite starts listening and set back when the
-conversation ends. The panel pauses its own player for a turn itself.
+device's). Every media player there that is making sound, other than the
+panel's own, is lowered when the satellite starts listening and set back when
+the conversation ends. Hidden players count too: a room often holds a speaker
+and a copy of it from another integration (a Music Assistant player), either
+of which may be the one hidden, so both go down. The panel pauses its own
+player for a turn itself.
 """
 
 from __future__ import annotations
@@ -23,7 +25,6 @@ from homeassistant.components.media_player.const import (
     MediaPlayerState,
 )
 from homeassistant.const import (
-    ATTR_AREA_ID,
     ATTR_ENTITY_ID,
     ATTR_SUPPORTED_FEATURES,
     SERVICE_VOLUME_MUTE,
@@ -37,10 +38,6 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import (
     async_call_later,
     async_track_state_change_event,
-)
-from homeassistant.helpers.target import (
-    TargetSelection,
-    async_extract_referenced_entity_ids,
 )
 from homeassistant.util.hass_dict import HassKey
 
@@ -158,21 +155,26 @@ class RoomDuck:
             area_id = device.area_id if device is not None else None
         if area_id is None:
             return []
-        selected = async_extract_referenced_entity_ids(
-            self._hass, TargetSelection({ATTR_AREA_ID: area_id})
-        )
+        # An area target would leave hidden players out; a player is in the
+        # area by its own area, else by its device's.
+        in_area = list(er.async_entries_for_area(entities, area_id))
+        for device in dr.async_entries_for_area(dr.async_get(self._hass), area_id):
+            in_area.extend(
+                entry
+                for entry in er.async_entries_for_device(entities, device.id)
+                if entry.area_id is None
+            )
         players = []
-        for entity_id in sorted(selected.indirectly_referenced):
-            entry = entities.async_get(entity_id)
+        for entry in sorted(in_area, key=lambda entry: entry.entity_id):
             if (
-                entry is None
-                or entry.domain != Platform.MEDIA_PLAYER
+                entry.domain != Platform.MEDIA_PLAYER
+                or entry.entity_category is not None
                 or entry.config_entry_id == self._entry_id
             ):
                 continue
-            state = self._hass.states.get(entity_id)
+            state = self._hass.states.get(entry.entity_id)
             if state is not None and state.state in _SOUNDING:
-                players.append((entity_id, state))
+                players.append((entry.entity_id, state))
         return players
 
     @callback

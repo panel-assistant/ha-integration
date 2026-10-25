@@ -1022,3 +1022,93 @@ async def test_a_write_the_player_never_answers_does_not_hold_up_the_next_turn(
     await _played(hass, panel)
     assert speaker.level == LEVEL
     assert speaker.changes == [LEVEL * 0.3, LEVEL * 0.3, LEVEL]
+
+
+@pytest.mark.parametrize(
+    "hidden_by", [er.RegistryEntryHider.USER, er.RegistryEntryHider.INTEGRATION]
+)
+@pytest.mark.parametrize("area_source", ["entity", "device"])
+async def test_a_hidden_player_in_the_room_is_turned_down_too(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+    hidden_by: er.RegistryEntryHider,
+    area_source: str,
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    visible, hidden = Player("visible"), Player("hidden")
+    await _room(hass, satellite, visible, hidden)
+    registry = er.async_get(hass)
+    hidden_entry = registry.async_get(hidden.entity_id)
+    if area_source == "device":
+        devices = dr.async_get(hass)
+        device = devices.async_get_or_create(
+            config_entry_id=hidden_entry.config_entry_id,
+            identifiers={("test", "hidden-device")},
+        )
+        devices.async_update_device(device.id, area_id=hidden_entry.area_id)
+        registry.async_update_entity(
+            hidden.entity_id, device_id=device.id, area_id=None
+        )
+    registry.async_update_entity(hidden.entity_id, hidden_by=hidden_by)
+    _reply(pipeline, follow_up=False)
+
+    await _turn(panel)
+    await hass.async_block_till_done()
+    assert hass.states.get(satellite).state == "responding"
+    assert visible.level < LEVEL
+    assert hidden.level < LEVEL
+
+    await _played(hass, panel)
+    assert visible.level == LEVEL
+    assert hidden.level == LEVEL
+    assert len(visible.changes) == len(hidden.changes) == 2
+
+
+class Proxy(Player):
+    """Another integration's copy of a speaker, passing its volume on to it."""
+
+    def __init__(self, name: str, speaker: Player) -> None:
+        super().__init__(name)
+        self.speaker = speaker
+
+    async def async_set_volume_level(self, volume: float) -> None:
+        await super().async_set_volume_level(volume)
+        self.speaker._attr_volume_level = self._attr_volume_level
+        self.speaker.async_write_ha_state()
+
+
+async def test_a_speaker_and_its_hidden_copy_go_down_together_and_back_exactly(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    # As people keep a room: the speaker hidden, and its copy hidden too.
+    speaker = Player("speaker")
+    proxy = Proxy("proxy", speaker)
+    await _room(hass, satellite, speaker, proxy)
+    registry = er.async_get(hass)
+    for player in (speaker, proxy):
+        registry.async_update_entity(
+            player.entity_id, hidden_by=er.RegistryEntryHider.USER
+        )
+    _reply(pipeline, follow_up=False)
+
+    await _turn(panel)
+    await hass.async_block_till_done()
+    assert speaker.level < LEVEL
+    assert proxy.level < LEVEL
+
+    await _played(hass, panel)
+    assert speaker.level == LEVEL
+    assert proxy.level == LEVEL
+    assert len(speaker.changes) == len(proxy.changes) == 2
