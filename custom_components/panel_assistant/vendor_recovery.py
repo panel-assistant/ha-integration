@@ -141,7 +141,12 @@ def _vendor_stop(lines: list[str], witness: _Witness, now: float) -> str | None:
         and 0
         <= now - latest[0]
         <= _STOP_AGE_SECONDS
-        + (local_adb.LOCAL_ADB_RECOVERY_SECONDS if witness.local else 0)
+        + (
+            local_adb.LOCAL_ADB_RECOVERY_SECONDS
+            + local_adb.LOCAL_ADB_RECOVERY_OVERHEAD_SECONDS
+            if witness.local
+            else 0
+        )
     ):
         return latest[2]
     return None

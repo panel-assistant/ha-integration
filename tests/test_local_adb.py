@@ -329,3 +329,41 @@ async def test_hardened_local_command_waits_for_approval_and_its_final_result(
         },
     )
     assert await task == b"approved\n"
+
+
+async def test_disconnected_pending_hello_does_not_open_phantom_session(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from custom_components.panel_assistant import install_jobs
+    from custom_components.panel_assistant.transport_sessions import async_get_sessions
+
+    from .test_transport_commands import _hello
+
+    entry = await _setup(hass, hass_read_only_user.id)
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    async def listing() -> list[Any]:
+        entered.set()
+        await release.wait()
+        return []
+
+    monkeypatch.setattr(
+        install_jobs,
+        "async_get_install_job_manager",
+        AsyncMock(return_value=SimpleNamespace(async_list=listing)),
+    )
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await client.send_json_auto_id(_hello(["management", "local_adb"]))
+    await asyncio.wait_for(entered.wait(), 1)
+    await client.close()
+    await asyncio.sleep(0.05)
+    release.set()
+    await hass.async_block_till_done()
+    assert async_get_sessions(hass).get(entry.entry_id) is None

@@ -362,7 +362,17 @@ def ws_hello(
             )
             return
     if "local_adb" in msg["capabilities"] and "management" in msg["capabilities"]:
-        hass.async_create_task(_accept_local_hello(hass, connection, msg, entry, high))
+        task = hass.async_create_task(
+            _accept_local_hello(hass, connection, msg, entry, high), eager_start=False
+        )
+        cancel = task.cancel
+        connection.subscriptions[msg["id"]] = cancel
+
+        def finished(_task: asyncio.Task[None]) -> None:
+            if connection.subscriptions.get(msg["id"]) is cancel:
+                connection.subscriptions.pop(msg["id"])
+
+        task.add_done_callback(finished)
     else:
         _accept_hello(hass, connection, msg, entry, high)
 
@@ -377,6 +387,11 @@ async def _accept_local_hello(
     """Read install custody before granting a capability that can close ADB."""
     from .install_jobs import async_get_install_job_manager
 
+    # Registering the pending subscription precedes this task's first turn.
+    # Core can now cancel it on socket teardown or explicit unsubscribe.
+    pending = connection.subscriptions.get(msg["id"])
+    if pending is None:
+        return
     allowed = False
     try:
         async with asyncio.timeout(10):
@@ -396,6 +411,8 @@ async def _accept_local_hello(
     # entry and binding when the grant is made, never the earlier snapshot.
     from .identity import CONF_IDENTITY_PENDING, is_installation
 
+    if connection.subscriptions.get(msg["id"]) is not pending:
+        return
     try:
         current = _entry_for_did(hass, msg["did"])
     except SharedPanelIdentityError:

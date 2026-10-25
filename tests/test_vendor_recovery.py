@@ -462,9 +462,11 @@ async def test_vendor_shutdown_with_real_android_user_sections_and_old_negative_
     assert panel.coordinator.reachable
 
 
+@pytest.mark.parametrize("stop_age", [301.0, 314.0])
 async def test_local_witness_survives_app_death_until_independent_adb_recovers(
     panel: Any,
     monkeypatch: pytest.MonkeyPatch,
+    stop_age: float,
 ) -> None:
     from custom_components.panel_assistant import local_adb
     from custom_components.panel_assistant.adb_protocol import AdbInstallTarget
@@ -513,7 +515,8 @@ async def test_local_witness_survives_app_death_until_independent_adb_recovers(
     monkeypatch.setattr(local_adb, "LOCAL_ADB_RECOVERY_RETRY_SECONDS", 0.001)
     panel.state.online = False
     panel.state.stopped = True
-    panel.state.now = 402.0  # The vendor stop remains exact after the recovery lease.
+    # Exact vendor provenance remains usable across the admitted recovery wait.
+    panel.state.now = 101.0 + stop_age
     panel.state.logs.append(
         f"  101.000 475 1207 I ActivityManager: Force stopping {PACKAGE} "
         "appid=10115 user=0: from pid 1371"
