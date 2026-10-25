@@ -29,6 +29,7 @@ from .release import (
     feed_build_code,
     feed_build_package,
     feed_build_tag,
+    is_install_release_tag,
     is_rc_release_tag,
     release_descriptor_name,
     strict_json_hooks,
@@ -192,8 +193,6 @@ async def _async_release_choice(
 ) -> InstallReleaseBundle:
     """Authenticate an exact published tag and its hash-bound protocol range."""
     # Validate before constructing a URL; unknown strings are never URL paths.
-    from .release import is_install_release_tag
-
     if not is_install_release_tag(tag):
         raise ReleaseResolutionError
     artifact, metadata = await _async_resolve_release(
@@ -388,6 +387,8 @@ async def async_resolve_install_bundle_choice(
             feed=feed.raw,
             feed_signature=feed.signature,
         )
+    if tag is not None and not is_install_release_tag(tag):
+        raise ReleaseResolutionError
     session = async_get_clientsession(hass)
     if tag is not None:
         release_body = None
