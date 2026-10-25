@@ -135,7 +135,7 @@ function renderedJourney(scenario, locale = 'de', realCatalogue = false) {
       assert.equal(node('step-confirm').hidden, false);
       assert.equal(node('step-confirm:child').textContent, 'Already installed');
       assert.equal(node('install').textContent, 'Continue');
-      assert.match(node('confirm-body').textContent, /different release.*already on your panel/);
+      assert.match(node('confirm-body').textContent, /different version.*already on your panel/);
     }
     const before = { ...calls };
     globalThis.location.search = '?lang=' + targetLanguage; handlers.get('popstate')();
