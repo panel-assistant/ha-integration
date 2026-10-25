@@ -24,7 +24,7 @@ jobs:
   # A release tag points at a commit main has already tested; this decides
   # whether the matrix has anything left to prove.
   gate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       actions: read
       contents: read

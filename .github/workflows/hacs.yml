@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   validate:
-    # Pinned: the tag-only Python 3.14.2 step has no build for ubuntu-latest (now 26.04).
+    # Pinned: the help-topic check's Python 3.14.2 step has no build for ubuntu-latest (now 26.04).
     runs-on: ubuntu-24.04
     permissions:
       actions: read
@@ -30,16 +30,17 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: python .github/scripts/verify_release_version.py -- "$RELEASE_TAG"
-      # Only on a release tag: it asks the live site, so running it on every push
-      # would tie ordinary CI to the site being up. The offline half of this check
-      # runs with the tests on every push.
+      # On a release tag, the daily schedule and a manual run, never on a push: it asks
+      # the live site, so running it on every push would tie ordinary CI to the site
+      # being up. The daily run finds a broken step long before a tag does. The offline
+      # half of this check runs with the tests on every push.
       - name: Set up Python for the help topic check
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.14.2"
       - name: Verify every help topic is known to the site
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: python .github/scripts/check_help_topics.py
       - name: Skip a tag whose commit already passed
         id: gate
