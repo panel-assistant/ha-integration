@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import secrets
 import traceback
 from collections.abc import Callable
 from dataclasses import asdict, replace
@@ -14,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.const import __version__ as ha_version
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.storage import Store
 
@@ -22,6 +24,9 @@ from .build_feed import parse_build_request
 from .client import is_newer_stable_version, is_version_at_least
 from .const import DOMAIN, INTEGRATION_VERSION, help_url
 from .device import panel_display_name
+from .transport_protocol import CAPABILITY_UI_SUBSCRIBE, OUTCOME_APPLIED
+from .transport_sessions import async_get_sessions, session_manages
+from .ui_relay import async_manage
 
 if TYPE_CHECKING:
     from .install_receipt import InstallJobReceipt
@@ -31,6 +36,107 @@ ISSUE_ADB_AUTHORIZATION = "adb_update_authorization"
 _STORE_KEY = f"{DOMAIN}.failure_repairs"
 _DATA_KEY = f"{DOMAIN}.failure_repair_store"
 _MAX_EVENTS = 16
+_PANEL_LOG_TIMEOUT = 3.0
+_MAX_PANEL_LOG_BYTES = 16 * 1024
+_LOG_WARNING = re.compile(r"^\d\d-\d\d \d\d:\d\d:\d\d\.\d{3}\s+\d+\s+\d+\s+[WEF]\s")
+
+
+class _PanelLogSnapshot:
+    """One initial logs update, delivered by the existing session relay."""
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        self.backlog: asyncio.Future[list[Any] | None] = hass.loop.create_future()
+
+    def update(self, observations: list[dict[str, Any]]) -> None:
+        for observation in observations:
+            if observation.get("channel") != "logs" or self.backlog.done():
+                continue
+            value = observation.get("value")
+            self.backlog.set_result(
+                value
+                if observation.get("state") == "known" and isinstance(value, list)
+                else None
+            )
+
+    def session_ended(self) -> None:
+        if not self.backlog.done():
+            self.backlog.set_result(None)
+
+
+async def _async_panel_logs(hass: HomeAssistant, entry_id: str) -> dict[str, Any]:
+    unavailable = {
+        "status": "unavailable",
+        "reason": "No panel log lines could be taken.",
+    }
+    session = async_get_sessions(hass).get(entry_id)
+    if session is None:
+        return {
+            **unavailable,
+            "reason": "No panel log lines could be taken: panel not connected.",
+        }
+    if (
+        not session_manages(session)
+        or CAPABILITY_UI_SUBSCRIBE not in session.capabilities
+    ):
+        return unavailable
+    command_id = secrets.token_urlsafe(24)
+    # A separate origin keeps this source and lifetime independent of any Logs page.
+    origin = {"user": session.user_id, "connection": command_id}
+    snapshot = _PanelLogSnapshot(hass)
+    session.ui_relays[command_id] = [snapshot]
+    try:
+        async with asyncio.timeout(_PANEL_LOG_TIMEOUT):
+            outcome, _ = await async_manage(
+                hass,
+                session,
+                "subscribe",
+                {"family": "logs", "source": "app"},
+                origin,
+                command_id=command_id,
+            )
+            if outcome.outcome != OUTCOME_APPLIED:
+                return unavailable
+            backlog = await snapshot.backlog
+        if backlog is None:
+            return unavailable
+        # Keep the newest warnings, bounded even if a panel sends oversized lines.
+        lines: list[str] = []
+        size = 0
+        truncated = len(backlog) > 400
+        for line in reversed(backlog[-400:]):
+            if not isinstance(line, str) or not _LOG_WARNING.match(line):
+                continue
+            encoded = line.encode("utf-8")
+            remaining = _MAX_PANEL_LOG_BYTES - size - bool(lines)
+            if len(encoded) > remaining:
+                truncated = True
+                if not lines:
+                    lines.append(encoded[:remaining].decode("utf-8", errors="ignore"))
+                break
+            lines.append(line)
+            size += len(encoded) + (len(lines) > 1)
+        return {
+            "status": "captured",
+            "lines": list(reversed(lines)),
+            "truncated": truncated,
+        }
+    except HomeAssistantError, TimeoutError:
+        return unavailable
+    finally:
+        session.ui_relays.pop(command_id, None)
+        # The command ID remains the handle even when the subscribe answer was lost.
+        if async_get_sessions(hass).get(entry_id) is session:
+            try:
+                async with asyncio.timeout(_PANEL_LOG_TIMEOUT):
+                    await async_manage(
+                        hass,
+                        session,
+                        "unsubscribe",
+                        {"subscription": command_id},
+                        origin,
+                    )
+            except HomeAssistantError, TimeoutError:
+                pass  # Optional diagnostics must not prevent saving the failure.
 
 
 class RetrySafetyHold(Exception):
@@ -279,6 +385,7 @@ async def async_record_update_failure(
         "target_version": target_version,
         "exception": "".join(traceback.format_exception(error))[-12000:],
     }
+    event["panel_logs"] = await _async_panel_logs(hass, entry_id)
     if artifact is not None:
         event["artifact"] = artifact
     if observed_before is not None:
