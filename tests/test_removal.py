@@ -1260,14 +1260,24 @@ async def test_removal_without_a_held_adb_key_makes_no_panel_change(
 
     fake, server = panel
     entry = _entry(hass, server)
-    credential_path = Path(hass.config.path(".storage/panel_assistant.adb_credentials"))
+    credential_path = Path(hass.config.path(".storage/panel_assistant.adb_key"))
     assert not await asyncio.to_thread(credential_path.exists)
-    with patch.object(
-        removal,
-        "async_get_durable_adb_credential",
-        adb_credentials.async_get_durable_adb_credential,
+    generation_attempts: list[bool] = []
+
+    def unexpected_generation() -> None:
+        generation_attempts.append(True)
+        raise AssertionError("Removal must use the key already held")
+
+    with (
+        patch.object(
+            removal,
+            "async_get_durable_adb_credential",
+            adb_credentials.async_get_durable_adb_credential,
+        ),
+        patch.object(adb_credentials, "_generate_credential", unexpected_generation),
     ):
         result = await _remove(hass, entry)
+    assert generation_attempts == []
     assert result.get("errors") == {"base": "removal_adb_unreachable"}
     assert not await asyncio.to_thread(credential_path.exists)
     assert fake.installed == [PACKAGE_ID]
