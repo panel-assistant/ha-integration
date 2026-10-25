@@ -16,6 +16,7 @@ from custom_components.panel_assistant.repairs_webview import (
     async_reconcile_webview_issue,
 )
 from custom_components.panel_assistant.status import parse_status_response
+from custom_components.panel_assistant.transport_binding import async_unbind_user
 from custom_components.panel_assistant.webview import async_provision_webview
 
 from .test_permission_repairs import HEALTH, _panel
@@ -218,13 +219,12 @@ async def test_repair_one_press_has_progress_then_observation_only(
         if retire == "remove":
             await hass.config_entries.async_remove(entry.entry_id)
         elif retire == "unbind":
-            hass.config_entries.async_update_entry(
-                entry,
-                data={
-                    key: value
-                    for key, value in entry.data.items()
-                    if key != CONF_TRANSPORT_USER_ID
-                },
+            async_unbind_user(hass, entry)
+            assert (
+                ir.async_get(hass).async_get_issue(
+                    DOMAIN, f"panel_webview_{entry.entry_id}"
+                )
+                is None
             )
         elif retire == "identity":
             session.did = "b" * 64
