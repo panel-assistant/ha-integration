@@ -588,38 +588,50 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 "address": address.stored_value,
             }
 
+        host = f"[{address.host}]" if ":" in address.host else address.host
+        custom_port = address.port != normalize_address(host).port
+        target: PinnedPanelTarget | None = None
         try:
             target = await async_pin_install_target(self.hass, address)
         except InstallNetworkError as err:
-            return self._show_add_panel_form(
-                user_input, {"base": _install_network_error(err)}
-            )
+            if not custom_port:
+                return self._show_add_panel_form(
+                    user_input, {"base": _install_network_error(err)}
+                )
+            # Existing panels can be reached beyond the installer's LAN ranges.
+            # A read-only health check grants no installation authority.
         except Exception:
             _LOGGER.exception("Unexpected exception while pinning install target")
             return self._show_add_panel_form(user_input, {"base": "unknown"})
 
         self._pending_address = address
         self._pending_install_target = target
-        try:
-            manager = await async_get_install_job_manager(self.hass)
-            active = await manager.async_find_active(
-                address.stored_value, target.pinned.stored_value
-            )
-        except InstallJobError:
-            return self._show_add_panel_form(
-                user_input, {"base": "install_receipt_error"}
-            )
-        except Exception:
-            _LOGGER.exception("Unexpected exception while loading an install receipt")
-            return self._show_add_panel_form(user_input, {"base": "unknown"})
-        if active is not None:
-            # An install already started here resumes with its original release.
-            self._pending_job_id = active.job_id
-            if active.phase is InstallPhase.HEALTHY_UNCLAIMED:
-                return await self.async_step_install_result()
-            return await self._async_show_install_progress(active)
+        if target is not None:
+            try:
+                manager = await async_get_install_job_manager(self.hass)
+                active = await manager.async_find_active(
+                    address.stored_value, target.pinned.stored_value
+                )
+            except InstallJobError:
+                return self._show_add_panel_form(
+                    user_input, {"base": "install_receipt_error"}
+                )
+            except Exception:
+                _LOGGER.exception(
+                    "Unexpected exception while loading an install receipt"
+                )
+                return self._show_add_panel_form(user_input, {"base": "unknown"})
+            if active is not None:
+                # An install already started here resumes with its original release.
+                self._pending_job_id = active.job_id
+                if active.phase is InstallPhase.HEALTHY_UNCLAIMED:
+                    return await self.async_step_install_result()
+                return await self._async_show_install_progress(active)
 
-        client = HaPaneldClient(async_get_clientsession(self.hass), target.pinned)
+        client = HaPaneldClient(
+            async_get_clientsession(self.hass),
+            target.pinned if target is not None else address,
+        )
         try:
             health = await client.async_get_health()
         except CannotConnectError, InvalidResponseError:
@@ -638,8 +650,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         # A fresh install chooses its listener; typing a custom port does not
         # configure it. Require health proof before using that endpoint, or a
         # host-only first contact before offering installation.
-        host = f"[{address.host}]" if ":" in address.host else address.host
-        if address.port != normalize_address(host).port:
+        if custom_port or target is None:
             return self._show_add_panel_form(
                 user_input, {"base": "invalid_install_address"}
             )
