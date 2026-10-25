@@ -299,6 +299,98 @@ async def test_a_player_gone_during_the_turn_comes_back_at_its_level(
     assert len(speaker.changes) == 2
 
 
+@pytest.mark.parametrize("recovery", ["restore", "manual", "new_turn"])
+async def test_a_stale_return_does_not_consume_the_volume_restore(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+    recovery: str,
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=False)
+    await _turn(panel)
+    await hass.async_block_till_done()
+    _gone(speaker, "off")
+    await _played(hass, panel)
+    assert len(speaker.changes) == 1
+
+    # A proxy can report its cached level before its speaker has rebooted.
+    set_level = speaker.async_set_volume_level
+
+    async def lost_write(volume: float) -> None:
+        speaker.changes.append(volume)
+
+    speaker.async_set_volume_level = lost_write  # type: ignore[method-assign]
+    _back(speaker)
+    await hass.async_block_till_done()
+    assert speaker.changes == [LEVEL * 0.3, LEVEL]
+    assert speaker.level < LEVEL
+
+    # Metadata updates do not mean the device is ready for another command.
+    speaker._attr_media_title = "Next track"
+    speaker.async_write_ha_state()
+    await hass.async_block_till_done()
+    assert len(speaker.changes) == 2
+
+    if recovery == "new_turn":
+        # Another conversation must keep the level from before the first duck.
+        await _turn(panel)
+        await _played(hass, panel)
+    writes = len(speaker.changes)
+    _gone(speaker, "unavailable")
+    await hass.async_block_till_done()
+    assert len(speaker.changes) == writes
+    speaker.async_set_volume_level = set_level  # type: ignore[method-assign]
+    if recovery == "manual":
+        speaker._attr_volume_level = 0.8
+    _back(speaker)
+    await hass.async_block_till_done()
+    assert speaker.level == (0.8 if recovery == "manual" else LEVEL)
+    assert len(speaker.changes) == {"restore": 3, "manual": 2, "new_turn": 5}[recovery]
+    speaker._attr_state = MediaPlayerState.PAUSED
+    speaker.async_write_ha_state()
+    await hass.async_block_till_done()
+    assert len(speaker.changes) == {"restore": 3, "manual": 2, "new_turn": 5}[recovery]
+
+
+async def test_a_level_changed_while_restore_returns_is_kept_for_the_next_turn(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=False)
+    await _turn(panel)
+    set_level = speaker.async_set_volume_level
+
+    async def owner_changed(volume: float) -> None:
+        speaker.changes.append(volume)
+        speaker._attr_volume_level = 0.8
+        speaker.async_write_ha_state()
+        await asyncio.sleep(0)
+
+    speaker.async_set_volume_level = owner_changed  # type: ignore[method-assign]
+    await _played(hass, panel)
+    assert speaker.level == 0.8
+    speaker.async_set_volume_level = set_level  # type: ignore[method-assign]
+    await _turn(panel)
+    await _played(hass, panel)
+    assert speaker.level == 0.8
+    assert len(speaker.changes) == 4
+
+
 async def test_a_level_set_before_a_player_goes_off_is_kept(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,

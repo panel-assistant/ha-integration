@@ -179,17 +179,20 @@ class RoomDuck:
         (or of its old one, when the duck has not landed yet) was left alone;
         anything further was set by someone during the conversation.
         """
+        return any(
+            self._at_level(entity_id, mark)
+            for mark in (held.lowered, held.level)
+            if mark is not None
+        )
+
+    @callback
+    def _at_level(self, entity_id: str, mark: float) -> bool:
         state = self._hass.states.get(entity_id)
         player = self._hass.data[DATA_COMPONENT].get_entity(entity_id)
         level = None if state is None else state.attributes.get(ATTR_MEDIA_VOLUME_LEVEL)
         if level is None or player is None:
             return False
-        tolerance = player.volume_step / 2
-        return any(
-            abs(level - mark) <= tolerance
-            for mark in (held.lowered, held.level)
-            if mark is not None
-        )
+        return bool(abs(level - mark) <= player.volume_step / 2)
 
     @callback
     def _limit(self, delay: float, *, overrun: bool) -> None:
@@ -266,6 +269,20 @@ class RoomDuck:
                 )
             except (HomeAssistantError, vol.Invalid) as err:
                 _LOGGER.warning("Could not change the volume of %s: %s", entity_id, err)
+            # A proxy may accept a write while its device is still rebooting.
+            # Keep the original level until reported back, or changed by someone.
+            if (
+                restoring
+                and held.level is not None
+                and not self._at_level(entity_id, held.level)
+            ):
+                state = self._hass.states.get(entity_id)
+                if (
+                    state is None
+                    or ATTR_MEDIA_VOLUME_LEVEL not in state.attributes
+                    or self._untouched(entity_id, held)
+                ):
+                    self._await_level(entity_id, held)
         finally:
             # The last call to a player nobody holds closes its record.
             ducked = self._hass.data.get(_DATA_DUCKED, {})
@@ -285,10 +302,23 @@ class RoomDuck:
         it off is kept.
         """
 
+        if held.waiting:
+            return
         held.waiting = True
 
         @callback
-        def _changed(_event: Any) -> None:
+        def _changed(event: Any) -> None:
+            old, new = event.data.get("old_state"), event.data.get("new_state")
+            if (
+                old is not None
+                and new is not None
+                and (
+                    old.state == new.state
+                    and old.attributes.get(ATTR_MEDIA_VOLUME_LEVEL)
+                    == new.attributes.get(ATTR_MEDIA_VOLUME_LEVEL)
+                )
+            ):
+                return
             unsubscribe()
             held.waiting = False
             self._call(entity_id, held, held.level, mute=False, restoring=True)
