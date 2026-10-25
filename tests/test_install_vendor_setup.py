@@ -931,3 +931,41 @@ async def test_an_unreadable_vendor_probe_is_reported_and_runs_no_vendor_setup(
         if "did not grant io.panelassistant.android every permission it needs"
         in record.getMessage()
     ] == [logging.WARNING]
+
+
+@pytest.mark.parametrize(
+    "scenario", ["first_setup", "old_receiver", "unreadable", "legacy_app"]
+)
+async def test_home_and_vendor_ownership_require_completed_setup_or_proven_legacy_app(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+    scenario: str,
+) -> None:
+    _portal(tmp_path)
+    previous = "com.vendor.launcher/.Home"
+    (tmp_path / "home").write_text(previous + "\n")
+    (tmp_path / "incomplete.setup").touch()
+    if scenario == "old_receiver":
+        (tmp_path / "legacy.receiver").touch()
+    elif scenario == "unreadable":
+        (tmp_path / "package.unreadable").touch()
+    elif scenario == "legacy_app":
+        (tmp_path / "receiver.absent").touch()
+
+    await _launch(monkeypatch, signer, target, descriptor, tmp_path)
+
+    if scenario == "legacy_app":
+        assert _value(tmp_path, "home") == _DASHBOARD
+        assert (tmp_path / "restore-record").exists()
+    else:
+        assert _value(tmp_path, "home") == previous
+        assert not (tmp_path / "restore-record").exists()
+        assert not any(
+            call.startswith("cmd package set-home-activity")
+            for call in _calls(tmp_path)
+        )
+        assert _HOME_WARNING not in caplog.text

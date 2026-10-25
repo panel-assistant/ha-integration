@@ -16,6 +16,23 @@ const listed = feature => `hp_has=; for hp_f in $hp_features; do case "$hp_f" in
 // Lets full screen-off lift a firmware's keep-screen-on-while-plugged-in
 // setting (the Shelly X2i); granted after every install like the network path.
 const SECURE_SETTINGS = 'android.permission.WRITE_SECURE_SETTINGS';
+// The app decides setup eligibility from its canonical store. Old supported
+// apps keep their grant behavior only when a readable package dump proves
+// this receiver absent; a present receiver with an unknown reply defers HOME.
+function buildSetupHomeClaim(packageId, launchComponent) {
+  const receiver = `${packageId}/io.panelassistant.android.platform.PreservePreviousHomeReceiver`;
+  const eligible = 'Broadcast completed: result=1, data="panel-assistant-setup-eligible"';
+  return `hp_setup=$(am broadcast --include-stopped-packages -n ${receiver} --es operation setup_eligibility 2>/dev/null); hp_setup_status=$?; ` +
+    `hp_eligible=0; if [ "$hp_setup_status" -eq 0 ] && printf '%s\\n' "$hp_setup" | grep -Fxq '${eligible}'; then hp_eligible=1; else ` +
+    `hp_package=$(dumpsys package ${packageId} 2>/dev/null); hp_package_status=$?; ` +
+    `if [ "$hp_package_status" -eq 0 ] && printf '%s\\n' "$hp_package" | grep -Fq 'Package [' && ` +
+    `! printf '%s\\n' "$hp_package" | grep -Fq PreservePreviousHomeReceiver; then hp_eligible=1; fi; fi; ` +
+    `if [ "$hp_eligible" -eq 1 ]; then ${buildHomeClaim(launchComponent)}; ` +
+    // Native acknowledges only a fresh verified HOME claim; failure leaves
+    // the pending intent in health for a later completion pass.
+    `am broadcast --include-stopped-packages -n ${receiver} --es operation acknowledge_home >/dev/null 2>&1; ` +
+    `else hp_chooser=deferred; fi`;
+}
 // Every refusal carries the same code; `detail` names the check that refused,
 // for "Details for support" only, so the next failure names its cause.
 const fail = detail => { throw Object.assign(new Error('permissions_unverified'), { detail }); };
@@ -104,7 +121,7 @@ hp_features=$(pm list features 2>/dev/null) || hp_features=
 ${RUNTIME_GRANTS.map(([feature, permission]) => `${listed(feature)}
 [ -z "$hp_has" ] || pm grant ${PACKAGE} android.permission.${permission} >/dev/null 2>&1`).join('\n')}
 pm grant ${PACKAGE} ${SECURE_SETTINGS} >/dev/null 2>&1
-${buildHomeClaim(launchComponent)}
+${buildSetupHomeClaim(PACKAGE, launchComponent)}
 echo "home_chooser:$hp_chooser"
 :
 ); echo HAPANELD_PERMISSIONS_GRANT_END:${nonce}:$?`;

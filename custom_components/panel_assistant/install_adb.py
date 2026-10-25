@@ -1072,14 +1072,14 @@ async def _async_repair_app_permissions(
         nonce,
         launch_component,
     )
-    if not grant.home:
+    if not grant.home and grant.chooser != "deferred":
         _LOGGER.warning(
             "The panel did not make %s its home screen (%s). It still runs; "
             "choose it on the panel when Android asks which app to use for Home",
             package_id,
             grant.chooser or "unread",
         )
-    if grant.vendor_setup:
+    if grant.vendor_setup and grant.chooser != "deferred":
         await _async_vendor_setup(device)
     if not grant.granted:
         _LOGGER.warning(

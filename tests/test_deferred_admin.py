@@ -40,7 +40,8 @@ from custom_components.panel_assistant.provisioning import (
 )
 from custom_components.panel_assistant.status import PanelStatus
 
-from .install_adb_fakes import _identity_root_output
+from .install_adb_fakes import _identity_root_output, _single_output
+from .test_install_adb_grants import _run_on_stand_in_panel
 
 DID = "d" * 64
 PACKAGE = "io.panelassistant.android"
@@ -71,9 +72,13 @@ async def panel(
         now=100.0,
         active_install=False,
         change_entry=False,
+        vendor_passes=0,
+        vendor_drop=False,
     )
 
     async def health(_client: HaPaneldClient) -> PanelHealth:
+        if (tmp_path / "home_ack").exists():
+            state.health = replace(state.health, home_pending=False)
         return state.health
 
     monkeypatch.setattr(HaPaneldClient, "async_get_health", health)
@@ -132,8 +137,26 @@ async def panel(
             if "HAPANELD_POSTURE_BEGIN" in command:
                 yield _identity_root_output(match[1], serial=state.serial)
                 return
+            if "HAPANELD_PACKAGE_BEGIN" in command:
+                yield _single_output(
+                    "PACKAGE", match[1], ["package:/data/app/panel/base.apk"], 0
+                )
+                return
+            if (
+                "HAPANELD_PERMISSIONS_BEGIN" in command
+                or "HAPANELD_NOTIFICATIONS_BEGIN" in command
+            ):
+                yield _run_on_stand_in_panel(command, tmp_path)
+                return
+            if "HAPANELD_VENDOR_BEGIN" in command:
+                state.vendor_passes += 1
+                if state.vendor_drop:
+                    raise TimeoutError
+                yield _single_output("VENDOR", match[1], ["device:other"], 0)
+                return
             program = (
                 r"""
+cmd() { if [ -f "$STATE/home" ]; then cat "$STATE/home"; fi; }
 dumpsys() {
   if [ -f "$STATE/admin" ]; then
     echo '    io.panelassistant.android/.platform.PanelDeviceAdminReceiver:'
@@ -240,3 +263,79 @@ async def test_admin_never_races_another_panel_operation_or_changed_identity(
     assert not (panel.directory / "admin").exists()
     assert not (panel.directory / "calls").exists()
     assert panel.coordinator.last_update_success
+
+
+async def test_completion_pending_home_claims_once_and_handback_survives_ha_reload(
+    panel: Any, hass: HomeAssistant
+) -> None:
+    previous = "com.vendor.launcher/.Home"
+    (panel.directory / "home").write_text(previous + "\n")
+    (panel.directory / "incomplete.setup").touch()
+    panel.state.health = replace(panel.state.health, home_pending=True)
+    await panel.coordinator.async_refresh()
+    assert panel.state.connections == 0
+    assert (panel.directory / "home").read_text().strip() == previous
+
+    (panel.directory / "incomplete.setup").unlink()
+    panel.state.health = replace(panel.state.health, setup_complete=True)
+    await panel.coordinator.async_refresh()
+    assert panel.coordinator.last_update_success
+    assert (
+        panel.directory / "home"
+    ).read_text().strip() == f"{PACKAGE}/.DashboardActivity"
+    assert (panel.directory / "home_ack").exists()
+    assert panel.state.vendor_passes == 0  # Generic hardware needs no vendor recipe.
+    await panel.coordinator.async_refresh()
+    connections = panel.state.connections
+    assert panel.state.closes == connections
+    # Native handback has cleared pending intent. A fresh HA coordinator must
+    # not turn that explicit choice back into another takeover.
+    (panel.directory / "home").write_text(previous + "\n")
+    reloaded = HaPaneldDataUpdateCoordinator(
+        hass, panel.coordinator.client, panel.entry.entry_id
+    )
+    await reloaded.async_refresh()
+    await reloaded.async_refresh()
+    assert reloaded.last_update_success
+    assert (panel.directory / "home").read_text().strip() == previous
+    assert panel.state.vendor_passes == 0
+    assert panel.state.connections == panel.state.closes == connections + 1
+
+
+async def test_native_completed_home_receives_vendor_pass_without_reclaiming_home(
+    panel: Any,
+) -> None:
+    panel.state.health = replace(
+        panel.state.health, setup_complete=True, home_pending=False
+    )
+    home = f"{PACKAGE}/.DashboardActivity"
+    (panel.directory / "home").write_text(home + "\n")
+    await panel.coordinator.async_refresh()
+    await panel.coordinator.async_refresh()
+    assert panel.coordinator.last_update_success
+    assert panel.state.vendor_passes == 1
+    assert (panel.directory / "home").read_text().strip() == home
+    assert panel.state.connections == panel.state.closes == 1
+
+
+async def test_vendor_transport_drop_retries_then_finishes_completed_setup(
+    panel: Any,
+) -> None:
+    panel.state.health = replace(panel.state.health, setup_complete=True)
+    (panel.directory / "home").write_text(f"{PACKAGE}/.DashboardActivity\n")
+    panel.state.vendor_drop = True
+    await panel.coordinator.async_refresh()
+    assert panel.coordinator.last_update_success
+    assert panel.state.vendor_passes == 1
+    panel.state.vendor_drop = False
+    await panel.coordinator.async_refresh()
+    assert panel.state.vendor_passes == 1
+    panel.state.now += 301
+    await panel.coordinator.async_refresh()
+    await panel.coordinator.async_refresh()
+    assert panel.coordinator.last_update_success
+    assert panel.state.vendor_passes == 2
+    assert panel.state.connections == panel.state.closes == 2
+    assert (panel.directory / "calls").read_text().splitlines() == [
+        f"set-active-admin {PACKAGE}/{PACKAGE}.platform.PanelDeviceAdminReceiver"
+    ]

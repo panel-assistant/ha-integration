@@ -12,7 +12,7 @@ const launchComponent = `${PACKAGE_ID}/${PACKAGE_ID}.MainActivity`;
 const artifact = {apkSize: 1234, apkSha256: 'a'.repeat(64), versionName: '1.2.3',
   packageId: PACKAGE_ID, launchComponent};
 
-async function fixture({shelly = true, pending = true, hold = false, density = 216, ambiguous = false, unhealthy = false, homeState = 'ready', malformedStatus = false} = {}) {
+async function fixture({shelly = true, pending = true, hold = false, density = 216, ambiguous = false, unhealthy = false, homeState = 'ready', malformedStatus = false, deferred = false} = {}) {
   let receipt = {id: 'b'.repeat(32), phase: 'healthy', target, artifact};
   let release = {kind: 'authenticated-apk-bytes', descriptor: artifact};
   let current = true, running = true, settled = false, finishSettlement;
@@ -27,7 +27,9 @@ async function fixture({shelly = true, pending = true, hold = false, density = 2
       return {readable: new ReadableStream({start(controller) { response = controller; }}),
         writable: new WritableStream({write(bytes) {
           const request = new TextDecoder().decode(bytes);
-          const homeProof = request.startsWith('GET /api/v1/status?home_proof=1 HTTP/1.1');
+          const homeProof = request.startsWith('GET /api/v1/status?home_proof=1');
+          if (homeProof && deferred) assert.ok(request.includes('setup_foreground=1'));
+          if (homeProof && !deferred) assert.ok(!request.includes('setup_foreground=1'));
           assert.ok(homeProof || request.startsWith('GET /api/v1/health HTTP/1.1'));
           events.push(homeProof ? 'home-proof' : 'health');
           const body = homeProof ? (malformedStatus ? '{garbage' : JSON.stringify({
@@ -82,7 +84,7 @@ async function fixture({shelly = true, pending = true, hold = false, density = 2
     }
     if (step === 'READY') return frame([]);
     if (step === 'PERMISSIONS_READ') return frame(['com.other/.Reader']);
-    if (step === 'PERMISSIONS_GRANT') { events.push('grants'); return frame(['home_chooser:kept']); }
+    if (step === 'PERMISSIONS_GRANT') { events.push('grants'); return frame([`home_chooser:${deferred ? 'deferred' : 'kept'}`]); }
     if (step === 'PERMISSIONS_VERIFY') return frame([
       `com.other/.Reader:${accessibilityComponentFor(launchComponent)}`, '1', 'WRITE_SETTINGS: allow',
       'SYSTEM_ALERT_WINDOW: allow', 'REQUEST_INSTALL_PACKAGES: allow', 'not_required',
@@ -228,4 +230,15 @@ test('fresh ready proof for an external configured dashboard and setup proof bot
     assert.deepEqual(f.events.slice(-2), ['health', 'home-proof']);
     assert.equal(opened, true);
   }
+});
+
+
+test('deferred first setup settles vendor display and requires fresh app foreground proof without owning HOME', async () => {
+  const f = await fixture({deferred: true, homeState: 'setup', density: 200});
+  const result = await f.controller.completeSetup(recommendation);
+  assert.equal(result.permissions.homeChooser, 'deferred');
+  assert.equal(f.running, true);
+  assert.deepEqual(f.events, ['sizing-changed', 'native-resume', 'native-shutdown', 'grants', 'launch', 'health', 'home-proof']);
+  const blocked = await fixture({deferred: true, homeState: 'blocked'});
+  await assert.rejects(blocked.controller.completeSetup(recommendation), /health_unavailable/);
 });

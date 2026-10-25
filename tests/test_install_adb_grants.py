@@ -47,6 +47,21 @@ from .test_install_adb import (  # noqa: F401 - fixtures resolve by parameter na
 )
 
 _STAND_IN_PANEL = r"""
+am() {
+  case "$*" in
+    *"operation setup_eligibility"*)
+      if [ -f "$STATE/legacy.receiver" ]; then echo "Broadcast completed: result=1"
+      elif [ -f "$STATE/incomplete.setup" ]; then echo "Broadcast completed: result=0"
+      else
+        echo 'Broadcast completed: result=1, data="panel-assistant-setup-eligible"'
+      fi ;;
+    *"operation acknowledge_home"*)
+      case "$(cat "$STATE/home" 2>/dev/null)" in
+        io.panelassistant.android/*) touch "$STATE/home_ack" ;;
+      esac
+      echo "Broadcast completed: result=1" ;;
+  esac
+}
 settings() {
   if [ "$1" = get ]; then
     if [ -f "$STATE/$3" ]; then cat "$STATE/$3"; else echo null; fi
@@ -151,6 +166,8 @@ dumpsys() {
     done
     return 0
   fi
+  if [ -f "$STATE/receiver.absent" ]; then echo "Package [$2]"; return; fi
+  if [ -f "$STATE/package.unreadable" ]; then return 1; fi
   if [ -f "$STATE/unreadable.permissions" ]; then
     cat "$STATE/unreadable.permissions"
     return

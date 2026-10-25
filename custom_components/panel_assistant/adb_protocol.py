@@ -672,6 +672,34 @@ def device_admin_claim_command(package_id: str) -> str:
     )
 
 
+def _setup_home_claim_command(package_id: str, launch_component: str) -> str:
+    """Only completed setup can acquire HOME; prove legacy receiver absence."""
+    receiver = (
+        f"{package_id}/io.panelassistant.android.platform.PreservePreviousHomeReceiver"
+    )
+    eligible = 'Broadcast completed: result=1, data="panel-assistant-setup-eligible"'
+    return (
+        f"hp_setup=$(am broadcast --include-stopped-packages -n {receiver} "
+        "--es operation setup_eligibility 2>/dev/null); hp_setup_status=$?; "
+        'hp_eligible=0; if [ "$hp_setup_status" -eq 0 ] && '
+        f"printf '%s\\n' \"$hp_setup\" | grep -Fxq '{eligible}'; "
+        "then hp_eligible=1; else "
+        f"hp_package=$(dumpsys package {package_id} 2>/dev/null); "
+        "hp_package_status=$?; "
+        'if [ "$hp_package_status" -eq 0 ] && '
+        "printf '%s\\n' \"$hp_package\" | grep -Fq 'Package [' && "
+        "! printf '%s\\n' \"$hp_package\" | grep -Fq PreservePreviousHomeReceiver; "
+        "then hp_eligible=1; fi; fi; "
+        'if [ "$hp_eligible" -eq 1 ]; then '
+        + home_claim_command(launch_component)
+        # Only native verified HOME readback clears pending intent. If the
+        # acknowledgement fails, the live health flag retains retry custody.
+        + f"; am broadcast --include-stopped-packages -n {receiver} "
+        "--es operation acknowledge_home >/dev/null 2>&1; "
+        "else hp_chooser=deferred; fi"
+    )
+
+
 def _permission_grant_command(
     nonce: str, package_id: str, launch_component: str
 ) -> str:
@@ -687,7 +715,8 @@ def _permission_grant_command(
     the write is printed so the readback can prove nothing was dropped. Grant
     output is discarded; only the readback decides.
 
-    Device admin is deferred until health proves setup has completed.
+    Device admin is deferred until health proves setup has completed. HOME and
+    vendor ownership wait for the app's durable setup eligibility response.
 
     The build's dashboard is made the panel's HOME whenever HOME resolves to
     anything else: Android forgets a preferred HOME when the set of packages
@@ -771,7 +800,7 @@ def _permission_grant_command(
             'if [ "$enabled_status" -eq 0 ]; then case "$enabled" in 0|null) '
             f"settings put secure accessibility_enabled 1 {quiet} ;; esac; fi ;; "
             "esac; fi",
-            home_claim_command(launch_component),
+            _setup_home_claim_command(package_id, launch_component),
             _SERVICES_SETTING,
             "settings get secure accessibility_enabled",
             f"for operation in {_GRANTED_APP_OPS}; do "

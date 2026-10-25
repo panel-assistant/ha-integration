@@ -38,6 +38,7 @@ APP_LABELS: Final = {PACKAGE_ID: ("Panel Assistant", "ha-paneld")}
 CHOOSER_DUMP: Final = "/data/local/tmp/panel-assistant-home-chooser.xml"
 #: Every word the program leaves in ``hp_chooser``.
 CHOOSER_OUTCOMES: Final = (
+    "deferred",  # First setup has not authorized ownership yet.
     "kept",  # HOME was already the dashboard; nothing was sent.
     "set",  # set-home-activity took.
     "tapped",  # the chooser offered this app and Always was pressed.
