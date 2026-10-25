@@ -132,9 +132,38 @@ class _Automaton:
         # state -> [(label, to)], label "" for epsilon, SLOT, or one character;
         # multi-character words become chains of fresh states.
         self.arcs: dict[Any, list[tuple[Any, Any]]] = {}
+        self._index: (
+            tuple[
+                dict[Any, list[Any]],
+                dict[Any, list[Any]],
+                dict[Any, dict[Any, list[Any]]],
+            ]
+            | None
+        ) = None
         for state, arcs in fst.arcs.items():
             for arc in arcs:
                 self._add_word(state, arc.in_label, arc.to_state)
+
+    def index(
+        self,
+    ) -> tuple[
+        dict[Any, list[Any]], dict[Any, list[Any]], dict[Any, dict[Any, list[Any]]]
+    ]:
+        """The arcs split by kind: epsilon, wildcard and labelled (by label)."""
+        if self._index is None:
+            eps: dict[Any, list[Any]] = {}
+            wild: dict[Any, list[Any]] = {}
+            sym: dict[Any, dict[Any, list[Any]]] = {}
+            for state, arcs in self.arcs.items():
+                for label, to in arcs:
+                    if label == "":
+                        eps.setdefault(state, []).append(to)
+                    elif label is _WILD:
+                        wild.setdefault(state, []).append(to)
+                    else:
+                        sym.setdefault(state, {}).setdefault(label, []).append(to)
+            self._index = (eps, wild, sym)
+        return self._index
 
     def _add_word(self, state: Any, word: str, to: Any) -> None:
         out = self.arcs.setdefault(state, [])
@@ -172,67 +201,79 @@ def _intersect(
 
     A wildcard arc loops: entering it consumes one symbol and stays "inside"
     until it chooses to leave, so the state carries an inside flag per side.
+    Each side's arcs are indexed by label, so a pair of states meets only on
+    the labels both offer instead of trying every pair of arcs.
     """
+    l_eps, l_wild, l_sym = left.index()
+    r_eps, r_wild, r_sym = right.index()
+    lfinal, rfinal = left.final, right.final
     start = (left.start, False, right.start, False, False)
-    seen = {start}
-    queue: deque[tuple[tuple[Any, ...], str]] = deque([(start, "")])
+    # state -> (previous state, character), to spell the example on success.
+    parent: dict[tuple[Any, ...], tuple[Any, str] | None] = {start: None}
+    queue: deque[tuple[Any, ...]] = deque([start])
+    empty: dict[Any, list[Any]] = {}
 
-    def moves(auto: _Automaton, state: Any, inside: bool):
-        """(label, to_state, to_inside, literal) moves, label None = epsilon."""
-        if inside:
-            yield (None, state, False, False)  # leave the wildcard
-        for label, to in auto.arcs.get(state, ()):
-            if label == "":
-                yield (None, to, False, False)
-            elif label is _WILD:
-                yield (_WILD, to, True, False)
-            else:
-                yield (label, to, False, label not in (SLOT, OPAQUE))
+    def spell(state: tuple[Any, ...]) -> str:
+        chars = []
+        while (step := parent[state]) is not None:
+            state, char = step
+            chars.append(char)
+        return "".join(reversed(chars))
 
     while queue:
-        (ls, lin, rs, rin, lit), text = queue.popleft()
+        node = queue.popleft()
+        ls, lin, rs, rin, lit = node
         if (
-            ls in left.final
-            and rs in right.final
+            ls in lfinal
+            and rs in rfinal
             and not lin
             and not rin
             and (lit or not require_left_literal)
         ):
-            return text
-        nexts = []
-        for llabel, lto, lto_in, _ in moves(left, ls, lin):
-            if llabel is None:
-                nexts.append(((lto, lto_in, rs, rin, lit), text))
-        for rlabel, rto, rto_in, _ in moves(right, rs, rin):
-            if rlabel is None:
-                nexts.append(((ls, lin, rto, rto_in, lit), text))
-        # Inside a wildcard a side may consume any symbol without moving.
-        lsym = list(moves(left, ls, lin)) + ([(_WILD, ls, True, False)] if lin else [])
-        rsym = list(moves(right, rs, rin)) + ([(_WILD, rs, True, False)] if rin else [])
-        for llabel, lto, lto_in, llit in lsym:
-            if llabel is None:
+            return spell(node)
+        nexts: list[tuple[tuple[Any, ...], str]] = []
+        # Epsilon moves on either side; inside a wildcard, leaving it is one.
+        for lto in l_eps.get(ls, ()):
+            nexts.append(((lto, False, rs, rin, lit), ""))
+        if lin:
+            nexts.append(((ls, False, rs, rin, lit), ""))
+        for rto in r_eps.get(rs, ()):
+            nexts.append(((ls, lin, rto, False, lit), ""))
+        if rin:
+            nexts.append(((ls, lin, rs, False, lit), ""))
+        # Wildcard moves: enter a wildcard arc, or consume one more symbol inside.
+        lw = [(to, True) for to in l_wild.get(ls, ())] + ([(ls, True)] if lin else [])
+        rw = [(to, True) for to in r_wild.get(rs, ())] + ([(rs, True)] if rin else [])
+        lsym = l_sym.get(ls, empty)
+        rsym = r_sym.get(rs, empty)
+        for lto, lto_in in lw:
+            for rto, rto_in in rw:
+                nexts.append(((lto, lto_in, rto, rto_in, lit), "…"))
+            for label, targets in rsym.items():
+                char = "…" if label in (SLOT, OPAQUE) else label
+                for rto in targets:
+                    nexts.append(((lto, lto_in, rto, False, lit), char))
+        if rw:
+            for label, targets in lsym.items():
+                literal = label not in (SLOT, OPAQUE)
+                char = label if literal else "…"
+                for lto in targets:
+                    for rto, rto_in in rw:
+                        nexts.append(((lto, False, rto, rto_in, lit or literal), char))
+        for label in lsym if len(lsym) <= len(rsym) else rsym:
+            rtargets = rsym.get(label)
+            ltargets = lsym.get(label)
+            if not rtargets or not ltargets:
                 continue
-            for rlabel, rto, rto_in, _ in rsym:
-                if rlabel is None:
-                    continue
-                if llabel is _WILD and rlabel is _WILD:
-                    char = SLOT
-                elif llabel is _WILD:
-                    char = rlabel
-                elif rlabel is _WILD or llabel == rlabel:
-                    char = llabel
-                else:
-                    continue
-                nexts.append(
-                    (
-                        (lto, lto_in, rto, rto_in, lit or llit),
-                        text + ("…" if char in (SLOT, OPAQUE) else char),
-                    )
-                )
-        for state, new_text in nexts:
-            if state not in seen:
-                seen.add(state)
-                queue.append((state, new_text))
+            literal = label not in (SLOT, OPAQUE)
+            char = label if literal else "…"
+            for lto in ltargets:
+                for rto in rtargets:
+                    nexts.append(((lto, False, rto, False, lit or literal), char))
+        for state, char in nexts:
+            if state not in parent:
+                parent[state] = (node, char)
+                queue.append(state)
     return None
 
 
