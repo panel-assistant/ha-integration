@@ -687,4 +687,6 @@ async def test_handover_accepts_only_the_specific_panels_known_custom_port(
         status, body = await _post(endpoint, panel, {"address": address})
     assert status == 200
     assert body["outcome"] == "handed_over"
-    assert panel.hosts == [address]
+    # New-panel registration rechecks setup readiness; every read must stay on
+    # the endpoint whose custom port this panel actually advertised.
+    assert panel.hosts and set(panel.hosts) == {address}
