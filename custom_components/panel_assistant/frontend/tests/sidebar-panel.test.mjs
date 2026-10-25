@@ -2,92 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FRONTEND_TRANSLATIONS } from '../src/translations/index.mjs';
 import { frontendMessages } from '../src/frontend-localization.mjs';
+import {
+  markup, store, pushed, replaced, intervals, SIDEBAR_MESSAGES, SELECTION_KEY, RELAY_TYPE, parsePanels, embedToken, versionText,
+  openingText, PanelAssistantSidebar, tick, TOKEN, TOKEN2, url, row, fakeHass, mount, frameWindow, fromWindow,
+} from './fixtures/sidebar-harness.mjs';
 
-// A minimal shadow DOM: fixed markup is parsed for tags, ids and data-message, and every
-// innerHTML assignment is recorded so a test can prove panel text never reaches markup.
-const markup = [];
-class Element {
-  constructor(tag) { this.tagName = tag; this.attributes = new Map(); this.listeners = {}; this.children = []; this.dataset = {}; this.hidden = false; this.textContent = ''; this.value = ''; }
-  set innerHTML(html) { markup.push(html); }
-  addEventListener(name, fn) { (this.listeners[name] ??= []).push(fn); }
-  setAttribute(name, value) { this.attributes.set(name, String(value)); }
-  getAttribute(name) { return this.attributes.has(name) ? this.attributes.get(name) : null; }
-  removeAttribute(name) { this.attributes.delete(name); }
-  append(child) { this.children.push(child); }
-  replaceChildren() { this.children = []; }
-  fire(name, event = {}) { for (const fn of this.listeners[name] ?? []) fn(event); }
-}
-globalThis.HTMLElement = class {
-  isConnected = false; events = []; attributes = new Map();
-  setAttribute(name, value) { this.attributes.set(name, String(value)); }
-  getAttribute(name) { return this.attributes.get(name) ?? null; }
-  dispatchEvent(event) { this.events.push(event); return true; }
-  attachShadow() {
-    const elements = [];
-    this.shadowRoot = {
-      set innerHTML(html) {
-        markup.push(html);
-        for (const [, tag, attrs] of html.replace(/<style>[^]*?<\/style>/, '').matchAll(/<([a-z][a-z0-9]*)([^>]*)>/g)) {
-          const element = new Element(tag);
-          for (const [, name, value] of attrs.matchAll(/([a-z-]+)="([^"]*)"/g)) {
-            if (name === 'data-message') element.dataset.message = value; else element.setAttribute(name, value);
-          }
-          elements.push(element);
-        }
-      },
-      querySelectorAll: selector => selector === '[data-message]' ? elements.filter(e => e.dataset.message) : [],
-      querySelector: selector => elements.find(e => `#${e.getAttribute('id')}` === selector) ?? assert.fail(`missing ${selector}`),
-    };
-  }
-};
-globalThis.document = { createElement: tag => new Element(tag) };
-globalThis.customElements = { get() {}, define() {} };
-const store = new Map();
-globalThis.localStorage = { getItem: key => store.get(key) ?? null, setItem: (key, value) => store.set(key, value) };
-const pushed = [];
-const replaced = [];
-globalThis.history = { pushState: (...args) => pushed.push(args), replaceState: (...args) => replaced.push(args) };
-globalThis.window = new EventTarget();
-globalThis.location = { origin: 'http://ha.example', pathname: '/panel-assistant' };
-let intervals = [];
-globalThis.setInterval = (fn, ms) => { const handle = { fn, ms, cleared: false }; intervals.push(handle); return handle; };
-globalThis.clearInterval = handle => { if (handle) handle.cleared = true; };
-
-const { ENGLISH_MESSAGES: { sidebar: SIDEBAR_MESSAGES } } = await import('../src/frontend-localization.mjs');
-const { SELECTION_KEY, RELAY_TYPE, parsePanels, embedToken, versionText, openingText, PanelAssistantSidebar } = await import('../src/sidebar-panel.mjs');
-
-const tick = () => new Promise(resolve => setImmediate(resolve));
-const TOKEN = 'a'.repeat(43);
-const TOKEN2 = 'b'.repeat(43);
-const url = token => `/api/panel_assistant/embed/${token}/`;
-const row = (entry_id, state = 'reachable', title = entry_id, device_id = `${entry_id}-device`) => ({ entry_id, title, state, device_id });
-
-function fakeHass({ panels = [row('one'), row('two')], admin = true, language = 'en', dark = false } = {}) {
-  const connection = {
-    subscriptions: [], listeners: new Map(),
-    addEventListener(name, fn) { this.listeners.set(name, fn); },
-    removeEventListener(name, fn) { if (this.listeners.get(name) === fn) this.listeners.delete(name); },
-    subscribeMessage(callback, message, options) {
-      const sub = { callback, message, options, unsubscribed: 0 };
-      sub.promise = new Promise((resolve, reject) => { sub.resolve = resolve; sub.reject = reject; });
-      sub.resolve(() => { sub.unsubscribed++; return Promise.reject(Error('gone')); });
-      this.subscriptions.push(sub);
-      return sub.promise;
-    },
-  };
-  const hass = { user: { id: 'u', is_admin: admin }, language, themes: { darkMode: dark }, connection, calls: 0, panels };
-  hass.callWS = async message => { assert.deepEqual(message, { type: 'panel_assistant/embed_panels' }); hass.calls++; return { panels: hass.panels }; };
-  return hass;
-}
-
-async function mount(hass, narrow = false, path = '') {
-  intervals = [];
-  const panel = new PanelAssistantSidebar();
-  panel.hass = hass; panel.narrow = narrow; panel.route = { path };
-  panel.isConnected = true; panel.connectedCallback(); await tick();
-  const $ = selector => panel.shadowRoot.querySelector(selector);
-  return { panel, $, subs: hass.connection.subscriptions };
-}
 
 test('panel list parser keeps the display contract and rejects anything else', () => {
   assert.deepEqual(parsePanels({ panels: [{ ...row('A_1-b'), extra: 'drop' }] }), [row('A_1-b')]);
@@ -846,16 +765,6 @@ test('the shared card follows Home Assistant light or dark, and each failure nam
 });
 
 // The frame's window as the sidebar sees it, recording what is posted to it.
-function frameWindow() {
-  return { posted: [], postMessage(message, origin) { this.posted.push([message, origin]); } };
-}
-// The frame's pages are sandboxed, so what they post names the opaque origin "null".
-function fromWindow(source, data, origin = 'null') {
-  const event = new Event('message');
-  Object.assign(event, { source, data, origin });
-  window.dispatchEvent(event);
-}
-
 async function relaying(hass) {
   const relayed = [];
   const list = hass.callWS;
@@ -972,62 +881,6 @@ test('relayed subscriptions forward updates, close on reconnect and end with the
   const posted = target.posted.length;
   subs[5].callback(update);
   assert.equal(target.posted.length, posted);
-});
-
-for (const reason of ['reboot', 'update', 'recovery']) test(`${reason} keeps the shared waiting view until a usable panel page loads`, async () => {
-  const hass = fakeHass({ panels: [{ ...row('one', 'restarting'), reason }], dark: true });
-  const { $, subs } = await mount(hass);
-  assert.equal($('#loading').hidden, false);
-  assert.equal($('#loading-text').textContent, `Restarting (${reason})`);
-  assert.equal($('#loading-hint').textContent, SIDEBAR_MESSAGES.restartingNext);
-  assert.equal($('#status').hidden, true, 'restart copy belongs to the full pane');
-  assert.equal($('#frame').hidden, true);
-  hass.panels = [row('one')]; intervals[0].fn(); await tick();
-  subs[0].callback({ kind: 'opened', url: url(TOKEN) });
-  const frame = $('#frame');
-  assert.equal($('#loading').hidden, false, 'the returning document is still loading');
-  frame.contentDocument = null;
-  frame.contentWindow = frameWindow();
-  fromWindow(frameWindow(), { type: 'panel-assistant-ready' });
-  assert.equal(frame.hidden, true, 'another window cannot show the frame');
-  // Chromium delivers the retry document's message before its load, WebKit after it.
-  fromWindow(frame.contentWindow, { type: 'panel-assistant-wait' });
-  frame.fire('load');
-  assert.equal(frame.hidden, true, 'a self-refreshing 503 remains behind the waiting view');
-  frame.fire('load');
-  fromWindow(frame.contentWindow, { type: 'panel-assistant-wait' });
-  assert.equal(frame.hidden, true);
-  assert.equal($('#loading').hidden, false);
-  frame.fire('load');
-  fromWindow(frame.contentWindow, { type: 'panel-assistant-ready' });
-  assert.equal(frame.hidden, false);
-  assert.equal($('#loading').hidden, true, 'the real page returns without refreshing the sidebar');
-});
-
-test('a retry message after its own load does not hold back the next page', async () => {
-  const { $, subs } = await mount(fakeHass());
-  subs[0].callback({ kind: 'opened', url: url(TOKEN) });
-  const frame = $('#frame');
-  frame.contentDocument = null;
-  frame.contentWindow = frameWindow();
-  // WebKit's order for the retry document, then the page it refreshes into.
-  frame.fire('load');
-  fromWindow(frame.contentWindow, { type: 'panel-assistant-wait' });
-  assert.equal(frame.hidden, true);
-  frame.fire('load');
-  fromWindow(frame.contentWindow, { type: 'panel-assistant-ready' });
-  assert.equal(frame.hidden, false);
-  assert.equal($('#loading').hidden, true);
-});
-
-test('a page message before any frame URL shows nothing', async () => {
-  const { $, subs } = await mount(fakeHass());
-  const frame = $('#frame');
-  frame.contentWindow = frameWindow();
-  fromWindow(frame.contentWindow, { type: 'panel-assistant-ready' });
-  assert.equal(frame.hidden, true);
-  subs[0].callback({ kind: 'opened', url: url(TOKEN) });
-  assert.equal(frame.hidden, true, 'a new URL waits for its own page');
 });
 
 function signInWindows(t, blocked = false) {
