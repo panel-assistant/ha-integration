@@ -1945,7 +1945,7 @@ var fe = class extends HTMLElement {
 				try {
 					this.#b = T(JSON.parse(localStorage.getItem(w))) ?? this.#b;
 				} catch {}
-				this.#B({
+				this.#V({
 					type: C,
 					value: this.#b
 				});
@@ -1957,7 +1957,7 @@ var fe = class extends HTMLElement {
 					localStorage.setItem(w, JSON.stringify(t));
 				} catch {}
 			}
-		} else (n === E || n === D) && e.source && e.source === t.contentWindow ? (t.getAttribute("src") && (t.dataset.ready = String(n === D), this.#S++), this.#U()) : this.#H(e);
+		} else (n === E || n === D) && e.source && e.source === t.contentWindow ? (t.getAttribute("src") && (t.dataset.ready = String(n === D), this.#S++, n === E && this.#z()), this.#W()) : this.#U(e);
 	};
 	constructor() {
 		super(), this.attachShadow({ mode: "open" }), this.shadowRoot.innerHTML = `<style>${c}${l}
@@ -2076,7 +2076,7 @@ var fe = class extends HTMLElement {
 				entryId: t,
 				suffix: n
 			} : null, this.#M(t);
-		}), this.#U();
+		}), this.#W();
 	}
 	get hass() {
 		return this.#t;
@@ -2169,12 +2169,12 @@ var fe = class extends HTMLElement {
 		this.#a?.removeEventListener?.("ready", this.#g), this.#a = void 0;
 	}
 	#A() {
-		this.#k(), this.#L(), this.#o = null, this.#l = "", this.#s = "loading", this.#O() && this.#t.connection && (this.#a = this.#t.connection, this.#a.addEventListener("ready", this.#g)), this.#U(), this.#j();
+		this.#k(), this.#L(), this.#o = null, this.#l = "", this.#s = "loading", this.#O() && this.#t.connection && (this.#a = this.#t.connection, this.#a.addEventListener("ready", this.#g)), this.#W(), this.#j();
 	}
 	async #j() {
 		let e = ++this.#c;
 		if (!this.#O()) {
-			this.#U();
+			this.#W();
 			return;
 		}
 		let t;
@@ -2189,7 +2189,7 @@ var fe = class extends HTMLElement {
 			t = ae(e);
 		} catch {
 			if (e !== this.#c) return;
-			this.#o = null, this.#s = "failed", this.#L(), this.#U();
+			this.#o = null, this.#s = "failed", this.#L(), this.#W();
 			return;
 		}
 		if (e !== this.#c) return;
@@ -2199,7 +2199,7 @@ var fe = class extends HTMLElement {
 		}
 		this.#N();
 		let n = this.#p;
-		this.#y && n?.state === "open" && t.some((e) => e.entry_id === n.entryId && e.state === "reachable") && (this.#y = !1, this.#B({
+		this.#y && n?.state === "open" && t.some((e) => e.entry_id === n.entryId && e.state === "reachable") && (this.#y = !1, this.#V({
 			type: S,
 			open: !0
 		}));
@@ -2209,7 +2209,7 @@ var fe = class extends HTMLElement {
 	}
 	#N() {
 		let e = this.#o?.find((e) => e.entry_id === this.#u), t = this.#p;
-		!e || e.state !== "reachable" ? t && (t.state !== "closed" || t.entryId !== e?.entry_id) && this.#L() : (!t || t.entryId !== e.entry_id || !["opening", "open"].includes(t.state)) && (this.#L(), this.#P(e.entry_id, null, null)), this.#U();
+		!e || e.state !== "reachable" ? t && (t.state !== "closed" || t.entryId !== e?.entry_id) && this.#L() : (!t || t.entryId !== e.entry_id || !["opening", "open"].includes(t.state)) && (this.#L(), this.#P(e.entry_id, null, null)), this.#W();
 	}
 	#P(e, t, n) {
 		let r = this.#t, i = {
@@ -2231,7 +2231,7 @@ var fe = class extends HTMLElement {
 			...t ? { resume: t } : {}
 		};
 		i.unsubscribe = Promise.resolve().then(() => r.connection.subscribeMessage((e) => this.#F(i, e), a, { resubscribe: !1 })), i.unsubscribe.catch((e) => {
-			this.#p === i && (i.state = "failed", i.code = e?.code ?? null, this.#z(), this.#U());
+			this.#p === i && (i.state = "failed", i.code = e?.code ?? null, this.#B(), this.#W());
 		});
 	}
 	#F(e, t) {
@@ -2244,23 +2244,21 @@ var fe = class extends HTMLElement {
 						state: "failed",
 						code: null,
 						unsubscribe: null
-					}, this.#U();
+					}, this.#W();
 					return;
 				}
 				e.token = n, e.url = t.url, e.state = "open";
 				let r = this.shadowRoot.querySelector("#frame");
 				if (this.#f !== t.url) {
-					delete r.dataset.ready, this.#f = t.url;
-					let n = this.#S;
-					this.#R(() => this.#S > n, k);
-					let i = this.#d?.entryId === e.entryId ? this.#d.suffix : "";
-					i && (this.#d = null), r.setAttribute("src", t.url + i);
-				} else e.reopen && this.#B({
+					delete r.dataset.ready, this.#f = t.url, this.#z();
+					let n = this.#d?.entryId === e.entryId ? this.#d.suffix : "";
+					n && (this.#d = null), r.setAttribute("src", t.url + n);
+				} else e.reopen && this.#V({
 					type: S,
 					open: !0
-				});
-				e.reopen = !1, this.#U();
-			} else t.kind === "page" ? (t.page === "" || se.has(t.page)) && (e.page = t.page, history.replaceState(history.state, "", `/panel-assistant/${e.entryId}${t.page ? "/" + t.page : ""}`)) : t.kind === "closed" && (this.#B({
+				}), r.dataset.ready !== "true" && this.#z();
+				e.reopen = !1, this.#W();
+			} else t.kind === "page" ? (t.page === "" || se.has(t.page)) && (e.page = t.page, history.replaceState(history.state, "", `/panel-assistant/${e.entryId}${t.page ? "/" + t.page : ""}`)) : t.kind === "closed" && (this.#V({
 				type: S,
 				closed: !0
 			}), this.#L(), this.#p = {
@@ -2268,46 +2266,50 @@ var fe = class extends HTMLElement {
 				state: "closed",
 				code: null,
 				unsubscribe: null
-			}, this.#U(), this.#j());
+			}, this.#W(), this.#j());
 		}
 	}
 	#I() {
 		let e = this.#p;
-		this.isConnected && e && ["opening", "open"].includes(e.state) && (this.#V(!1), this.#B({
+		this.isConnected && e && ["opening", "open"].includes(e.state) && (this.#H(!1), this.#V({
 			type: S,
 			closed: !0
-		}), this.#P(e.entryId, e.token, e.url), this.#U());
+		}), this.#P(e.entryId, e.token, e.url), this.#W());
 	}
 	#L() {
-		this.#V(!0);
+		this.#H(!0);
 		let e = this.#p;
-		this.#p = null, e && (e.state = "ended", e.unsubscribe?.then((e) => e()).catch(() => {}), this.#z());
+		this.#p = null, e && (e.state = "ended", e.unsubscribe?.then((e) => e()).catch(() => {}), this.#B());
 	}
 	#R(e, t) {
 		let n = this.#p;
 		setTimeout(() => {
-			this.#p !== n || e() || (n.state = "failed", n.code = null, this.#z(), this.#U());
+			this.#p !== n || e() || (n.state = "failed", n.code = null, this.#B(), this.#W());
 		}, t);
 	}
 	#z() {
+		let e = this.#S;
+		this.#R(() => this.#S > e, k);
+	}
+	#B() {
 		let e = this.shadowRoot.querySelector("#frame");
 		delete e.dataset.ready, this.#f = null, this.#x = this.#S = 0, e.removeAttribute("src");
 	}
-	#B(e) {
+	#V(e) {
 		this.shadowRoot.querySelector("#frame").contentWindow?.postMessage(e, "*");
 	}
-	#V(e) {
+	#H(e) {
 		this.#v++, this.#y = !1;
 		let t = [...this.#_.values()];
 		if (this.#_.clear(), e) for (let e of t) e.then((e) => e()).catch(() => {});
 	}
-	#H(e) {
+	#U(e) {
 		let t = this.shadowRoot.querySelector("#frame").contentWindow, n = e.data?.frame, r = this.#p;
 		if (!t || e.data?.type !== "panel-assistant-ui" || !n || typeof n != "object") return;
 		let i = e.source === null && e.origin === "null" && n.op === "unsubscribe";
 		if (e.source !== t && !i) return;
 		let a = this.#v, o = (e) => {
-			!i && a === this.#v && this.#B({
+			!i && a === this.#v && this.#V({
 				type: S,
 				frame: e
 			});
@@ -2335,7 +2337,7 @@ var fe = class extends HTMLElement {
 			let e = Promise.resolve().then(() => l.subscribeMessage((e) => {
 				if (e?.closed === !0) {
 					if (this.#_.delete(n.command_id), a !== this.#v) return;
-					this.#y = !0, this.#B({
+					this.#y = !0, this.#V({
 						type: S,
 						closed: !0
 					});
@@ -2365,7 +2367,7 @@ var fe = class extends HTMLElement {
 			});
 		}
 	}
-	#U() {
+	#W() {
 		let e = this.shadowRoot, t = this.#t?.language;
 		this.isConnected && this.setAttribute?.("lang", a(t));
 		let n = this.#e;

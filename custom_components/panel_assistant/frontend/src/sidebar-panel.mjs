@@ -127,6 +127,8 @@ export class PanelAssistantSidebar extends HTMLElement {
       if (frame.getAttribute('src')) {
         frame.dataset.ready = String(kind === READY_TYPE);
         this.#frameWords++;
+        // A retry document refreshes itself; the refresh must answer too.
+        if (kind === WAIT_TYPE) this.#failSilentOpen();
       }
       this.#render();
     } else this.#relayFrame(event);
@@ -511,14 +513,17 @@ export class PanelAssistantSidebar extends HTMLElement {
       if (this.#frameUrl !== event.url) {
         delete frame.dataset.ready;
         this.#frameUrl = event.url;
-        const words = this.#frameWords;
-        this.#failUnless(() => this.#frameWords > words, OPEN_MS);
+        this.#failSilentOpen();
         // A deep link for this panel opens its page once; later sessions open the panel's first page.
         const suffix = this.#deepLink?.entryId === session.entryId ? this.#deepLink.suffix : '';
         if (suffix) this.#deepLink = null;
         frame.setAttribute('src', event.url + suffix);
       }
-      else if (session.reopen) this.#postToFrame({ type: RELAY_TYPE, open: true });
+      else {
+        if (session.reopen) this.#postToFrame({ type: RELAY_TYPE, open: true });
+        // A frame still without a page (its connection went with Home Assistant) must answer again.
+        if (frame.dataset.ready !== 'true') this.#failSilentOpen();
+      }
       session.reopen = false;
       this.#render();
     } else if (event.kind === 'page') {
@@ -571,6 +576,12 @@ export class PanelAssistantSidebar extends HTMLElement {
       this.#clearFrame();
       this.#render();
     }, ms);
+  }
+
+  // The frame has no page yet: its next document must answer within the slowest real first page.
+  #failSilentOpen() {
+    const words = this.#frameWords;
+    this.#failUnless(() => this.#frameWords > words, OPEN_MS);
   }
 
   #clearFrame() {

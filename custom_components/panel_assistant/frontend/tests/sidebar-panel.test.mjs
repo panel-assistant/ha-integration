@@ -1090,14 +1090,53 @@ test('a frame whose connection fails without a load fails once the slowest real 
   t.mock.timers.tick(1);
   assert.equal($('#failure').hidden, false);
   assert.equal(frame.getAttribute('src'), null);
-  // A retry document is an answer: the panel is coming back, so it stays Opening.
+  // Retry documents are answers: a panel coming back stays Opening while each refresh answers.
   intervals[0].fn(); await tick();
   subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
-  fromWindow(frame.contentWindow, { type: 'panel-assistant-wait' });
-  frame.fire('load');
-  t.mock.timers.tick(150_000);
+  for (let refresh = 0; refresh < 60; refresh++) {
+    fromWindow(frame.contentWindow, { type: 'panel-assistant-wait' });
+    frame.fire('load');
+    t.mock.timers.tick(3000);
+  }
   assert.equal($('#failure').hidden, true);
   assert.equal($('#loading').hidden, false);
+  // A refresh whose connection fails (WebKit: no load) leaves the last answer a wait; that fails too.
+  t.mock.timers.tick(150_000);
+  assert.equal($('#failure').hidden, false);
+});
+
+test('a reconnect that keeps a page already shown leaves it shown', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const hass = fakeHass();
+  const { $, subs } = await mount(hass);
+  const frame = $('#frame');
+  frame.contentWindow = frameWindow();
+  subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  frame.fire('load');
+  fromWindow(frame.contentWindow, { type: 'panel-assistant-ready' });
+  hass.connection.listeners.get('ready')(); await tick();
+  subs[1].callback({ kind: 'opened', url: url(TOKEN) });
+  t.mock.timers.tick(600_000);
+  assert.equal(frame.hidden, false, 'an idle page says nothing more and is not a failure');
+  assert.equal($('#failure').hidden, true);
+});
+
+test('a reconnect that keeps a frame URL that never answered still fails it', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const hass = fakeHass();
+  const { $, subs } = await mount(hass);
+  const frame = $('#frame');
+  frame.contentWindow = frameWindow();
+  subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  // Home Assistant went away: the frame's connection and the socket fail together.
+  t.mock.timers.tick(10_000);
+  hass.connection.listeners.get('ready')(); await tick();
+  subs[1].callback({ kind: 'opened', url: url(TOKEN) });
+  t.mock.timers.tick(149_999);
+  assert.equal($('#failure').hidden, true);
+  t.mock.timers.tick(1);
+  assert.equal($('#failure').hidden, false);
+  assert.equal(frame.getAttribute('src'), null);
 });
 
 test('a reconnect that moves the frame to a URL that never answers fails it too', async t => {
