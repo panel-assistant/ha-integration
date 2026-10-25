@@ -1675,7 +1675,7 @@
         "step": {
           "update_webview": {
             "title": "Atualizar mecanismo do navegador",
-            "description": "{panel} tem um mecanismo de navegador antigo ou uma atualização incompleta.\n\nSelecione Enviar para solicitar a atualização compatível verificada ou verificar uma atualização em andamento. A configuração e o pareamento continuam disponíveis. Se não houver um instalador permitido, siga o [guia do WebView]({learn_more_url})."
+            "description": "{panel} tem um mecanismo de navegador antigo ou uma atualização incompleta.\n\nSelecione Enviar para solicitar a atualização compatível verificada ou verificar uma atualização em andamento. A configuração e o pareamento continuam disponíveis. Se não houver um instalador permitido, siga o [guia do WebView]({learn_more_url}).\n\n[Saiba mais]({learn_more_url})"
           }
         },
         "error": {
@@ -1686,7 +1686,7 @@
           "entry_removed": "Este painel não está mais configurado no Home Assistant.\n\nPara corrigir:\n1. [Abra os dispositivos do Panel Assistant](/config/integrations/integration/panel_assistant) se quiser adicioná-lo novamente.\n2. Caso contrário, feche esta caixa de diálogo.\n\n[Saiba mais]({learn_more_url})"
         },
         "progress": {
-          "updating_webview": "Atualizando o mecanismo do navegador e verificando o resultado.\n\n[Saiba mais]({learn_more_url})"
+          "updating_webview": "Atualizando o mecanismo do navegador e verificando o resultado.\n\nSe a atualização não puder ser concluída, [abra o guia]({learn_more_url}).\n\n[Saiba mais]({learn_more_url})"
         }
       }
     }

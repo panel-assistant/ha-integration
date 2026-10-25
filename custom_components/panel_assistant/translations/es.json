@@ -1675,7 +1675,7 @@
         "step": {
           "update_webview": {
             "title": "Actualizar el motor del navegador",
-            "description": "{panel} tiene un motor de navegador antiguo o una actualización incompleta.\n\nSelecciona Enviar para solicitar la actualización compatible verificada o comprobar una actualización en curso. La configuración y la vinculación siguen disponibles. Si no hay un instalador autorizado, sigue la [guía de WebView]({learn_more_url})."
+            "description": "{panel} tiene un motor de navegador antiguo o una actualización incompleta.\n\nSelecciona Enviar para solicitar la actualización compatible verificada o comprobar una actualización en curso. La configuración y la vinculación siguen disponibles. Si no hay un instalador autorizado, sigue la [guía de WebView]({learn_more_url}).\n\n[Más información]({learn_more_url})"
           }
         },
         "error": {
@@ -1686,7 +1686,7 @@
           "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant](/config/integrations/integration/panel_assistant) si quieres volver a añadirlo.\n2. En caso contrario, cierra este diálogo.\n\n[Más información]({learn_more_url})"
         },
         "progress": {
-          "updating_webview": "Actualizando el motor del navegador y comprobando el resultado.\n\n[Más información]({learn_more_url})"
+          "updating_webview": "Actualizando el motor del navegador y comprobando el resultado.\n\nSi la actualización no puede terminar, [abre la guía]({learn_more_url}).\n\n[Más información]({learn_more_url})"
         }
       }
     }

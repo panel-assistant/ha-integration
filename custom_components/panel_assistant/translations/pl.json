@@ -1675,7 +1675,7 @@
         "step": {
           "update_webview": {
             "title": "Aktualizuj silnik przeglądarki",
-            "description": "{panel} ma starszy silnik przeglądarki lub niedokończoną aktualizację.\n\nWybierz Wyślij, aby poprosić o zweryfikowaną zgodną aktualizację lub sprawdzić trwającą aktualizację. Konfiguracja i parowanie pozostają dostępne. Jeśli nie ma dozwolonego instalatora, skorzystaj z [poradnika WebView]({learn_more_url})."
+            "description": "{panel} ma starszy silnik przeglądarki lub niedokończoną aktualizację.\n\nWybierz Wyślij, aby poprosić o zweryfikowaną zgodną aktualizację lub sprawdzić trwającą aktualizację. Konfiguracja i parowanie pozostają dostępne. Jeśli nie ma dozwolonego instalatora, skorzystaj z [poradnika WebView]({learn_more_url}).\n\n[Więcej informacji]({learn_more_url})"
           }
         },
         "error": {
@@ -1686,7 +1686,7 @@
           "entry_removed": "Ten panel nie jest już skonfigurowany w Home Assistant.\n\nAby rozwiązać problem:\n1. [Otwórz urządzenia Panel Assistant](/config/integrations/integration/panel_assistant), jeśli chcesz dodać go ponownie.\n2. W przeciwnym razie zamknij to okno.\n\n[Dowiedz się więcej]({learn_more_url})"
         },
         "progress": {
-          "updating_webview": "Aktualizowanie silnika przeglądarki i sprawdzanie wyniku.\n\n[Więcej informacji]({learn_more_url})"
+          "updating_webview": "Aktualizowanie silnika przeglądarki i sprawdzanie wyniku.\n\nJeśli aktualizacja nie może się zakończyć, [otwórz poradnik]({learn_more_url}).\n\n[Więcej informacji]({learn_more_url})"
         }
       }
     }

@@ -1675,7 +1675,7 @@
         "step": {
           "update_webview": {
             "title": "Mettre à jour le moteur du navigateur",
-            "description": "{panel} utilise un ancien moteur de navigateur ou une mise à jour inachevée.\n\nSélectionnez Envoyer pour demander la mise à jour compatible vérifiée ou vérifier une mise à jour en cours. La configuration et l’association restent disponibles. Si aucun programme d’installation autorisé n’est disponible, suivez le [guide WebView]({learn_more_url})."
+            "description": "{panel} utilise un ancien moteur de navigateur ou une mise à jour inachevée.\n\nSélectionnez Envoyer pour demander la mise à jour compatible vérifiée ou vérifier une mise à jour en cours. La configuration et l’association restent disponibles. Si aucun programme d’installation autorisé n’est disponible, suivez le [guide WebView]({learn_more_url}).\n\n[En savoir plus]({learn_more_url})"
           }
         },
         "error": {
@@ -1686,7 +1686,7 @@
           "entry_removed": "Ce panneau n’est plus configuré dans Home Assistant.\n\nPour corriger le problème :\n1. [Ouvrez les appareils Panel Assistant](/config/integrations/integration/panel_assistant) si vous souhaitez l’ajouter à nouveau.\n2. Sinon, fermez cette boîte de dialogue.\n\n[En savoir plus]({learn_more_url})"
         },
         "progress": {
-          "updating_webview": "Mise à jour du moteur du navigateur et vérification du résultat.\n\n[En savoir plus]({learn_more_url})"
+          "updating_webview": "Mise à jour du moteur du navigateur et vérification du résultat.\n\nSi la mise à jour ne peut pas se terminer, [ouvrez le guide]({learn_more_url}).\n\n[En savoir plus]({learn_more_url})"
         }
       }
     }

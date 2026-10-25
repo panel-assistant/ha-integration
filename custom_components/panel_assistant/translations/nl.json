@@ -1675,7 +1675,7 @@
         "step": {
           "update_webview": {
             "title": "Browserengine bijwerken",
-            "description": "{panel} heeft een oudere browserengine of een onvoltooide update.\n\nKies Verzenden om de gecontroleerde compatibele update aan te vragen of een lopende update te controleren. Instellen en koppelen blijven beschikbaar. Volg de [WebView-handleiding]({learn_more_url}) als er geen toegestaan installatieprogramma is."
+            "description": "{panel} heeft een oudere browserengine of een onvoltooide update.\n\nKies Verzenden om de gecontroleerde compatibele update aan te vragen of een lopende update te controleren. Instellen en koppelen blijven beschikbaar. Volg de [WebView-handleiding]({learn_more_url}) als er geen toegestaan installatieprogramma is.\n\n[Meer informatie]({learn_more_url})"
           }
         },
         "error": {
@@ -1686,7 +1686,7 @@
           "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten](/config/integrations/integration/panel_assistant) als je het opnieuw wilt toevoegen.\n2. Sluit anders dit dialoogvenster.\n\n[Meer informatie]({learn_more_url})"
         },
         "progress": {
-          "updating_webview": "De browserengine wordt bijgewerkt en het resultaat wordt gecontroleerd.\n\n[Meer informatie]({learn_more_url})"
+          "updating_webview": "De browserengine wordt bijgewerkt en het resultaat wordt gecontroleerd.\n\n[Open de handleiding]({learn_more_url}) als de update niet kan worden voltooid.\n\n[Meer informatie]({learn_more_url})"
         }
       }
     }

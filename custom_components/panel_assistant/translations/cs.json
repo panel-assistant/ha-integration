@@ -1675,7 +1675,7 @@
         "step": {
           "update_webview": {
             "title": "Aktualizovat prohlížeč",
-            "description": "{panel} má starší prohlížeč nebo nedokončenou aktualizaci.\n\nVyberte Odeslat pro vyžádání ověřené kompatibilní aktualizace nebo kontrolu probíhající aktualizace. Nastavení a párování zůstávají dostupné. Pokud není dostupný povolený instalátor, postupujte podle [návodu pro WebView]({learn_more_url})."
+            "description": "{panel} má starší prohlížeč nebo nedokončenou aktualizaci.\n\nVyberte Odeslat pro vyžádání ověřené kompatibilní aktualizace nebo kontrolu probíhající aktualizace. Nastavení a párování zůstávají dostupné. Pokud není dostupný povolený instalátor, postupujte podle [návodu pro WebView]({learn_more_url}).\n\n[Další informace]({learn_more_url})"
           }
         },
         "error": {
@@ -1686,7 +1686,7 @@
           "entry_removed": "Tento panel již není nastaven v Home Assistant.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant](/config/integrations/integration/panel_assistant), pokud ho chcete znovu přidat.\n2. Jinak tento dialog zavřete.\n\n[Další informace]({learn_more_url})"
         },
         "progress": {
-          "updating_webview": "Aktualizace prohlížeče a kontrola výsledku.\n\n[Další informace]({learn_more_url})"
+          "updating_webview": "Aktualizace prohlížeče a kontrola výsledku.\n\nPokud aktualizaci nelze dokončit, [otevřete návod]({learn_more_url}).\n\n[Další informace]({learn_more_url})"
         }
       }
     }

@@ -1675,7 +1675,7 @@
         "step": {
           "update_webview": {
             "title": "Browser-Engine aktualisieren",
-            "description": "{panel} hat eine ältere Browser-Engine oder ein unvollständiges Update.\n\nWähle Absenden, um das geprüfte kompatible Update anzufordern oder ein laufendes Update zu prüfen. Einrichtung und Kopplung bleiben verfügbar. Falls kein zulässiger Installer verfügbar ist, folge der [WebView-Anleitung]({learn_more_url})."
+            "description": "{panel} hat eine ältere Browser-Engine oder ein unvollständiges Update.\n\nWähle Absenden, um das geprüfte kompatible Update anzufordern oder ein laufendes Update zu prüfen. Einrichtung und Kopplung bleiben verfügbar. Falls kein zulässiger Installer verfügbar ist, folge der [WebView-Anleitung]({learn_more_url}).\n\n[Mehr erfahren]({learn_more_url})"
           }
         },
         "error": {
@@ -1686,7 +1686,7 @@
           "entry_removed": "Dieses Panel ist nicht mehr in Home Assistant eingerichtet.\n\nSo behebst du das Problem:\n1. [Öffne die Panel Assistant-Geräte](/config/integrations/integration/panel_assistant), wenn du es erneut hinzufügen möchtest.\n2. Schließe andernfalls diesen Dialog.\n\n[Mehr erfahren]({learn_more_url})"
         },
         "progress": {
-          "updating_webview": "Browser-Engine wird aktualisiert. Das Ergebnis wird geprüft.\n\n[Mehr erfahren]({learn_more_url})"
+          "updating_webview": "Browser-Engine wird aktualisiert. Das Ergebnis wird geprüft.\n\nFalls das Update nicht abgeschlossen werden kann, [öffne die Anleitung]({learn_more_url}).\n\n[Mehr erfahren]({learn_more_url})"
         }
       }
     }
