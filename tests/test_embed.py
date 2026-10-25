@@ -2229,7 +2229,7 @@ async def test_returning_page_and_assets_match_before_update_health_refresh(
 
     monkeypatch.setattr(coordinator, "_async_read_session", delayed_snapshot)
     monkeypatch.setattr(
-        coordinator, "_async_probe_address", AsyncMock(return_value=True)
+        coordinator, "_async_probe_address", AsyncMock(return_value=new_snapshot.health)
     )
     returning = await _connect_panel(
         *connect_args,

@@ -442,6 +442,7 @@ async def async_clear_update_failure_if_installed(
     *,
     verified_success: bool = False,
     verified_current_code: int | None = None,
+    is_current: Callable[[], bool] | None = None,
 ) -> None:
     """Resolve a saved failure only after this panel reaches its failed build."""
     issue_id = panel_failure_issue_id(f"update:{entry_id}")
@@ -449,6 +450,8 @@ async def async_clear_update_failure_if_installed(
         return
 
     def reached(record: dict[str, Any]) -> bool:
+        if is_current is not None and not is_current():
+            return False
         events = record.get("events", [])
         if not isinstance(events, list):
             return False
