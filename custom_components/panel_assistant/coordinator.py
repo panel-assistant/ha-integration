@@ -49,7 +49,7 @@ from .repairs_permission import async_reconcile_permission_issue
 from .repairs_proximity import async_reconcile_proximity_issue
 from .repairs_webview import async_reconcile_webview_issue
 from .status import PanelStatus, parse_status_response
-from .transport_protocol import MANAGE_SNAPSHOT
+from .transport_protocol import ERR_PANEL_UNAVAILABLE, MANAGE_SNAPSHOT
 from .transport_sessions import (
     PanelSession,
     RestartNotice,
@@ -241,13 +241,47 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             await self._async_recover_address()
         if session_manages(session):
             assert session is not None
-            reachable, snapshot = await asyncio.gather(
+            entry = self._entry()
+            address = self.client.address
+            stored_value = entry.data[CONF_ADDRESS] if entry is not None else None
+
+            def probe_current() -> bool:
+                return (
+                    self._session() is session
+                    and self._entry() is entry
+                    and self.client.address == address
+                    and (
+                        entry is None
+                        or (
+                            entry.data[CONF_ADDRESS] == stored_value
+                            and entry.unique_id == session.did
+                        )
+                    )
+                )
+
+            health, snapshot = await asyncio.gather(
                 self._async_probe_address(session),
                 self._async_read_session(session),
                 return_exceptions=True,
             )
-            self.reachable = reachable is True
-            for outcome in (reachable, snapshot):
+            self.reachable = isinstance(health, PanelHealth)
+            if (
+                isinstance(health, PanelHealth)
+                and isinstance(snapshot, UpdateFailed)
+                and isinstance(snapshot.__cause__, HomeAssistantError)
+                and snapshot.__cause__.translation_key == ERR_PANEL_UNAVAILABLE
+                and probe_current()
+                and (entry is None or accept_health(self.hass, entry, health))
+            ):
+                # A snapshot deadline also covers optional diagnostics. Keep the
+                # health this same panel just answered, without another request.
+                await self._async_clear_update_failure(health, allow_http=True)
+                if probe_current():
+                    self.identity_mismatch = False
+                    snapshot = PanelSnapshot(
+                        health=health, status=None, status_error="unavailable"
+                    )
+            for outcome in (health, snapshot):
                 if isinstance(outcome, BaseException):
                     raise outcome
             assert isinstance(snapshot, PanelSnapshot)
@@ -479,8 +513,8 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             async_reconcile_webview_issue(self.hass, entry, status)
         return PanelSnapshot(health=health, status=status, status_error=None)
 
-    async def _async_probe_address(self, session: PanelSession) -> bool:
-        """Whether the stored address answers as this panel, over HTTP.
+    async def _async_probe_address(self, session: PanelSession) -> PanelHealth | None:
+        """The health that proves the stored address answers as this panel.
 
         Only the operations still carried over HTTP need it, and the address
         repair follows from it. Delete it with them.
@@ -504,17 +538,17 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         except HaPaneldError:
             health = None
         if retired():
-            return False
+            return None
         if health is None or health.discovery_id != session.did:
             # Recovery fences its own answer (entry, address and session) after
             # its I/O, and moves the address when it adopts one.
             health = await self._async_recover_address()
             if health is None:
-                return False
+                return None
         if self._entry_id is not None:
             async_delete_address_issue(self.hass, self._entry_id)
         self._refused_hellos.clear()
-        return True
+        return health
 
     async def _async_poll_address(self) -> PanelSnapshot:
         """Read health, then best-effort sanitized status, over HTTP.

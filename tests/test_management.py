@@ -13,11 +13,15 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.client import CannotConnectError, HaPaneldClient
+from custom_components.panel_assistant.repairs_failure import (
+    async_record_update_failure,
+)
 from custom_components.panel_assistant.transport_sessions import async_get_sessions
 
 from .test_availability import STATUS_ENTITY, _load, _state
@@ -149,6 +153,127 @@ async def test_a_session_read_that_fails_never_falls_back_to_http_data(
     # The address answered, so HTTP-carried operations still may run.
     assert coordinator.reachable
     assert coordinator.available
+
+
+@pytest.mark.parametrize("address_answers", [True, False])
+async def test_snapshot_timeouts_preserve_only_verified_http_health(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    address_answers: bool,
+) -> None:
+    """Slow optional diagnostics cannot hide health that this panel just answered."""
+    entry = await _load(hass, hass_read_only_user.id)
+    coordinator = entry.runtime_data.coordinator
+    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token, MANAGED)
+    monkeypatch.setattr(
+        "custom_components.panel_assistant.transport_sessions.MANAGE_TIMEOUT", 0.01
+    )
+    health = AsyncMock(
+        return_value=HEALTH,
+        side_effect=None if address_answers else CannotConnectError,
+    )
+    status = AsyncMock(return_value=STATUS)
+    with patch.multiple(
+        HaPaneldClient, async_get_health=health, async_get_status=status
+    ):
+        for _ in range(2):
+            refresh = asyncio.ensure_future(coordinator.async_refresh())
+            request = await panel.manage()
+            assert request["op"] == "snapshot"
+            # No answer: exercise the actual management deadline twice.
+            await refresh
+            assert coordinator.last_update_success is address_answers
+            if address_answers:
+                assert coordinator.data.health == HEALTH
+                assert coordinator.data.status is None
+                assert coordinator.data.status_error == "unavailable"
+
+    if address_answers:
+        assert "Unable to read panel health" not in caplog.text
+    else:
+        assert "Unable to read panel health" in caplog.text
+    assert health.await_count >= 2
+    status.assert_not_awaited()
+
+
+@pytest.mark.parametrize("retired_by", ["address", "identity", "session", "repair"])
+async def test_a_snapshot_timeout_cannot_publish_a_retired_health_probe(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    monkeypatch: pytest.MonkeyPatch,
+    retired_by: str,
+) -> None:
+    """A good probe loses authority when its address, identity or session retires."""
+    entry = await _load(hass, hass_read_only_user.id)
+    coordinator = entry.runtime_data.coordinator
+    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token, MANAGED)
+    monkeypatch.setattr(
+        "custom_components.panel_assistant.transport_sessions.MANAGE_TIMEOUT", 0.01
+    )
+    if retired_by == "repair":
+        await async_record_update_failure(
+            hass, entry.entry_id, entry.title, "0.9.8-rc1 build 1", RuntimeError()
+        )
+
+        async def version_after_address_edit(
+            _client: HaPaneldClient,
+        ) -> tuple[str, int]:
+            hass.config_entries.async_update_entry(
+                entry, data={**entry.data, CONF_ADDRESS: "192.168.1.77"}
+            )
+            await asyncio.sleep(0)
+            return HEALTH.version, 1200
+
+        monkeypatch.setattr(
+            HaPaneldClient, "async_get_version_code", version_after_address_edit
+        )
+    with _http_answers():
+        refresh = asyncio.ensure_future(coordinator.async_refresh())
+        await panel.manage()
+        # The concurrent HTTP read has completed before the snapshot deadline.
+        if retired_by == "address":
+            hass.config_entries.async_update_entry(
+                entry, data={**entry.data, CONF_ADDRESS: "192.168.1.77"}
+            )
+        elif retired_by == "identity":
+            hass.config_entries.async_update_entry(entry, unique_id="b" * 64)
+        elif retired_by == "session":
+            sessions = async_get_sessions(hass)
+            live = sessions.get(entry.entry_id)
+            assert live is not None
+            sessions.open(dataclasses.replace(live, token="newer-session"))
+        await refresh
+
+    assert not coordinator.last_update_success
+
+
+@pytest.mark.parametrize("health_line", ["invalid", HEALTH_LINE.replace(DID, "b" * 64)])
+async def test_a_rejected_snapshot_health_cannot_use_the_address_probe(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    health_line: str,
+) -> None:
+    """A deadline is recoverable; corrupt or different-panel health stays refused."""
+    entry = await _load(hass, hass_read_only_user.id)
+    coordinator = entry.runtime_data.coordinator
+    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token, MANAGED)
+    with _http_answers():
+        refresh = asyncio.ensure_future(coordinator.async_refresh())
+        request = await panel.manage()
+        await panel.answer(
+            request, "applied", result={"health": health_line, "status": STATUS_BODY}
+        )
+        await refresh
+
+    assert not coordinator.last_update_success
 
 
 async def _probe_answering_after(
