@@ -1674,7 +1674,6 @@
     },
     "remove_from_panel": {
       "title": "Odebrat Panel Assistant z panelu {panel}",
-      "description": "Odebrat Panel Assistant z panelu {panel}\n\n[Další informace]({learn_more_url})",
       "fix_flow": {
         "step": {
           "confirm": {

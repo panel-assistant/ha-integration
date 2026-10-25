@@ -1674,7 +1674,6 @@
     },
     "remove_from_panel": {
       "title": "Panel Assistant van {panel} halen",
-      "description": "Panel Assistant van {panel} halen\n\n[Meer informatie]({learn_more_url})",
       "fix_flow": {
         "step": {
           "confirm": {

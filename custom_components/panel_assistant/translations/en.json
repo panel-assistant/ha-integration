@@ -1674,7 +1674,6 @@
     },
     "remove_from_panel": {
       "title": "Remove Panel Assistant from {panel}",
-      "description": "Removal was requested for {panel}. Nothing has been removed.\n\nTo remove:\n1. Read the [removal risks]({learn_more_url}) before continuing.\n2. Open this Repair to confirm removal, or ignore it to keep the panel.",
       "fix_flow": {
         "step": {
           "confirm": {

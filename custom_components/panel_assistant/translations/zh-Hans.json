@@ -1674,7 +1674,6 @@
     },
     "remove_from_panel": {
       "title": "从 {panel} 移除 Panel Assistant",
-      "description": "从 {panel} 移除 Panel Assistant\n\n[了解更多]({learn_more_url})",
       "fix_flow": {
         "step": {
           "confirm": {

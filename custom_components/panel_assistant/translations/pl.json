@@ -1674,7 +1674,6 @@
     },
     "remove_from_panel": {
       "title": "Usuń Panel Assistant z panelu {panel}",
-      "description": "Usuń Panel Assistant z panelu {panel}\n\n[Dowiedz się więcej]({learn_more_url})",
       "fix_flow": {
         "step": {
           "confirm": {

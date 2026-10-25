@@ -1674,7 +1674,6 @@
     },
     "remove_from_panel": {
       "title": "Прибрати Panel Assistant з {panel}",
-      "description": "Прибрати Panel Assistant з {panel}\n\n[Докладніше]({learn_more_url})",
       "fix_flow": {
         "step": {
           "confirm": {
