@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.0.0-rc2
+
+### Development
+
+- Split the Python test suite across two runners per Home Assistant version and speed up voice grammar collision checks.
+
 ## 1.0.0-rc1
 
 This is the first release candidate of Panel Assistant 1.0, the Home Assistant integration. Read the caveats below before you install it, and please open an issue with the panel model and what you saw. The story of 1.0 is that MQTT and the move from the old panel app are gone for good, so this release only manages panels that 0.9.0 has already moved. In exchange Panel Assistant and the panel now talk over one connection for everything: the sidebar, updates, voice and settings, which is what makes most of the changes below possible. A lot changed; I have listed what you will notice rather than every commit.
