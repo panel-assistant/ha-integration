@@ -325,6 +325,51 @@ async def test_non_admin_panel_account_opens_a_session(
     assert registry_after[1] == registry_before[1]
 
 
+@pytest.mark.parametrize("local_only", [False, True])
+@pytest.mark.parametrize("local_routes", [False, True])
+async def test_session_connection_routes_respect_authenticated_user(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    hass_read_only_user: Any,
+    local_only: bool,
+    local_routes: bool,
+) -> None:
+    """Local-only accounts never receive remote fallback routes in their hello."""
+    await hass.auth.async_update_user(hass_read_only_user, local_only=local_only)
+    await hass.config.async_update(
+        internal_url="http://ha.internal:8123" if local_routes else None,
+        external_url="https://ha.example.com",
+    )
+    hass.config.api = (
+        SimpleNamespace(local_ip="192.0.2.50", port=8123, use_ssl=False)
+        if local_routes
+        else None
+    )
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    with patch(
+        "custom_components.panel_assistant.ha_url.get_url",
+        return_value="https://ha.ui.nabu.casa",
+    ):
+        response = await _send(client, _hello())
+
+    assert response["success"], response
+    result = response["result"]
+    expected = (
+        ["http://ha.internal:8123", "http://192.0.2.50:8123"] if local_routes else []
+    )
+    if not local_only:
+        expected.extend(["https://ha.example.com", "https://ha.ui.nabu.casa"])
+    assert result["connection"] == {
+        "instance_id": await instance_id.async_get(hass),
+        "user_id": hass_read_only_user.id,
+        "urls": expected,
+    }
+    session = async_get_sessions(hass).get(entry.entry_id)
+    assert session is not None and session.user_id == hass_read_only_user.id
+
+
 async def test_highest_family_index_opens_a_session(
     hass: HomeAssistant,
     entry: MockConfigEntry,

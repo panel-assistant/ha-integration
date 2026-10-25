@@ -51,6 +51,7 @@ from contextlib import suppress
 from ipaddress import ip_address
 
 from aiohttp import web
+from homeassistant.auth.models import User
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import instance_id
 from homeassistant.helpers.http import HomeAssistantView
@@ -201,8 +202,8 @@ def _connection_origin(value: str) -> str | None:
         return None
 
 
-def async_connection_urls(hass: HomeAssistant) -> list[str]:
-    """Offer Core-owned local routes first, then external and cloud routes.
+def async_connection_urls(hass: HomeAssistant, user: User) -> list[str]:
+    """Offer Core-owned routes the authenticated user is allowed to use.
 
     The configured panel URL remains the panel's preferred route. These hints
     grant no authority until its credential-free instance check succeeds.
@@ -215,9 +216,10 @@ def async_connection_urls(hass: HomeAssistant) -> list[str]:
         candidates.append(
             str(URL.build(scheme="http", host=api.local_ip, port=api.port))
         )
-    candidates.append(hass.config.external_url)
-    with suppress(NoURLAvailableError, ValueError):
-        candidates.append(get_url(hass, require_cloud=True))
+    if not user.local_only:
+        candidates.append(hass.config.external_url)
+        with suppress(NoURLAvailableError, ValueError):
+            candidates.append(get_url(hass, require_cloud=True))
     result: list[str] = []
     for value in candidates:
         if (

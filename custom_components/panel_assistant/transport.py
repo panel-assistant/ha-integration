@@ -491,7 +491,7 @@ def _accept_hello(
         "connection": {
             "instance_id": hass.data[DOMAIN][DATA_INSTANCE_ID],
             "user_id": user_id,
-            "urls": async_connection_urls(hass),
+            "urls": async_connection_urls(hass, connection.user),
         },
         # Unknown descriptors are accepted too, but render nothing.
         "channels": {"accepted": len(descriptors), "unknown": sorted(unknown)},
