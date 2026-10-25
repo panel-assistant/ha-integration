@@ -13,7 +13,7 @@ import math
 import re
 import shlex
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
@@ -214,6 +214,7 @@ class AdbInstallTarget:
     model: str
     primary_abi: str
     android_sdk: int
+    local_shell: AdbDeviceAsync | None = field(default=None, repr=False, compare=False)
 
 
 def same_physical_target(observed: Any, expected: Any) -> bool:
@@ -1411,9 +1412,11 @@ async def _async_shell(
 
 
 async def _async_connect(
-    target: AdbInstallTarget, signer: PythonRSASigner, *, authorize: bool = True
+    target: AdbInstallTarget, signer: PythonRSASigner | None, *, authorize: bool = True
 ) -> AdbDeviceAsync:
     """Connect with existing trust; offer the public key only when ``authorize``."""
+    if target.local_shell is not None:
+        return target.local_shell
     if not isinstance(signer, PythonRSASigner):
         raise InstallAdbError(InstallAdbErrorCode.INVALID_REQUEST)
     device = AdbDeviceAsync(

@@ -48,6 +48,7 @@ CAPABILITY_VOICE_STREAM_SESSION: Final = "voice_stream_session"
 # health and status snapshot, and the settings Panel Assistant writes. A panel
 # without it is read and written over HTTP.
 CAPABILITY_MANAGEMENT: Final = "management"
+CAPABILITY_LOCAL_ADB: Final = "local_adb"
 # A panel that offers this answers ``subscribe`` with ``ui_update`` requests,
 # which Panel Assistant forwards to the sidebar that subscribed (see
 # ``ui_relay.py``).
@@ -70,6 +71,7 @@ KNOWN_CAPABILITIES: Final = frozenset(
         CAPABILITY_MEDIA,
         CAPABILITY_VOICE_STREAM_SESSION,
         CAPABILITY_MANAGEMENT,
+        CAPABILITY_LOCAL_ADB,
         CAPABILITY_UI_SUBSCRIBE,
         CAPABILITY_UI_BUNDLE,
         CAPABILITY_UNKNOWN_STATE,

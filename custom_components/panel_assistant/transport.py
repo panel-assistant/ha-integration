@@ -25,6 +25,7 @@ Repairs issue that an unconfirmed ``hello`` raises (see
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import secrets
 from collections.abc import Collection, Container
@@ -360,7 +361,59 @@ def ws_hello(
                 "An administrator has not confirmed this user for this panel.",
             )
             return
-    _accept_hello(hass, connection, msg, entry, high)
+    if "local_adb" in msg["capabilities"] and "management" in msg["capabilities"]:
+        hass.async_create_task(_accept_local_hello(hass, connection, msg, entry, high))
+    else:
+        _accept_hello(hass, connection, msg, entry, high)
+
+
+async def _accept_local_hello(
+    hass: HomeAssistant,
+    connection: ActiveConnection,
+    msg: dict[str, Any],
+    entry: ConfigEntry,
+    high: int,
+) -> None:
+    """Read install custody before granting a capability that can close ADB."""
+    from .install_jobs import async_get_install_job_manager
+
+    allowed = False
+    try:
+        async with asyncio.timeout(10):
+            manager = await async_get_install_job_manager(hass)
+            jobs = await manager.async_list()
+        address = entry.data.get("address")
+        allowed = not any(
+            not receipt.is_terminal
+            and address in (receipt.target.address, receipt.target.pinned_address)
+            for receipt in jobs
+        )
+    except Exception:
+        _LOGGER.debug(
+            "Local panel commands deferred while install custody is unreadable"
+        )
+    # The bounded store read may yield. Admission is still this exact loaded
+    # entry and binding when the grant is made, never the earlier snapshot.
+    from .identity import CONF_IDENTITY_PENDING, is_installation
+
+    try:
+        current = _entry_for_did(hass, msg["did"])
+    except SharedPanelIdentityError:
+        current = None
+    if (
+        current is not entry
+        or entry.data.get(CONF_IDENTITY_PENDING) is not None
+        or (high >= 3 and not is_installation(entry))
+        or entry.data.get(CONF_TRANSPORT_USER_ID) != connection.user.id
+        or getattr(
+            getattr(getattr(entry, "runtime_data", None), "coordinator", None),
+            "identity_mismatch",
+            False,
+        )
+    ):
+        connection.send_error(msg["id"], ERR_UNKNOWN_PANEL, "Panel admission changed.")
+        return
+    _accept_hello(hass, connection, msg, entry, high, local_adb_allowed=allowed)
 
 
 @callback
@@ -411,6 +464,8 @@ def _accept_hello(
     msg: dict[str, Any],
     entry: ConfigEntry,
     high: int,
+    *,
+    local_adb_allowed: bool = True,
 ) -> None:
     """Grant a session only after synchronous admission or completed address proof."""
     did = msg["did"]
@@ -421,6 +476,8 @@ def _accept_hello(
     # Every capability this integration implements that the panel offered.
     offered = frozenset(msg["capabilities"])
     capabilities = KNOWN_CAPABILITIES.intersection(offered)
+    if "management" not in capabilities or not local_adb_allowed:
+        capabilities -= {"local_adb"}
     voice_stream = async_get_voice_stream(hass)
     stream_client_id = (msg.get("voice_stream_session") or {}).get("client_id")
     if stream_client_id is None or voice_stream is None:
@@ -478,6 +535,7 @@ def _accept_hello(
         http_port=msg.get("http_port"),
         unknown_channels=unknown,
         prerelease_panel_builds=prereleases_allowed(entry),
+        local_adb_deferred=not local_adb_allowed,
     )
     result: dict[str, Any] = {
         "protocol": high,

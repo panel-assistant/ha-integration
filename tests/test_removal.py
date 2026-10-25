@@ -1283,3 +1283,52 @@ async def test_removal_without_a_held_adb_key_makes_no_panel_change(
     assert fake.installed == [PACKAGE_ID]
     assert fake.hand_back_requests == 0
     assert fake.read()["events"] == []
+
+
+@pytest.mark.parametrize("recovery", ["verified", "failed", "different-panel"])
+async def test_local_removal_proves_surviving_network_before_uninstall(
+    hass: HomeAssistant,
+    panel: tuple[FakePanel, TestServer],
+    monkeypatch: pytest.MonkeyPatch,
+    recovery: str,
+) -> None:
+    from custom_components.panel_assistant import local_adb
+    from custom_components.panel_assistant.adb_protocol import AdbInstallTarget
+
+    fake, server = panel
+    entry = _entry(hass, server)
+    target = AdbInstallTarget(
+        PanelAddress("192.168.1.30", 8888),
+        "PANEL1",
+        "px30_evb",
+        "arm64-v8a",
+        27,
+        local_shell=object(),
+    )
+    fake.adb_authorized = False
+    monkeypatch.setattr(local_adb, "async_target", AsyncMock(return_value=target))
+
+    async def recover(*_args: Any) -> None:
+        assert PACKAGE_ID in fake.installed, "recovery must precede terminal uninstall"
+        assert fake.read()["home"] == VENDOR_HOME
+        if recovery == "failed":
+            # An open listener alone is not recovery acknowledgement.
+            fake.adb_authorized = True
+            raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE)
+        fake.adb_authorized = True
+        if recovery == "different-panel":
+            fake.serial = "OTHER"
+
+    monkeypatch.setattr(local_adb, "async_recover", recover)
+
+    async def hand_back(*_args: Any) -> None:
+        await fake.hand_back_home(None)
+
+    monkeypatch.setattr(local_adb, "async_hand_back_home", hand_back)
+    if recovery == "verified":
+        await removal.async_remove_app(hass, entry)
+        assert fake.installed == []
+    else:
+        with pytest.raises(removal.RemovalError):
+            await removal.async_remove_app(hass, entry)
+        assert fake.installed == [PACKAGE_ID]

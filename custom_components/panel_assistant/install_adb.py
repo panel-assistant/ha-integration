@@ -212,13 +212,15 @@ def _validate_target(target: AdbInstallTarget) -> None:
         or not isinstance(target.primary_abi, str)
     ):
         raise InstallAdbError(InstallAdbErrorCode.INVALID_REQUEST)
-    try:
-        address = ipaddress.ip_address(target.address.host)
-    except ValueError:
-        raise InstallAdbError(InstallAdbErrorCode.INVALID_REQUEST) from None
+    if target.local_shell is None:
+        try:
+            address = ipaddress.ip_address(target.address.host)
+        except ValueError:
+            raise InstallAdbError(InstallAdbErrorCode.INVALID_REQUEST) from None
+        if not is_allowed_install_address(address):
+            raise InstallAdbError(InstallAdbErrorCode.INVALID_REQUEST)
     if (
-        not is_allowed_install_address(address)
-        or _SERIAL_PATTERN.fullmatch(target.serial) is None
+        _SERIAL_PATTERN.fullmatch(target.serial) is None
         or target.model != target.model.strip()
         or not 1 <= len(target.model) <= 128
         or not target.model.isprintable()
@@ -315,7 +317,7 @@ async def _async_prove_su(
     *,
     admitted: AdbPreflight | None,
     target_package_id: str | None = None,
-) -> None:
+) -> str:
     """Prove delegated root afresh without elevating any mutation command.
 
     ``admitted`` is the preflight this root reading has to agree with, or None
@@ -375,7 +377,7 @@ async def _async_prove_su(
                 expected = admitted.target_installed and owner == target_package_id
                 if values == ["present"] and not expected:
                     raise InstallAdbError(InstallAdbErrorCode.TARGET_NOT_CLEAN)
-        return
+        return prefix
     # No form answering at all means the panel itself is not answering.
     raise InstallAdbError(
         InstallAdbErrorCode.ROOT_STATE_AMBIGUOUS
@@ -1121,7 +1123,7 @@ async def _async_vendor_setup(
 
 async def _async_target_section(
     target: AdbInstallTarget,
-    signer: PythonRSASigner,
+    signer: PythonRSASigner | None,
     command: Callable[[str], str],
     prefix: str,
 ) -> list[str]:
@@ -1129,7 +1131,9 @@ async def _async_target_section(
     _validate_target(target)
     device: AdbDeviceAsync | None = None
     try:
-        async with asyncio.timeout(_LAUNCH_TIMEOUT_SECONDS):
+        async with asyncio.timeout(
+            None if target.local_shell is not None else _LAUNCH_TIMEOUT_SECONDS
+        ):
             device = await _async_connect(target, signer, authorize=False)
             nonce = token_hex(16)
             _parse_identity_root(
@@ -1166,7 +1170,7 @@ async def _async_target_section(
 
 
 async def async_apply_display_sizing(
-    target: AdbInstallTarget, signer: PythonRSASigner, sizing: DisplaySizing
+    target: AdbInstallTarget, signer: PythonRSASigner | None, sizing: DisplaySizing
 ) -> DisplayResult:
     """Apply the profile's recommended display and text size at setup."""
     lines = await _async_target_section(
@@ -1182,7 +1186,7 @@ async def async_apply_display_sizing(
 
 
 async def async_restore_display_sizing(
-    target: AdbInstallTarget, signer: PythonRSASigner
+    target: AdbInstallTarget, signer: PythonRSASigner | None
 ) -> str:
     """Put back the display and text size setup changed, before the app goes.
 
@@ -1252,7 +1256,7 @@ async def async_settle_vendor_display(
 
 
 async def async_restore_vendor_setup(
-    target: AdbInstallTarget, signer: PythonRSASigner
+    target: AdbInstallTarget, signer: PythonRSASigner | None
 ) -> str:
     """Put back the vendor values an install changed, before the app goes.
 
@@ -1547,14 +1551,16 @@ def _firmware(value: str) -> str | None:
 
 
 async def async_move_step(
-    target: AdbInstallTarget, signer: PythonRSASigner, step: MoveStep
+    target: AdbInstallTarget, signer: PythonRSASigner | None, step: MoveStep
 ) -> MoveObservation:
     """Run one removal step on the pinned panel and observe its result."""
     _validate_target(target)
     device: AdbDeviceAsync | None = None
     mutation_started = False
     try:
-        async with asyncio.timeout(_INSTALL_TIMEOUT_SECONDS):
+        async with asyncio.timeout(
+            None if target.local_shell is not None else _INSTALL_TIMEOUT_SECONDS
+        ):
             device = await _async_connect(target, signer)
             # Every connection proves the device at the address is the one the
             # removal started on before any command can change it.

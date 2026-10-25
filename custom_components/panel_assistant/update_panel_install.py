@@ -12,6 +12,7 @@ from collections.abc import Awaitable, Callable
 from aiohttp import ClientConnectorError
 from homeassistant.core import HomeAssistant
 
+from . import local_adb
 from .adb_credentials import (
     AdbCredential,
     AdbCredentialError,
@@ -78,7 +79,7 @@ async def async_repair_update_permissions(
             else "panel identity changed"
             if coordinator.identity_mismatch
             else "last panel reading failed"
-            if not coordinator.reachable
+            if not coordinator.available
             else f"panel reports {snapshot.health.version}, not {artifact.version}"
             if snapshot.health.version != artifact.version
             else f"panel reports package {snapshot.health.package}"
@@ -94,6 +95,21 @@ async def async_repair_update_permissions(
             return
         assert descriptor is not None
         try:
+            entry = coordinator._entry()
+            target = (
+                await local_adb.async_target(hass, entry, coordinator.client.address)
+                if entry is not None
+                else None
+            )
+            if target is not None:
+                device = target.local_shell
+                assert device is not None
+                from .install_adb import _async_repair_app_permissions
+
+                await _async_repair_app_permissions(
+                    device, target, descriptor.package_id, descriptor.launch_component
+                )
+                return
             # A successful update never requests new ADB trust or creates a key.
             credential = await async_get_durable_adb_credential(hass)
             admitted = await admit_adb_target(artifact, credential)

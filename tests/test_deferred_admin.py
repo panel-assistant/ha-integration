@@ -108,11 +108,12 @@ async def panel(
         "async_get_install_job_manager",
         AsyncMock(
             return_value=SimpleNamespace(
+                async_list=AsyncMock(return_value=[]),
                 async_find_active=AsyncMock(
                     side_effect=lambda *_args: (
                         object() if state.active_install else None
                     )
-                )
+                ),
             )
         ),
     )
@@ -339,3 +340,36 @@ async def test_vendor_transport_drop_retries_then_finishes_completed_setup(
     assert (panel.directory / "calls").read_text().splitlines() == [
         f"set-active-admin {PACKAGE}/{PACKAGE}.platform.PanelDeviceAdminReceiver"
     ]
+
+
+async def test_completed_setup_uses_local_shell_without_network_adb(
+    panel: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The ordinary commissioning caller works while port 5555 is closed."""
+    from custom_components.panel_assistant import local_adb
+    from custom_components.panel_assistant.adb_protocol import AdbInstallTarget
+
+    device = adb_protocol.AdbDeviceAsync(None)
+    target = AdbInstallTarget(
+        panel.coordinator.client.address,
+        "SERIAL-1",
+        "Test Panel",
+        "arm64-v8a",
+        34,
+        local_shell=device,
+    )
+    monkeypatch.setattr(local_adb, "async_target", AsyncMock(return_value=target))
+    monkeypatch.setattr(
+        adb_credentials,
+        "async_get_durable_adb_credential",
+        AsyncMock(
+            side_effect=AssertionError(
+                "local commissioning must not require an ADB key"
+            )
+        ),
+    )
+    panel.state.health = replace(panel.state.health, setup_complete=True)
+    await panel.coordinator.async_refresh()
+    assert (panel.directory / "admin").exists()
+    assert panel.state.connections == 0
