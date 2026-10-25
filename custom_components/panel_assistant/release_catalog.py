@@ -18,6 +18,7 @@ from .feed_coordinator import async_get_feed_coordinator
 from .release import (
     _API_HEADERS,
     _LATEST_RELEASE_URL,
+    _MAX_RELEASE_ASSETS,
     _MAX_RELEASE_RESPONSE_BYTES,
     InstallReleaseBundle,
     ReleaseArtifact,
@@ -34,6 +35,7 @@ from .release import (
 )
 from .update_policy import build_allowed, feed_build_key, prereleases_allowed
 
+_SITE_RELEASES_URL = URL("https://panel-assistant.io/releases/v1.json")
 _RECENT_RELEASES_URL = URL(f"{ANDROID_RELEASES_API}?per_page=30")
 _MAX_RECENT_RELEASES = 30
 _MAX_CATALOG_BYTES = 1024 * 1024
@@ -68,15 +70,61 @@ def _choice(document: Any, *, prerelease: bool) -> dict[str, str | bool] | None:
     return {"tag": tag, "prerelease": prerelease}
 
 
-async def async_list_install_releases(
-    session: ClientSession,
-) -> list[dict[str, str | bool]]:
-    """List latest stable and recent RCs with complete installation assets.
+def _catalog_release(document: Any) -> bool:
+    """Validate the discovery wire shape; artifact trust is checked separately."""
+    return (
+        isinstance(document, dict)
+        and isinstance(document.get("tag_name"), str)
+        and type(document.get("draft")) is bool
+        and type(document.get("prerelease")) is bool
+        and isinstance(document.get("assets"), list)
+        and len(document["assets"]) <= _MAX_RELEASE_ASSETS
+        and all(
+            isinstance(asset, dict)
+            and isinstance(asset.get("name"), str)
+            and isinstance(asset.get("browser_download_url"), str)
+            for asset in document["assets"]
+        )
+    )
 
-    Metadata discovery neither authenticates assets nor opts into testing.
-    Invalid/incomplete releases are omitted; transport or catalogue failures
-    raise ReleaseResolutionError, rather than reporting an empty catalogue.
-    """
+
+async def _async_site_release_documents(
+    session: ClientSession,
+) -> tuple[Any, list[Any]]:
+    """Read a bounded snapshot. Age alone never makes a snapshot unreadable."""
+    catalog = _decode(
+        await _async_fetch_bounded(
+            session,
+            _SITE_RELEASES_URL,
+            _MAX_CATALOG_BYTES,
+            allow_release_redirects=False,
+            allow_catalog_redirects=True,
+            headers={"Accept": "application/json", "Cache-Control": "no-cache"},
+        )
+    )
+    if (
+        not isinstance(catalog, dict)
+        or type(catalog.get("schema")) is not int
+        or catalog["schema"] != 1
+        or "latest" not in catalog
+        or not isinstance(catalog.get("releases"), list)
+        or len(catalog["releases"]) > _MAX_RECENT_RELEASES
+        or (catalog["latest"] is not None and not _catalog_release(catalog["latest"]))
+        or not all(_catalog_release(row) for row in catalog["releases"])
+    ):
+        raise ReleaseResolutionError
+    return catalog["latest"], catalog["releases"]
+
+
+async def _async_release_documents(
+    session: ClientSession,
+) -> tuple[Any, list[Any], bool]:
+    """Fall back only on transport or schema errors, never authentication failure."""
+    try:
+        latest, recent = await _async_site_release_documents(session)
+        return latest, recent, True
+    except ReleaseResolutionError:
+        pass
     try:
         async with asyncio.timeout(20):
             latest = _decode(
@@ -105,11 +153,18 @@ async def async_list_install_releases(
         or len(recent) > _MAX_RECENT_RELEASES
     ):
         raise ReleaseResolutionError
+    return latest, recent, False
+
+
+def _release_choices(
+    latest: Any, recent: list[Any]
+) -> list[tuple[dict[str, str | bool], Any]]:
+    """Keep the existing latest-stable plus recent, thirty-choice bound."""
     choices = []
     stable = _choice(latest, prerelease=False)
     if stable is not None:
-        choices.append(stable)
-    seen = {choice["tag"] for choice in choices}
+        choices.append((stable, latest))
+    seen = {choice["tag"] for choice, _ in choices}
     for document in recent:
         choice = _choice(
             document,
@@ -117,15 +172,23 @@ async def async_list_install_releases(
             and document.get("prerelease") is True,
         )
         if choice is not None and choice["tag"] not in seen:
-            choices.append(choice)
+            choices.append((choice, document))
             seen.add(choice["tag"])
             if len(choices) == _MAX_RECENT_RELEASES:
                 break
     return choices
 
 
+async def async_list_install_releases(
+    session: ClientSession,
+) -> list[dict[str, str | bool]]:
+    """List complete install choices without authenticating their assets."""
+    latest, recent, _ = await _async_release_documents(session)
+    return [choice for choice, _ in _release_choices(latest, recent)]
+
+
 async def _async_release_choice(
-    session: ClientSession, tag: str
+    session: ClientSession, tag: str, *, release_body: bytes | None = None
 ) -> InstallReleaseBundle:
     """Authenticate an exact published tag and its hash-bound protocol range."""
     # Validate before constructing a URL; unknown strings are never URL paths.
@@ -137,6 +200,7 @@ async def _async_release_choice(
         session,
         URL(f"{ANDROID_RELEASES_API}/tags/{tag}"),
         expected_rc_tag=tag if is_rc_release_tag(tag) else None,
+        release_body=release_body,
     )
     if artifact.tag != tag or metadata is None:
         raise ReleaseResolutionError
@@ -151,16 +215,23 @@ async def async_resolve_update_candidates(
     A missing or incompatible head must not conceal a compatible older build.
     No APK is downloaded here. Failed individual releases are simply ineligible.
     """
-    choices = await async_list_install_releases(session)
+    latest, recent, site_snapshot = await _async_release_documents(session)
+    choices = _release_choices(latest, recent)
 
-    async def resolve(tag: str) -> InstallReleaseBundle | None:
+    async def resolve(tag: str, document: Any) -> InstallReleaseBundle | None:
         try:
-            return await _async_release_choice(session, tag)
+            return await _async_release_choice(
+                session,
+                tag,
+                release_body=json.dumps(document).encode() if site_snapshot else None,
+            )
         except ReleaseResolutionError:
             return None
 
     async with asyncio.timeout(60):
-        resolved = await asyncio.gather(*(resolve(str(c["tag"])) for c in choices))
+        resolved = await asyncio.gather(
+            *(resolve(str(choice["tag"]), document) for choice, document in choices)
+        )
     return sorted(
         (bundle for bundle in resolved if bundle is not None),
         key=lambda bundle: (
@@ -319,7 +390,24 @@ async def async_resolve_install_bundle_choice(
         )
     session = async_get_clientsession(hass)
     if tag is not None:
-        bundle = await _async_release_choice(session, tag)
+        release_body = None
+        try:
+            latest, recent = await _async_site_release_documents(session)
+        except ReleaseResolutionError:
+            pass
+        else:
+            document = next(
+                (
+                    row
+                    for row in [latest, *recent]
+                    if isinstance(row, dict) and row["tag_name"] == tag
+                ),
+                None,
+            )
+            if document is None:
+                raise ReleaseResolutionError
+            release_body = json.dumps(document).encode()
+        bundle = await _async_release_choice(session, tag, release_body=release_body)
         if not _allowed(bundle.artifact, allow_prerelease=True):
             raise ReleaseResolutionError
         return bundle

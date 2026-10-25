@@ -238,6 +238,11 @@ class _GitHub:
 
     def get(self, url: URL, **_kwargs: Any) -> FakeResponse:
         self.requests.append(str(url))
+        if (
+            str(url) == "https://panel-assistant.io/releases/v1.json"
+            and str(url) not in self._responses
+        ):
+            return _Response(404, b"", url)
         return self._responses[str(url)]
 
     @property

@@ -57,7 +57,11 @@ async def test_recent_stable_and_exact_rc_candidates_are_discovered():
         {"tag": "v1.3.0-rc2", "prerelease": True},
         {"tag": "v1.0.0", "prerelease": False},
     ]
-    assert len(client.requests) == 2
+    assert [url for url, _ in client.requests] == [
+        str(catalog._SITE_RELEASES_URL),
+        str(catalog._LATEST_RELEASE_URL),
+        str(catalog._RECENT_RELEASES_URL),
+    ]
     for _, options in client.requests:
         assert options["allow_redirects"] is False
         assert "Authorization" not in options["headers"]
