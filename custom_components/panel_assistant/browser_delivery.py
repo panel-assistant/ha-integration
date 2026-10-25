@@ -31,6 +31,7 @@ from .browser_release_cache import (
 from .build_feed import FeedInstallBundle
 from .client import HaPaneldClient, InvalidAddressError, PanelAddress, normalize_address
 from .const import DEFAULT_PORT, DOMAIN, SOURCE_USB_INSTALL
+from .discovery import has_verified_discovery_address
 from .display_provisioning import async_read_recommended_sizing
 from .ha_url import async_offer_ha_url
 from .install_network import is_allowed_install_address
@@ -280,8 +281,8 @@ class BrowserApkView(HomeAssistantView):
         return response
 
 
-def _usb_panel_address(value: object) -> PanelAddress:
-    """Admit only a home-network IPv4 panel on the app's own port."""
+def _usb_panel_address(hass: HomeAssistant, value: object) -> PanelAddress:
+    """Admit a home-network IPv4 panel on its default or already known port."""
     if not isinstance(value, str):
         raise ValueError
     try:
@@ -291,10 +292,14 @@ def _usb_panel_address(value: object) -> PanelAddress:
         raise ValueError from error
     # A panel on the home network (the installer page's `isPrivate`), never a
     # host this server could be steered to reach.
-    if (
-        address.port != DEFAULT_PORT
-        or not isinstance(host, IPv4Address)
-        or not is_allowed_install_address(host)
+    if not isinstance(host, IPv4Address) or not is_allowed_install_address(host):
+        raise ValueError
+    if address.port != DEFAULT_PORT and not (
+        any(
+            entry.data.get(CONF_ADDRESS) == address.stored_value
+            for entry in hass.config_entries.async_entries(DOMAIN)
+        )
+        or has_verified_discovery_address(hass, address)
     ):
         raise ValueError
     return address
@@ -350,7 +355,7 @@ class BrowserSetupHandoverView(HomeAssistantView):
                     value = await _json_object(request)
                     if set(value) != {"address"}:
                         raise ValueError
-                    address = _usb_panel_address(value["address"])
+                    address = _usb_panel_address(self.service.hass, value["address"])
                 except ValueError, TimeoutError, ConnectionError:
                     return _error("browser_handover_invalid_request", 400)
                 client = HaPaneldClient(

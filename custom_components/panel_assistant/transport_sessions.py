@@ -115,6 +115,7 @@ class PanelSession:
     # adopting it. Never shown: an address identifies a network.
     remote: str | None = field(default=None, repr=False)
     addresses: tuple[str, ...] = field(default=(), repr=False)
+    http_port: int | None = field(default=None, repr=False)
     # Described channels the vendored catalogue does not know. They are
     # accepted and their reports stored, but nothing renders them.
     unknown_channels: frozenset[str] = frozenset()

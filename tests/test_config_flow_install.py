@@ -337,18 +337,28 @@ async def test_connect_found_failure_returns_to_address_form_and_can_retry(
     assert result["data"] == {CONF_ADDRESS: "panel.local"}
 
 
-@pytest.mark.parametrize("healthy", [True, False], ids=["healthy", "unreachable"])
-async def test_install_rejects_an_http_port_as_an_adb_port(
-    hass: HomeAssistant, install_network_pin: SimpleNamespace, healthy: bool
+@pytest.mark.parametrize("port", [8888, 17242])
+@pytest.mark.parametrize("healthy", [True, False], ids=["healthy", "not_installed"])
+async def test_install_needed_comes_from_health_on_any_http_port(
+    hass: HomeAssistant, install_network_pin: SimpleNamespace, port: int, healthy: bool
 ) -> None:
-    """A non-standard port is connect-only: health alone, never pin, job or ADB."""
+    """HTTP health decides connect vs installation, independently of its port."""
     health_mock = (
         AsyncMock(return_value=HEALTH)
         if healthy
         else AsyncMock(side_effect=CannotConnectError)
     )
-    probe_mock = AsyncMock()
-    manager_mock = AsyncMock()
+    probe_mock = AsyncMock(
+        return_value=_probe(
+            "install_candidate",
+            model="WF1589T",
+            serial="serial-123",
+            primary_abi="arm64-v8a",
+            android_sdk=31,
+        )
+    )
+    address = "panel.local" if port == 8888 else f"panel.local:{port}"
+    pinned = "192.168.1.23" if port == 8888 else f"192.168.1.23:{port}"
     with (
         patch(
             "custom_components.panel_assistant.config_flow.HaPaneldClient"
@@ -357,10 +367,6 @@ async def test_install_rejects_an_http_port_as_an_adb_port(
             "custom_components.panel_assistant.config_flow.async_probe_install_target",
             probe_mock,
         ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
-            manager_mock,
-        ),
     ):
         client_class.return_value.async_get_health = health_mock
         client_class.return_value.async_get_setup_state = AsyncMock(
@@ -368,24 +374,28 @@ async def test_install_rejects_an_http_port_as_an_adb_port(
         )
         form = await _start_step(hass, "add_panel")
         result = await hass.config_entries.flow.async_configure(
-            form["flow_id"], {CONF_ADDRESS: "panel.local:5555"}
+            form["flow_id"], {CONF_ADDRESS: address}
         )
 
+    assert result.get("errors") in (None, {})
     if healthy:
         assert result["type"] is FlowResultType.MENU
         assert result["step_id"] == "found_panel"
         assert result["description_placeholders"] == {
-            "address": "panel.local:5555",
+            "address": address,
             "version": "0.9.0",
         }
+        probe_mock.assert_not_awaited()
     else:
-        assert result["step_id"] == "add_panel"
-        assert result["errors"] == {"base": "cannot_connect"}
+        assert result["step_id"] == "choose_version"
+        probe_mock.assert_awaited_once()
+        assert probe_mock.await_args.args[0].stored_value == pinned
+        # The HTTP port is metadata, not a user-selected ADB port or authorization.
+        assert len(probe_mock.await_args.args) == 1
     health_mock.assert_awaited_once()
-    assert client_class.call_args.args[1].stored_value == "panel.local:5555"
-    install_network_pin.pin.assert_not_awaited()
-    manager_mock.assert_not_awaited()
-    probe_mock.assert_not_awaited()
+    assert client_class.call_args.args[1].stored_value == pinned
+    install_network_pin.pin.assert_awaited_once()
+    assert not hass.config_entries.async_entries(DOMAIN)
 
 
 async def test_install_existing_duplicate_address_is_rejected(

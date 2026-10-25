@@ -396,6 +396,7 @@ HELLO_SCHEMA: Final = vol.Schema(
             },
             extra=vol.REMOVE_EXTRA,
         ),
+        vol.Optional("http_port"): _strict_int(1024, 65535),
         vol.Optional("addresses", default=list): _bounded_list(16, _interface_address),
         vol.Required("contract_digest"): _digest,
         vol.Required("capabilities"): _bounded_list(MAX_CAPABILITIES, _code),

@@ -475,6 +475,7 @@ def _accept_hello(
         opened_at=dt_util.utcnow(),
         remote=connection.remote if isinstance(connection.remote, str) else None,
         addresses=tuple(msg.get("addresses", ())),
+        http_port=msg.get("http_port"),
         unknown_channels=unknown,
         prerelease_panel_builds=prereleases_allowed(entry),
     )

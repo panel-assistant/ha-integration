@@ -586,3 +586,43 @@ async def test_a_slow_entry_setup_never_holds_the_handover_past_its_deadline(
     assert len(lines) == 2
     assert "registration: in_progress" in lines[0]
     assert "finished: added" in lines[1]
+
+
+@pytest.mark.parametrize("known_by", ["entry", "discovery"])
+async def test_handover_accepts_only_the_specific_panels_known_custom_port(
+    endpoint: Any, hass: HomeAssistant, known_by: str
+) -> None:
+    """A custom port belongs to its held panel address, never another LAN host."""
+    address = "192.168.1.20:9999"
+    if known_by == "entry":
+        MockConfigEntry(
+            domain=DOMAIN, data={"address": address}, unique_id=_HEALTH.discovery_id
+        ).add_to_hass(hass)
+    else:
+        from homeassistant.config_entries import SOURCE_ZEROCONF
+        from homeassistant.data_entry_flow import FlowResultType
+
+        from .config_flow_helpers import _zeroconf_info
+
+        card = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": SOURCE_ZEROCONF},
+            data=_zeroconf_info(
+                host="192.168.1.20", port=9999, discovery_id=_HEALTH.discovery_id
+            ),
+        )
+        assert card["type"] is FlowResultType.FORM
+        # A card's editable add-panel form updates its presentation address
+        # before the new endpoint has answered; that text grants no access.
+        progress = hass.config_entries.flow.async_get(card["flow_id"])
+        progress["context"]["title_placeholders"]["address"] = "192.168.1.21:9999"
+    panel = _Panel(PanelSetupState(complete=False, accepts_handover=True))
+    for refused in ("192.168.1.21:9999", "192.168.1.20:9998"):
+        status, _ = await _post(endpoint, panel, {"address": refused})
+        assert status == 400
+    assert panel.hosts == []
+    with patch(f"{_CLIENT}.async_get_display", AsyncMock(return_value={})):
+        status, body = await _post(endpoint, panel, {"address": address})
+    assert status == 200
+    assert body["outcome"] == "handed_over"
+    assert panel.hosts == [address]

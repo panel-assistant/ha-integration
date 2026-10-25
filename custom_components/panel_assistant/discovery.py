@@ -50,10 +50,11 @@ from .client import (
     HaPaneldClient,
     InvalidAddressError,
     InvalidResponseError,
+    PanelAddress,
     is_valid_discovery_id,
     normalize_address,
 )
-from .const import DEFAULT_PORT, DOMAIN
+from .const import DOMAIN
 from .ha_url import async_offer_ha_url
 from .identity import accept_health, is_installation, reinstalled
 from .install_network import is_allowed_install_address
@@ -452,7 +453,8 @@ async def async_zeroconf(
         return await _async_discovered_vendor(flow, discovery_info)
     discovery_id = discovery_info.properties.get("did")
     if (
-        discovery_info.port != DEFAULT_PORT
+        type(discovery_info.port) is not int
+        or not 1024 <= discovery_info.port <= 65535
         or not isinstance(discovery_id, str)
         or not is_valid_discovery_id(discovery_id)
     ):
@@ -560,7 +562,12 @@ async def _async_discovered_app(
     advertised = discovery_info.ip_address
     host = f"[{advertised}]" if advertised.version == 6 else str(advertised)
     try:
-        address = normalize_address(host)
+        # A vendor's SRV port is its own service, not the panel HTTP listener.
+        address = normalize_address(
+            f"{host}:{discovery_info.port}"
+            if discovery_info.type == "_ha-paneld._tcp.local."
+            else host
+        )
     except InvalidAddressError:
         return flow.async_abort(reason="invalid_discovery")
 
@@ -603,17 +610,24 @@ async def _async_discovered_app(
     )
     if known is not None and not is_installation(known):
         return flow.async_abort(reason="already_configured")
-    # A known panel advertising from a new address has moved, when its
+    # A verified listener change on the stored host updates its port even
+    # while the previous listener or its session still answers. An IP move
+    # keeps the stronger protection below.
+    port_changed = (
+        known is not None
+        and normalize_address(known.data[CONF_ADDRESS]).host == address.host
+    )
+    # A known panel advertising from a new host has moved, when its
     # stored address has stopped answering and it is not connected. Its
     # health has just answered as it at the new address, so the stored one
     # is replaced; the running entry polls the new address without a
     # reload, which would end the panel's session for nothing. The identity
     # and the health line are both public on the LAN, so an advertisement
-    # never redirects a panel whose stored address still answers, nor one
+    # never changes the host of a panel whose stored address still answers, nor one
     # holding a session: that session is the credentialed authority on
     # where the panel is, repairs the address itself, and reports when it
     # cannot. One failed poll is then never enough to move a live panel.
-    if _entry_holds_its_address(flow):
+    if not port_changed and _entry_holds_its_address(flow):
         flow._abort_if_unique_id_configured()
     flow._abort_if_unique_id_configured(
         updates={CONF_ADDRESS: address.stored_value}, reload_on_update=False
@@ -692,7 +706,8 @@ def _apply_discovery_title(flow: HaPaneldConfigFlow) -> None:
     panel_id = flow._pending_health.panel_id
     friendly = flow._pending_friendly_name
     announced = _announced_discovery_names(flow)
-    announced[flow.flow_id] = (friendly, panel_id)
+    assert flow._pending_address is not None
+    announced[flow.flow_id] = (friendly, panel_id, flow._pending_address.stored_value)
 
     if friendly is None:
         _set_discovery_title(flow, panel_id)
@@ -700,7 +715,7 @@ def _apply_discovery_title(flow: HaPaneldConfigFlow) -> None:
 
     clashing = {
         flow_id: other_panel_id
-        for flow_id, (other_friendly, other_panel_id) in announced.items()
+        for flow_id, (other_friendly, other_panel_id, _address) in announced.items()
         if flow_id != flow.flow_id and other_friendly == friendly
     }
     taken = bool(clashing) or any(
@@ -742,13 +757,13 @@ def _set_discovery_title(flow: HaPaneldConfigFlow, display: str) -> None:
 
 def _announced_discovery_names(
     flow: HaPaneldConfigFlow,
-) -> dict[str, tuple[str | None, str]]:
-    """Names claimed by live discovery flows, pruned of any that finished.
+) -> dict[str, tuple[str | None, str, str]]:
+    """Verified discovery names and endpoints, pruned of finished flows.
 
     `ConfigFlowContext` is a closed TypedDict, so this cannot ride along in the
     flow context. Keying on flow id makes the store self-pruning.
     """
-    store: dict[str, tuple[str | None, str]] = flow.hass.data.setdefault(
+    store: dict[str, tuple[str | None, str, str]] = flow.hass.data.setdefault(
         DOMAIN, {}
     ).setdefault(_DATA_DISCOVERY_NAMES, {})
     live = {
@@ -758,6 +773,25 @@ def _announced_discovery_names(
     for flow_id in [f for f in store if f not in live and f != flow.flow_id]:
         del store[flow_id]
     return store
+
+
+def has_verified_discovery_address(hass: HomeAssistant, address: PanelAddress) -> bool:
+    """Whether a live discovery has verified this exact endpoint as its panel.
+
+    The card's presentation address can change before a user's replacement
+    endpoint answers, so only the original verified address grants access.
+    """
+    live = {
+        progress["flow_id"]
+        for progress in hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    }
+    store: dict[str, tuple[str | None, str, str]] = hass.data.get(DOMAIN, {}).get(
+        _DATA_DISCOVERY_NAMES, {}
+    )
+    return any(
+        flow_id in live and verified == address.stored_value
+        for flow_id, (_friendly, _panel_id, verified) in store.items()
+    )
 
 
 def _show_discovery_confirmation(

@@ -64,7 +64,6 @@ from .client import (
 from .const import (
     CONF_PRERELEASE_PANEL_BUILDS,
     CONF_TRANSPORT_USER_ID,
-    DEFAULT_PORT,
     DOMAIN,
     INSTALL_RECOVERY_PLACEHOLDERS,
     SOURCE_USB_INSTALL,
@@ -589,11 +588,6 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 "address": address.stored_value,
             }
 
-        if address.port != DEFAULT_PORT:
-            # Installation only uses the standard port, so another port can only
-            # be a panel that already runs ha-paneld.
-            return await self._async_check_running_panel(address, user_input)
-
         try:
             target = await async_pin_install_target(self.hass, address)
         except InstallNetworkError as err:
@@ -687,23 +681,6 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """The address step, shown with a picker of panels known to other apps."""
         return await self.async_step_add_panel(user_input)
-
-    async def _async_check_running_panel(
-        self, address: PanelAddress, user_input: dict[str, Any]
-    ) -> ConfigFlowResult:
-        """Find ha-paneld on a non-standard port, where nothing can be installed."""
-        try:
-            health = await HaPaneldClient(
-                async_get_clientsession(self.hass), address
-            ).async_get_health()
-        except CannotConnectError, InvalidResponseError:
-            return self._show_add_panel_form(user_input, {"base": "cannot_connect"})
-        except Exception:
-            _LOGGER.exception("Unexpected exception while validating ha-paneld")
-            return self._show_add_panel_form(user_input, {"base": "unknown"})
-        self._pending_address = address
-        self._pending_health = health
-        return await self._async_show_found_panel()
 
     async def async_step_found_panel(
         self, user_input: dict[str, Any] | None = None

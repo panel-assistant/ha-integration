@@ -275,8 +275,8 @@ async def test_connect_existing_expected_errors(hass: HomeAssistant) -> None:
             invalid_form["flow_id"], {CONF_ADDRESS: "bad"}
         )
 
-    # Only a non-standard port is connect-only; on 8888 a health failure is
-    # followed by the read-only ADB probe instead of a connect error.
+    # A failed HTTP health read falls through to the read-only install probe,
+    # regardless of the HTTP port.
     unavailable_form = await _start_step(hass, "add_panel")
     with (
         patch(
@@ -285,7 +285,7 @@ async def test_connect_existing_expected_errors(hass: HomeAssistant) -> None:
         ),
         patch(
             "custom_components.panel_assistant.config_flow.async_probe_install_target",
-            AsyncMock(),
+            AsyncMock(return_value=_probe("retained_or_ambiguous")),
         ) as probe_mock,
     ):
         unavailable = await hass.config_entries.flow.async_configure(
@@ -295,8 +295,8 @@ async def test_connect_existing_expected_errors(hass: HomeAssistant) -> None:
     assert invalid["step_id"] == "add_panel"
     assert invalid["errors"] == {"base": "invalid_address"}
     assert unavailable["step_id"] == "add_panel"
-    assert unavailable["errors"] == {"base": "cannot_connect"}
-    probe_mock.assert_not_awaited()
+    assert unavailable["errors"] == {"base": "retained_or_ambiguous"}
+    probe_mock.assert_awaited_once()
 
 
 async def test_connect_existing_unexpected_error(hass: HomeAssistant) -> None:
@@ -530,11 +530,11 @@ async def test_zeroconf_titles_each_discovery_with_its_own_panel(
         ("A" * 64, 8888),
         ("a" * 63, 8888),
         (b"a" * 64, 8888),
-        ("a" * 64, 9999),
+        ("a" * 64, 1023),
         ("a" * 64, None),
     ],
 )
-async def test_zeroconf_rejects_malformed_or_wrong_port_before_health_contact(
+async def test_zeroconf_rejects_malformed_or_unsafe_port_before_health_contact(
     hass: HomeAssistant, discovery_id: object, port: int | None
 ) -> None:
     """Untrusted mDNS metadata cannot invoke the panel health endpoint."""

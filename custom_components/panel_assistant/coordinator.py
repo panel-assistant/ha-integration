@@ -106,9 +106,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         # True until the first poll answers otherwise, as `last_update_success` starts.
         self.reachable = True
         # Where the panel last said it was in an accepted session:
-        # (remote, reported). Kept after the session ends, so a panel that
-        # moved while disconnected is still looked for there.
-        self._last_hello: tuple[str | None, tuple[str, ...]] | None = None
+        # (remote, reported, listener port). Kept after the session ends, so a
+        # panel that moved while disconnected is still looked for there.
+        self._last_hello: tuple[str | None, tuple[str, ...], int | None] | None = None
         self._refused_hellos: dict[str, tuple[str | None, tuple[str, ...]]] = {}
         from .vendor_recovery import VendorRecovery
 
@@ -164,7 +164,11 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         @callback
         def _remember() -> None:
             if (session := self._session()) is not None:
-                self._last_hello = (session.remote, session.addresses)
+                self._last_hello = (
+                    session.remote,
+                    session.addresses,
+                    session.http_port,
+                )
                 self._refused_hellos.clear()
 
         @callback
@@ -172,7 +176,14 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             _remember()
             self.async_update_listeners()
             self._vendor_recovery.changed()
-            if self.connected and not self.reachable:
+            session = self._session()
+            if session is not None and (
+                not self.reachable
+                or (
+                    session.http_port is not None
+                    and session.http_port != self.client.address.port
+                )
+            ):
                 self.hass.async_create_task(
                     self.async_request_refresh(),
                     f"{DOMAIN} poll after the panel connected",
@@ -215,6 +226,12 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
     async def _async_update_data(self) -> PanelSnapshot:
         """Read the snapshot from the session that manages, else over HTTP."""
         session = self._session()
+        if (
+            session is not None
+            and session.http_port is not None
+            and session.http_port != self.client.address.port
+        ):
+            await self._async_recover_address()
         if session_manages(session):
             assert session is not None
             reachable, snapshot = await asyncio.gather(
@@ -446,18 +463,19 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         if entry is None or not is_installation(entry):
             return None
         if session is not None:
-            hellos = [(session.remote, session.addresses)]
+            hellos = [(session.remote, session.addresses, session.http_port)]
         else:
-            hellos = (
-                [self._last_hello] if self._last_hello is not None else []
-            ) + list(self._refused_hellos.values())
+            hellos = ([self._last_hello] if self._last_hello is not None else []) + [
+                (remote, addresses, None)
+                for remote, addresses in self._refused_hellos.values()
+            ]
         stored = self.client.address
         stored_value = entry.data[CONF_ADDRESS]
         candidates = tuple(
             dict.fromkeys(
                 candidate
-                for remote, reported in hellos
-                for candidate in session_candidates(remote, stored, reported)
+                for remote, reported, http_port in hellos
+                for candidate in session_candidates(remote, stored, reported, http_port)
             )
         )
         if not candidates:
@@ -496,8 +514,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             entry, data={**entry.data, CONF_ADDRESS: candidate.stored_value}
         )
         _LOGGER.info(
-            "%s is now polled at the address it connected from; the stored"
-            " address stopped answering",
+            "%s is now polled at its verified session-reported endpoint",
             entry.title,
         )
         return health
