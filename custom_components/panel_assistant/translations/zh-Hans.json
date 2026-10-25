@@ -1668,6 +1668,27 @@
     "another_home_assistant": {
       "title": "{panel} 已登录另一个 Home Assistant",
       "description": "{panel} 已添加到此处，但仍登录着另一个 Home Assistant。\n\n解决方法：\n1. [打开面板的 Home Assistant 连接设置]({configure_url})。\n2. 如果确实要连接到此处，请输入此 Home Assistant 的地址并保存。\n3. 重新连接，并使用希望面板使用的账户登录；否则，请保留当前服务器并忽略此修复提示。"
+    },
+    "panel_webview": {
+      "title": "更新 {panel} 的浏览器引擎。",
+      "fix_flow": {
+        "step": {
+          "update_webview": {
+            "title": "更新浏览器引擎",
+            "description": "{panel} 的浏览器引擎较旧，或有尚未完成的更新。\n\n选择“提交”以请求经过验证的兼容更新，或检查正在进行的更新。设置和配对仍然可用。如果面板没有获得授权的安装程序，请参阅 [WebView 指南]({learn_more_url})。"
+          }
+        },
+        "error": {
+          "webview_deferred": "更新尚未得到验证。设置仍然可用。请参阅指南，或选择“提交”重试。",
+          "webview_unavailable": "Home Assistant 无法验证结果。请重新连接面板，然后选择“提交”，先检查再重试。"
+        },
+        "abort": {
+          "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})"
+        },
+        "progress": {
+          "updating_webview": "正在更新浏览器引擎并检查结果。\n\n[了解更多]({learn_more_url})"
+        }
+      }
     }
   },
   "options": {

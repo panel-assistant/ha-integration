@@ -50,7 +50,8 @@ function journey({ key, runsTheApp = false, networkAdb = 'turned_on', adopted = 
       'session-target.mjs': 'export const inspectSessionTarget = async () => ({ serial: "RAW_SERIAL" });',
       'job-store.mjs': 'export const openJobStore = async () => ({ close() {} });',
       'usb-transaction-ports.mjs': 'export function createUsbTransactionPorts(options) { return {}; }',
-      'install-controller.mjs': 'export function createInstallController() { return { preview: async () => { if (${runsTheApp}) throw Object.assign(new Error("target_installed"), { code: "target_installed" }); return { receipt: null }; }, install: async () => { globalThis.order.push("install"); return { permissions: {} }; }, completeSetup: async () => { globalThis.order.push("completeSetup"); return {}; } }; }',
+      'install-controller.mjs': 'export function createInstallController() { return { preview: async () => { if (${runsTheApp}) throw Object.assign(new Error("target_installed"), { code: "target_installed" }); return { receipt: null }; }, install: async () => { globalThis.order.push("install"); return { receipt: {id: "b".repeat(32)}, permissions: {} }; }, completeSetup: async () => { globalThis.order.push("completeSetup"); return {}; } }; }',
+      'webview.mjs': 'export const provisionUsbWebView = async () => { globalThis.order.push("webview"); return "deferred"; };',
       'panel-address.mjs': 'export const readSetupUrl = async () => "http://192.168.1.20:8080/setup";',
       'panel-assistant-adb.mjs': 'export const panelAssistantKeyAuthenticator = key => "authenticator for " + key; export const ensureNetworkAdb = async (adb, { beforeRestart }) => { globalThis.order.push("networkAdb"); beforeRestart(); globalThis.unplug(); await new Promise(resolve => setImmediate(resolve)); return ${JSON.stringify(networkAdb)}; };',
       'release-handoff.mjs': 'import { handOverThenOpen as actualOpen } from ' + JSON.stringify(${JSON.stringify(actualHandover)}) + '; export const handoffOptions = () => ({}); export const receiveReleaseHandoff = () => ({ cancel() {}, completion: Promise.resolve({ release: { descriptor: { versionName: "1.2.3", versionCode: 42 } }, authenticate: async () => ({kind: "authenticated-apk-bytes", descriptor: {versionName: "1.2.3", versionCode: 42}}) }) }); export const requestPanelAssistantKey = async () => ${JSON.stringify(key)}; export const requestSetupHandover = async () => { globalThis.order.push("handover"); return "handed_over"; }; export const handOverThenOpen = actualOpen;',
@@ -90,7 +91,7 @@ test('a USB install offers Panel Assistant’s key at the panel’s prompt and t
   // Network ADB comes after everything else the session does, because adbd
   // restarts to turn it on and the USB session ends with it.
   assert.deepEqual(result.order.filter(step => step !== 'navigate'),
-    ['authenticate', 'install', 'handover', 'completeSetup', 'networkAdb']);
+    ['authenticate', 'install', 'webview', 'handover', 'completeSetup', 'networkAdb']);
   // That ending is the install finishing, not the cable being pulled: nothing
   // says the session stopped.
   assert.equal(result.done, true);

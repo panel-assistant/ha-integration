@@ -20,6 +20,7 @@ from custom_components.panel_assistant.const import DOMAIN
     [
         ("volume_number_removed", "automations_url"),
         ("panel_permissions", "permissions_url"),
+        ("panel_webview", "learn_more_url"),
         ("no_update_route", "recovery_url"),
         ("adb_update_authorization", "approval_url"),
         ("installer_failure", "repair_url"),

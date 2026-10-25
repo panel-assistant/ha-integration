@@ -155,6 +155,7 @@
     "networkAdb": "ADB przez sieć",
     "copiedDetail": "Wysłano {bytes} bajtów; oczekiwanie na potwierdzenie panelu",
     "none": "brak",
-    "setupMissing": "nie znaleziono; konfiguracja trwa dalej na panelu"
+    "setupMissing": "nie znaleziono; konfiguracja trwa dalej na panelu",
+    "webview": "WebView"
   }
 }

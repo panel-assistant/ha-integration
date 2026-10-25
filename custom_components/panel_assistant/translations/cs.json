@@ -1668,6 +1668,27 @@
     "another_home_assistant": {
       "title": "{panel} je přihlášen k jiné instanci Home Assistant",
       "description": "Panel {panel} je zde přidaný, ale zůstává přihlášený k jiné instanci Home Assistant.\n\nPostup opravy:\n1. [Otevřete připojení panelu k Home Assistant]({configure_url}).\n2. Pokud ho chcete připojit sem, zadejte adresu této instance Home Assistant a uložte ji.\n3. Znovu se připojte a přihlaste se účtem, který má panel používat; jinak ponechte jeho současný server a tuto opravu ignorujte."
+    },
+    "panel_webview": {
+      "title": "Aktualizujte prohlížeč v panelu {panel}.",
+      "fix_flow": {
+        "step": {
+          "update_webview": {
+            "title": "Aktualizovat prohlížeč",
+            "description": "{panel} má starší prohlížeč nebo nedokončenou aktualizaci.\n\nVyberte Odeslat pro vyžádání ověřené kompatibilní aktualizace nebo kontrolu probíhající aktualizace. Nastavení a párování zůstávají dostupné. Pokud není dostupný povolený instalátor, postupujte podle [návodu pro WebView]({learn_more_url})."
+          }
+        },
+        "error": {
+          "webview_deferred": "Aktualizace nebyla ověřena. Nastavení zůstává dostupné. Postupujte podle návodu nebo vyberte Odeslat pro další pokus.",
+          "webview_unavailable": "Home Assistant nemohl ověřit výsledek. Znovu připojte panel a vyberte Odeslat pro kontrolu před dalším pokusem."
+        },
+        "abort": {
+          "entry_removed": "Tento panel již není nastaven v Home Assistant.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant](/config/integrations/integration/panel_assistant), pokud ho chcete znovu přidat.\n2. Jinak tento dialog zavřete.\n\n[Další informace]({learn_more_url})"
+        },
+        "progress": {
+          "updating_webview": "Aktualizace prohlížeče a kontrola výsledku.\n\n[Další informace]({learn_more_url})"
+        }
+      }
     }
   },
   "options": {

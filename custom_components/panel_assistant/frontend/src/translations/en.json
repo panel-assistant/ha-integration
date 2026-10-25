@@ -155,6 +155,7 @@
     "networkAdb": "Network ADB",
     "copiedDetail": "{bytes} bytes sent; waiting for the panel to confirm",
     "none": "none",
-    "setupMissing": "not found; setup continues on the panel"
+    "setupMissing": "not found; setup continues on the panel",
+    "webview": "WebView"
   }
 }

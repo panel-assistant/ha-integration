@@ -14,6 +14,7 @@ import { ensureNetworkAdb, panelAssistantKeyAuthenticator } from './panel-assist
 import { readSetupUrl } from './panel-address.mjs';
 import { renderJourney } from './wizard-look.mjs';
 import { newNonce } from './shared.mjs';
+import { provisionUsbWebView } from './webview.mjs';
 
 // A guided wizard for people who have never used a terminal. One step is on
 // screen at a time; the single Install press is the consent for everything
@@ -306,6 +307,9 @@ async function installAll() {
   const installed = await Promise.race([stopPromise, controller.install(true).catch(noteFailure)]);
   ensureCurrent();
   support('permissions', installed.permissions);
+
+  support('webview', await provisionUsbWebView(sessionAdb, `pa-usb-${installed.receipt.id}`,
+    { ensureCurrent, quarantine }));
 
   progress('stepOpening', 100);
   const url = await readSetupUrl(sessionAdb, newNonce);

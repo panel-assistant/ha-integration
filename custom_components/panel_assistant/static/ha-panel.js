@@ -169,7 +169,8 @@ var n = Object.freeze({
 			networkAdb: "Network ADB",
 			copiedDetail: "{bytes} bytes sent; waiting for the panel to confirm",
 			none: "none",
-			setupMissing: "not found; setup continues on the panel"
+			setupMissing: "not found; setup continues on the panel",
+			webview: "WebView"
 		}
 	},
 	cs: {
@@ -329,7 +330,8 @@ var n = Object.freeze({
 			networkAdb: "ADB přes síť",
 			copiedDetail: "Odesláno {bytes} bajtů; čeká se na potvrzení panelu",
 			none: "žádné",
-			setupMissing: "nenalezeno; nastavení pokračuje na panelu"
+			setupMissing: "nenalezeno; nastavení pokračuje na panelu",
+			webview: "WebView"
 		}
 	},
 	de: {
@@ -489,7 +491,8 @@ var n = Object.freeze({
 			networkAdb: "ADB über das Netzwerk",
 			copiedDetail: "{bytes} Bytes gesendet; Bestätigung des Panels ausstehend",
 			none: "keine",
-			setupMissing: "nicht gefunden; Einrichtung wird auf dem Panel fortgesetzt"
+			setupMissing: "nicht gefunden; Einrichtung wird auf dem Panel fortgesetzt",
+			webview: "WebView"
 		}
 	},
 	es: {
@@ -649,7 +652,8 @@ var n = Object.freeze({
 			networkAdb: "ADB por red",
 			copiedDetail: "{bytes} bytes enviados; esperando la confirmación del panel",
 			none: "ninguno",
-			setupMissing: "no encontrada; la configuración continúa en el panel"
+			setupMissing: "no encontrada; la configuración continúa en el panel",
+			webview: "WebView"
 		}
 	},
 	fr: {
@@ -809,7 +813,8 @@ var n = Object.freeze({
 			networkAdb: "ADB réseau",
 			copiedDetail: "{bytes} octets envoyés ; en attente de confirmation du panneau",
 			none: "aucun",
-			setupMissing: "introuvable ; la configuration continue sur le panneau"
+			setupMissing: "introuvable ; la configuration continue sur le panneau",
+			webview: "WebView"
 		}
 	},
 	it: {
@@ -969,7 +974,8 @@ var n = Object.freeze({
 			networkAdb: "ADB di rete",
 			copiedDetail: "{bytes} byte inviati; in attesa della conferma del pannello",
 			none: "nessuno",
-			setupMissing: "non trovato; la configurazione prosegue sul pannello"
+			setupMissing: "non trovato; la configurazione prosegue sul pannello",
+			webview: "WebView"
 		}
 	},
 	nl: {
@@ -1129,7 +1135,8 @@ var n = Object.freeze({
 			networkAdb: "ADB via netwerk",
 			copiedDetail: "{bytes} bytes verstuurd; wachten op bevestiging van het paneel",
 			none: "geen",
-			setupMissing: "niet gevonden; instellen gaat verder op het paneel"
+			setupMissing: "niet gevonden; instellen gaat verder op het paneel",
+			webview: "WebView"
 		}
 	},
 	pl: {
@@ -1289,7 +1296,8 @@ var n = Object.freeze({
 			networkAdb: "ADB przez sieć",
 			copiedDetail: "Wysłano {bytes} bajtów; oczekiwanie na potwierdzenie panelu",
 			none: "brak",
-			setupMissing: "nie znaleziono; konfiguracja trwa dalej na panelu"
+			setupMissing: "nie znaleziono; konfiguracja trwa dalej na panelu",
+			webview: "WebView"
 		}
 	},
 	"pt-BR": {
@@ -1449,7 +1457,8 @@ var n = Object.freeze({
 			networkAdb: "ADB pela rede",
 			copiedDetail: "{bytes} bytes enviados; aguardando a confirmação do painel",
 			none: "nenhum",
-			setupMissing: "não encontrado; a configuração continua no painel"
+			setupMissing: "não encontrado; a configuração continua no painel",
+			webview: "WebView"
 		}
 	},
 	uk: {
@@ -1609,7 +1618,8 @@ var n = Object.freeze({
 			networkAdb: "ADB через мережу",
 			copiedDetail: "Надіслано {bytes} байт; очікується підтвердження від панелі",
 			none: "Немає",
-			setupMissing: "Не знайдено; налаштування триває на панелі"
+			setupMissing: "Не знайдено; налаштування триває на панелі",
+			webview: "WebView"
 		}
 	},
 	"zh-Hans": {
@@ -1769,7 +1779,8 @@ var n = Object.freeze({
 			networkAdb: "网络 ADB",
 			copiedDetail: "已发送 {bytes} 字节；正在等待面板确认",
 			none: "无",
-			setupMissing: "未找到；设置将在面板上继续"
+			setupMissing: "未找到；设置将在面板上继续",
+			webview: "WebView"
 		}
 	}
 }), r = n.en, i = Object.keys(n);

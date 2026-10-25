@@ -65,6 +65,7 @@ from .repairs_proximity import (
     proximity_state,
 )
 from .repairs_restart import ISSUE_RESTART_REQUIRED, RestartRequiredFlow
+from .repairs_webview import ISSUE_WEBVIEW, WebViewRepairFlow, webview_issue_id
 from .transport_binding import (
     ISSUE_DATA_ENTRY_ID,
     ISSUE_DATA_USER_ID,
@@ -723,6 +724,11 @@ async def async_create_fix_flow(
     values = data or {}
     if issue_id == ISSUE_RESTART_REQUIRED:
         return RestartRequiredFlow()
+    if issue_id.startswith(f"{ISSUE_WEBVIEW}_"):
+        entry_id = values.get("entry_id")
+        if not isinstance(entry_id, str) or issue_id != webview_issue_id(entry_id):
+            raise UnknownStep
+        return WebViewRepairFlow(entry_id)
     if issue_id.startswith(f"{ISSUE_PANEL_PERMISSIONS}_"):
         entry_id = values.get("entry_id")
         if not isinstance(entry_id, str) or issue_id != permission_issue_id(entry_id):

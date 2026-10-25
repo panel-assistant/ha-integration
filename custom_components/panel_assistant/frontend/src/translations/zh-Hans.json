@@ -155,6 +155,7 @@
     "networkAdb": "网络 ADB",
     "copiedDetail": "已发送 {bytes} 字节；正在等待面板确认",
     "none": "无",
-    "setupMissing": "未找到；设置将在面板上继续"
+    "setupMissing": "未找到；设置将在面板上继续",
+    "webview": "WebView"
   }
 }

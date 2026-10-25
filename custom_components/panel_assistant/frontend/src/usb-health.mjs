@@ -35,12 +35,13 @@ function healthVersion(body) {
   return tokens[1];
 }
 
-function parseHttp(text, maximumBody) {
+function parseHttp(text, maximumBody, acceptedStatuses = [200]) {
   const boundary = text.indexOf('\r\n\r\n');
   if (boundary < 0 || boundary > 8192) malformed();
   const lines = text.slice(0, boundary).split('\r\n');
   if (lines.some(line => /[^\x20-\x7e\t]/.test(line))) malformed();
-  if (!/^HTTP\/1\.[01] 200(?: [\x20-\x7e]*)?$/.test(lines.shift())) malformed();
+  const status = /^HTTP\/1\.[01] ([0-9]{3})(?: [\x20-\x7e]*)?$/.exec(lines.shift());
+  if (!status || !acceptedStatuses.includes(Number(status[1]))) malformed();
   if (lines.length > 64) malformed();
   const headers = new Map();
   for (const line of lines) {
@@ -82,6 +83,8 @@ function parseHttp(text, maximumBody) {
 // Internal read-only observation on the transaction's existing ADB connection.
 async function readUsbApp(adb, path, parse, {
   ensureCurrent = () => {}, quarantine, timeoutMs = 5000, closeMs = 2000,
+  request = null,
+  optional = false,
 } = {}) {
   if (typeof ensureCurrent !== 'function' || typeof quarantine !== 'function' ||
       !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 5000 ||
@@ -97,7 +100,9 @@ async function readUsbApp(adb, path, parse, {
     }
     guard();
     writer = socket.writable.getWriter();
-    await writer.write(encoder.encode(`GET ${path} HTTP/1.1\r\nHost: 127.0.0.1:8888\r\nConnection: close\r\n\r\n`));
+    const body = request === null ? '' : JSON.stringify(request);
+    await writer.write(encoder.encode(`${request === null ? 'GET' : 'POST'} ${path} HTTP/1.1\r\nHost: 127.0.0.1:8888\r\nConnection: close\r\n` +
+      (request === null ? '\r\n' : `Content-Type: application/json\r\nContent-Length: ${encoder.encode(body).length}\r\n\r\n${body}`)));
     guard();
     let text;
     try { text = await readBounded(socket.readable, 32768); }
@@ -111,7 +116,7 @@ async function readUsbApp(adb, path, parse, {
     })]);
   } catch (error) {
     stopped = true;
-    quarantine();
+    if (!optional) quarantine();
     if (error instanceof UsbHealthError) throw error;
     fail('health_unavailable');
   } finally {
@@ -134,6 +139,16 @@ export async function readUsbHealth(adb, descriptor, options = {}) {
   const expected = descriptor?.versionName;
   if (!validVersion(expected)) fail('invalid_request');
   return readUsbApp(adb, '/api/v1/health', text => healthVersion(parseHttp(text, 512)) === expected, options);
+}
+
+// Optional provider operation on the same authenticated ADB connection. Older
+// apps can refuse the route without retiring a perfectly usable USB session.
+export async function readUsbWebView(adb, options = {}) {
+  return readUsbApp(adb, '/api/v1/webview', text => {
+    const body = parseHttp(text, 16384, [200, 202, 404, 405, 409]);
+    if (/^HTTP\/1\.[01] (?:404|405)\b/.test(text)) return null;
+    try { return JSON.parse(body); } catch { malformed(); }
+  }, { ...options, optional: true });
 }
 
 // Ask the app for fresh HOME/foreground proof. The app knows which configured

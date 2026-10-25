@@ -1668,6 +1668,27 @@
     "another_home_assistant": {
       "title": "{panel} está com sessão iniciada em outro Home Assistant",
       "description": "{panel} foi adicionado aqui, mas continua com sessão iniciada em outro Home Assistant.\n\nPara corrigir:\n1. [Abra a conexão do painel com o Home Assistant]({configure_url}).\n2. Se pretende conectá-lo aqui, digite o endereço deste Home Assistant e salve.\n3. Reconecte e faça login com a conta que você quer que o painel use; caso contrário, mantenha o servidor atual dele e ignore este reparo."
+    },
+    "panel_webview": {
+      "title": "Atualize o mecanismo do navegador de {panel}.",
+      "fix_flow": {
+        "step": {
+          "update_webview": {
+            "title": "Atualizar mecanismo do navegador",
+            "description": "{panel} tem um mecanismo de navegador antigo ou uma atualização incompleta.\n\nSelecione Enviar para solicitar a atualização compatível verificada ou verificar uma atualização em andamento. A configuração e o pareamento continuam disponíveis. Se não houver um instalador permitido, siga o [guia do WebView]({learn_more_url})."
+          }
+        },
+        "error": {
+          "webview_deferred": "A atualização não foi verificada. A configuração continua disponível. Siga o guia ou selecione Enviar para tentar novamente.",
+          "webview_unavailable": "O Home Assistant não conseguiu verificar o resultado. Reconecte o painel e selecione Enviar para verificar antes de tentar novamente."
+        },
+        "abort": {
+          "entry_removed": "Este painel não está mais configurado no Home Assistant.\n\nPara corrigir:\n1. [Abra os dispositivos do Panel Assistant](/config/integrations/integration/panel_assistant) se quiser adicioná-lo novamente.\n2. Caso contrário, feche esta caixa de diálogo.\n\n[Saiba mais]({learn_more_url})"
+        },
+        "progress": {
+          "updating_webview": "Atualizando o mecanismo do navegador e verificando o resultado.\n\n[Saiba mais]({learn_more_url})"
+        }
+      }
     }
   },
   "options": {

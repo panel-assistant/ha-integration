@@ -155,6 +155,7 @@
     "networkAdb": "ADB via netwerk",
     "copiedDetail": "{bytes} bytes verstuurd; wachten op bevestiging van het paneel",
     "none": "geen",
-    "setupMissing": "niet gevonden; instellen gaat verder op het paneel"
+    "setupMissing": "niet gevonden; instellen gaat verder op het paneel",
+    "webview": "WebView"
   }
 }

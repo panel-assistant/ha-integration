@@ -1668,6 +1668,27 @@
     "another_home_assistant": {
       "title": "Su {panel} è attivo l'accesso a un altro Home Assistant",
       "description": "{panel} è stato aggiunto qui ma rimane connesso con il proprio account a un altro Home Assistant.\n\nPer risolvere:\n1. [Apri la connessione del pannello a Home Assistant]({configure_url}).\n2. Se vuoi collegarlo qui, inserisci l'indirizzo di questo Home Assistant e salva.\n3. Riconnettiti ed effettua l'accesso con l'account che vuoi usare sul pannello; altrimenti, mantieni il server attuale e ignora questa riparazione."
+    },
+    "panel_webview": {
+      "title": "Aggiorna il motore del browser su {panel}.",
+      "fix_flow": {
+        "step": {
+          "update_webview": {
+            "title": "Aggiorna il motore del browser",
+            "description": "{panel} ha un motore del browser precedente o un aggiornamento incompleto.\n\nSeleziona Invia per richiedere l’aggiornamento compatibile verificato o controllare un aggiornamento in corso. Configurazione e associazione restano disponibili. Se non è disponibile un programma di installazione autorizzato, segui la [guida WebView]({learn_more_url})."
+          }
+        },
+        "error": {
+          "webview_deferred": "L’aggiornamento non è stato verificato. La configurazione resta disponibile. Segui la guida o seleziona Invia per riprovare.",
+          "webview_unavailable": "Home Assistant non ha potuto verificare il risultato. Ricollega il pannello e seleziona Invia per controllare prima di riprovare."
+        },
+        "abort": {
+          "entry_removed": "Questo pannello non è più configurato in Home Assistant.\n\nPer risolvere:\n1. [Apri i dispositivi di Panel Assistant](/config/integrations/integration/panel_assistant) se vuoi aggiungerlo di nuovo.\n2. Altrimenti, chiudi questa finestra.\n\n[Scopri di più]({learn_more_url})"
+        },
+        "progress": {
+          "updating_webview": "Aggiornamento del motore del browser e verifica del risultato.\n\n[Altre informazioni]({learn_more_url})"
+        }
+      }
     }
   },
   "options": {

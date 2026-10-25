@@ -1668,6 +1668,27 @@
     "another_home_assistant": {
       "title": "{panel} ist bei einem anderen Home Assistant angemeldet",
       "description": "{panel} ist hier hinzugefügt, bleibt aber bei einem anderen Home Assistant angemeldet.\n\nSo behebst du das Problem:\n1. [Öffne die Home Assistant-Verbindung des Panels]({configure_url}).\n2. Wenn du es hier verbinden möchtest, gib die Adresse dieses Home Assistant ein und speichere.\n3. Verbinde es neu und melde dich mit dem Konto an, das das Panel verwenden soll; behalte andernfalls seinen aktuellen Server bei und ignoriere diese Reparatur."
+    },
+    "panel_webview": {
+      "title": "Browser-Engine auf {panel} aktualisieren.",
+      "fix_flow": {
+        "step": {
+          "update_webview": {
+            "title": "Browser-Engine aktualisieren",
+            "description": "{panel} hat eine ältere Browser-Engine oder ein unvollständiges Update.\n\nWähle Absenden, um das geprüfte kompatible Update anzufordern oder ein laufendes Update zu prüfen. Einrichtung und Kopplung bleiben verfügbar. Falls kein zulässiger Installer verfügbar ist, folge der [WebView-Anleitung]({learn_more_url})."
+          }
+        },
+        "error": {
+          "webview_deferred": "Das Update wurde nicht bestätigt. Die Einrichtung bleibt verfügbar. Folge der Anleitung oder wähle Absenden, um es erneut zu versuchen.",
+          "webview_unavailable": "Home Assistant konnte das Ergebnis nicht prüfen. Verbinde das Panel erneut und wähle Absenden, um vor einem erneuten Versuch zu prüfen."
+        },
+        "abort": {
+          "entry_removed": "Dieses Panel ist nicht mehr in Home Assistant eingerichtet.\n\nSo behebst du das Problem:\n1. [Öffne die Panel Assistant-Geräte](/config/integrations/integration/panel_assistant), wenn du es erneut hinzufügen möchtest.\n2. Schließe andernfalls diesen Dialog.\n\n[Mehr erfahren]({learn_more_url})"
+        },
+        "progress": {
+          "updating_webview": "Browser-Engine wird aktualisiert. Das Ergebnis wird geprüft.\n\n[Mehr erfahren]({learn_more_url})"
+        }
+      }
     }
   },
   "options": {

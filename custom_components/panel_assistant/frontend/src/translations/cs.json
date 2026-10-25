@@ -155,6 +155,7 @@
     "networkAdb": "ADB přes síť",
     "copiedDetail": "Odesláno {bytes} bajtů; čeká se na potvrzení panelu",
     "none": "žádné",
-    "setupMissing": "nenalezeno; nastavení pokračuje na panelu"
+    "setupMissing": "nenalezeno; nastavení pokračuje na panelu",
+    "webview": "WebView"
   }
 }

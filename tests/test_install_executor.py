@@ -86,6 +86,52 @@ def seed_crash_partial(path: Path) -> None:
     path.chmod(0o600)
 
 
+@pytest.mark.parametrize("lost_reply", [False, True])
+async def test_optional_webview_attempt_never_prevents_app_setup(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, lost_reply: bool
+) -> None:
+    """A safely deferred provider or lost reply still completes app installation."""
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    harness = Harness(monkeypatch)
+    observed = AsyncMock(
+        return_value={
+            "schema": 1,
+            "supported": True,
+            "eligible": True,
+            "candidate": {"sha256": "c" * 64},
+            "transaction": None,
+        }
+    )
+    submitted = AsyncMock(
+        return_value={
+            "schema": 1,
+            "supported": True,
+            "eligible": True,
+            "candidate": {"sha256": "c" * 64},
+            "transaction": {"state": "deferred", "reason": "no_privileged_route"},
+        }
+    )
+    if lost_reply:
+        submitted.side_effect = CannotConnectError
+    monkeypatch.setattr(
+        install_executor.HaPaneldClient, "async_get_webview", observed, raising=False
+    )
+    monkeypatch.setattr(
+        install_executor.HaPaneldClient,
+        "async_install_webview",
+        submitted,
+        raising=False,
+    )
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
+    assert harness.setup_state is not None
+    assert submitted.await_count == 1
+    assert submitted.await_args.args == (f"pa-install-{receipt.job_id}", "c" * 64)
+
+
 async def seed_attempt_ceiling(
     hass: HomeAssistant, phase: InstallPhase
 ) -> tuple[InstallJobReceipt, InstallJobManager]:

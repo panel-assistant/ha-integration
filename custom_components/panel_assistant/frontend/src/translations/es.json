@@ -155,6 +155,7 @@
     "networkAdb": "ADB por red",
     "copiedDetail": "{bytes} bytes enviados; esperando la confirmación del panel",
     "none": "ninguno",
-    "setupMissing": "no encontrada; la configuración continúa en el panel"
+    "setupMissing": "no encontrada; la configuración continúa en el panel",
+    "webview": "WebView"
   }
 }

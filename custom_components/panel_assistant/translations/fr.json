@@ -1668,6 +1668,27 @@
     "another_home_assistant": {
       "title": "{panel} a une session ouverte sur un autre Home Assistant",
       "description": "{panel} a été ajouté ici, mais reste connecté à un autre Home Assistant.\n\nPour corriger le problème :\n1. [Ouvrez la connexion Home Assistant du panneau]({configure_url}).\n2. Si vous souhaitez le connecter ici, saisissez l’adresse de ce Home Assistant et enregistrez.\n3. Reconnectez-vous et ouvrez une session avec le compte que le panneau doit utiliser ; sinon, conservez son serveur actuel et ignorez cette réparation."
+    },
+    "panel_webview": {
+      "title": "Mettre à jour le moteur du navigateur sur {panel}.",
+      "fix_flow": {
+        "step": {
+          "update_webview": {
+            "title": "Mettre à jour le moteur du navigateur",
+            "description": "{panel} utilise un ancien moteur de navigateur ou une mise à jour inachevée.\n\nSélectionnez Envoyer pour demander la mise à jour compatible vérifiée ou vérifier une mise à jour en cours. La configuration et l’association restent disponibles. Si aucun programme d’installation autorisé n’est disponible, suivez le [guide WebView]({learn_more_url})."
+          }
+        },
+        "error": {
+          "webview_deferred": "La mise à jour n’a pas été vérifiée. La configuration reste disponible. Suivez le guide ou sélectionnez Envoyer pour réessayer.",
+          "webview_unavailable": "Home Assistant n’a pas pu vérifier le résultat. Reconnectez le panneau, puis sélectionnez Envoyer pour vérifier avant de réessayer."
+        },
+        "abort": {
+          "entry_removed": "Ce panneau n’est plus configuré dans Home Assistant.\n\nPour corriger le problème :\n1. [Ouvrez les appareils Panel Assistant](/config/integrations/integration/panel_assistant) si vous souhaitez l’ajouter à nouveau.\n2. Sinon, fermez cette boîte de dialogue.\n\n[En savoir plus]({learn_more_url})"
+        },
+        "progress": {
+          "updating_webview": "Mise à jour du moteur du navigateur et vérification du résultat.\n\n[En savoir plus]({learn_more_url})"
+        }
+      }
     }
   },
   "options": {

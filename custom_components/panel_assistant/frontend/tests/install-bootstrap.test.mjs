@@ -176,7 +176,7 @@ function renderedJourney(scenario, locale = 'de', realCatalogue = false) {
       assert.match(node('support-log').textContent, /shell_timeout/);
       assert.deepEqual(calls, errorBefore);
     } else {
-    installResolve({ permissions: { raw: 'RAW_PERMISSION' } });
+    installResolve({ receipt: {id: 'b'.repeat(32)}, permissions: { raw: 'RAW_PERMISSION' } });
     if (scenario === 'settlement_interrupted') {
       await tick(); await tick();
       assert.equal(globalThis.settlementStarted, true);

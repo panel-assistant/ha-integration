@@ -1668,6 +1668,27 @@
     "another_home_assistant": {
       "title": "Panel {panel} jest zalogowany do innej instancji Home Assistant",
       "description": "Panel {panel} został tu dodany, ale pozostaje zalogowany do innej instancji Home Assistant.\n\nAby rozwiązać problem:\n1. [Otwórz połączenie panelu z Home Assistant]({configure_url}).\n2. Jeśli zamierzasz połączyć go tutaj, wpisz adres tej instancji Home Assistant i zapisz.\n3. Połącz się ponownie i zaloguj na konto, którego panel ma używać; w przeciwnym razie pozostaw obecny serwer i zignoruj ten problem."
+    },
+    "panel_webview": {
+      "title": "Zaktualizuj silnik przeglądarki na {panel}.",
+      "fix_flow": {
+        "step": {
+          "update_webview": {
+            "title": "Aktualizuj silnik przeglądarki",
+            "description": "{panel} ma starszy silnik przeglądarki lub niedokończoną aktualizację.\n\nWybierz Wyślij, aby poprosić o zweryfikowaną zgodną aktualizację lub sprawdzić trwającą aktualizację. Konfiguracja i parowanie pozostają dostępne. Jeśli nie ma dozwolonego instalatora, skorzystaj z [poradnika WebView]({learn_more_url})."
+          }
+        },
+        "error": {
+          "webview_deferred": "Aktualizacja nie została potwierdzona. Konfiguracja pozostaje dostępna. Skorzystaj z poradnika lub wybierz Wyślij, aby spróbować ponownie.",
+          "webview_unavailable": "Home Assistant nie mógł sprawdzić wyniku. Połącz panel ponownie, a następnie wybierz Wyślij, aby sprawdzić przed ponowną próbą."
+        },
+        "abort": {
+          "entry_removed": "Ten panel nie jest już skonfigurowany w Home Assistant.\n\nAby rozwiązać problem:\n1. [Otwórz urządzenia Panel Assistant](/config/integrations/integration/panel_assistant), jeśli chcesz dodać go ponownie.\n2. W przeciwnym razie zamknij to okno.\n\n[Dowiedz się więcej]({learn_more_url})"
+        },
+        "progress": {
+          "updating_webview": "Aktualizowanie silnika przeglądarki i sprawdzanie wyniku.\n\n[Więcej informacji]({learn_more_url})"
+        }
+      }
     }
   },
   "options": {
