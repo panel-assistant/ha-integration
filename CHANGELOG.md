@@ -19,6 +19,7 @@ Pairs with the 1.0.0-rc1 panel app. The panel app is published first, because Pa
 
 ### New
 
+- **An estimate while a panel reads its entities.** Panel Assistant sends the panel Home Assistant's current entity count, keeping the last known count through a Home Assistant restart so a compatible panel app can show progress against an approximate total.
 - **Meta Portal setup during installation.** On a Meta Portal, installing the panel app also turns off Meta's screensaver, which otherwise starts every time the screen sleeps, and hides Meta's swipe-up bar over the panel. Panel Assistant notes Meta's settings first and puts them back if you remove the panel app. Where Meta's firmware reports the home screen as set but still shows Android's Home chooser, both installers press Always for the panel app, and leave a chooser that offers any other app alone.
 - **Shelly Wall Display setup during installation.** On a Shelly Wall Display, installing the panel app also switches off Shelly's corner overlay, so the dashboard is clean; Shelly's own interface stays reachable from the launcher button on the panel's navigation bar. Panel Assistant notes the overlay setting first and puts it back if you remove the panel app.
 - **Shelly Wall Displays are found by their own announcement.** Panel Assistant now recognises the network announcement a Shelly Wall Display makes whether or not the panel app runs. A panel with the app follows it to a new address, and one without the app is offered under Discovered so you can install it.
