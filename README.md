@@ -1,16 +1,13 @@
-<h1 align="center">
-  <a href="https://panel-assistant.io"><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://panel-assistant.io/brand/wordmark-on-dark.svg">
-    <img src="https://panel-assistant.io/brand/wordmark-on-light.svg" width="500" alt="Panel Assistant">
-  </picture></a>
-</h1>
+<p align="center"><a href="https://panel-assistant.io"><img src="https://raw.githubusercontent.com/panel-assistant/ha-integration/main/custom_components/panel_assistant/brand/icon@2x.png" width="128" alt="Panel Assistant icon"></a></p>
 
-<h1 align="center">Home Assistant, on the wall, done properly.</h1>
+<h1 align="center">Panel Assistant</h1>
+
+<p align="center"><strong>Home Assistant dashboards and voice on Android wall panels, installed and kept up to date from Home Assistant.</strong></p>
 
 <p align="center">
   <a href="https://github.com/panel-assistant/ha-integration/releases/latest"><img src="https://img.shields.io/github/v/release/panel-assistant/ha-integration?label=release" alt="Latest release"></a>
   <a href="https://github.com/panel-assistant/ha-integration/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/panel-assistant/ha-integration/tests.yml?branch=main&label=tests" alt="Tests"></a>
-  <a href="https://github.com/panel-assistant/ha-integration/blob/main/LICENSE"><img src="https://img.shields.io/github/license/panel-assistant/ha-integration" alt="Apache 2.0 licence"></a>
+  <a href="https://github.com/panel-assistant/ha-integration/blob/main/LICENSE"><img src="https://img.shields.io/badge/licence-Apache%202.0-blue.svg" alt="Apache 2.0 licence"></a>
   <a href="https://panel-assistant.io/go/discord"><img src="https://img.shields.io/badge/Discord-join-5865F2.svg" alt="Panel Assistant on Discord"></a>
 </p>
 <p align="center">
@@ -31,6 +28,7 @@ This repository is the Home Assistant integration. The panel app it installs is 
 - **Set up from Home Assistant.** Give the integration a panel's address and it checks the panel, installs the app, starts it and creates the device. A brand-new panel can be installed over USB from your browser before it ever goes on the wall.
 - **Safe to install.** Checked before anything changes, refuses to overwrite what it should not, and picks up where it left off if interrupted.
 - **The panel's hardware, in Home Assistant.** Screen, LEDs, buttons, relays, light and proximity sensors appear as entities automatically.
+- **A voice assistant on the wall.** On a panel with a microphone, turn on the voice assistant from the panel's Configure page and the panel becomes a Home Assistant [Assist satellite](https://panel-assistant.io/manage/voice-assistant/), as an entity on the panel's existing device with nothing extra to add. The wake word is detected on the panel, audio goes to Home Assistant only after it hears one, and each wake word can use its own Assist pipeline.
 - **Panel and house, working together.** Dims with the room and wakes as you approach. Where the panel lacks a sensor, Home Assistant drives the screen instead.
 - **Every panel, one system.** Different makes and models look and behave identically in Home Assistant. Another panel joins the same setup, not a second app.
 - **All your panels in the sidebar.** A Panel Assistant entry in the Home Assistant sidebar opens each connected panel's own dashboard, settings and logs.
