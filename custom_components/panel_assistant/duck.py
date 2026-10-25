@@ -55,6 +55,10 @@ DUCK_FACTOR: Final = 0.3
 # reply ending. A duck outliving either is let go.
 TURN_LIMIT: Final = 120.0
 FOLLOW_UP_LIMIT: Final = 4.0
+# A volume change lands in well under a second. A player that never answers
+# one (Music Assistant's proxy for a speaker that lost power) is given up on,
+# so it cannot hold every later change to that player until Core restarts.
+CALL_LIMIT: Final = 10.0
 
 _SOUNDING: Final = frozenset(
     {MediaPlayerState.PLAYING, MediaPlayerState.BUFFERING, MediaPlayerState.ON}
@@ -260,12 +264,19 @@ class RoomDuck:
             else:
                 service, data[ATTR_MEDIA_VOLUME_LEVEL] = SERVICE_VOLUME_SET, level
             try:
-                await self._hass.services.async_call(
-                    Platform.MEDIA_PLAYER,
-                    service,
-                    data,
-                    blocking=True,
-                    context=Context(),
+                async with asyncio.timeout(CALL_LIMIT):
+                    await self._hass.services.async_call(
+                        Platform.MEDIA_PLAYER,
+                        service,
+                        data,
+                        blocking=True,
+                        context=Context(),
+                    )
+            except TimeoutError:
+                _LOGGER.warning(
+                    "%s did not answer a volume change within %.0f s",
+                    entity_id,
+                    CALL_LIMIT,
                 )
             except (HomeAssistantError, vol.Invalid) as err:
                 _LOGGER.warning("Could not change the volume of %s: %s", entity_id, err)

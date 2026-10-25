@@ -972,3 +972,53 @@ async def test_a_late_report_during_a_slow_restore_keeps_later_ducks_serialized(
     await _played(hass, panel)
     assert speaker.level == LEVEL
     assert speaker.changes == [LEVEL * 0.3, LEVEL] * 3
+
+
+class StuckRestore(Player):
+    """A proxy that never answers its first restore, as when its speaker lost power."""
+
+    def __init__(self, name: str) -> None:
+        super().__init__(name)
+        self.stuck = asyncio.Event()
+
+    async def async_set_volume_level(self, volume: float) -> None:
+        if volume == LEVEL and not self.stuck.is_set():
+            self.stuck.set()
+            await asyncio.Event().wait()
+        await super().async_set_volume_level(volume)
+
+
+async def test_a_write_the_player_never_answers_does_not_hold_up_the_next_turn(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = StuckRestore("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=False)
+
+    await _turn(panel)
+    played = await panel.send(
+        {"type": "panel_assistant/voice_played", "session": panel.token}
+    )
+    assert played["success"], played
+    await speaker.stuck.wait()
+    assert speaker.level < LEVEL
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=11))
+    await _until(lambda: "speaker did not answer a volume change" in caplog.text)
+    await hass.async_block_till_done()
+
+    # The next turn still turns the room down, and gives it back.
+    await _turn(panel)
+    await hass.async_block_till_done()
+    assert hass.states.get(satellite).state == "responding"
+    assert speaker.changes == [LEVEL * 0.3, LEVEL * 0.3]
+    await _played(hass, panel)
+    assert speaker.level == LEVEL
+    assert speaker.changes == [LEVEL * 0.3, LEVEL * 0.3, LEVEL]
