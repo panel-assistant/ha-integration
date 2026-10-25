@@ -115,6 +115,7 @@ async def test_selected_local_shell_never_retries_over_network_after_disconnect(
         tcp.assert_not_called()
 
 
+@pytest.mark.parametrize("ready_diagnostic", [None, False, True])
 @pytest.mark.parametrize("bootstrap_needed", [False, True])
 async def test_local_target_proves_readiness_and_physical_identity_on_the_session(
     hass: HomeAssistant,
@@ -123,6 +124,7 @@ async def test_local_target_proves_readiness_and_physical_identity_on_the_sessio
     hass_read_only_access_token: str,
     monkeypatch: pytest.MonkeyPatch,
     bootstrap_needed: bool,
+    ready_diagnostic: bool | None,
 ) -> None:
     import re
 
@@ -185,6 +187,9 @@ async def test_local_target_proves_readiness_and_physical_identity_on_the_sessio
         )
         bootstrap = AsyncMock(return_value=True)
         monkeypatch.setattr(local_adb_bootstrap, "async_bootstrap", bootstrap)
+    diagnostic = (
+        {} if ready_diagnostic is None else {"security_unverified": ready_diagnostic}
+    )
     task = asyncio.create_task(
         local_adb.async_target(hass, entry, normalize_address("panel.local"))
     )
@@ -197,6 +202,7 @@ async def test_local_target_proves_readiness_and_physical_identity_on_the_sessio
             "ready": not bootstrap_needed,
             "managed": not bootstrap_needed,
             "recovery_hold": False,
+            **diagnostic,
         },
     )
     if bootstrap_needed:
@@ -220,7 +226,12 @@ async def test_local_target_proves_readiness_and_physical_identity_on_the_sessio
         await panel.answer(
             ready["command_id"],
             "applied",
-            result={"ready": True, "managed": True, "recovery_hold": False},
+            result={
+                "ready": True,
+                "managed": True,
+                "recovery_hold": False,
+                **diagnostic,
+            },
         )
     for prefix in ("ID", "POSTURE"):
         event = (await _receive(panel.client))["event"]
@@ -367,3 +378,38 @@ async def test_disconnected_pending_hello_does_not_open_phantom_session(
     release.set()
     await hass.async_block_till_done()
     assert async_get_sessions(hass).get(entry.entry_id) is None
+
+
+@pytest.mark.parametrize("diagnostic", ["false", 0, 1, None, {}, []])
+async def test_ready_refuses_malformed_security_diagnostic_before_shell_execution(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    diagnostic: Any,
+) -> None:
+    from custom_components.panel_assistant import local_adb
+    from custom_components.panel_assistant.client import normalize_address
+
+    entry, panel = await _panel(
+        hass, hass_ws_client, hass_read_only_user, hass_read_only_access_token
+    )
+    task = asyncio.create_task(
+        local_adb.async_target(hass, entry, normalize_address("panel.local"))
+    )
+    ready = (await _receive(panel.client))["event"]
+    assert ready["op"] == "adb.ready"
+    await panel.answer(
+        ready["command_id"],
+        "applied",
+        result={
+            "ready": True,
+            "managed": True,
+            "recovery_hold": False,
+            "security_unverified": diagnostic,
+        },
+    )
+    await panel.nothing_sent()
+    assert task.done(), "malformed readiness is refused before any shell request"
+    with pytest.raises(InstallAdbError):
+        await task

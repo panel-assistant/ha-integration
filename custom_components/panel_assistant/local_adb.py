@@ -161,7 +161,8 @@ class LocalAdbDevice(AdbDeviceAsync):
 
 
 def _ready(result: dict[str, Any]) -> bool:
-    if set(result) != {"ready", "managed", "recovery_hold"} or any(
+    required = {"ready", "managed", "recovery_hold"}
+    if set(result) not in (required, required | {"security_unverified"}) or any(
         type(value) is not bool for value in result.values()
     ):
         raise _failure()
