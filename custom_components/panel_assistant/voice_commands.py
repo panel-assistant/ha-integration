@@ -303,7 +303,11 @@ async def async_run_command(
     if panel and _normalized(panel) in _words(grammars, "panel_words"):
         panel = None  # "on the screen": the panel itself, not a name
     if panel:
-        named = _panels_called(hass, grammars, panel)
+        named = [
+            entry_id
+            for entry_id in _panels_called(hass, grammars, panel)
+            if assistant is None or panel_exposed(hass, entry_id, assistant)
+        ]
         if len(named) != 1:
             key = "panel_ambiguous" if named else "panel_unknown"
             return False, replies[key].format(panel=panel)

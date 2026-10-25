@@ -224,3 +224,65 @@ async def test_an_agent_acts_only_on_a_panel_exposed_to_it(
         )
         assert result == {"success": False, "speech": reply}
     await panel.nothing_sent()
+
+
+@pytest.mark.parametrize("namesake_name", ["Attic", "Attic panel"])
+@pytest.mark.parametrize(
+    ("live_exposed", "namesake_exposed", "reply"),
+    [
+        (True, False, "launcher"),
+        (False, True, "panel_unavailable"),
+        (False, False, "panel_unknown"),
+        (True, True, "panel_ambiguous"),
+    ],
+)
+async def test_an_agent_counts_only_exposed_namesakes(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    namesake_name: str,
+    live_exposed: bool,
+    namesake_exposed: bool,
+    reply: str,
+) -> None:
+    from homeassistant.config_entries import ConfigEntryState
+    from homeassistant.helpers import device_registry as dr
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    entry, panel, device_id = await _ready(
+        hass, hass_ws_client, hass_read_only_user, hass_read_only_access_token, "en"
+    )
+    dr.async_get(hass).async_update_device(device_id, name_by_user="Attic")
+    registry = er.async_get(hass)
+    for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+        async_expose_entity(hass, "conversation", entity.entity_id, live_exposed)
+    # An unrelated exposed panel keeps the tools available even if both
+    # namesakes are hidden. The second namesake has no connected session.
+    for title, exposed in ((namesake_name, namesake_exposed), ("Public", True)):
+        other = MockConfigEntry(domain=DOMAIN, title=title)
+        other.add_to_hass(hass)
+        other.mock_state(hass, ConfigEntryState.LOADED)
+        screen = registry.async_get_or_create(
+            "light", DOMAIN, other.entry_id, config_entry=other
+        )
+        async_expose_entity(hass, "conversation", screen.entity_id, exposed)
+
+    api = await llm.async_get_api(hass, llm.LLM_API_ASSIST, _context(None))
+    args = llm.ToolInput(
+        tool_name="panel_assistant__launcher", tool_args={"panel": "Attic"}
+    )
+    if reply == "launcher":
+        call = hass.async_create_task(api.async_call_tool(args))
+        sent = await panel.command()
+        assert (sent["channel"], sent["value"]) == ("launcher", None)
+        await panel.answer(sent["command_id"], "applied")
+        result = await call
+    else:
+        result = await api.async_call_tool(args)
+    english = voice_grammar.load_grammar("en")["responses"]
+    assert result == {
+        "success": reply == "launcher",
+        "speech": english[reply].format(panel="Attic"),
+    }
+    await panel.nothing_sent()
