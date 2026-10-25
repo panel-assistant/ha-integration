@@ -79,7 +79,23 @@ test('polling in-progress work stops at its bound without another submission', a
     read: async (_, options) => { reads++; if (options.request) submissions++; return state({state: 'downloading'}); },
     pause: async () => {}, attempts: 2,
   });
-  assert.equal(result, 'downloading');
+  assert.equal(result, 'unknown');
   assert.equal(reads, 3);
   assert.equal(submissions, 0);
+});
+
+test('an installing provider can rebind native HTTP while USB only reconnects its read socket', async () => {
+  const replies = [state(null), state({state: 'installing'}), new Error('native process restarting'), state({state: 'installed'})];
+  const requests = [];
+  const result = await provisionUsbWebView({}, 'id', {}, {
+    read: async (_, options) => {
+      requests.push(options.request ?? null);
+      const next = replies.shift();
+      if (next instanceof Error) throw next;
+      return next;
+    }, pause: async () => {}, attempts: 3,
+  });
+  assert.equal(result, 'installed');
+  assert.equal(requests.filter(Boolean).length, 1);
+  assert.equal(requests.length, 4);
 });

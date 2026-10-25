@@ -14,7 +14,7 @@ from typing import Any
 from .client import HaPaneldClient, InvalidResponseError
 
 _SHA256 = re.compile(r"[0-9a-f]{64}")
-ACTIVE_STATES = frozenset({"downloading", "verified"})
+ACTIVE_STATES = frozenset({"downloading", "verified", "installing"})
 ATTENTION_STATES = frozenset({"submitted_unknown", "deferred", "rejected"})
 TRANSACTION_STATES = ACTIVE_STATES | ATTENTION_STATES | {"installed"}
 
@@ -133,7 +133,12 @@ async def async_provision_webview(client: HaPaneldClient, request_id: str) -> No
                 )
             while status.transaction_state in ACTIVE_STATES:
                 await asyncio.sleep(1)
-                status = parse_webview(await client.async_get_webview())
+                try:
+                    status = parse_webview(await client.async_get_webview())
+                except Exception:
+                    # A known active replacement can restart the native HTTP
+                    # owner. Keep reading until the existing deadline; never POST.
+                    continue
     except Exception:
         # A timeout can follow package submission. The app's durable record, not
         # a second POST or app-job failure, owns the unknown outcome.

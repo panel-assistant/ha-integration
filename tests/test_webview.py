@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from contextlib import suppress
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -11,6 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.setup import async_setup_component
 
+from custom_components.panel_assistant.client import CannotConnectError
 from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
 from custom_components.panel_assistant.repairs_webview import (
     async_reconcile_webview_issue,
@@ -181,7 +183,9 @@ async def test_repair_one_press_has_progress_then_observation_only(
         did=entry.unique_id, user_id="owner", capabilities={"management"}
     )
     operations = []
+    current_session = [session]
     read_started, release_read = asyncio.Event(), asyncio.Event()
+    reconnecting = asyncio.Event()
 
     async def manage(
         _hass: Any, _session: Any, op: str, **fields: Any
@@ -191,9 +195,16 @@ async def test_repair_one_press_has_progress_then_observation_only(
             return observation()
         if op == "webview.install":
             assert fields["artifact_sha256"] == "c" * 64
-            return observation("downloading")
+            return observation("installing")
+        if len(operations) == 3:
+            # Updating the provider can end the native process/session. The
+            # accepted operation remains panel-owned while it reconnects.
+            current_session[0] = None
+            reconnecting.set()
+            raise CannotConnectError
         read_started.set()
         await release_read.wait()
+        assert _session is current_session[0]
         return observation("installed", eligible=False)
 
     with (
@@ -202,7 +213,7 @@ async def test_repair_one_press_has_progress_then_observation_only(
         ) as sessions,
         patch("custom_components.panel_assistant.repairs_webview.async_manage", manage),
     ):
-        sessions.return_value.get.return_value = session
+        sessions.return_value.get.side_effect = lambda _: current_session[0]
         response = await admin.post(
             "/api/repairs/issues/fix",
             json={"handler": DOMAIN, "issue_id": f"panel_webview_{entry.entry_id}"},
@@ -215,7 +226,11 @@ async def test_repair_one_press_has_progress_then_observation_only(
         progress = await response.json()
         assert progress["type"] == "progress"
         assert progress["step_id"] == "webview_progress"
-        await read_started.wait()
+        with suppress(TimeoutError):
+            await asyncio.wait_for(reconnecting.wait(), 3)
+        assert reconnecting.is_set(), (
+            "an admitted install must keep observing through provider rebind"
+        )
         if retire == "remove":
             await hass.config_entries.async_remove(entry.entry_id)
         elif retire == "unbind":
@@ -227,15 +242,30 @@ async def test_repair_one_press_has_progress_then_observation_only(
                 is None
             )
         elif retire == "identity":
-            session.did = "b" * 64
+            current_session[0] = SimpleNamespace(
+                did="b" * 64, user_id="owner", capabilities={"management"}
+            )
+        if retire is None:
+            current_session[0] = SimpleNamespace(
+                did=entry.unique_id, user_id="owner", capabilities={"management"}
+            )
+            await read_started.wait()
         release_read.set()
-        await hass.async_block_till_done()
+        finished = False
+        with suppress(TimeoutError):
+            await asyncio.wait_for(hass.async_block_till_done(), 3)
+            finished = True
+        assert finished, "definitive identity retirement must end progress promptly"
         # Core's progress continuation, not another install form submission.
         response = await admin.post(
             f"/api/repairs/issues/fix/{flow['flow_id']}", json={}
         )
         result = await response.json()
-        assert operations == ["webview.observe", "webview.install", "webview.observe"]
+        assert operations == [
+            "webview.observe",
+            "webview.install",
+            "webview.observe",
+        ] + (["webview.observe"] if retire is None else [])
         if retire == "remove":
             assert result["type"] == "abort" and result["reason"] == "entry_removed"
         elif retire in ("unbind", "identity"):

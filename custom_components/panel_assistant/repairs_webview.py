@@ -10,8 +10,10 @@ import voluptuous as vol
 from homeassistant.components.repairs import RepairsFlow, RepairsFlowResult
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 
+from .client import CannotConnectError, InvalidResponseError
 from .const import CONF_TRANSPORT_USER_ID, DOMAIN, help_url
 from .status import PanelStatus
 from .transport_sessions import (
@@ -138,7 +140,7 @@ class WebViewRepairFlow(RepairsFlow):
 
     def _session(
         self, entry: ConfigEntry, user_id: object, did: str | None
-    ) -> PanelSession:
+    ) -> PanelSession | None:
         """Recheck the same entry, binding and authenticated identity each time."""
         session = async_get_sessions(self.hass).get(entry.entry_id)
         if (
@@ -146,13 +148,15 @@ class WebViewRepairFlow(RepairsFlow):
             or not user_id
             or entry.data.get(CONF_TRANSPORT_USER_ID) != user_id
             or entry.unique_id != did
-            or session is None
-            or not session_manages(session)
-            or session.did != did
-            or session.user_id != user_id
+            or (
+                session is not None
+                and (session.did != did or session.user_id != user_id)
+            )
         ):
             raise ValueError("panel_unavailable")
-        return session
+        # A provider rebind may temporarily remove its native session. Missing
+        # transport is different from the entry, account or identity retiring.
+        return session if session_manages(session) else None
 
     async def _async_update(self) -> str | None:
         entry = self.hass.config_entries.async_get_entry(self._entry_id)
@@ -161,10 +165,11 @@ class WebViewRepairFlow(RepairsFlow):
         user_id, did = entry.data.get(CONF_TRANSPORT_USER_ID), entry.unique_id
 
         async def observe() -> WebViewStatus:
+            session = self._session(entry, user_id, did)
+            if session is None:
+                raise ConnectionError("panel_reconnecting")
             status = parse_webview(
-                await async_manage(
-                    self.hass, self._session(entry, user_id, did), "webview.observe"
-                )
+                await async_manage(self.hass, session, "webview.observe")
             )
             self._session(entry, user_id, did)
             return status
@@ -178,10 +183,13 @@ class WebViewRepairFlow(RepairsFlow):
                     and status.eligible
                     and status.candidate_sha256
                 ):
+                    session = self._session(entry, user_id, did)
+                    if session is None:
+                        raise ConnectionError("panel_reconnecting")
                     status = parse_webview(
                         await async_manage(
                             self.hass,
-                            self._session(entry, user_id, did),
+                            session,
                             "webview.install",
                             request_id=f"pa-repair-{token_hex(16)}",
                             artifact_sha256=status.candidate_sha256,
@@ -190,7 +198,18 @@ class WebViewRepairFlow(RepairsFlow):
                     self._session(entry, user_id, did)
                 while status.transaction_state in ACTIVE_STATES:
                     await asyncio.sleep(1)
-                    status = await observe()
+                    try:
+                        status = await observe()
+                    except (
+                        HomeAssistantError,
+                        CannotConnectError,
+                        InvalidResponseError,
+                        ConnectionError,
+                    ):
+                        # The accepted update may restart its process. Reacquire
+                        # only the same bound identity; retirement still aborts.
+                        self._session(entry, user_id, did)
+                        continue
                 _reconcile(self.hass, entry, status)
                 return "webview_deferred" if status.needs_attention else None
         except Exception:
