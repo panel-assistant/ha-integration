@@ -348,13 +348,22 @@ async def test_existing_keyless_shelly_offers_and_installs_from_ha(
 
 @pytest.mark.parametrize("capability", ["api", None])
 async def test_an_app_on_an_older_protocol_is_updated_over_adb(
-    route: SimpleNamespace, monkeypatch: pytest.MonkeyPatch, capability: str | None
+    route: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
+    capability: str | None,
+    hass: HomeAssistant,
 ) -> None:
     """It can install for itself only with a session's policy, which it never gets.
 
     So its own install route, reported in its status or by an older app's
     privileged-route probe, is passed over for the authorized ADB route.
     """
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        entry_id="entry-id",
+        data={CONF_ADDRESS: "192.168.1.10"},
+    )
+    entry.add_to_hass(hass)
     coordinator = route.entity.coordinator
     coordinator.data = PanelSnapshot(
         health=replace(_health(), protocol=None),
