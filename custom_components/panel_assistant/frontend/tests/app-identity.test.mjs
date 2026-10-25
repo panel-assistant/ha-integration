@@ -9,9 +9,12 @@ import { InstallContractError, buildLaunch } from '../src/install-contract.mjs';
 import { InstalledObservationError, buildInstalledObservation } from '../src/installed-observation.mjs';
 import { buildVendorDisplaySettlement } from '../src/vendor-provisioning.mjs';
 import { buildHomeClaim } from '../src/home-chooser.mjs';
+import { createUsbTransactionPorts } from '../src/usb-transaction-ports.mjs';
+import { createInstallController } from '../src/install-controller.mjs';
 
 const nonce = 'a'.repeat(32);
 const notClean = error => error instanceof PreflightError && error.code === 'target_not_clean';
+const runsTheApp = error => error instanceof PreflightError && error.code === 'target_installed';
 
 const MOVED = 'io.panelassistant.android/io.panelassistant.android.MainActivity';
 const OLD_APP_LAUNCH = 'io.github.maxlyth.hapaneld/.MainActivity';
@@ -78,6 +81,7 @@ test('the preflight still reads the old app and its data, as well as this one', 
 test('USB classification refuses every existing panel, the old app included', () => {
   const none = new Set();
   assert.equal(classifyTarget(PACKAGE_ID, [], none), false);
+  // Anything of the old app, or this app's id kept without the app running, is unclean.
   for (const installed of [[LEGACY_PACKAGE_ID], [PACKAGE_ID], PROBED]) {
     assert.throws(() => classifyTarget(PACKAGE_ID, installed, none), notClean);
     for (const packageId of PROBED) {
@@ -87,6 +91,12 @@ test('USB classification refuses every existing panel, the old app included', ()
   for (const packageId of PROBED) {
     assert.throws(() => classifyTarget(PACKAGE_ID, [], new Set([packageId])), notClean);
   }
+  // A panel running this app alone, its own data included, is told apart.
+  for (const residue of [none, new Set([PACKAGE_ID])]) {
+    assert.throws(() => classifyTarget(PACKAGE_ID, [PACKAGE_ID], residue, [PACKAGE_ID]), runsTheApp);
+  }
+  assert.throws(() => classifyTarget(PACKAGE_ID, PROBED, none, PROBED), notClean);
+  assert.throws(() => classifyTarget(PACKAGE_ID, [PACKAGE_ID], new Set(PROBED), [PACKAGE_ID]), notClean);
   // The old app is never an install target.
   assert.throws(() => classifyTarget(LEGACY_PACKAGE_ID, [], none),
     error => error instanceof PreflightError && error.code === 'invalid_request');
@@ -129,12 +139,68 @@ test('a whole preflight body reads each probed id from its own sections', () => 
   assert.equal(clean.rootMode, 'rootless');
   assert.equal(clean.installationAdmission, 'clean_preflight');
 
-  assert.throws(() => parsePreflight(preflightBody({ installed: [PACKAGE_ID] }), nonce, target), notClean);
+  // Running the app (pm path finds it) differs from keeping its id after an uninstall.
+  assert.throws(() => parsePreflight(preflightBody({ installed: [PACKAGE_ID] }), nonce, target), runsTheApp);
+  assert.throws(() => parsePreflight(preflightBody({ installed: [PACKAGE_ID], residue: [PACKAGE_ID] }),
+    nonce, target), runsTheApp);
+  assert.throws(() => parsePreflight(preflightBody({ installed: PROBED }), nonce, target), notClean);
+  assert.throws(() => parsePreflight(preflightBody({ installed: [PACKAGE_ID], retained: [LEGACY_PACKAGE_ID] }),
+    nonce, target), notClean);
   assert.throws(() => parsePreflight(preflightBody({ retained: [PACKAGE_ID] }), nonce, target), notClean);
   assert.throws(() => parsePreflight(preflightBody({ residue: [PACKAGE_ID] }), nonce, target), notClean);
   // An old-app descriptor is never admitted, even on a clean panel.
   assert.throws(() => parsePreflight(preflightBody(), nonce, { ...DESCRIPTOR, packageId: LEGACY_PACKAGE_ID }),
     error => error instanceof PreflightError && error.code === 'invalid_request');
+});
+
+// Through the USB ports the installer uses: a refused clean check closes the
+// session, except a panel that already runs the app, which the installer still
+// needs the session for, to give Panel Assistant its route back.
+async function cleanCheck(installed, { throughPreview = false } = {}) {
+  const target = { model: 'Test Panel', serial: 'SERIAL-1', primaryAbi: 'arm64-v8a', androidSdk: 34,
+    rootMode: 'rootless', usbVendorId: 1, usbProductId: 2, usbSerial: 'usb' };
+  const release = { kind: 'authenticated-apk-bytes',
+    descriptor: { ...DESCRIPTOR, packageId: PACKAGE_ID, apkSize: 1234, apkSha256: 'a'.repeat(64) } };
+  const shell = body => ({ readable: new ReadableStream({ start(controller) {
+    controller.enqueue(new TextEncoder().encode(body)); controller.close();
+  } }), close: async () => {} });
+  const adb = { async createSocket(command) {
+    const n = command.match(/BEGIN:([a-f0-9]{32})/)[1];
+    if (command.includes('HAPANELD_PREFLIGHT_BEGIN')) return shell(preflightBody({ installed }).replaceAll(nonce, n));
+    if (command.includes('HAPANELD_INSTALLED_BEGIN')) {
+      // Another build of the app: present, but not this release's bytes.
+      const apk = '/data/app/~~x==/io.panelassistant.android-y==/base.apk';
+      return shell([`HAPANELD_INSTALLED_BEGIN:${n}`, 'present', apk,
+        `HAPANELD_INSTALLED_MODE_BEGIN:${n}`, '81a4', `HAPANELD_INSTALLED_MODE_END:${n}:0`,
+        `HAPANELD_INSTALLED_SIZE_BEGIN:${n}`, '999', `HAPANELD_INSTALLED_SIZE_END:${n}:0`,
+        `HAPANELD_INSTALLED_SHA_BEGIN:${n}`, `${'b'.repeat(64)}  ${apk}`, `HAPANELD_INSTALLED_SHA_END:${n}:0`,
+        `HAPANELD_INSTALLED_END:${n}`, ''].join('\n'));
+    }
+    if (!command.includes('HAPANELD_POSTURE_BEGIN')) throw new Error('nothing but posture and preflight is read');
+    const identity = { MODEL: 'Test Panel', SERIAL: 'SERIAL-1', ABI: 'arm64-v8a', SDK: '34', UID: '2000',
+      SECURE: '1', DEBUGGABLE: '0', SU: 'absent' };
+    return shell([`HAPANELD_POSTURE_BEGIN:${n}`, ...Object.entries(identity).flatMap(([name, value]) => [
+      `HAPANELD_POSTURE_${name}_BEGIN:${n}`, value, `HAPANELD_POSTURE_${name}_END:${n}:0`]),
+    `HAPANELD_POSTURE_END:${n}`, ''].join('\n'));
+  } };
+  let stopped = 0;
+  const ports = createUsbTransactionPorts({ adb, usbDevice: { vendorId: 1, productId: 2, serialNumber: 'usb' },
+    authenticate: async () => release, quarantine() { stopped += 1; } });
+  await ports.authenticate();
+  const attempt = throughPreview
+    ? createInstallController({ store: { load: async () => null }, ports }).preview(target)
+    : ports.inspect({ id: 'd'.repeat(32), phase: 'prepared', target }, release);
+  const error = await attempt.then(() => null, caught => caught);
+  return { code: error?.code, stopped };
+}
+
+test('the USB ports keep the session for a panel that runs the app, and close it for any other refusal', async () => {
+  assert.deepEqual(await cleanCheck([PACKAGE_ID]), { code: 'target_installed', stopped: 0 });
+  assert.deepEqual(await cleanCheck([LEGACY_PACKAGE_ID]), { code: 'target_not_clean', stopped: 1 });
+  assert.deepEqual(await cleanCheck(PROBED), { code: 'target_not_clean', stopped: 1 });
+  // The installer's own preview: another build of the app is not adopted, and
+  // reaches the installer as this answer with the session still open.
+  assert.deepEqual(await cleanCheck([PACKAGE_ID], { throughPreview: true }), { code: 'target_installed', stopped: 0 });
 });
 
 test('a panel holding only the old app is refused, never given the new app beside it', () => {

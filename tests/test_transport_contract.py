@@ -49,7 +49,7 @@ VOICE_SCHEMAS = {
 }
 
 _HA_VECTOR_REVISION = "502dc6575cdd214a3cc0890ea3594e60758c8b97"
-_ANDROID_PRODUCER_REVISION = "0a3afceff878174712254d28e5761df9e3566916"
+_ANDROID_PRODUCER_REVISION = "562ad120a51ff40964ec781bb98340dae6567f46"
 
 
 def test_shared_vectors_name_the_ha_source_revision_vendored_by_android() -> None:
@@ -550,6 +550,8 @@ def _resolve(node: ast.expr, constants: dict[str, str]) -> str | None:
 
 def _raised_translation_keys() -> dict[str, set[str]]:
     """Return every translation key the integration raises or reports, by category."""
+    # Source-text reason: check the published English catalogue against static
+    # producer keys without manufacturing every exceptional runtime condition.
     keys: dict[str, set[str]] = {"exceptions": set(), "issues": set()}
     trees = {
         path.stem: ast.parse(path.read_text(encoding="utf-8"))
@@ -557,6 +559,11 @@ def _raised_translation_keys() -> dict[str, set[str]]:
     }
     own = {module: _module_constants(tree) for module, tree in trees.items()}
     for module, tree in trees.items():
+        parents = {
+            child: parent
+            for parent in ast.walk(tree)
+            for child in ast.iter_child_nodes(parent)
+        }
         path = INTEGRATION / f"{module}.py"
         constants = dict(own[module])
         # A key may be raised with a constant defined in a sibling module.
@@ -594,8 +601,24 @@ def _raised_translation_keys() -> dict[str, set[str]]:
                     continue
                 value = keyword.value
                 if isinstance(value, ast.Name) and _resolve(value, constants) is None:
-                    # A helper's own parameter; its call sites are collected above.
-                    continue
+                    scope = parents[node]
+                    while not isinstance(
+                        scope, ast.FunctionDef | ast.AsyncFunctionDef | ast.Module
+                    ):
+                        scope = parents[scope]
+                    choices = [
+                        assignment.value
+                        for assignment in ast.walk(scope)
+                        if isinstance(assignment, ast.Assign)
+                        and assignment.lineno < node.lineno
+                        and len(assignment.targets) == 1
+                        and isinstance(assignment.targets[0], ast.Name)
+                        and assignment.targets[0].id == value.id
+                    ]
+                    if len(choices) != 1 or not isinstance(choices[0], ast.IfExp):
+                        # A helper's parameter or dynamic key; callers cover it.
+                        continue
+                    value = choices[0]
                 # A choice between two keys needs words for both.
                 for branch in (
                     (value.body, value.orelse)

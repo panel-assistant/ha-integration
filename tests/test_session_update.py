@@ -54,7 +54,7 @@ from custom_components.panel_assistant.update_coordinator import (
 )
 from custom_components.panel_assistant.update_errors import _UpdateRefusalError
 
-from .test_availability import _load
+from .test_availability import UPDATE_ENTITY, _load, _load_offline
 from .test_lan_staged_update import (  # noqa: F401
     APK,
     SIGNER,
@@ -67,7 +67,7 @@ from .test_lan_staged_update import (  # noqa: F401
     trust,
 )
 from .test_management import MANAGED, STATUS_BODY, _http_blocked
-from .test_transport import DID, HELLO
+from .test_transport import DID, HEALTH, HELLO
 
 _real_sleep = asyncio.sleep
 _STATUS = {**json.loads(STATUS_BODY), "install_capability": "api"}
@@ -305,7 +305,6 @@ _HTTP_UPDATE_CALLS = (
     "async_discard_apk",
     "async_get_panel_install_status",
     "async_get_version_code",
-    "async_start_panel_update",
 )
 
 
@@ -368,6 +367,51 @@ async def test_an_unreachable_panel_updates_over_its_session(
     assert not async_get_blobs(hass)._transfers
     for name in _HTTP_UPDATE_CALLS:
         getattr(HaPaneldClient, name).assert_not_awaited()
+
+
+async def test_an_address_that_answers_before_the_first_snapshot_raises_nothing(
+    hass: HomeAssistant,
+    hass_ws_client: Any,
+    hass_client: Any,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The stored address answers, but no snapshot has been read yet.
+
+    The entry loaded with no snapshot; the panel connects, its address
+    answers and its snapshot read fails, so the entry is reachable with no
+    data when the panel reconnects and the update entity is told. It claims
+    no installed build until a snapshot brings one.
+    """
+    entry = await _load_offline(hass, hass_read_only_user.id, DID)
+    coordinator = entry.runtime_data.coordinator
+    panel = FakePanel(hass, hass_ws_client, hass_client, hass_read_only_access_token)
+
+    async def failed(_args: dict[str, Any]) -> list[Answer]:
+        return [("failed", "failed", None)]
+
+    panel.answers["snapshot"] = failed
+    with patch.object(
+        HaPaneldClient, "async_get_health", AsyncMock(return_value=HEALTH)
+    ):
+        await panel.connect()
+        await hass.async_block_till_done()
+        assert coordinator.reachable
+        assert coordinator.data is None
+        await panel.close()
+        await panel.connect()
+        await hass.async_block_till_done()
+
+        assert "Unexpected error updating listener" not in caplog.text
+        state = hass.states.get(UPDATE_ENTITY)
+        assert state.attributes["installed_version"] is None
+
+        del panel.answers["snapshot"]
+        await coordinator.async_refresh()
+        await hass.async_block_till_done()
+    assert hass.states.get(UPDATE_ENTITY).attributes["installed_version"] == OLD[0]
+    await panel.close()
 
 
 async def test_a_panel_that_cannot_install_itself_gets_no_session_route(

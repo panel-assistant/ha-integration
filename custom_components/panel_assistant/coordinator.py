@@ -332,7 +332,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             ):
                 self.client.health_peer = None
                 raise UpdateFailed(
-                    translation_domain=DOMAIN, translation_key="health_update_failed"
+                    translation_domain=DOMAIN, translation_key="health_address_retired"
                 )
         entry = self._entry()
         if entry is not None and not accept_health(self.hass, entry, health):
@@ -378,7 +378,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             )
         ):
             raise UpdateFailed(
-                translation_domain=DOMAIN, translation_key="health_update_failed"
+                translation_domain=DOMAIN, translation_key="health_address_retired"
             )
         if entry is not None:
             async_reconcile_permission_issue(self.hass, entry, status)
@@ -504,11 +504,13 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
 
     @callback
     def _report(self, entry: ConfigEntry, issue: str, session_address: str) -> None:
+        from .device import panel_display_name
+
         async_raise_address_issue(
             self.hass,
             entry.entry_id,
             issue,
-            panel=entry.title,
+            panel=panel_display_name(self.hass, entry),
             address=self.client.address.stored_value,
             session_address=session_address,
         )

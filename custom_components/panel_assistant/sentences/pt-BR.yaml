@@ -1,7 +1,13 @@
 language: pt-BR
 commands:
+  # {page} ends the sentence, so it would swallow "no painel da cozinha":
+  # here the named-panel forms come first, and a sentence without one falls
+  # through to the forms after them.
   show_page:
     sentences:
+      - "[me] (mostre|mostra|mostrar|exiba|exibe|exibir) [para mim|pra mim] (a página|a visualização|o dashboard|a dashboard|a aba) [de|do|da|dos|das] {page} (no|na) {panel}"
+      - "(acesse|acessa) (a página|a visualização|o dashboard|a dashboard|a aba) [de|do|da|dos|das] {page} (no|na) {panel}"
+      - "(vá|vai|ir|me leva|me leve|troque|troca) ((para a|pra|à) (página|visualização|dashboard|aba)|(para o|pro|ao) dashboard) [de|do|da|dos|das] {page} (no|na) {panel}"
       - "[me] (mostre|mostra|mostrar|exiba|exibe|exibir) [para mim|pra mim] (a página|a visualização|o dashboard|a dashboard|a aba) [de|do|da|dos|das] {page}"
       - "(acesse|acessa) (a página|a visualização|o dashboard|a dashboard|a aba) [de|do|da|dos|das] {page}"
       - "(vá|vai|ir|me leva|me leve|troque|troca) ((para a|pra|à) (página|visualização|dashboard|aba)|(para o|pro|ao) dashboard) [de|do|da|dos|das] {page}"
@@ -10,21 +16,114 @@ commands:
       - "[me] (mostre|mostra|mostrar|exiba|exibe|exibir) [para mim|pra mim] [as] configurações do Android"
       - "(acesse|acessa) [as] configurações do Android"
       - "(vá|vai|ir) (para as|pras|às) configurações do Android"
+      - "[me] (mostre|mostra|mostrar|exiba|exibe|exibir) [para mim|pra mim] [as] configurações do Android (no|na) {panel}"
+      - "(acesse|acessa) [as] configurações do Android (no|na) {panel}"
   launcher:
     sentences:
       - "[me] (mostre|mostra|mostrar|exiba|exibe|exibir) [para mim|pra mim] o (launcher|inicializador) [do Android]"
       - "(vá|vai) (para o|pro|ao) (launcher|inicializador) [do Android]"
       - "[me] (mostre|mostra|mostrar|exiba|exibe|exibir) [para mim|pra mim] a tela inicial do Android"
       - "(vá|vai|ir) (para a|pra|à) tela inicial do Android"
+      - "[me] (mostre|mostra|mostrar|exiba|exibe|exibir) [para mim|pra mim] o (launcher|inicializador) [do Android] (no|na) {panel}"
+      - "[me] (mostre|mostra|mostrar|exiba|exibe|exibir) [para mim|pra mim] a tela inicial do Android (no|na) {panel}"
+  recents:
+    sentences:
+      - "[me] (mostre|mostra|mostrar|exiba|exibe|exibir) [para mim|pra mim] (os apps|os aplicativos) (abertos|recentes)"
+      - "[me] (mostre|mostra|mostrar|exiba|exibe|exibir) [para mim|pra mim] (os recentes|a multitarefa)"
+      - "(apps|aplicativos) recentes"
+      - "[me] (mostre|mostra|mostrar|exiba|exibe|exibir) [para mim|pra mim] (os apps|os aplicativos) (abertos|recentes) (no|na) {panel}"
+      - "[me] (mostre|mostra|mostrar|exiba|exibe|exibir) [para mim|pra mim] a multitarefa (no|na) {panel}"
+  back:
+    sentences:
+      - "(página|aba|tela) anterior"
+      - "(recue|recua) [uma (página|aba)]"
+      - "(vá|vai) (para trás|pra trás)"
+      - "(página|aba|tela) anterior (no|na) {panel}"
+      - "(recue|recua) [uma (página|aba)] (no|na) {panel}"
+      - "(vá|vai) (para trás|pra trás) (no|na) {panel}"
+  screen_wake:
+    sentences:
+      - "(acorde|acorda|desperte|desperta)"
+      - "(acorde|acorda|desperte|desperta) (a tela|o painel|o tablet)"
+      - "(tire|tira) (a tela|o painel|o tablet) do (repouso|modo repouso|descanso)"
+      - "(saia|sai) do (repouso|modo repouso|descanso)"
+      - "(acorde|acorda|desperte|desperta) (o|a) {panel}"
+      - "(tire|tira) (o|a) {panel} do (repouso|modo repouso|descanso)"
+  screen_sleep:
+    sentences:
+      - "(durma|dorme|vá dormir|vai dormir)"
+      - "(coloque|coloca|ponha|põe|bote|bota) (a tela|o painel|o tablet) (para|pra) dormir"
+      - "(coloque|coloca|ponha|põe) (a tela|o painel|o tablet) em (repouso|modo repouso|descanso)"
+      - "(entre|entra) em (repouso|modo repouso|descanso)"
+      - "modo (repouso|descanso)"
+      - "(suspenda|suspende) (a tela|o painel|o tablet)"
+      - "(coloque|coloca|ponha|põe|bote|bota) (o|a) {panel} (para|pra) dormir"
+      - "(coloque|coloca|ponha|põe) (o|a) {panel} em (repouso|modo repouso|descanso)"
+  screen_brighter:
+    sentences:
+      - "(aumente|aumenta) o brilho [(da tela|do painel|do tablet)]"
+      - "mais brilho [(na tela|no painel|no tablet)]"
+      - "(deixe|deixa) (a tela|o painel|o tablet) mais (clara|claro|brilhante)"
+      - "(clareie|clareia) (a tela|o painel|o tablet)"
+      - "tela mais (clara|brilhante)"
+      - "(aumente|aumenta) o brilho (do|da|no|na) {panel}"
+      - "mais brilho (no|na) {panel}"
+      - "(deixe|deixa) (o|a) {panel} mais (clara|claro|brilhante)"
+  screen_dimmer:
+    sentences:
+      - "(diminua|diminui|abaixe|abaixa|reduza|reduz) o brilho [(da tela|do painel|do tablet)]"
+      - "menos brilho [(na tela|no painel|no tablet)]"
+      - "(deixe|deixa) (a tela|o painel|o tablet) mais (escura|escuro)"
+      - "(escureça|escurece) (a tela|o painel|o tablet)"
+      - "tela mais escura"
+      - "(diminua|diminui|abaixe|abaixa|reduza|reduz) o brilho (do|da|no|na) {panel}"
+      - "menos brilho (no|na) {panel}"
+      - "(deixe|deixa) (o|a) {panel} mais (escura|escuro)"
+  volume_up:
+    sentences:
+      - "[um pouco] mais alto [por favor]"
+      - "(fale|fala) [um pouco] mais alto [por favor]"
+      - "(aumente|aumenta) o som [por favor]"
+      - "som mais alto"
+      - "mais alto (no|na) {panel}"
+      - "(fale|fala) mais alto (no|na) {panel}"
+      - "(aumente|aumenta) o som (do|da|no|na) {panel}"
+  volume_down:
+    sentences:
+      - "[um pouco] mais baixo [por favor]"
+      - "(fale|fala) [um pouco] mais baixo [por favor]"
+      - "(diminua|diminui|abaixe|abaixa) o som [por favor]"
+      - "som mais baixo"
+      - "mais baixo (no|na) {panel}"
+      - "(fale|fala) mais baixo (no|na) {panel}"
+      - "(diminua|diminui|abaixe|abaixa) o som (do|da|no|na) {panel}"
 home_pages: [inicial, principal, início, home]
+back_pages: [anterior]
+panel_words: [painel]
 screen_names: [tela]
 responses:
   show_page: "Mostrando {page}"
   android_settings: "Abrindo as configurações do Android"
   launcher: "Abrindo o launcher"
+  recents: "Mostrando os apps recentes"
+  back: "Voltando"
+  back_none: "O painel não pode voltar daqui"
+  screen_wake: "Acordando a tela"
+  screen_sleep: "Entrando em repouso"
+  screen_brighter: "Brilho da tela em {brightness} por cento"
+  screen_dimmer: "Brilho da tela em {brightness} por cento"
+  screen_brightest: "A tela já está no brilho máximo"
+  screen_dimmest: "A tela já está no brilho mínimo"
+  screen_dark: "A tela está desligada"
+  volume_up: "Volume em {volume} por cento"
+  volume_down: "Volume em {volume} por cento"
+  volume_max: "O volume já está no máximo"
+  volume_min: "O volume já está no mínimo"
   page_unknown: "Este painel não tem uma página chamada {page}"
-  not_a_panel: "Peça isso a um painel"
+  panel_unknown: "Nenhum painel se chama {panel}"
+  panel_ambiguous: "Mais de um painel se chama {panel}"
+  not_a_panel: "Peça isso a um painel ou diga qual painel"
   panel_unavailable: "O painel não está conectado"
   panel_refused: "O painel não conseguiu fazer isso"
-  panel_locked: "O painel está restrito ao dashboard e não pode abrir o Android"
+  panel_locked: "O painel está restrito ao dashboard"
   needs_update: "Atualize o app do painel para usar este comando"

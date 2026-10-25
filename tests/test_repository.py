@@ -4,7 +4,6 @@ import ast
 import importlib.util
 import json
 import re
-import string
 import subprocess
 import sys
 from collections import Counter
@@ -182,8 +181,6 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
             "stream",
             "websocket_api",
         ],
-        # Core buckets dhcp hostname matchers by first character.
-        "dhcp": [{"hostname": f"{c}*"} for c in string.ascii_lowercase + string.digits],
         "documentation": "https://panel-assistant.io/go/install-integration",
         "domain": "panel_assistant",
         "integration_type": "device",
@@ -191,7 +188,7 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
         "issue_tracker": "https://github.com/panel-assistant/ha-integration/issues",
         "name": "Panel Assistant",
         "requirements": ["adb-shell[async]>=0.4.4", "aiosendspin[server]==10.0.0"],
-        "version": "1.0.0-preview1",
+        "version": "1.0.0-rc1",
         "zeroconf": [
             "_adb._tcp.local.",
             "_ha-paneld._tcp.local.",
@@ -207,7 +204,7 @@ def test_release_version_guard_accepts_current_and_prerelease_versions(
     """Tag admission uses exact raw equality for stable and prerelease versions."""
     verifier = _load_release_version_module()
 
-    verifier.verify_release_version("1.0.0-preview1", INTEGRATION / "manifest.json")
+    verifier.verify_release_version("1.0.0-rc1", INTEGRATION / "manifest.json")
     manifest = tmp_path / "manifest.json"
     manifest.write_text('{"version":"0.3.0b2"}', encoding="utf-8")
     verifier.verify_release_version("0.3.0b2", manifest)
@@ -306,7 +303,7 @@ def test_release_version_guard_cli_does_not_parse_tag_as_option(tag: str) -> Non
     )
 
     assert result.returncode != 0
-    assert "does not match manifest version '1.0.0-preview1'" in result.stderr
+    assert "does not match manifest version '1.0.0-rc1'" in result.stderr
 
 
 def test_hacs_workflow_runs_release_version_guard_for_tags() -> None:
@@ -466,7 +463,9 @@ def test_destructive_recovery_instructions_stay_prohibitions_in_drafted_locales(
         for path, text in english.items()
         if re.search(r"\bDo not [^.]*\b(uninstall|reset)\b", text)
     }
-    assert len(prohibited) == 8
+    # More recovery guidance may add warnings; the scan must still exercise at
+    # least the original coverage floor rather than pinning its exact size.
+    assert len(prohibited) >= 8
     for locale, positive in _POSITIVE_DESTRUCTIVE_COMMANDS.items():
         target = _translation_leaves(
             _load_translation_catalogue(INTEGRATION / "translations" / f"{locale}.json")

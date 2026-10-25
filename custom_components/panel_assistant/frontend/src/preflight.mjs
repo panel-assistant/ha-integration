@@ -42,9 +42,15 @@ function checkNonce(nonce) {
   if (!fullMatch(/^[0-9a-f]{32}$/, nonce)) fail('invalid_request');
 }
 
-/** Existing panels, the old app's among them, must be orchestrated by PA. */
-export function classifyTarget(targetPackageId, installed, residue) {
+/** Existing panels, the old app's among them, must be orchestrated by PA.
+ * A panel running only this app, with nothing of the old one, is refused as
+ * `target_installed` instead: the installer installs nothing on it, but gives
+ * Panel Assistant its network route back, the only way to its updates when
+ * Panel Assistant cannot reach it. `live` lists ids `pm path` found. */
+export function classifyTarget(targetPackageId, installed, residue, live = []) {
   if (targetPackageId !== PACKAGE_ID) fail('invalid_request');
+  if (installed.length === 1 && installed[0] === PACKAGE_ID && live.includes(PACKAGE_ID) &&
+      [...residue].every(packageId => packageId === PACKAGE_ID)) fail('target_installed');
   if (installed.length || residue.size) fail('target_not_clean');
   return false;
 }
@@ -105,10 +111,11 @@ export function parsePreflight(body, nonce, descriptor) {
   // Existing or retained package wins before root evaluation or any later su proof.
   if (s.LIVE.status !== 0 || !s.LIVE.values.length || !s.LIVE.values.every(isPackagePath)) fail();
   // Either probed id means this is an existing panel, managed through PA.
-  const installed = [];
+  const installed = [], live = [];
   PROBED_PACKAGE_IDS.forEach((packageId, i) => {
     const path = s[`PACKAGE${i}`], retained = s[`RETAINED${i}`];
-    if (retained.values.includes(`package:${packageId}`) || path.values.some(isPackagePath)) {
+    if (path.values.some(isPackagePath)) live.push(packageId);
+    if (retained.values.includes(`package:${packageId}`) || live.includes(packageId)) {
       installed.push(packageId);
       return;
     }
@@ -118,7 +125,7 @@ export function parsePreflight(body, nonce, descriptor) {
   const readable = BASES.map((_, i) => one(s[`BASE${i}`], ['readable', 'unreadable']));
   const residue = new Set(RESIDUE_PROBES.flatMap(({ packageId }, i) =>
     one(s[`RESIDUE${i}`], ['absent', 'present']) === 'present' ? [packageId] : []));
-  classifyTarget(descriptor.packageId, installed, residue);
+  classifyTarget(descriptor.packageId, installed, residue, live);
   const rootMode = readRootMode(s);
   if (rootMode === 'root_adbd' && readable.includes('unreadable')) fail('root_state_ambiguous');
   if (androidSdk < descriptor.minSdk || !descriptor.supportedAbis.includes(primaryAbi)) fail('target_incompatible');

@@ -58,6 +58,9 @@ PANEL_REPORT: dict[str, Any] = json.loads(
 # Values for the catalogue channels the panel does not report yet.
 EXTRA_OBSERVATIONS = [
     {"channel": "auto_sleep_activity", "state": "known", "value": False},
+    {"channel": "dashboard_idle_return", "state": "known", "value": 15},
+    {"channel": "dashboard_theme", "state": "known", "value": "ambient"},
+    {"channel": "screen_off_timeout", "state": "known", "value": 300},
     {"channel": "diag_boot", "state": "known", "value": "2026-09-14T08:00:00+00:00"},
     {"channel": "media", "state": "known", "value": {"state": "idle", "muted": False}},
     {"channel": "relay1", "state": "known", "value": True},
@@ -228,6 +231,7 @@ async def test_every_type_renders_under_the_native_unique_id(
         "event",
         "light",
         "media_player",
+        "number",
         "select",
         "sensor",
         "switch",
@@ -280,6 +284,24 @@ async def test_every_type_renders_under_the_native_unique_id(
         "efficiency",
         "auto",
     ]
+    assert state("dashboard_theme").state == "ambient"
+    assert state("dashboard_theme").attributes["options"] == [
+        "follow",
+        "dark",
+        "light",
+        "ambient",
+    ]
+    # Minutes are typed, not dragged along a 1,440-step slider.
+    idle = state("dashboard_idle_return")
+    assert (idle.state, idle.attributes["mode"], idle.attributes["max"]) == (
+        "15",
+        "box",
+        1440,
+    )
+    assert idle.attributes["unit_of_measurement"] == "min"
+    timeout = state("screen_off_timeout")
+    assert (timeout.state, timeout.attributes["mode"]) == ("300", "box")
+    assert timeout.attributes["unit_of_measurement"] == "s"
     assert state("navigate").state == "/"
     assert state("proximity").state == "on"
     assert state("temperature").state == "21.5"

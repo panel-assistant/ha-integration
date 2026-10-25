@@ -9,34 +9,83 @@ match:
   - {text: "toon het energie overzicht alsjeblieft", command: show_page, page: energie}
   - {text: "laat me het tuin tabblad zien", command: show_page, page: tuin}
   - {text: "ga naar de pagina camera", command: show_page, page: camera}
+  - {text: "ga naar de vorige pagina", command: show_page, page: vorige}
+  - {text: "laat het keukenpaneel de camera pagina tonen", command: show_page, page: camera, panel: keukenpaneel}
+  - {text: "laat het keukenpaneel de vorige pagina tonen", command: show_page, page: vorige, panel: keukenpaneel}
+  - {text: "laat het keukenpaneel het energie dashboard tonen", command: show_page, page: energie, panel: keukenpaneel}
   - {text: "toon android instellingen", command: android_settings}
   - {text: "laat me de android instellingen zien", command: android_settings}
   - {text: "laat me android instellingen zien", command: android_settings}
   - {text: "ga naar de android instellingen", command: android_settings}
   - {text: "toon de instellingen van android", command: android_settings}
+  - {text: "laat het keukenpaneel de android instellingen tonen", command: android_settings, panel: keukenpaneel}
   - {text: "toon de launcher", command: launcher}
   - {text: "toon het android startscherm", command: launcher}
   - {text: "laat me de launcher zien", command: launcher}
   - {text: "ga naar de launcher", command: launcher}
   - {text: "toon het startscherm van android", command: launcher}
   - {text: "laat het startscherm van android zien", command: launcher}
+  - {text: "laat het keukenpaneel de launcher tonen", command: launcher, panel: keukenpaneel}
   - {text: "toon mij de pagina keuken", command: show_page, page: keuken}
   - {text: "laat me de pagina tuin zien", command: show_page, page: tuin}
   - {text: "ga naar het tabblad tuin", command: show_page, page: tuin}
   - {text: "laat me de instellingen van android zien", command: android_settings}
   - {text: "ga naar de instellingen van android", command: android_settings}
   - {text: "ga naar het startscherm van android", command: launcher}
+  - {text: "toon de recente apps", command: recents}
+  - {text: "laat me de recente apps zien", command: recents}
+  - {text: "toon de laatst gebruikte apps", command: recents}
+  - {text: "wissel van app", command: recents}
+  - {text: "laat het keukenpaneel de recente apps tonen", command: recents, panel: keukenpaneel}
+  - {text: "terug", command: back}
+  - {text: "vorige pagina", command: back}
+  - {text: "terug naar de vorige weergave", command: back}
+  - {text: "maak het scherm wakker", command: screen_wake}
+  - {text: "wek het scherm", command: screen_wake}
+  - {text: "maak het keukenpaneel wakker", command: screen_wake, panel: keukenpaneel}
+  - {text: "maak de garden display wakker", command: screen_wake, panel: garden display}
+  - {text: "ga slapen", command: screen_sleep}
+  - {text: "zet het scherm in de slaapstand", command: screen_sleep}
+  - {text: "zet het keukenpaneel in de slaapstand", command: screen_sleep, panel: keukenpaneel}
+  - {text: "maak het scherm feller", command: screen_brighter}
+  - {text: "maak het scherm wat helderder", command: screen_brighter}
+  - {text: "verhoog de helderheid van het scherm", command: screen_brighter}
+  - {text: "maak het scherm van het keukenpaneel feller", command: screen_brighter, panel: keukenpaneel}
+  - {text: "dim het scherm", command: screen_dimmer}
+  - {text: "maak het scherm iets minder fel", command: screen_dimmer}
+  - {text: "verlaag de helderheid van het scherm", command: screen_dimmer}
+  - {text: "maak het scherm van het keukenpaneel donkerder", command: screen_dimmer, panel: keukenpaneel}
+  - {text: "harder", command: volume_up}
+  - {text: "wat harder alsjeblieft", command: volume_up}
+  - {text: "zet het harder", command: volume_up}
+  - {text: "het is te zacht", command: volume_up}
+  - {text: "zet het geluid van het keukenpaneel wat harder", command: volume_up, panel: keukenpaneel}
+  - {text: "zachter", command: volume_down}
+  - {text: "zet het geluid iets zachter", command: volume_down}
+  - {text: "het is te hard", command: volume_down}
+  - {text: "zet het geluid van het keukenpaneel zachter", command: volume_down, panel: keukenpaneel}
 miss:
   - "zet het scherm uit"
   - "ga terug"
+  - "ga terug naar de vorige pagina"
+  - "vorige"
+  - "vorig nummer"
+  - "vorige track"
   - "hoe laat is het"
   - "wat voor weer is het"
   - "open de garagedeur"
   - "zet de helderheid op 50 procent"
+  - "zet de helderheid van het scherm op 50 procent"
+  - "dim de lampen naar 20 procent"
+  - "zet het volume harder"
+  - "volume harder"
+  - "zet het volume zachter"
+  - "volume zachter"
   - "toon de camera"
   - "laad het dashboard"
   - "herlaad het dashboard"
   - "toon de instellingen"
+  - "open de recente apps"
 builtin:
   screen_off: "zet het scherm uit"
   screen_on: "zet het scherm aan"

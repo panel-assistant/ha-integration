@@ -143,7 +143,8 @@ async def test_snapshot_excludes_stale_issues_and_refuses_duplicate_targets(hass
 
 
 @pytest.mark.parametrize(
-    "language", ["en", "de", "es", "fr", "it", "nl", "pl", "uk", "zh-Hans"]
+    "language",
+    ["en", "cs", "de", "es", "fr", "it", "nl", "pl", "pt-BR", "uk", "zh-Hans"],
 )
 async def test_localized_identity_repair_names_panel_and_frozen_fleet(hass, language):
     from homeassistant.helpers.translation import async_get_translations
@@ -161,7 +162,7 @@ async def test_localized_identity_repair_names_panel_and_frozen_fleet(hass, lang
         assert first[0].title in rendered
     _, shown = await _open(hass, first[0])
     rendered = strings[f"{prefix}.fix_flow.step.confirm_identity.description"].format(
-        **shown["description_placeholders"]
+        **{**issue.translation_placeholders, **shown["description_placeholders"]}
     )
     assert first[0].title in rendered
     assert second[0].title in rendered

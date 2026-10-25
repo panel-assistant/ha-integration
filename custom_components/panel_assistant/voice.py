@@ -80,6 +80,7 @@ from .transport_sessions import (
     signal_session_changed,
 )
 from .voice_stream import VoiceStream, async_get_voice_stream
+from .wake_words import async_get_shared_wake_words
 
 if TYPE_CHECKING:
     from .assist_satellite import PanelAssistSatellite
@@ -90,6 +91,7 @@ COMMAND_VOICE_CONFIGURATION: Final = f"{DOMAIN}/voice_configuration"
 COMMAND_VOICE_RUN: Final = f"{DOMAIN}/voice_run"
 COMMAND_VOICE_PLAYED: Final = f"{DOMAIN}/voice_played"
 COMMAND_VOICE_STREAM_FRAME: Final = f"{DOMAIN}/voice_stream_frame"
+COMMAND_VOICE_STREAM_RESET: Final = f"{DOMAIN}/voice_stream_reset"
 COMMAND_VOICE_STREAM_STOP: Final = f"{DOMAIN}/voice_stream_stop"
 EVENT_VOICE_ANNOUNCE: Final = "voice_announce"
 EVENT_VOICE_COLORS: Final = "voice_colors"
@@ -154,6 +156,9 @@ class WakeWord:
     id: str
     phrase: str
     languages: tuple[str, ...]
+    # The SHA-256 of an imported model, from panels that report it (see
+    # ``wake_words.py``); None for a bundled wake word.
+    sha256: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -179,6 +184,9 @@ _WAKE_WORD_SCHEMA: Final = vol.Schema(
         vol.Required("wake_word"): _plain_string(64),
         vol.Optional("trained_languages", default=list): _bounded_list(
             16, _plain_string(16)
+        ),
+        vol.Optional("sha256", default=None): vol.Any(
+            None, vol.Match(r"^[0-9a-f]{64}$")
         ),
     },
     extra=vol.REMOVE_EXTRA,
@@ -269,6 +277,14 @@ VOICE_STREAM_FRAME_SCHEMA: Final = vol.Schema(
         vol.Required("frame"): _sendspin_frame,
         # Whether the Sendspin message was a text message.
         vol.Required("text"): bool,
+    },
+    extra=vol.REMOVE_EXTRA,
+)
+
+VOICE_STREAM_RESET_SCHEMA: Final = vol.Schema(
+    {
+        vol.Required("type"): COMMAND_VOICE_STREAM_RESET,
+        vol.Required("session"): _session_token,
     },
     extra=vol.REMOVE_EXTRA,
 )
@@ -425,7 +441,12 @@ def ws_voice_configuration(
     session.voice = VoiceConfiguration(
         enabled=msg["enabled"],
         wake_words=tuple(
-            WakeWord(item["id"], item["wake_word"], tuple(item["trained_languages"]))
+            WakeWord(
+                item["id"],
+                item["wake_word"],
+                tuple(item["trained_languages"]),
+                item["sha256"],
+            )
             for item in msg["wake_words"]
         ),
         active=tuple(msg["active"]),
@@ -435,6 +456,7 @@ def ws_voice_configuration(
     async_get_sessions(hass).mark_changed(session)
     if (entry := hass.config_entries.async_get_entry(session.entry_id)) is not None:
         async_reconcile_microphone_issue(hass, entry, session.voice)
+        async_get_shared_wake_words(hass).converge(entry.entry_id)
     connection.send_result(msg["id"], {})
 
 
@@ -548,6 +570,20 @@ def ws_voice_stream_frame(
     connection.send_result(msg["id"], {})
 
 
+@websocket_command(vol.All(VOICE_STREAM_RESET_SCHEMA))
+@async_response
+async def ws_voice_stream_reset(
+    hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Acknowledge the boundary between an old player and its next handshake."""
+    if (found := _stream_session(hass, connection, msg)) is None:
+        return
+    voice_stream, token = found
+    await voice_stream.async_reset(token)
+    # No await after attach: this result precedes frames from the fresh link.
+    connection.send_result(msg["id"], {})
+
+
 @websocket_command(vol.All(VOICE_STREAM_STOP_SCHEMA))
 @async_response
 async def ws_voice_stream_stop(
@@ -569,6 +605,7 @@ def async_setup_voice(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_voice_played)
     websocket_api.async_register_command(hass, ws_voice_stream_frame)
     websocket_api.async_register_command(hass, ws_voice_stream_stop)
+    websocket_api.async_register_command(hass, ws_voice_stream_reset)
 
 
 def satellite_unique_id(entry_id: str) -> str:

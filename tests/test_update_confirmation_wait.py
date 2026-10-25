@@ -18,7 +18,6 @@ from custom_components.panel_assistant.update_coordinator import PanelUpdateSnap
 
 from .test_feed_update import _entity as feed_entity
 from .test_feed_update import delivery  # noqa: F401
-from .test_update_failure_repairs import _entity as download_entity
 
 
 @pytest.fixture
@@ -49,18 +48,13 @@ def _waiting_update(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     clock: SimpleNamespace,
-    route: str,
     operation: Callable[[float], PanelInstallStatus | None],
     *,
     installed_at: float | None = None,
     installed_code: int | None = None,
 ) -> SimpleNamespace:
     """Drive real Install with controllable operation and accepted health reads."""
-    entity, client = (
-        feed_entity(hass, package=PACKAGE_ID)
-        if route == "staged"
-        else download_entity(hass)
-    )
+    entity, client = feed_entity(hass, package=PACKAGE_ID)
     record = AsyncMock()
     monkeypatch.setattr(panel_update, "async_record_update_failure", record)
 
@@ -87,14 +81,10 @@ def _waiting_update(
                 snapshot,
                 health=replace(
                     snapshot.health,
-                    version="0.9.7-rc4" if route == "staged" else "0.9.10",
+                    version="0.9.7-rc4",
                     build="2000",
                     version_code=(
-                        installed_code
-                        if installed_code is not None
-                        else 772
-                        if route == "staged"
-                        else 102
+                        installed_code if installed_code is not None else 772
                     ),
                 ),
             )
@@ -104,24 +94,16 @@ def _waiting_update(
     return SimpleNamespace(entity=entity, client=client, record=record)
 
 
-def _confirmation(route: str) -> PanelInstallStatus:
-    return PanelInstallStatus(
-        running=True,
-        component="APK" if route == "staged" else "ha-paneld",
-        awaiting_confirmation=True,
-    )
+def _confirmation() -> PanelInstallStatus:
+    return PanelInstallStatus(running=True, component="APK", awaiting_confirmation=True)
 
 
 @pytest.mark.usefixtures("confirmation_clock")
-@pytest.mark.parametrize(
-    "route,prompt_at,tap_at",
-    [("staged", 0, 200), ("staged", 0, 270), ("download", 750, 1020)],
-)
+@pytest.mark.parametrize("prompt_at,tap_at", [(0, 200), (0, 270)])
 async def test_late_confirmation_completes_without_a_failure(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     request: pytest.FixtureRequest,
-    route: str,
     prompt_at: int,
     tap_at: int,
 ) -> None:
@@ -130,33 +112,25 @@ async def test_late_confirmation_completes_without_a_failure(
         hass,
         monkeypatch,
         clock,
-        route,
-        lambda now: _confirmation(route) if now >= prompt_at else None,
+        lambda now: _confirmation() if now >= prompt_at else None,
         installed_at=tap_at,
     )
     await wait.entity.async_install(None, backup=False)
     assert tap_at <= clock.seconds <= tap_at + 2
     wait.record.assert_not_awaited()
-    if route == "staged":
-        wait.client.async_commit_apk.assert_awaited_once()
-    else:
-        wait.client.async_start_panel_update.assert_awaited_once()
+    wait.client.async_commit_apk.assert_awaited_once()
 
 
 @pytest.mark.usefixtures("confirmation_clock")
-@pytest.mark.parametrize(
-    "route,prompt_at", [("staged", 10), ("download", 0), ("download", 750)]
-)
 @pytest.mark.parametrize("interruption", [None, "missing", "not_awaiting"])
 async def test_confirmation_allowance_is_fixed_at_its_first_observation(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     request: pytest.FixtureRequest,
-    route: str,
-    prompt_at: int,
     interruption: str | None,
 ) -> None:
     clock = request.getfixturevalue("confirmation_clock")
+    prompt_at = 10
 
     def operation(now: float) -> PanelInstallStatus | None:
         if now < prompt_at:
@@ -165,42 +139,39 @@ async def test_confirmation_allowance_is_fixed_at_its_first_observation(
             if interruption == "missing":
                 return None
             if interruption == "not_awaiting":
-                return replace(_confirmation(route), awaiting_confirmation=False)
-        return _confirmation(route)
+                return replace(_confirmation(), awaiting_confirmation=False)
+        return _confirmation()
 
-    wait = _waiting_update(hass, monkeypatch, clock, route, operation)
+    wait = _waiting_update(hass, monkeypatch, clock, operation)
     with pytest.raises(HomeAssistantError) as caught:
         await wait.entity.async_install(None, backup=False)
     assert caught.value.translation_key == "update_not_complete"
     # Five minutes for the panel prompt, three to install, one to return.
-    budget = max(240 if route == "staged" else 840, prompt_at + 540)
+    budget = prompt_at + 540
     assert budget <= clock.seconds <= budget + 2
     wait.record.assert_awaited_once()
 
 
 @pytest.mark.usefixtures("confirmation_clock")
-@pytest.mark.parametrize("route,budget", [("staged", 240), ("download", 840)])
 @pytest.mark.parametrize("state", ["unrelated", "finished", "not_awaiting"])
 async def test_only_a_running_matching_confirmation_extends_the_wait(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     request: pytest.FixtureRequest,
-    route: str,
-    budget: int,
     state: str,
 ) -> None:
     clock = request.getfixturevalue("confirmation_clock")
     operation = replace(
-        _confirmation(route),
-        component="Backup" if state == "unrelated" else _confirmation(route).component,
+        _confirmation(),
+        component="Backup" if state == "unrelated" else "APK",
         running=state != "finished",
         awaiting_confirmation=state != "not_awaiting",
     )
-    wait = _waiting_update(hass, monkeypatch, clock, route, lambda _now: operation)
+    wait = _waiting_update(hass, monkeypatch, clock, lambda _now: operation)
     with pytest.raises(HomeAssistantError) as caught:
         await wait.entity.async_install(None, backup=False)
     assert caught.value.translation_key == "update_not_complete"
-    assert budget <= clock.seconds <= budget + 2
+    assert 240 <= clock.seconds <= 242
     wait.record.assert_awaited_once()
 
 
@@ -217,8 +188,7 @@ async def test_extended_wait_still_requires_the_exact_build_and_home(
         hass,
         monkeypatch,
         clock,
-        "staged",
-        lambda _now: _confirmation("staged"),
+        lambda _now: _confirmation(),
         installed_at=270,
         installed_code=771 if unproven == "code" else 772,
     )
@@ -236,28 +206,23 @@ async def test_extended_wait_still_requires_the_exact_build_and_home(
 
 
 @pytest.mark.usefixtures("confirmation_clock")
-@pytest.mark.parametrize(
-    "route,prompt_at,finished_at", [("staged", 0, 300), ("download", 750, 1050)]
-)
 async def test_panel_confirmation_timeout_ends_the_extended_wait_immediately(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     request: pytest.FixtureRequest,
-    route: str,
-    prompt_at: int,
-    finished_at: int,
 ) -> None:
     clock = request.getfixturevalue("confirmation_clock")
+    prompt_at, finished_at = 0, 300
     reason = "update not confirmed on the panel in time"
 
     def operation(now: float) -> PanelInstallStatus | None:
         if now < prompt_at:
             return None
         if now >= finished_at:
-            return replace(_confirmation(route), running=False, message=reason)
-        return _confirmation(route)
+            return replace(_confirmation(), running=False, message=reason)
+        return _confirmation()
 
-    wait = _waiting_update(hass, monkeypatch, clock, route, operation)
+    wait = _waiting_update(hass, monkeypatch, clock, operation)
     with pytest.raises(HomeAssistantError) as caught:
         await wait.entity.async_install(None, backup=False)
     assert caught.value.translation_key == "update_refused_by_panel"

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: A problem on the panel itself
+    url: https://github.com/panel-assistant/android/issues/new/choose
+    about: The dashboard, the panel's screen, sensors, LEDs, voice or other hardware once the panel app is running.
+  - name: Documentation
+    url: https://panel-assistant.io
+    about: Install guides, supported panels and how to read a support report.

@@ -377,60 +377,6 @@ def test_stable_update_comparison_never_offers_a_downgrade(
     assert is_newer_stable_version(candidate, installed) is expected
 
 
-async def test_client_uses_the_cached_exact_tag_in_the_panel_update_request() -> None:
-    """The integration sends only a cached Android-owned tag to the updater."""
-    session = _session(body=b'{"status":"started"}')
-    client = HaPaneldClient(session, normalize_address("panel.local"))  # type: ignore[arg-type]
-
-    await client.async_start_panel_update("v0.9.10")
-
-    assert session.requests
-    url, kwargs = session.requests[-1]
-    assert str(url) == "http://panel.local:8888/api/v1/install/component"
-    assert kwargs["data"] == {
-        "name": "paneld",
-        "action": "update",
-        "version": "v0.9.10",
-    }
-
-
-@pytest.mark.parametrize(
-    ("status", "body", "error"),
-    [
-        (200, b'{"status":"busy"}', UpdateBusyError),
-        (200, b'{"status":"other"}', UpdateRejectedError),
-        (
-            202,
-            b'{"error":"approval-required","approval_id":"opaque"}',
-            UpdateApprovalRequiredError,
-        ),
-        (202, b'{"error":"other"}', UpdateRejectedError),
-        (403, b'{"status":"denied"}', UpdateRejectedError),
-    ],
-)
-async def test_client_rejects_nonstarted_panel_update(
-    status: int, body: bytes, error: type[Exception]
-) -> None:
-    """Hardened-mode and busy outcomes never become a successful update start."""
-    client = HaPaneldClient(  # type: ignore[arg-type]
-        _session(status=status, body=body), normalize_address("panel.local")
-    )
-
-    with pytest.raises(error):
-        await client.async_start_panel_update("v0.9.10")
-
-
-@pytest.mark.parametrize("tag", ["", "tag/escape", "tag space", "x" * 65])
-async def test_client_refuses_noncanonical_update_tags(tag: str) -> None:
-    """Only an Android-validated release tag can reach the destructive endpoint."""
-    client = HaPaneldClient(  # type: ignore[arg-type]
-        _session(), normalize_address("panel.local")
-    )
-
-    with pytest.raises(InvalidResponseError):
-        await client.async_start_panel_update(tag)
-
-
 def test_parse_panel_install_status_keeps_only_progress_ownership() -> None:
     """Operation prose remains on the panel, outside Home Assistant state."""
     status = parse_panel_install_status(
@@ -1126,70 +1072,6 @@ async def test_backup_maps_panel_refusals(
         await _client(_session(status=status, body=body)).async_backup_panel()
 
     assert type(raised.value) is error
-
-
-async def test_restore_starts_on_200() -> None:
-    """Only a 200 means the panel started the restore."""
-    session = _session(status=200)
-
-    assert await _client(session).async_restore_panel(b"PK\x03\x04zip") is None
-    assert str(session.requests[-1][0]) == "http://panel.local:8888/api/v1/restore"
-
-
-@pytest.mark.parametrize(
-    ("status", "body", "error"),
-    [
-        (
-            202,
-            b'{"error":"approval-required","approval_id":"opaque"}',
-            UpdateApprovalRequiredError,
-        ),
-        (409, b"{}", UpdateBusyError),
-        (400, b"{}", UpdateRejectedError),
-        (500, b"{}", CannotConnectError),
-    ],
-)
-async def test_restore_maps_panel_refusals(
-    status: int, body: bytes, error: type[Exception]
-) -> None:
-    """Approval, a busy panel and a refusal each reach the move as themselves."""
-    with pytest.raises(Exception) as raised:
-        await _client(_session(status=status, body=body)).async_restore_panel(b"zip")
-
-    assert type(raised.value) is error
-
-
-def _restore_status(**status: Any) -> bytes:
-    return json.dumps(
-        {
-            "running": False,
-            "component": "Restore",
-            "result": {"status": "succeeded"},
-            "presentation": {
-                "code": "restore-completed-with-state",
-                "params": {"count": "3"},
-            },
-            **status,
-        }
-    ).encode()
-
-
-@pytest.mark.parametrize(
-    ("body", "expected"),
-    [
-        pytest.param(_restore_status(), (True, 3), id="finished"),
-        pytest.param(
-            _restore_status(result={"status": "failed"}), (False, 3), id="failed"
-        ),
-        pytest.param(_restore_status(running=True), None, id="running"),
-        pytest.param(_restore_status(component="Install"), None, id="install"),
-    ],
-)
-async def test_restore_outcome_is_read_only_from_a_finished_restore(
-    body: bytes, expected: tuple[bool, int] | None
-) -> None:
-    """A running operation or another component's result is not the outcome."""
-    assert await _client(_session(body=body)).async_get_restore_outcome() == expected
 
 
 def test_the_health_line_carries_the_application_id_the_panel_runs() -> None:

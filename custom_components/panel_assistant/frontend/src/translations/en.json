@@ -12,6 +12,7 @@
     "github": "GitHub",
     "unreachable": "unreachable",
     "restarting": "Restarting ({reason})",
+    "restartingNext": "This panel will come back automatically. There is no need to refresh.",
     "not_loaded": "not loaded",
     "opening": "Opening {panel}…",
     "loadingHint": "Just a moment",
@@ -106,7 +107,9 @@
     "progress": "Progress",
     "installProgress": "Installation progress",
     "licenses": "Third-party licenses",
-    "doneAnotherHomeAssistant": "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
+    "doneAnotherHomeAssistant": "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here.",
+    "reconnectedHeading": "Panel Assistant can reach this panel again",
+    "reconnectedBody": "This panel already has the app, so nothing was installed. Home Assistant can now update it over your network."
   },
   "errors": {
     "installErrorGeneric": "Something went wrong. Keep the panel plugged in and press Try again.",

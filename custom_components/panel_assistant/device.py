@@ -26,6 +26,16 @@ from .transport_sessions import async_get_sessions, async_manage, session_manage
 
 _LOGGER = logging.getLogger(__name__)
 
+# The app's Configure page flashes and scrolls to the element its hash names; this is
+# its Presence & wake card. A page without it opens at the top.
+PROXIMITY_SETUP_ANCHOR = "cfg-proximity-learning"
+
+
+def sidebar_url(entry_id: str, page: str = "", anchor: str = "") -> str:
+    """Return the sidebar path that opens a panel, optionally at one of its pages."""
+    return "/".join(("/panel-assistant", entry_id, page, anchor)).rstrip("/")
+
+
 # The card's identifier is this config entry's own. Its MAC connections are the panel's
 # hardware addresses: since Home Assistant 2026.8 a device belongs to one config entry,
 # so a device another integration registers with the same MAC (the Shelly integration's
@@ -77,7 +87,7 @@ def panel_device_info(
         identifiers={(DOMAIN, entry_id)},
         name=name,
         # Home Assistant turns this scheme into a same-window, same-origin link.
-        configuration_url=panel_url or f"homeassistant://panel-assistant/{entry_id}",
+        configuration_url=panel_url or f"homeassistant:/{sidebar_url(entry_id)}",
     )
     software = _software_version(health, app_build)
     if software is not None:
@@ -168,6 +178,7 @@ def async_refresh_panel_device(
     device = registry.async_get_device_by_identifier((DOMAIN, entry_id), entry_id)
     if device is None:
         return
+    connections = info.get("connections", UNDEFINED)
     # A field the card leaves out keeps its registered value.
     registry.async_update_device(
         device.id,
@@ -179,7 +190,9 @@ def async_refresh_panel_device(
         hw_version=info.get("hw_version", UNDEFINED),
         serial_number=info.get("serial_number", UNDEFINED),
         # Replaced, not merged, so an address the panel no longer has stops linking.
-        new_connections=info.get("connections", UNDEFINED),
+        # Only when changed: Home Assistant announces any replacement as an update,
+        # and every dashboard refetches the whole device registry on each one.
+        new_connections=UNDEFINED if connections == device.connections else connections,
         # Replace links registered by earlier versions as well.
         configuration_url=info.get("configuration_url", UNDEFINED),
     )

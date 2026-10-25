@@ -1,0 +1,59 @@
+name: Bug report
+description: Report a problem with Panel Assistant in Home Assistant
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Installing, updating, connecting or removing a panel, and every Repair Panel Assistant raises, belong here. A problem with the panel's own screen or hardware belongs in the [panel app issues](https://github.com/panel-assistant/android/issues/new/choose).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What went wrong, and what you expected to happen instead.
+    validations:
+      required: true
+  - type: textarea
+    id: support_report
+    attributes:
+      label: Support report
+      description: |
+        If Home Assistant shows a Repair for the panel (**Settings → Repairs**), open it, choose **Support report** and paste the report here. It is the most useful thing you can include for a failed install or update.
+      render: text
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: |
+        In Home Assistant go to **Settings → Devices & services → Panel Assistant**, open the panel's **⋮** menu, choose **Download diagnostics** and attach the file here. It leaves out tokens and the panel's network identity.
+    validations:
+      required: true
+  - type: dropdown
+    id: panel
+    attributes:
+      label: Panel hardware
+      options:
+        - Sonoff NSPanel Pro (86P / 120P)
+        - Tuya TPA10
+        - Electron / ELCLCD WF1589T
+        - Meta Portal (Portal, Portal+, Portal Mini, Portal 10" 2nd gen)
+        - ZHICAI SMT1019 / WF2489T
+        - ZX-SMT156 / RK3566_T
+        - Smatek S9E
+        - Shelly Wall Display (legacy, X2i or other modern)
+        - Other (state in description)
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Home Assistant, Panel Assistant and panel app versions
+      placeholder: e.g. Home Assistant 2026.10.1, Panel Assistant 1.0.0-preview1, panel app 1.0.0-preview1 (2048)
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Home Assistant log entries mentioning `panel_assistant`, if any.
+      render: shell

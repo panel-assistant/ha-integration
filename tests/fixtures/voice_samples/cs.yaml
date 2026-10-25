@@ -11,26 +11,82 @@ match:
   - {text: "ukaž přehled energie", command: show_page, page: energie}
   - {text: "přejdi na přehled obývák", command: show_page, page: obývák}
   - {text: "přejděte na dashboard energie", command: show_page, page: energie}
+  - {text: "přejdi na předchozí stránku", command: show_page, page: předchozí}
+  - {text: "na panelu kuchyň ukaž stránku kamery", command: show_page, page: kamery, panel: kuchyň}
+  - {text: "na panelu obývací pokoj přejdi na nástěnku energie", command: show_page, page: energie, panel: obývací pokoj}
+  - {text: "na panelu kuchyň ukaž domovskou stránku", command: show_page, page: domovskou, panel: kuchyň}
   - {text: "zobraz nastavení androidu", command: android_settings}
   - {text: "přejdi do nastavení androidu", command: android_settings}
   - {text: "ukaž mi nastavení systému android", command: android_settings}
   - {text: "ukaž nastavení systému", command: android_settings}
   - {text: "zobraz systémová nastavení", command: android_settings}
+  - {text: "ukaž na panelu kuchyň nastavení androidu", command: android_settings, panel: kuchyň}
   - {text: "ukaž launcher", command: launcher}
   - {text: "ukaž spouštěč", command: launcher}
   - {text: "zobraz domovskou obrazovku androidu", command: launcher}
   - {text: "ukaž plochu androidu", command: launcher}
   - {text: "přejdi na domovskou obrazovku androidu", command: launcher}
   - {text: "přejděte na plochu androidu", command: launcher}
+  - {text: "zobraz na panelu kuchyň launcher", command: launcher, panel: kuchyň}
+  - {text: "ukaž nedávné aplikace", command: recents}
+  - {text: "zobraz mi přepínač aplikací", command: recents}
+  - {text: "ukaž seznam otevřených aplikací", command: recents}
+  - {text: "ukaž na panelu kuchyň nedávné aplikace", command: recents, panel: kuchyň}
+  - {text: "zpět", command: back}
+  - {text: "zpátky na předchozí stránku", command: back}
+  - {text: "o krok zpět", command: back}
+  - {text: "zpět na panelu kuchyň", command: back, panel: kuchyň}
+  - {text: "probuď se", command: screen_wake}
+  - {text: "probuď obrazovku", command: screen_wake}
+  - {text: "probuď panel kuchyň", command: screen_wake, panel: kuchyň}
+  - {text: "jdi spát", command: screen_sleep}
+  - {text: "usni", command: screen_sleep}
+  - {text: "uspi obrazovku", command: screen_sleep}
+  - {text: "uspi panel kuchyň", command: screen_sleep, panel: kuchyň}
+  - {text: "ztmav obrazovku", command: screen_dimmer}
+  - {text: "udělej obrazovku tmavší", command: screen_dimmer}
+  - {text: "sniž jas obrazovky", command: screen_dimmer}
+  - {text: "méně jasu", command: screen_dimmer}
+  - {text: "ztmav obrazovku na panelu kuchyň", command: screen_dimmer, panel: kuchyň}
+  - {text: "rozjasni obrazovku", command: screen_brighter}
+  - {text: "udělej obrazovku světlejší", command: screen_brighter}
+  - {text: "zvyš jas obrazovky", command: screen_brighter}
+  - {text: "víc jasu", command: screen_brighter}
+  - {text: "udělej obrazovku na panelu kuchyň jasnější", command: screen_brighter, panel: kuchyň}
+  - {text: "hlasitěji", command: volume_up}
+  - {text: "mluv trochu hlasitěji prosím", command: volume_up}
+  - {text: "zesil", command: volume_up}
+  - {text: "hlasitěji na panelu kuchyň", command: volume_up, panel: kuchyň}
+  - {text: "tišeji", command: volume_down}
+  - {text: "ztiš to", command: volume_down}
+  - {text: "zeslab", command: volume_down}
+  - {text: "tišeji na panelu kuchyň", command: volume_down, panel: kuchyň}
+  - {text: "ztiš panel obývací pokoj", command: volume_down, panel: obývací pokoj}
 miss:
   - "vypni obrazovku"
-  - "zpět"
+  - "vrať se"
+  - "jdi zpět"
+  - "jdi zpět na předchozí stránku"
+  - "předchozí skladba"
+  - "předchozí stránka"
   - "jaké je počasí"
   - "kolik je hodin"
   - "otevři garážová vrata"
   - "nastav jas na 50 procent"
+  - "nastav jas obrazovky na 50 procent"
+  - "ztlum světla"
   - "ukaž kamery"
   - "obnov stránku"
+  - "znovu načti nástěnku"
+  - "zvyš hlasitost"
+  - "sniž hlasitost"
+  - "zesil hlasitost"
+  - "uber hlasitost"
+  - "dej to hlasitěji"
+  - "dej to tišeji"
+  - "nastav hlasitost na 30 procent"
+  - "ztlum"
+  - "ztlum zvuk"
 builtin:
   screen_off: "vypni obrazovku"
   screen_on: "zapni obrazovku"

@@ -22,13 +22,11 @@ from .const import (
     DIAG_PATH,
     DISPLAY_PATH,
     HEALTH_PATH,
-    INSTALL_COMPONENT_PATH,
     INSTALL_STATUS_PATH,
     MAX_ANDROID_INTEGER,
     MAX_HEALTH_RESPONSE_BYTES,
     MAX_INSTALL_RESPONSE_BYTES,
     MAX_STATUS_RESPONSE_BYTES,
-    RESTORE_PATH,
     SETUP_PATH,
     STATUS_PATH,
 )
@@ -59,7 +57,6 @@ _PROTOCOL_RANGE_PATTERN = re.compile(r"^([1-9][0-9]{0,2})-([1-9][0-9]{0,2})$")
 _RESTART_PATTERN = re.compile(
     r"^(app|panel),(update|settings|recovery|reboot),([1-9][0-9]{0,5})$"
 )
-_RELEASE_TAG_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 _MAX_VERSION_LENGTH = 63
 _MAX_ANDROID_LONG = 2**63 - 1
 _KNOWN_HEALTH_FIELDS = frozenset(
@@ -514,7 +511,6 @@ _MAX_DISPLAY_BYTES = 16 * 1024
 _HANDOVER_TIMEOUT_SECONDS = 20.0
 _MAX_BACKUP_BYTES = 64 * 1024 * 1024
 _BACKUP_TIMEOUT_SECONDS = 120.0
-_MAX_RESTORE_RESPONSE_BYTES = 64 * 1024
 # The panel allows 600 s to receive an upload; stop just after it gives up.
 _UPLOAD_TIMEOUT_SECONDS = 630.0
 _DIAG_FIRST_LINE = re.compile(
@@ -595,11 +591,6 @@ class HaPaneldClient:
     def install_status_url(self) -> URL:
         """Return the panel-owned component-operation status endpoint."""
         return self.address.base_url.with_path(INSTALL_STATUS_PATH)
-
-    @property
-    def install_component_url(self) -> URL:
-        """Return the panel-owned component-update endpoint."""
-        return self.address.base_url.with_path(INSTALL_COMPONENT_PATH)
 
     async def _async_get_bounded(self, url: URL, maximum_bytes: int) -> bytes:
         try:
@@ -724,24 +715,6 @@ class HaPaneldClient:
         )
         return parse_panel_install_status(body)
 
-    async def async_start_panel_update(self, tag: str) -> None:
-        """Ask the panel to install one exact cached panel-approved release tag."""
-        if not isinstance(tag, str) or _RELEASE_TAG_PATTERN.fullmatch(tag) is None:
-            raise InvalidResponseError
-        status, body = await self._async_post_bounded(
-            self.install_component_url,
-            {"name": "paneld", "action": "update", "version": tag},
-            MAX_INSTALL_RESPONSE_BYTES,
-        )
-        if status == 200:
-            parse_update_start_response(body)
-            return
-        if status == 202:
-            parse_update_approval_response(body)
-        if 400 <= status < 500:
-            raise UpdateRejectedError
-        raise CannotConnectError
-
     async def async_get_version_code(self) -> tuple[str, int]:
         """Read the running app's version name and build number.
 
@@ -849,23 +822,6 @@ class HaPaneldClient:
         if status != 200:
             raise CannotConnectError
 
-    async def async_set_panel_id(self, panel_id: str) -> None:
-        """Give a panel its id through its own settings store.
-
-        Only the move uses it, to give the new app the old app's id before
-        the restore that brings the panel's own state back onto that id. A new
-        app that has just started answers only once it has reconfigured, which
-        took 10 s on a Sonoff panel.
-        """
-        status, _ = await self._async_post_bounded(
-            self.address.base_url.with_path(CONFIG_PATH),
-            {"panel_id": panel_id},
-            _MAX_SETUP_BYTES,
-            _BACKUP_TIMEOUT_SECONDS,
-        )
-        if status not in (200, 202):
-            raise CannotConnectError
-
     @property
     def setup_url(self) -> str:
         """The panel's own setup wizard."""
@@ -888,63 +844,6 @@ class HaPaneldClient:
         if 400 <= status < 500:
             raise UpdateRejectedError
         raise CannotConnectError
-
-    async def async_restore_panel(self, data: bytes) -> None:
-        """Start restoring one of the panel's own plaintext backups onto it.
-
-        The panel answers once the restore has started; it applies it in the
-        background, so a caller observes completion from health.
-        """
-        status, body = await self._async_post_bounded(
-            self.address.base_url.with_path(RESTORE_PATH),
-            data,
-            _MAX_RESTORE_RESPONSE_BYTES,
-            _BACKUP_TIMEOUT_SECONDS,
-        )
-        if status == 200:
-            return
-        if status == 202:
-            parse_update_approval_response(body)
-        if status == 409:
-            raise UpdateBusyError
-        if 400 <= status < 500:
-            raise UpdateRejectedError
-        raise CannotConnectError
-
-    async def async_get_restore_outcome(self) -> tuple[bool, int] | None:
-        """Return the finished restore's outcome: success, and state rows written.
-
-        None while an operation runs or when the last one was not a restore.
-        The panel writes carried state rows all together or not at all, and
-        reports how many landed.
-        """
-        try:
-            status = json.loads(
-                await self._async_get_bounded(
-                    self.install_status_url, MAX_INSTALL_RESPONSE_BYTES
-                )
-            )
-        except ValueError as err:
-            raise InvalidResponseError from err
-        if (
-            not isinstance(status, dict)
-            or status.get("running") is not False
-            or status.get("component") != "Restore"
-        ):
-            return None
-        result = status.get("result")
-        presentation = status.get("presentation")
-        succeeded = isinstance(result, dict) and result.get("status") == "succeeded"
-        rows = 0
-        if (
-            isinstance(presentation, dict)
-            and presentation.get("code") == "restore-completed-with-state"
-            and isinstance(presentation.get("params"), dict)
-        ):
-            count = presentation["params"].get("count")
-            if isinstance(count, str) and count.isdigit():
-                rows = int(count)
-        return succeeded, rows
 
     async def async_hand_back_home(self) -> str:
         """Give HOME back to another launcher; return the launcher's package.
@@ -989,7 +888,7 @@ class HaPaneldClient:
         if status == 403:
             raise UploadDisabledError
         if status == 503:
-            # No root to install with; the panel's own update may still work.
+            # No root to install with.
             raise StagingUnavailableError
         if status == 409:
             raise UpdateBusyError

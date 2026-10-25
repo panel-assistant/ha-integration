@@ -12,6 +12,7 @@
     "github": "GitHub",
     "unreachable": "inacessível",
     "restarting": "Reiniciando ({reason})",
+    "restartingNext": "Este painel voltará automaticamente. Não é necessário atualizar a página.",
     "not_loaded": "não carregado",
     "opening": "Abrindo {panel}…",
     "loadingHint": "Só um momento",
@@ -106,7 +107,9 @@
     "progress": "Progresso",
     "installProgress": "Progresso da instalação",
     "licenses": "Licenças de terceiros",
-    "doneAnotherHomeAssistant": "Este painel está atualmente com sessão iniciada em outro Home Assistant. Troque o Home Assistant e faça login no painel para conectá-lo aqui."
+    "doneAnotherHomeAssistant": "Este painel está atualmente com sessão iniciada em outro Home Assistant. Troque o Home Assistant e faça login no painel para conectá-lo aqui.",
+    "reconnectedHeading": "O Panel Assistant alcança este painel de novo",
+    "reconnectedBody": "Este painel já tem o app, então nada foi instalado. O Home Assistant agora pode atualizá-lo pela sua rede."
   },
   "errors": {
     "installErrorGeneric": "Algo deu errado. Mantenha o painel conectado e pressione Tentar novamente.",

@@ -12,6 +12,7 @@
     "github": "GitHub",
     "unreachable": "nicht erreichbar",
     "restarting": "Neustart ({reason})",
+    "restartingNext": "Dieses Panel wird automatisch wieder angezeigt. Du musst die Seite nicht aktualisieren.",
     "not_loaded": "nicht geladen",
     "opening": "{panel} wird geöffnet…",
     "loadingHint": "Einen Moment bitte",
@@ -106,7 +107,9 @@
     "progress": "Fortschritt",
     "installProgress": "Installationsfortschritt",
     "licenses": "Lizenzen von Drittanbietern",
-    "doneAnotherHomeAssistant": "Dieses Panel ist bei einem anderen Home Assistant angemeldet. Ändere Home Assistant und melde dich auf dem Panel an, um es hier zu verbinden."
+    "doneAnotherHomeAssistant": "Dieses Panel ist bei einem anderen Home Assistant angemeldet. Ändere Home Assistant und melde dich auf dem Panel an, um es hier zu verbinden.",
+    "reconnectedHeading": "Panel Assistant erreicht dieses Panel wieder",
+    "reconnectedBody": "Die App ist bereits auf diesem Panel, daher wurde nichts installiert. Home Assistant kann es jetzt über dein Netzwerk aktualisieren."
   },
   "errors": {
     "installErrorGeneric": "Etwas ist schiefgegangen. Lass das Panel angeschlossen und drücke „Erneut versuchen“.",

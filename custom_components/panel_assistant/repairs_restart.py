@@ -23,7 +23,7 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_track_time_interval
 
 from .build import INTEGRATION_BUILD
-from .const import DOMAIN, INTEGRATION_VERSION
+from .const import DOMAIN, INTEGRATION_VERSION, help_url
 
 _LOGGER = logging.getLogger("custom_components.panel_assistant.restart_repair")
 
@@ -81,7 +81,12 @@ async def async_check_restart_needed(
         if issue is not None:
             ir.async_delete_issue(hass, DOMAIN, ISSUE_RESTART_REQUIRED)
         return
-    placeholders = {"loaded": _label(loaded), "installed": _label(installed)}
+    placeholders = {
+        "loaded": _label(loaded),
+        "installed": _label(installed),
+        "integration_url": "/config/integrations/integration/panel_assistant",
+        "learn_more_url": help_url("repair", issue=ISSUE_RESTART_REQUIRED),
+    }
     state["pending"] = {
         "loaded_version": loaded[0],
         "loaded_build": loaded[1],
@@ -103,6 +108,7 @@ async def async_check_restart_needed(
         is_persistent=False,
         severity=ir.IssueSeverity.WARNING,
         translation_key=ISSUE_RESTART_REQUIRED,
+        learn_more_url=help_url("repair", issue=ISSUE_RESTART_REQUIRED),
         translation_placeholders=placeholders,
     )
 

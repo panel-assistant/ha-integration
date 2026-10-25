@@ -323,15 +323,22 @@ async def _async_prove_su(
     is expected exactly where that target was reported.
     """
     clean = admitted is not None
+    answered = False
     for prefix in _SU_PREFIXES:
         nonce = token_hex(16)
-        async with asyncio.timeout(_SU_TIMEOUT_SECONDS):
-            body = await _async_shell(
-                device,
-                _su_attempt_command(prefix, nonce, clean=clean),
-                read_timeout=_SU_TIMEOUT_SECONDS,
-                transport_timeout=_SU_TIMEOUT_SECONDS,
-            )
+        try:
+            async with asyncio.timeout(_SU_TIMEOUT_SECONDS):
+                body = await _async_shell(
+                    device,
+                    _su_attempt_command(prefix, nonce, clean=clean),
+                    read_timeout=_SU_TIMEOUT_SECONDS,
+                    transport_timeout=_SU_TIMEOUT_SECONDS,
+                )
+        except TimeoutError, AdbTimeoutError, TcpTimeoutException:
+            # Some su dialects wait on stdin for a form they do not take
+            # (Magisk's `su 0 '<cmd>'`); the next form may still answer.
+            continue
+        answered = True
         lines = _decode_lines(body)
         if not lines or lines[0] != f"HAPANELD_DELEGATE_BEGIN:{nonce}":
             raise _MalformedAdbResponse
@@ -368,7 +375,12 @@ async def _async_prove_su(
                 if values == ["present"] and not expected:
                     raise InstallAdbError(InstallAdbErrorCode.TARGET_NOT_CLEAN)
         return
-    raise InstallAdbError(InstallAdbErrorCode.ROOT_STATE_AMBIGUOUS)
+    # No form answering at all means the panel itself is not answering.
+    raise InstallAdbError(
+        InstallAdbErrorCode.ROOT_STATE_AMBIGUOUS
+        if answered
+        else InstallAdbErrorCode.TARGET_UNREACHABLE
+    )
 
 
 async def _async_require_identity_root(

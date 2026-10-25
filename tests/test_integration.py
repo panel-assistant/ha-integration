@@ -1013,6 +1013,42 @@ async def test_coordinator_translates_client_failure(
     assert status_mock.await_count == 1
 
 
+async def test_a_health_read_its_address_edit_retired_is_logged_as_that(
+    hass: HomeAssistant, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A health answer an address edit retired mid-read is logged as that, not
+    as a panel whose health could not be read."""
+    entry = _entry(hass)
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=DISCOVERY_HEALTH),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=STATUS),
+        ),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    async def health() -> PanelHealth:
+        hass.config_entries.async_update_entry(
+            entry, data={**entry.data, CONF_ADDRESS: "moved.local"}
+        )
+        return DISCOVERY_HEALTH
+
+    coordinator = entry.runtime_data.coordinator
+    entry.runtime_data.client.async_get_health = health  # type: ignore[method-assign]
+    await coordinator.async_refresh()
+
+    assert not coordinator.last_update_success
+    assert "The panel's address changed while its health was being read" in (
+        caplog.text
+    )
+    assert "Unable to read panel health" not in caplog.text
+
+
 async def test_diagnostics_marks_cached_snapshot_after_health_failure(
     hass: HomeAssistant,
 ) -> None:

@@ -62,17 +62,14 @@ from .update_errors import (
     route_unavailable_reason,
 )
 from .update_offer import UpdateOffer
-from .update_panel_install import (
-    async_repair_update_permissions,
-    async_request_panel_download,
-)
+from .update_panel_install import async_repair_update_permissions
 from .update_policy import feed_build_newer, prereleases_allowed
 from .update_progress import UpdateProgress
 from .update_route import (
     ROUTE_ADB,
     ROUTE_ATTRIBUTE,
-    ROUTE_PANEL,
     ROUTE_SESSION,
+    ROUTE_STAGED,
     ROUTE_UNAVAILABLE_ATTRIBUTE,
     api_capability,
     async_admit_adb_target,
@@ -158,7 +155,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             coordinator,
             update_coordinator,
             lambda: self.async_write_ha_state(),
-            lambda: self._installed_code,
         )
         self._delivery = BuildDelivery(
             entry_id,
@@ -352,7 +348,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         if key == self._route_key():
             self._route_checked_key = key
             self._adb_ready_key = key if route == ROUTE_ADB else None
-            self._legacy_api_ready_key = key if route == ROUTE_PANEL else None
+            self._legacy_api_ready_key = key if route == ROUTE_STAGED else None
             attributes = dict(self._attr_extra_state_attributes)
             if not self._has_install_route():
                 attributes[ROUTE_UNAVAILABLE_ATTRIBUTE] = route_unavailable_reason(
@@ -375,7 +371,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
 
     def _refresh_installed_code(self) -> None:
         """Read the running build number once per install, never per poll."""
-        if not self.coordinator.reachable:
+        # The address can answer before any snapshot has been read.
+        if not self.coordinator.reachable or self.coordinator.data is None:
             return
         health = self.coordinator.data.health
         if health.version_code is not None:
@@ -413,13 +410,15 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         if self._offer.feed is not None:
             await self._offer.feed.async_refresh()
         if self._offer.release is not None:
-            await self._offer.release.async_refresh()
+            # One release catalogue serves every panel: a fleet-wide refresh
+            # reads it once, not once per panel against GitHub's rate limit.
+            await self._offer.release.async_request_refresh()
 
     def _awaiting_confirmation(self) -> bool:
         """The panel's own installer waits for a tap on Install."""
         snapshot = self._update_coordinator.data
         operation = snapshot.operation if snapshot is not None else None
-        # Either route can wait: the panel's own download runs as "ha-paneld",
+        # Either can wait: an older app's own update runs as "ha-paneld",
         # an update Home Assistant sent runs as the uploaded "APK".
         return (
             operation is not None
@@ -459,59 +458,47 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         ):
             return
         self._recovery_started = True
-        self._start_observer(None, recovered=True)
+        self._start_observer()
         # Found running after a reload: the panel already took the update.
         self._progress.enter("installing")
 
-    def _start_observer(
-        self, expected_version: str | None, *, recovered: bool = False
-    ) -> asyncio.Task[None]:
+    def _start_observer(self) -> asyncio.Task[None]:
         """Start or reuse the entity's sole bounded health observer."""
         if self._observer_task is not None and not self._observer_task.done():
             return self._observer_task
         self._progress.begin(self.hass, self.installed_version, self.latest_version)
         task = self.hass.async_create_task(
-            self._run_observer(expected_version, recovered=recovered),
+            self._run_observer(),
             f"observe ha-paneld update {self._entry_id}",
         )
         self._observer_task = task
         task.add_done_callback(self._observer_finished)
         return task
 
-    async def _run_observer(
-        self,
-        expected_version: str | None,
-        *,
-        recovered: bool,
-    ) -> None:
-        """Observe one target and release its latch before awaiters resume."""
+    async def _run_observer(self) -> None:
+        """Observe recovered work and release its latch before awaiters resume."""
         starting_health = (
-            self.coordinator.data.health
-            if recovered and self.coordinator.data
-            else None
+            self.coordinator.data.health if self.coordinator.data else None
         )
         try:
-            verified = await self._progress.async_wait_for_installed_version(
-                self.hass, expected_version
-            )
+            verified = await self._progress.async_wait_for_installed_version(self.hass)
         except Exception as err:
-            if recovered:
-                await async_record_update_failure(
-                    self.hass,
-                    self._entry_id,
-                    self._panel_name(),
-                    expected_version,
-                    err,
-                    observed_before=(
-                        starting_health.version,
-                        starting_health.version_code,
-                    )
-                    if starting_health is not None
-                    else None,
+            await async_record_update_failure(
+                self.hass,
+                self._entry_id,
+                self._panel_name(),
+                None,
+                err,
+                observed_before=(
+                    starting_health.version,
+                    starting_health.version_code,
                 )
+                if starting_health is not None
+                else None,
+            )
             raise
         else:
-            if recovered and verified:
+            if verified:
                 health = self.coordinator.data.health
                 await async_clear_update_failure_if_installed(
                     self.hass,
@@ -796,24 +783,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                         verified_success=True,
                     )
                     return
-                if route == ROUTE_SESSION:
-                    # The panel's own download is not carried by its session.
-                    if release is None or release.tag != offer.tag:
-                        raise _update_error(
-                            "update_unavailable",
-                            "The requested Panel Assistant update is unavailable",
-                        )
-                    await self._delivery.async_deliver_build(self.hass, release)
-                # Home Assistant sends the release over the LAN whenever it could
-                # authenticate it. Only a panel that cannot take an upload at all
-                # downloads the release itself, and verifies it itself.
-                elif release is not None and release.tag == offer.tag:
-                    if not await self._delivery.async_deliver_build(
-                        self.hass, release, fallback=True
-                    ):
-                        await self._async_start_panel_download(offer, release)
-                else:
-                    await self._async_start_panel_download(offer, release)
+                # The offer is the release Home Assistant authenticated; the
+                # panel no longer fetches one itself.
+                assert release is not None
+                await self._delivery.async_deliver_build(self.hass, release)
         except UpdateRejectedError as refusal:
             error = refusal_error(self._panel_name(), refusal)
             await async_record_update_failure(
@@ -886,19 +859,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self._delivery.session = False
             self._progress.end()
             self.async_write_ha_state()
-
-    async def _async_start_panel_download(
-        self, offer: PanelCachedUpdate, artifact: ReleaseArtifact | None
-    ) -> None:
-        """Ask the panel to fetch only the host-admitted release, then follow it."""
-        await async_request_panel_download(
-            self.coordinator.client, offer, artifact, self._offer.async_admit
-        )
-        self._record_route(ROUTE_PANEL, offer.tag)
-        self._progress.enter("installing")
-        observer = self._start_observer(offer.target_version)
-        self.async_write_ha_state()
-        await observer
 
     def _remember_code(self, code: int, key: tuple[str, str]) -> None:
         """Keep the build number a delivery proved, for the version just read."""

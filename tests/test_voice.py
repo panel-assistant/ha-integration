@@ -30,6 +30,7 @@ from custom_components.panel_assistant.voice import (
     PIPELINE_COLORS,
     PipelineColors,
 )
+from tests.test_repair_links import assert_repair_links
 
 from .test_native import _setup
 from .test_transport import DID, WsClientFactory, _receive, _send
@@ -90,6 +91,11 @@ class FakePipeline:
 
     async def __call__(self, hass: HomeAssistant, **kwargs: Any) -> None:
         self.calls.append(kwargs)
+        callback: Callable[[PipelineEvent], None] = kwargs["event_callback"]
+        # As in Core, listening starts before any audio is read.
+        events = list(self.events)
+        if events and events[0].type is PipelineEventType.STT_START:
+            callback(events.pop(0))
         stream: AsyncIterable[bytes] = kwargs["stt_stream"]
         try:
             async for chunk in stream:
@@ -97,8 +103,7 @@ class FakePipeline:
         except asyncio.CancelledError:
             self.cancelled = True
             raise
-        callback: Callable[[PipelineEvent], None] = kwargs["event_callback"]
-        for event in self.events:
+        for event in events:
             callback(event)
 
 
@@ -850,7 +855,10 @@ async def test_a_silent_microphone_check_raises_a_repair_until_a_check_passes(
     issue = _microphone_issue(hass, entry)
     assert issue is not None
     assert issue.translation_key == "voice_microphone_silent"
-    assert issue.translation_placeholders == {"panel": panel_display_name(hass, entry)}
+    assert_repair_links(issue)
+    assert {
+        "panel": panel_display_name(hass, entry)
+    }.items() <= issue.translation_placeholders.items()
     assert issue.severity is ir.IssueSeverity.WARNING
     assert not issue.is_fixable
     raised = len(updates)
@@ -878,15 +886,19 @@ async def test_a_microphone_that_delivered_no_audio_names_what_the_panel_reporte
     assert (await panel.configure(microphone=no_audio | {"detail": detail}))["success"]
     issue = _microphone_issue(hass, entry)
     assert issue.translation_key == "voice_microphone_no_audio_detail"
-    assert issue.translation_placeholders == {
+    assert_repair_links(issue)
+    assert {
         "panel": panel_display_name(hass, entry),
         "detail": detail,
-    }
+    }.items() <= issue.translation_placeholders.items()
 
     assert (await panel.configure(microphone=no_audio))["success"]
     issue = _microphone_issue(hass, entry)
     assert issue.translation_key == "voice_microphone_no_audio"
-    assert issue.translation_placeholders == {"panel": panel_display_name(hass, entry)}
+    assert_repair_links(issue)
+    assert {
+        "panel": panel_display_name(hass, entry)
+    }.items() <= issue.translation_placeholders.items()
 
     # The owner turning the voice assistant off is not a fault to report.
     assert (await panel.configure(enabled=False, microphone=no_audio))["success"]

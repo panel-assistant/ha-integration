@@ -41,6 +41,9 @@ DATA_BROWSER_DELIVERY = "browser_delivery"
 _BODY_LIMIT = 1024
 _BODY_TIMEOUT = 5.0
 _DOWNLOAD_TIMEOUT = 60.0
+# Feed refresh can authenticate two APKs (five minutes each), before catalogue
+# discovery/resolution. Bound the entire view, including that refresh.
+_CATALOG_TIMEOUT = 12 * 60.0
 _CHUNK_SIZE = 64 * 1024
 _HEADERS = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
 _ID = re.compile(r"[0-9a-f]{32}")
@@ -150,7 +153,8 @@ class BrowserReleaseCatalogView(HomeAssistantView):
             return _error("browser_release_invalid_request", 400)
         try:
             async with self.service.async_admit():
-                releases = await async_list_install_choices(self.service.hass)
+                async with asyncio.timeout(_CATALOG_TIMEOUT):
+                    releases = await async_list_install_choices(self.service.hass)
                 return web.json_response({"releases": releases}, headers=_HEADERS)
         except BrowserReleaseCacheError as error:
             return _cache_error(error)

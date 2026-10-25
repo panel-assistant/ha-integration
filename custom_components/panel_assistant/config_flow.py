@@ -5,10 +5,11 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import Any, Self
 
 import voluptuous as vol
+from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 from homeassistant.config_entries import (
     SOURCE_IGNORE,
     SOURCE_USER,
@@ -38,7 +39,6 @@ from homeassistant.helpers.selector import (
     TextSelector,
     TextSelectorConfig,
 )
-from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from .adb_credentials import (
@@ -79,7 +79,6 @@ from .discovery import (
     address_schema,
     async_confirm_discovery,
     async_confirm_migration,
-    async_dhcp,
     async_find_migration_targets,
     async_ignore,
     async_integration_discovery,
@@ -135,7 +134,6 @@ from .transport_binding import (
     async_binding_request,
     async_confirmable_user,
     async_discard_binding_request,
-    async_unbind_user,
 )
 from .update_policy import prereleases_allowed
 
@@ -238,7 +236,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         async_register_browser_delivery(self.hass)
         await async_register_browser_panel(self.hass)
         # Someone adding a panel by hand is the moment to show every known one.
-        async_offer_migration_targets(self.hass, recheck=True)
+        async_offer_migration_targets(self.hass)
         return self.async_show_menu(
             step_id="user",
             menu_options=["add_panel", "install_usb"],
@@ -328,11 +326,6 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self, discovery_info: ZeroconfServiceInfo
     ) -> ConfigFlowResult:
         return await async_zeroconf(self, discovery_info)
-
-    async def async_step_dhcp(
-        self, discovery_info: DhcpServiceInfo
-    ) -> ConfigFlowResult:
-        return await async_dhcp(self, discovery_info)
 
     async def async_step_integration_discovery(
         self, discovery_info: dict[str, Any]
@@ -868,24 +861,9 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 return self._show_authorize_adb(errors)
             return self._show_install_candidate_preview()
 
-        async def wait_for_allow() -> InstallTargetProbe:
-            offered = await async_probe_install_target(
-                target.pinned,
-                signer,
-                authorize=True,
-                approval_seconds=_ADB_APPROVAL_SECONDS,
-            )
-            if offered.state in (
-                InstallTargetState.ADB_UNAUTHORIZED,
-                InstallTargetState.ADB_UNREACHABLE,
-            ):
-                return offered
-            # Android allows the connection that offered the key; the install
-            # opens its own, which works only if the panel remembered the key.
-            return await async_probe_install_target(target.pinned, signer)
-
         task = self.hass.async_create_task(
-            wait_for_allow(), "wait for the panel to allow Home Assistant"
+            async_wait_for_adb_allow(target.pinned, signer),
+            "wait for the panel to allow Home Assistant",
         )
         self._authorization_task = task
         return self._show_authorization_progress(task)
@@ -1294,9 +1272,6 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 and retained.data.get(CONF_ADDRESS) == receipt.target.address
                 and accept_health(self.hass, retained, result.health)
             ):
-                # A reinstall is the owner's own install: the panel binds the
-                # account it signs in as next, as a new panel does.
-                async_unbind_user(self.hass, retained)
                 await executor.async_consume_finalization(
                     receipt.job_id, self.flow_id, retained.entry_id
                 )
@@ -1627,22 +1602,68 @@ def _install_terminal_abort_reason(receipt: InstallJobReceipt) -> str:
     return "install_failed"
 
 
+async def async_wait_for_adb_allow(
+    address: PanelAddress, signer: PythonRSASigner
+) -> InstallTargetProbe:
+    """Hold one key offer, then check that a fresh connection is trusted."""
+    offered = await async_probe_install_target(
+        address, signer, authorize=True, approval_seconds=_ADB_APPROVAL_SECONDS
+    )
+    if offered.state in (
+        InstallTargetState.ADB_UNAUTHORIZED,
+        InstallTargetState.ADB_UNREACHABLE,
+    ):
+        return offered
+    # Android allows the offering connection; every later operation opens its
+    # own, which works only if the panel remembered the key.
+    return await async_probe_install_target(address, signer)
+
+
+@dataclass
+class AdbAuthorization:
+    """One existing-panel wait, retained until its completion screen is shown."""
+
+    task: asyncio.Task[str | None] | None = None
+
+
 async def async_authorize_adb_form[ResultT: FlowResult[Any, Any]](
     flow: FlowHandler[Any, ResultT, Any],
     entry: ConfigEntry,
     panel: str,
     user_input: dict[str, Any] | None,
+    authorization: AdbAuthorization,
+    *,
+    done: bool = False,
 ) -> ResultT | None:
-    """Show the authorize_adb step, or authorize the panel and return None.
+    """Share the Options/Repairs wait; only the done step may finish it.
 
-    The Options flow and both Repairs share this step; each finishes its own way.
+    Core forwards progress input to the next step. That input must neither
+    offer the key again nor select an installer-failure menu action.
     """
     error = None
-    if user_input is not None:
-        error = await async_authorize_existing_panel_adb(flow.hass, entry)
-        if error is None:
-            async_clear_adb_authorization(flow.hass, entry.entry_id)
-            return None
+    task = authorization.task
+    if done:
+        if task is not None and task.done():
+            authorization.task = None
+            error = task.result()
+            if error is None:
+                async_clear_adb_authorization(flow.hass, entry.entry_id)
+                return None
+    else:
+        if task is not None and task.done():
+            return flow.async_show_progress_done(next_step_id="authorize_adb_done")
+        if task is None and user_input is not None:
+            task = authorization.task = flow.hass.async_create_task(
+                async_authorize_existing_panel_adb(flow.hass, entry),
+                "wait for the configured panel to allow Home Assistant",
+            )
+        if task is not None:
+            return flow.async_show_progress(
+                step_id="authorize_adb",
+                progress_action="authorize_adb",
+                description_placeholders={"panel": panel},
+                progress_task=task,
+            )
     return flow.async_show_form(
         step_id="authorize_adb",
         data_schema=vol.Schema({}),
@@ -1674,7 +1695,7 @@ async def async_authorize_existing_panel_adb(
             return "panel_identity_changed"
         await async_revalidate_install_target(hass, target)
         signer = await async_get_adb_signer(hass)
-        probe = await async_probe_install_target(target.pinned, signer, authorize=True)
+        probe = await async_wait_for_adb_allow(target.pinned, signer)
         await async_revalidate_install_target(hass, target)
     except InstallNetworkError as err:
         return _install_network_error(err)
@@ -1709,6 +1730,9 @@ class HaPaneldOptionsFlow(OptionsFlow):
     """Complete setup, configure panel updates, authorise ADB or remove the app."""
 
     _removal_risks_url: str | None = None
+
+    def __init__(self) -> None:
+        self._adb_authorization = AdbAuthorization()
 
     def _current_panel_health(self) -> PanelHealth | None:
         """Use the loaded entry's panel identity for ADB consent."""
@@ -1772,7 +1796,30 @@ class HaPaneldOptionsFlow(OptionsFlow):
     ) -> ConfigFlowResult:
         """Offer HA's durable ADB key only after explicit existing-panel consent."""
         entry = self.config_entry
-        form = await async_authorize_adb_form(self, entry, entry.title, user_input)
+        form = await async_authorize_adb_form(
+            self,
+            entry,
+            panel_display_name(self.hass, entry),
+            user_input,
+            self._adb_authorization,
+        )
+        if form is not None:
+            return form
+        return self.async_create_entry(data=dict(entry.options))
+
+    async def async_step_authorize_adb_done(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show where the wait ended; forwarded input is never a press."""
+        entry = self.config_entry
+        form = await async_authorize_adb_form(
+            self,
+            entry,
+            panel_display_name(self.hass, entry),
+            None,
+            self._adb_authorization,
+            done=True,
+        )
         if form is not None:
             return form
         return self.async_create_entry(data=dict(entry.options))

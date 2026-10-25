@@ -19,7 +19,6 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_time_interval
 
 from .app_identity import PACKAGE_ID, reports_package
-from .build_feed import parse_build_request
 from .client import (
     CannotConnectError,
     HaPaneldError,
@@ -114,14 +113,11 @@ class UpdateProgress:
         coordinator: HaPaneldDataUpdateCoordinator,
         update_coordinator: PanelUpdateCoordinator,
         write_state: Callable[[], None],
-        installed_code: Callable[[], int | None],
     ) -> None:
         self._entry_id = entry_id
         self._coordinator = coordinator
         self._update_coordinator = update_coordinator
         self._write_state = write_state
-        # The running build number as the entity last read it.
-        self._installed_code = installed_code
         self.attempt: _Attempt | None = None
         self._stop_redraw: Callable[[], None] | None = None
 
@@ -236,15 +232,11 @@ class UpdateProgress:
         # version-order refusal and must never trigger the staged ADB crossover.
         raise refusal_error(panel, UpdateRejectedError(operation.message))
 
-    async def async_wait_for_installed_version(
-        self, hass: HomeAssistant, expected_version: str | None
-    ) -> bool:
+    async def async_wait_for_installed_version(self, hass: HomeAssistant) -> bool:
         """Poll through restart; return false when recovered outcome is unknown."""
         coordinator = self._coordinator
         starting_health = (
-            coordinator.data.health
-            if expected_version is None and coordinator.data is not None
-            else None
+            coordinator.data.health if coordinator.data is not None else None
         )
         deadline = asyncio.get_running_loop().time() + _UPDATE_TIMEOUT_SECONDS
         # Retain the first prompt observation; later polls cannot renew it.
@@ -263,15 +255,6 @@ class UpdateProgress:
             snapshot = coordinator.data
             verified = (
                 snapshot is not None
-                and snapshot.health.version == expected_version.partition(" build ")[0]
-                and (
-                    parse_build_request(expected_version) is None
-                    or snapshot.health.version_code
-                    == parse_build_request(expected_version)
-                    or self._installed_code() == parse_build_request(expected_version)
-                )
-                if expected_version is not None
-                else snapshot is not None
                 and starting_health is not None
                 and (
                     (
@@ -306,8 +289,6 @@ class UpdateProgress:
                 status = self._update_coordinator.data.operation
             except CannotConnectError, InvalidResponseError:
                 status = None
-            if expected_version is not None:
-                self._raise_finished_failure(hass, status, "ha-paneld")
             if confirmation_deadline is None:
                 confirmation_deadline = _confirmation_completion_deadline(
                     status, "ha-paneld"
@@ -315,8 +296,7 @@ class UpdateProgress:
                 if confirmation_deadline is not None:
                     deadline = max(deadline, confirmation_deadline)
             if (
-                expected_version is None
-                and status is not None
+                status is not None
                 and not status.running
                 and status.component == "ha-paneld"
             ):
@@ -331,14 +311,8 @@ class UpdateProgress:
                 if asyncio.get_running_loop().time() >= terminal_status_deadline:
                     return False
             await asyncio.sleep(_UPDATE_RECHECK_SECONDS)
-        if (
-            expected_version is None
-            and not verified
-            and not (
-                status is not None
-                and status.component == "ha-paneld"
-                and status.running
-            )
+        if not verified and not (
+            status is not None and status.component == "ha-paneld" and status.running
         ):
             return False
         raise _update_error("update_not_complete", "The panel update did not complete")

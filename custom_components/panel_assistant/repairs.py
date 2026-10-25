@@ -25,10 +25,10 @@ from .client import (
     is_valid_discovery_id,
     normalize_address,
 )
-from .config_flow import async_authorize_adb_form
+from .config_flow import AdbAuthorization, async_authorize_adb_form
 from .const import CONF_TRANSPORT_USER_ID, DOMAIN, update_unique_id
 from .coordinator import HaPaneldDataUpdateCoordinator, PanelSnapshot
-from .device import panel_display_name
+from .device import PROXIMITY_SETUP_ANCHOR, panel_display_name, sidebar_url
 from .identity import (
     ISSUE_IDENTITY,
     can_confirm_identity,
@@ -164,7 +164,9 @@ class PanelIdentityFlow(RepairsFlow):
                 entry = self.hass.config_entries.async_get_entry(candidate["entry_id"])
                 assert entry is not None
                 self._candidates.append(candidate)
-                names.append(f"- {entry.title} ({candidate['address']})")
+                names.append(
+                    f"- {panel_display_name(self.hass, entry)} ({candidate['address']})"
+                )
             self._panels = "\n".join(names)
         if not self._candidates or not all(
             self._unchanged(values) for values in self._candidates
@@ -279,7 +281,10 @@ class PanelUserBindingFlow(RepairsFlow):
             return self.async_create_entry(data={})
 
         self._shown_binding = bound_id
-        placeholders = {"panel": entry.title, "user": user.name or ""}
+        placeholders = {
+            "panel": panel_display_name(self.hass, entry),
+            "user": user.name or "",
+        }
         if step_id == "confirm_rebind":
             bound = await self.hass.auth.async_get_user(bound_id) if bound_id else None
             bound_name = bound.name if bound is not None else None
@@ -296,6 +301,7 @@ class InstallerFailureFlow(RepairsFlow):
 
     def __init__(self) -> None:
         self._retry_task: asyncio.Task[str | None] | None = None
+        self._adb_authorization = AdbAuthorization()
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -340,7 +346,28 @@ class InstallerFailureFlow(RepairsFlow):
             # menu shows what is left, and clears the Repair of a removed panel.
             return await self.async_step_init()
         panel = panel_display_name(self.hass, entry)
-        form = await async_authorize_adb_form(self, entry, panel, user_input)
+        form = await async_authorize_adb_form(
+            self, entry, panel, user_input, self._adb_authorization
+        )
+        if form is not None:
+            return form
+        return await self.async_step_init()
+
+    async def async_step_authorize_adb_done(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        """Return to the report menu without treating forwarded input as retry."""
+        entry = self._adb_entry()
+        if entry is None:
+            return await self.async_step_init()
+        form = await async_authorize_adb_form(
+            self,
+            entry,
+            panel_display_name(self.hass, entry),
+            None,
+            self._adb_authorization,
+            done=True,
+        )
         if form is not None:
             return form
         return await self.async_step_init()
@@ -631,7 +658,12 @@ class ProximitySetupFlow(RepairsFlow):
         return self.async_show_form(
             step_id="set_up_proximity",
             data_schema=vol.Schema({}),
-            description_placeholders={"panel": panel_display_name(self.hass, entry)},
+            description_placeholders={
+                "panel": panel_display_name(self.hass, entry),
+                "configure_url": sidebar_url(
+                    self._entry_id, "configure", PROXIMITY_SETUP_ANCHOR
+                ),
+            },
             errors=errors,
         )
 
@@ -641,6 +673,7 @@ class AdbAuthorizationFlow(RepairsFlow):
 
     def __init__(self, entry_id: str) -> None:
         self._entry_id = entry_id
+        self._adb_authorization = AdbAuthorization()
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -654,7 +687,28 @@ class AdbAuthorizationFlow(RepairsFlow):
         if entry is None or entry.domain != DOMAIN:
             return await _async_entry_removed(self)
         panel = panel_display_name(self.hass, entry)
-        form = await async_authorize_adb_form(self, entry, panel, user_input)
+        form = await async_authorize_adb_form(
+            self, entry, panel, user_input, self._adb_authorization
+        )
+        if form is not None:
+            return form
+        return self.async_create_entry(data={})
+
+    async def async_step_authorize_adb_done(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        """Show the wait's outcome, ignoring progress input."""
+        entry = self.hass.config_entries.async_get_entry(self._entry_id)
+        if entry is None or entry.domain != DOMAIN:
+            return await _async_entry_removed(self)
+        form = await async_authorize_adb_form(
+            self,
+            entry,
+            panel_display_name(self.hass, entry),
+            None,
+            self._adb_authorization,
+            done=True,
+        )
         if form is not None:
             return form
         return self.async_create_entry(data={})

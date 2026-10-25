@@ -12,12 +12,15 @@ import json
 import os
 import statistics
 import sys
+import urllib.parse
 import urllib.request
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 _API = "https://api.github.com"
+# Bound API work even when a workflow has only malformed history.
+_MAX_PAGES = 10
 _TIMESTAMP = "%Y-%m-%dT%H:%M:%SZ"
 
 
@@ -125,31 +128,69 @@ def main(argv: list[str] | None = None) -> int:
     budgets: dict[str, int] = config["budgets"]
     sample_size: int = config["sample_size"]
 
-    payload = _fetch(
-        f"{_API}/repos/{args.repository}/actions/runs"
-        f"?branch={args.branch}&status=success&per_page=100",
-        token,
-    )
-    by_workflow: dict[str, list[dict[str, Any]]] = {}
-    for run in payload.get("workflow_runs", []):
-        by_workflow.setdefault(run.get("name", ""), []).append(run)
+    if sample_size < 1:
+        raise ValueError("sample_size must be at least 1")
+    api = f"{_API}/repos/{args.repository}/actions"
+    workflow_ids: dict[str, list[int]] = {}
+    for page in range(1, _MAX_PAGES + 1):
+        workflows = _fetch(f"{api}/workflows?per_page=100&page={page}", token).get(
+            "workflows", []
+        )
+        for workflow in workflows:
+            if workflow.get("name") in budgets:
+                workflow_ids.setdefault(workflow["name"], []).append(workflow["id"])
+        if len(workflows) < 100:
+            break
 
+    by_workflow: dict[str, list[dict[str, Any]]] = {}
+    for workflow in budgets:
+        ids = workflow_ids.get(workflow, [])
+        runs: list[dict[str, Any]] = []
+        by_workflow[workflow] = runs
+        # A missing or ambiguous name cannot identify the budgeted history.
+        if len(ids) != 1:
+            continue
+        for page in range(1, _MAX_PAGES + 1):
+            query = urllib.parse.urlencode(
+                {
+                    "branch": args.branch,
+                    "status": "success",
+                    "per_page": 100,
+                    "page": page,
+                }
+            )
+            history = _fetch(f"{api}/workflows/{ids[0]}/runs?{query}", token).get(
+                "workflow_runs", []
+            )
+            for run in history:
+                if run_seconds(run) is not None:
+                    runs.append(run)
+                    if len(runs) == sample_size:
+                        break
+            if len(runs) == sample_size or len(history) < 100:
+                break
     measured = {
-        workflow: median_seconds(by_workflow.get(workflow, []), sample_size)
-        for workflow in budgets
+        workflow: median_seconds(runs, sample_size)
+        for workflow, runs in by_workflow.items()
     }
 
     over = False
     no_data = False
     for state, workflow, seconds, budget in verdicts(measured, budgets):
+        sample = f" ({len(by_workflow[workflow])}/{sample_size} usable runs)"
         if state == "no-data":
             print(f"NO DATA  {workflow}: no successful runs on {args.branch}")
             no_data = True
         elif state == "over":
-            print(f"OVER     {workflow}: median {seconds:.0f}s > budget {budget}s")
+            print(
+                f"OVER     {workflow}: median {seconds:.0f}s > budget {budget}s{sample}"
+            )
             over = True
         else:
-            print(f"ok       {workflow}: median {seconds:.0f}s <= budget {budget}s")
+            print(
+                f"ok       {workflow}: median {seconds:.0f}s "
+                f"<= budget {budget}s{sample}"
+            )
     for line in summary_lines(over=over, no_data=no_data):
         print(f"\n{line}", file=sys.stderr)
     return 1 if over or no_data else 0

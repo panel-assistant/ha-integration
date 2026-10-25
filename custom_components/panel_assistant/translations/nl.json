@@ -7,8 +7,8 @@
         "title": "Een paneel instellen",
         "description": "Voeg een paneel op je netwerk toe, of installeer Panel Assistant op een paneel dat op deze computer is aangesloten.",
         "menu_options": {
-          "add_panel": "Voeg een paneel op je netwerk toe",
-          "install_usb": "Installeer via USB op deze computer"
+          "add_panel": "Een paneel op je netwerk toevoegen",
+          "install_usb": "Via USB op deze computer installeren"
         },
         "menu_option_descriptions": {
           "add_panel": "Voer het adres van het paneel in. Home Assistant maakt verbinding als Panel Assistant actief is, of biedt aan om Panel Assistant te installeren als dat niet het geval is.",
@@ -18,7 +18,7 @@
       "install_usb": {
         "title": "Installeer via USB",
         "description": "Sluit het paneel aan op deze computer, niet op de Home Assistant-server. USB-foutopsporing moet aan staan in de ontwikkelaarsopties van het paneel; de [modelspecifieke handleiding voor toegang tot het paneel]({panel_access_url}) laat zien hoe.",
-        "submit": "Open het USB-installatieprogramma"
+        "submit": "Het USB-installatieprogramma openen"
       },
       "add_panel": {
         "title": "Een paneel toevoegen",
@@ -39,16 +39,16 @@
         "description": "De app Panel Assistant {version} is geïnstalleerd en ingesteld op {address}, maar is nog niet verbonden met Home Assistant. Verbind de app om af te ronden.",
         "menu_options": {
           "connect_found": "Verbind met Home Assistant",
-          "add_panel": "Gebruik een ander adres"
+          "add_panel": "Een ander adres gebruiken"
         }
       },
       "found_unconfigured": {
         "title": "Rond de installatie van dit paneel af",
         "description": "De app Panel Assistant {version} is geïnstalleerd op {address}, maar de installatie is nog niet voltooid en het paneel is nog niet verbonden met Home Assistant. Home Assistant kan de installatiewizard van het paneel openen en het paneel verbinden zodra de installatie klaar is.",
         "menu_options": {
-          "panel_setup": "Open de installatiewizard",
-          "connect_found": "Sla de installatie over en maak nu verbinding",
-          "add_panel": "Gebruik een ander adres"
+          "panel_setup": "De installatiewizard openen",
+          "connect_found": "Installatie overslaan en nu verbinden",
+          "add_panel": "Een ander adres gebruiken"
         },
         "menu_option_descriptions": {
           "connect_found": "Verbindt het paneel met Home Assistant zonder eerst de eigen instelling af te ronden."
@@ -67,7 +67,7 @@
       },
       "confirm_migration": {
         "title": "Paneel gevonden via {source}",
-        "description": "Home Assistant kent **{name}** via {source} op {address}. Verstuur om het paneel te controleren en de app van Panel Assistant erop te installeren. {source} en het bijbehorende apparaat blijven zoals ze zijn."
+        "description": "Home Assistant kent **{name}** via {source} op {address}. Klik op ‘Verzenden’ om het paneel te controleren en de app van Panel Assistant erop te installeren. {source} en het bijbehorende apparaat blijven zoals ze zijn."
       },
       "confirm_discovery": {
         "title": "Bevestig het gevonden paneel",
@@ -139,7 +139,7 @@
       "invalid_discovery": "Er kon niet worden aangetoond dat het gevonden paneel dezelfde werkende Panel Assistant-installatie was. Er is geen Home Assistant-item of paneelinstelling gewijzigd.",
       "install_cancelled": "De installatie is geannuleerd voordat er een APK was geïnstalleerd. Er is geen Home Assistant-item aangemaakt. Voeg de Panel Assistant-integratie toe en voer hetzelfde paneeladres in om het nog eens te proberen.",
       "install_cancelled_after_staging_cleanup": "De installatie is geannuleerd en de klaargezette APK is vóór de installatie verwijderd. Er is geen Home Assistant-item aangemaakt. Voeg de Panel Assistant-integratie toe en voer hetzelfde paneeladres in om het nog eens te proberen.",
-      "install_authorization_failed": "Home Assistant kon de opgeslagen inloggegevens van ADB niet veilig laden of valideren. Er was geen APK geïnstalleerd. Controleer de opslag en logbestanden van Home Assistant, voeg vervolgens de Panel Assistant-integratie toe en voer hetzelfde adres in om het nog eens te proberen.",
+      "install_authorization_failed": "Home Assistant kon de opgeslagen inloggegevens van ADB niet veilig laden of valideren. Er is geen APK geïnstalleerd. Controleer de opslag en logbestanden van Home Assistant, voeg vervolgens de Panel Assistant-integratie toe en voer hetzelfde adres in om het nog eens te proberen.",
       "install_preflight_rejected": "Er kon niet langer worden aangetoond dat het paneel een schoon, compatibel installatiedoel was. Er is geen APK geïnstalleerd. Controleer het paneel zoals beschreven op [{recovery_address}]({recovery_url}) en begin daarna opnieuw met hetzelfde adres.",
       "install_artifact_rejected": "Home Assistant heeft de download of het klaarzetten van de release vóór de installatie van het pakket afgewezen. Er is geen APK geïnstalleerd. Controleer de internetverbinding, opslagruimte en logbestanden van Home Assistant en begin dan opnieuw met hetzelfde adres.",
       "install_transport_failed": "Home Assistant kon de verbinding, het downloaden of het klaarzetten vóór de installatie niet voltooien. Er is geen APK geïnstalleerd. Controleer het paneel, het netwerk, de internettoegang van Home Assistant en de logbestanden, en begin dan opnieuw met hetzelfde adres.",
@@ -622,6 +622,15 @@
       },
       "launcher": {
         "name": "Launcher"
+      },
+      "recents": {
+        "name": "Recente apps"
+      },
+      "dashboard": {
+        "name": "Dashboard tonen"
+      },
+      "back": {
+        "name": "Terug"
       }
     },
     "camera": {
@@ -664,6 +673,12 @@
       }
     },
     "number": {
+      "dashboard_idle_return": {
+        "name": "Terug naar startpunt bij inactiviteit"
+      },
+      "screen_off_timeout": {
+        "name": "Time-out voor scherm"
+      },
       "volume": {
         "name": "Volume"
       }
@@ -682,6 +697,15 @@
           "auto": "Automatisch",
           "efficiency": "Efficiëntie",
           "performance": "Prestaties"
+        }
+      },
+      "dashboard_theme": {
+        "name": "Dashboard-thema",
+        "state": {
+          "follow": "Home Assistant volgen",
+          "dark": "Donker",
+          "light": "Licht",
+          "ambient": "Omgevingslicht"
         }
       },
       "navbar": {
@@ -736,7 +760,7 @@
         "name": "Aanraakgeluid"
       },
       "wake_on_wave": {
-        "name": "Activeren met een zwaaibeweging"
+        "name": "Wekken door zwaaien"
       },
       "watchdog": {
         "name": "Bewakingsfunctie"
@@ -758,12 +782,17 @@
     }
   },
   "exceptions": {
-    "old_app_needs_090": {"message": "Op dit paneel draait nog de oude app: installeer eerst Panel Assistant 0.9.0, zoals de reparatie ervan uitlegt"},
+    "old_app_needs_090": {
+      "message": "Op dit paneel draait nog de oude app: installeer eerst Panel Assistant 0.9.0, zoals de reparatie ervan uitlegt"
+    },
     "mqtt_panel_needs_090": {
       "message": "{panel} is nooit van MQTT verhuisd: installeer eerst Panel Assistant 0.9.0, zoals de reparatie uitlegt"
     },
     "health_update_failed": {
       "message": "Kan de status van het paneel niet uitlezen"
+    },
+    "health_address_retired": {
+      "message": "Het adres van het paneel is gewijzigd terwijl de status werd uitgelezen"
     },
     "update_unavailable": {
       "message": "De gevraagde update van Panel Assistant is niet beschikbaar"
@@ -772,7 +801,7 @@
       "message": "Het paneel is bezig met een andere bewerking"
     },
     "update_approval_required": {
-      "message": "Bevestig deze update op het paneel en probeer het dan nog eens"
+      "message": "Keur deze update goed op het paneel en probeer het dan nog eens"
     },
     "update_rejected": {
       "message": "{panel} heeft het updateverzoek geweigerd. Controleer het tabblad Installeren op het paneel en probeer het opnieuw."
@@ -868,31 +897,31 @@
   "issues": {
     "panel_app_too_old": {
       "title": "{panel} heeft app {required_version} nodig",
-      "description": "{panel} draait app {version}, die een ouder protocol gebruikt dan Panel Assistant 1.0, waardoor Home Assistant het paneel niet kan zien of bedienen en de entiteiten als niet beschikbaar worden getoond. Er gaat niets verloren: het paneel blijft zelfstandig werken en houdt zijn instellingen en geschiedenis. Installeer de update die Panel Assistant voor dit paneel aanbiedt en het verbindt weer."
+      "description": "Home Assistant kan {panel} niet zien of bedienen omdat app {version} dit verbindingsprotocol niet ondersteunt.\n\nOm dit op te lossen:\n1. Open [Updates]({updates_url}) en installeer een compatibele app-update voor {panel}, als die wordt aangeboden.\n2. Wacht tot het paneel opnieuw verbinding maakt."
     },
     "old_app_needs_090": {
       "title": "Op {panel} draait nog de oude app",
-      "description": "Op {panel} draait nog de oude ha-paneld-app. Panel Assistant 1.0 kan geen paneel meer naar de nieuwe app verhuizen, dus installeert of werkt het niets bij op {panel} tot het verhuisd is. Installeer eerst Panel Assistant 0.9.0 (open in HACS Panel Assistant, kies Redownload en selecteer versie 0.9.0), verhuis het paneel met de reparatie ervan en installeer daarna 1.0.0. Tot die tijd blijft het paneel werken met de oude app."
+      "description": "Panel Assistant kan {panel} niet installeren of bijwerken zolang de oude ha-paneld-app er nog op draait.\n\nOm dit op te lossen:\n1. Volg de [veilige herstelstappen]({recovery_url}) om de verhuizing met Panel Assistant 0.9.0 af te ronden.\n2. Als op een paneel al de 1.0-app draait, of als je geen back-up van vóór de upgrade hebt, vraag dan om hulp voordat je versies wijzigt.\n3. Rond alle verhuizingen in 0.9.0 af en werk daarna de integratie bij naar 1.0."
     },
     "mqtt_panel_needs_090": {
       "title": "{panel} is nooit van MQTT verhuisd",
-      "description": "Panel Assistant 1.0 kan {panel} niet meer van MQTT naar de eigen verbinding verhuizen, en nu verbinden zou een tweede set entiteiten aanmaken en de geschiedenis splitsen. Installeer eerst Panel Assistant 0.9.0 (open in HACS Panel Assistant, kies Redownload en selecteer versie 0.9.0), laat het paneel verhuizen en installeer daarna 1.0.0. Wil je liever opnieuw beginnen, verwijder dan het apparaat van dit paneel onder Instellingen, Apparaten en diensten, MQTT, laad vervolgens deze configuratie opnieuw of verwijder haar en voeg het paneel opnieuw toe; dat maakt nieuwe entiteiten aan en bewaart geen geschiedenis."
+      "description": "Panel Assistant kan {panel} niet verbinden zolang de entiteiten nog MQTT gebruiken, zonder hun geschiedenis te splitsen.\n\nOm dit op te lossen:\n1. Volg de [veilige herstelstappen]({recovery_url}) om de verhuizing met Panel Assistant 0.9.0 af te ronden.\n2. Als op een paneel al de 1.0-app draait, of als je geen back-up van vóór de upgrade hebt, vraag dan om hulp voordat je versies wijzigt.\n3. Rond alle verhuizingen in 0.9.0 af en werk daarna de integratie bij naar 1.0."
     },
     "panel_permissions": {
       "title": "De machtigingen op {panel} vragen aandacht.",
       "fix_flow": {
         "step": {
           "commission_permissions": {
-            "title": "Machtigingen op {panel} controleren",
-            "description": "Het dashboard op {panel} blijft beschikbaar. Open op het fysieke paneel Android-instellingen → Apps → Panel Assistant. Sta toegang tot camera en microfoon toe waar vermeld, en meldingen. Sta onder Speciale app-toegang Systeeminstellingen aanpassen en Weergeven over andere apps toe voor Panel Assistant. Schakel onder Toegankelijkheid de Panel Assistant-service in. Als de navigatiebalk is ingesteld op Veeg om te tonen of Altijd aan en Weergeven over andere apps ontbreekt, opent omhoog vegen vanaf de onderkant van het dashboard in plaats daarvan de instelling Weergeven over andere apps: sta dit toe, ga terug en veeg opnieuw omhoog. Kom hier terug en selecteer Verzenden om de rechten opnieuw te controleren."
+            "title": "Machtigingen controleren",
+            "description": "Door ontbrekende Android-machtigingen werken sommige functies op {panel} niet.\n\nOm dit op te lossen:\n1. Volg op het paneel de [handleiding voor Android-machtigingen]({permissions_url}): sta onder Instellingen → Apps → Panel Assistant camera, microfoon en meldingen toe waar vermeld.\n2. Sta onder Speciale app-toegang Systeeminstellingen aanpassen en Weergeven over andere apps toe; schakel onder Toegankelijkheid Panel Assistant in.\n3. Kom hier terug en selecteer Verzenden om opnieuw te controleren.\n\n[Meer informatie]({learn_more_url})"
           }
         },
         "error": {
-          "permissions_missing": "Het paneel meldt nog steeds een ontbrekende machtiging. Voltooi de stappen op het paneel en verzend opnieuw.",
-          "permissions_unreadable": "Home Assistant kon niet alle vereiste machtigingen op dit paneel verifiëren. Controleer of het paneel verbonden is en verzend opnieuw."
+          "permissions_missing": "Er ontbreekt nog een machtiging. Voltooi de stappen op het paneel en selecteer daarna opnieuw Verzenden.",
+          "permissions_unreadable": "Home Assistant kon niet alle vereiste machtigingen controleren. Controleer of het paneel verbonden is en selecteer daarna opnieuw Verzenden."
         },
         "abort": {
-          "entry_removed": "Dit paneel is verwijderd."
+          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten](/config/integrations/integration/panel_assistant) als je het opnieuw wilt toevoegen.\n2. Sluit anders dit dialoogvenster.\n\n[Meer informatie]({learn_more_url})"
         }
       }
     },
@@ -901,8 +930,8 @@
       "fix_flow": {
         "step": {
           "set_up_proximity": {
-            "title": "Nabijheid instellen op {panel}",
-            "description": "Totdat de nabijheidssensor is ingesteld, kan {panel} niet ontwaken door te zwaaien. Het instellen duurt ongeveer een minuut en vereist dat je je voor het paneel bevindt. Open Panel Assistant in de zijbalk en kies {panel}. Selecteer op de pagina 'Configureren' ervan, onder 'Aanwezigheid & wekken', 'Nabijheid instellen op paneel' en volg daarna de instructies op het scherm van het paneel. Je kunt het instellen ook op het paneel zelf starten met 'Nabijheidsinstelling openen' op het dashboard ervan. Wanneer het paneel meldt dat de kalibratie is opgeslagen, keer je hier terug en selecteer je 'Verzenden'."
+            "title": "Nabijheid instellen",
+            "description": "{panel} kan pas met een handgebaar worden gewekt als de nabijheidssensor is ingesteld.\n\nOm dit op te lossen:\n1. Open de [nabijheidsinstellingen]({configure_url}) en selecteer Nabijheid instellen op paneel.\n2. Ga voor {panel} staan en volg de aanwijzingen op het scherm (ongeveer een minuut).\n3. Kom hier terug zodra de kalibratie is opgeslagen en selecteer Verzenden.\n\n[Meer informatie]({learn_more_url})"
           }
         },
         "error": {
@@ -911,63 +940,71 @@
           "proximity_unreadable": "Home Assistant kon de nabijheidsstatus van het paneel niet lezen. Controleer of het paneel verbonden is en verzend opnieuw."
         },
         "abort": {
-          "entry_removed": "Dit paneel is verwijderd."
+          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten](/config/integrations/integration/panel_assistant) als je het opnieuw wilt toevoegen.\n2. Sluit anders dit dialoogvenster.\n\n[Meer informatie]({learn_more_url})"
         }
       }
     },
     "voice_microphone_silent": {
       "title": "De spraakassistent op {panel} luistert niet.",
-      "description": "De spraakassistent op {panel} luistert niet, omdat de microfoon alleen stilte opnam toen het paneel hem controleerde. Zet de spraakassistent uit en weer aan op de Configure-pagina van het paneel, of kies daar een andere audiobron, om opnieuw te controleren."
+      "description": "De spraakassistent op {panel} luistert niet omdat bij de microfooncontrole alleen stilte is opgenomen.\n\nOm dit op te lossen:\n1. Open de [spraakinstellingen]({configure_url}).\n2. Schakel Spraakassistent uit en weer in om opnieuw te controleren.\n3. Probeer een andere [Audiobron]({audio_source_url}) als de controle nog steeds mislukt."
     },
     "voice_microphone_no_audio": {
       "title": "De spraakassistent op {panel} luistert niet.",
-      "description": "De spraakassistent op {panel} luistert niet, omdat de microfoon geen geluid leverde toen het paneel hem controleerde. Zet de spraakassistent uit en weer aan op de Configure-pagina van het paneel, of kies daar een andere audiobron, om opnieuw te controleren."
+      "description": "De spraakassistent op {panel} luistert niet omdat de microfooncontrole geen audio heeft ontvangen.\n\nOm dit op te lossen:\n1. Open de [spraakinstellingen]({configure_url}).\n2. Schakel Spraakassistent uit en weer in om opnieuw te controleren.\n3. Probeer een andere [Audiobron]({audio_source_url}) als de controle nog steeds mislukt."
     },
     "voice_microphone_no_audio_detail": {
       "title": "De spraakassistent op {panel} luistert niet.",
-      "description": "De spraakassistent op {panel} luistert niet, omdat de microfoon geen geluid leverde toen het paneel hem controleerde. Zet de spraakassistent uit en weer aan op de Configure-pagina van het paneel, of kies daar een andere audiobron, om opnieuw te controleren. Het paneel meldde: {detail}"
+      "description": "De spraakassistent op {panel} luistert niet omdat de microfooncontrole geen audio heeft ontvangen ({detail}).\n\nOm dit op te lossen:\n1. Open de [spraakinstellingen]({configure_url}).\n2. Schakel Spraakassistent uit en weer in om opnieuw te controleren.\n3. Probeer een andere [Audiobron]({audio_source_url}) als de controle nog steeds mislukt."
+    },
+    "wake_word_kept": {
+      "title": "{panel} heeft zijn eigen activeringswoord {wake_word} behouden.",
+      "description": "{panel} gebruikt een eigen model voor {wake_word} in plaats van het gedeelde model.\n\nOm dit op te lossen:\n1. [Open de activeringswoorden]({configure_url}).\n2. Als je het gedeelde model wilt gebruiken, importeer dan het .json-manifest en het .tflite-bestand ervan; hier importeren vervangt de gedeelde kopie en kan andere panelen bijwerken."
+    },
+    "wake_word_refused": {
+      "title": "{panel} kon het activeringswoord {wake_word} niet installeren.",
+      "description": "{panel} kon het gedeelde activeringswoord {wake_word} niet toevoegen: {reason}.\n\nOm dit op te lossen:\n1. [Open de activeringswoorden]({configure_url}).\n2. Verhelp het gemelde probleem en importeer daarna een compatibel microWakeWord .json-manifest en .tflite-model; hier importeren vervangt de gedeelde kopie en kan andere panelen bijwerken."
     },
     "volume_number_removed": {
       "title": "{panel} heeft geen apart volumegetal meer",
-      "description": "{panel} heeft een mediaspeler die het volume toont en instelt, dus Panel Assistant heeft het aparte volumegetal {entity} verwijderd. Deze automatiseringen of scripts gebruiken het nog: {users}. Pas ze aan zodat ze het volume instellen met de actie `media_player.volume_set` op de mediaspeler van het paneel. Zodra ze zijn aangepast, kun je deze melding negeren."
+      "description": "Automatiseringen of scripts kunnen dit verwijderde volumenummer niet meer gebruiken om het volume op {panel} in te stellen:\n\n```text\n{entity}\n```\n\nOm dit op te lossen:\n1. Open [Automatiseringen]({automations_url}) of [Scripts]({scripts_url}) en zoek deze automatiseringen of scripts:\n\n   ```text\n   {users}\n   ```\n\n2. Vervang acties voor het verwijderde nummer door `media_player.volume_set` voor de mediaspeler van dit paneel, met `volume_level` van 0 tot 1 (0.5 is 50%).\n3. Sla je wijzigingen op en negeer daarna deze reparatie."
     },
-      "restart_required": {
-        "title": "Herstart Home Assistant om de update van Panel Assistant af te ronden",
-        "fix_flow": {
-          "step": {
-            "confirm_restart": {
-              "title": "Home Assistant herstarten",
-              "description": "Panel Assistant {installed} is geïnstalleerd, maar Home Assistant draait nog {loaded}. De nieuwe versie werkt pas nadat Home Assistant opnieuw is gestart. Kies Verzenden om Home Assistant nu te herstarten."
-            }
+    "restart_required": {
+      "title": "Herstart Home Assistant om de update van Panel Assistant af te ronden",
+      "fix_flow": {
+        "step": {
+          "confirm_restart": {
+            "title": "Home Assistant herstarten",
+            "description": "Home Assistant draait nog op Panel Assistant {loaded}, dus de geïnstalleerde build {installed} is nog niet actief.\n\nOm dit op te lossen:\n1. Bekijk zo nodig [Panel Assistant]({integration_url}) en kom daarna hier terug.\n2. Selecteer Verzenden om Home Assistant nu opnieuw te starten.\n\n[Meer informatie]({learn_more_url})"
           }
         }
-      },
+      }
+    },
     "panel_user_mismatch": {
       "title": "Bevestig de Home Assistant-gebruiker voor {panel}",
       "fix_flow": {
         "step": {
           "confirm_bind": {
-            "title": "Bevestig de gebruiker van het paneel",
-            "description": "Het paneel {panel} heeft gevraagd om verbinding te maken met Home Assistant als de gebruiker {user}. Bevestig dit alleen als {user} het account is dat je voor dit paneel hebt aangemaakt. Na je bevestiging zou het paneel kort daarna verbinding moeten maken. Iedereen die is aangemeld bij Home Assistant kan vragen om als paneel verbinding te maken, dus als je dit verzoek niet herkent, sluit je dit dialoogvenster en negeer je de melding."
+            "title": "Paneelgebruiker bevestigen",
+            "description": "{panel} kan pas als {user} verbinden als je dit account bevestigt.\n\nOm dit op te lossen:\n1. [Controleer de aanmelding van het paneel]({configure_url}).\n2. Selecteer Verzenden alleen als je {user} voor dit paneel hebt ingesteld; het zou daarna opnieuw verbinding moeten maken.\n3. Herken je het verzoek niet, sluit dan dit dialoogvenster en negeer het probleem: iedereen die is aangemeld, kan een paneelverbinding aanvragen.\n\n[Meer informatie]({learn_more_url})"
           },
           "confirm_rebind": {
-            "title": "De gebruiker van het paneel wijzigen",
-            "description": "Het paneel {panel} is bevestigd voor de gebruiker {bound_user}, maar de gebruiker {user} heeft gevraagd om als dit paneel verbinding te maken. Bevestig dit alleen als je het account van dit paneel hebt gewijzigd in {user}: het paneel accepteert {bound_user} dan niet meer en zou kort daarna verbinding moeten maken. Als je dat niet hebt gedaan, probeert iemand anders mogelijk het paneel over te nemen, dus sluit dit dialoogvenster en negeer de melding."
+            "title": "Paneelgebruiker wijzigen",
+            "description": "{user} heeft gevraagd om als {panel} te verbinden, dat momenteel {bound_user} accepteert.\n\nOm dit op te lossen:\n1. [Controleer de aanmelding van het paneel]({configure_url}).\n2. Selecteer Verzenden alleen als je het account ervan hebt gewijzigd naar {user}; daarna wordt {bound_user} niet meer geaccepteerd.\n3. Sluit anders dit dialoogvenster en negeer het probleem: dit kan een overnamepoging zijn.\n\n[Meer informatie]({learn_more_url})"
           }
         },
         "abort": {
-          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.",
-          "user_unavailable": "De gebruiker die om verbinding vroeg, bestaat niet meer of is gedeactiveerd. Er is niets veranderd."
+          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten](/config/integrations/integration/panel_assistant) als je het opnieuw wilt toevoegen.\n2. Sluit anders dit dialoogvenster.\n\n[Meer informatie]({learn_more_url})",
+          "user_unavailable": "De gebruiker die het verzoek heeft gedaan, bestaat niet meer of is gedeactiveerd; er is niets gewijzigd.\n\nOm dit op te lossen:\n1. [Controleer de aanmelding van het paneel]({configure_url}).\n2. Meld je aan met het actieve account dat je voor dit paneel wilt gebruiken en bevestig daarna alleen een verzoek dat je herkent.\n\n[Meer informatie]({learn_more_url})"
         }
       }
     },
     "no_update_route": {
       "title": "{panel} kan geen app-updates ontvangen",
-      "description": "Panel Assistant kan geen app-updates installeren op {panel}, dus de app blijft op de huidige versie. Al het andere op het paneel blijft werken, waardoor dit gemakkelijk over het hoofd wordt gezien. Meestal volgt het op een wijziging op het paneel zelf, zoals een firmware-update of een reset. Sluit het paneel opnieuw via USB aan op Panel Assistant om updates te herstellen. Kies Meer informatie voor de stappen voor dit paneel."
+      "description": "{panel} kan geen app-updates ontvangen, hoewel de andere functies blijven werken.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen voor updates voor dit paneel]({recovery_url}).\n2. Herstel de foutopsporingstoegang of maak opnieuw verbinding via USB als de stappen dat vereisen.\n3. Ga terug naar Updates in Home Assistant zodra deze reparatie verdwijnt."
     },
     "merged_panel_identity": {
       "title": "Maak de samengevoegde panelen weer apart: {panels}",
-      "description": "De panelen {panels} melden dezelfde apparaatidentiteit. Home Assistant kan daardoor niet veilig bepalen bij welke vermelding een native verbinding of entiteit hoort. Hun native verbinding wordt geweigerd en er worden geen entiteiten verplaatst. Werk de Panel Assistant-app op alle betrokken panelen bij zodat elk paneel een eigen identiteit heeft. Verwijder daarna het samengevoegde apparaat en laat de panelen zich opnieuw registreren."
+      "description": "{panels} delen één apparaatidentiteit, dus hun native verbindingen worden geweigerd en er worden geen entiteiten verplaatst.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten]({integration_url}).\n2. Werk de app op elk betrokken paneel bij zodat elk paneel een eigen identiteit heeft.\n3. Verwijder daarna het samengevoegde apparaat en laat de panelen zich opnieuw registreren."
     },
     "installer_failure": {
       "title": "Installatie of update mislukt op {panel}",
@@ -975,7 +1012,7 @@
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "De installatie of update op {panel} is niet afgerond.",
+            "description": "De installatie of update is niet voltooid.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Ondersteuningsrapport** om de oorzaak te controleren en daarna **Opnieuw proberen** zodra die is verholpen.\n\n[Meer informatie]({learn_more_url})",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -984,19 +1021,19 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "### [Dit ondersteuningsrapport gebruiken]({guide_url})\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie]({issue_url}). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
+            "description": "Dit rapport bevat de opgeslagen details van de mislukte installatie of update.\n\nOm dit op te lossen:\n1. Lees [hoe je dit ondersteuningsrapport gebruikt]({guide_url}).\n2. Controleer het rapport op privégegevens en kopieer het daarna naar een [nieuwe probleemmelding voor de Panel Assistant-integratie]({issue_url}).\n\n{report}\n\n[Meer informatie]({learn_more_url})"
           },
           "clear_error": {
             "title": "Fout wissen",
-            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+            "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
-            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+            "title": "Opnieuw proberen niet voltooid",
+            "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Paneel controleren en veilig opnieuw proberen."
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1017,7 +1054,7 @@
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Het paneel heeft de verbinding van Home Assistant niet geaccepteerd.",
+            "description": "Home Assistant kon geen verbinding maken met het paneel om Panel Assistant te installeren.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Geef op het paneel toestemming aan Home Assistant als daarom wordt gevraagd en selecteer daarna **Opnieuw proberen**.\n\n[Meer informatie]({learn_more_url})",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -1026,19 +1063,19 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "### [Dit ondersteuningsrapport gebruiken]({guide_url})\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie]({issue_url}). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
+            "description": "Dit rapport bevat de opgeslagen details van de mislukte installatie of update.\n\nOm dit op te lossen:\n1. Lees [hoe je dit ondersteuningsrapport gebruikt]({guide_url}).\n2. Controleer het rapport op privégegevens en kopieer het daarna naar een [nieuwe probleemmelding voor de Panel Assistant-integratie]({issue_url}).\n\n{report}\n\n[Meer informatie]({learn_more_url})"
           },
           "clear_error": {
             "title": "Fout wissen",
-            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+            "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
-            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+            "title": "Opnieuw proberen niet voltooid",
+            "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Paneel controleren en veilig opnieuw proberen."
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1059,7 +1096,7 @@
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Er is niets op het paneel geïnstalleerd.",
+            "description": "Panel Assistant kon niet worden geïnstalleerd omdat het paneel niet door de veiligheidscontroles kwam.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Ondersteuningsrapport** en verhelp de mislukte veiligheidscontrole voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -1068,19 +1105,19 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "### [Dit ondersteuningsrapport gebruiken]({guide_url})\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie]({issue_url}). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
+            "description": "Dit rapport bevat de opgeslagen details van de mislukte installatie of update.\n\nOm dit op te lossen:\n1. Lees [hoe je dit ondersteuningsrapport gebruikt]({guide_url}).\n2. Controleer het rapport op privégegevens en kopieer het daarna naar een [nieuwe probleemmelding voor de Panel Assistant-integratie]({issue_url}).\n\n{report}\n\n[Meer informatie]({learn_more_url})"
           },
           "clear_error": {
             "title": "Fout wissen",
-            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+            "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
-            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+            "title": "Opnieuw proberen niet voltooid",
+            "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Paneel controleren en veilig opnieuw proberen."
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1101,7 +1138,7 @@
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "De versie kon niet worden geverifieerd. Daarom is er niets geïnstalleerd.",
+            "description": "Panel Assistant is niet geïnstalleerd omdat de release of de controles bij het klaarzetten ervan zijn afgewezen.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Controleer de geselecteerde release en de verbinding en selecteer daarna **Opnieuw proberen**.\n\n[Meer informatie]({learn_more_url})",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -1110,19 +1147,19 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "### [Dit ondersteuningsrapport gebruiken]({guide_url})\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie]({issue_url}). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
+            "description": "Dit rapport bevat de opgeslagen details van de mislukte installatie of update.\n\nOm dit op te lossen:\n1. Lees [hoe je dit ondersteuningsrapport gebruikt]({guide_url}).\n2. Controleer het rapport op privégegevens en kopieer het daarna naar een [nieuwe probleemmelding voor de Panel Assistant-integratie]({issue_url}).\n\n{report}\n\n[Meer informatie]({learn_more_url})"
           },
           "clear_error": {
             "title": "Fout wissen",
-            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+            "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
-            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+            "title": "Opnieuw proberen niet voltooid",
+            "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Paneel controleren en veilig opnieuw proberen."
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1143,7 +1180,7 @@
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "De verbinding viel weg voordat de installatie was afgerond.",
+            "description": "Home Assistant kon het overdragen of installeren van Panel Assistant niet voltooien.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Herstel de verbinding van het paneel en selecteer daarna **Opnieuw proberen**.\n\n[Meer informatie]({learn_more_url})",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -1152,19 +1189,19 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "### [Dit ondersteuningsrapport gebruiken]({guide_url})\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie]({issue_url}). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
+            "description": "Dit rapport bevat de opgeslagen details van de mislukte installatie of update.\n\nOm dit op te lossen:\n1. Lees [hoe je dit ondersteuningsrapport gebruikt]({guide_url}).\n2. Controleer het rapport op privégegevens en kopieer het daarna naar een [nieuwe probleemmelding voor de Panel Assistant-integratie]({issue_url}).\n\n{report}\n\n[Meer informatie]({learn_more_url})"
           },
           "clear_error": {
             "title": "Fout wissen",
-            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+            "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
-            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+            "title": "Opnieuw proberen niet voltooid",
+            "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Paneel controleren en veilig opnieuw proberen."
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1185,7 +1222,7 @@
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Android op het paneel heeft de installatie geweigerd.",
+            "description": "Android heeft de installatie van Panel Assistant geweigerd.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Ondersteuningsrapport** en verhelp de Android-fout voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -1194,19 +1231,19 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "### [Dit ondersteuningsrapport gebruiken]({guide_url})\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie]({issue_url}). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
+            "description": "Dit rapport bevat de opgeslagen details van de mislukte installatie of update.\n\nOm dit op te lossen:\n1. Lees [hoe je dit ondersteuningsrapport gebruikt]({guide_url}).\n2. Controleer het rapport op privégegevens en kopieer het daarna naar een [nieuwe probleemmelding voor de Panel Assistant-integratie]({issue_url}).\n\n{report}\n\n[Meer informatie]({learn_more_url})"
           },
           "clear_error": {
             "title": "Fout wissen",
-            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+            "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
-            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+            "title": "Opnieuw proberen niet voltooid",
+            "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Paneel controleren en veilig opnieuw proberen."
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1227,7 +1264,7 @@
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Panel Assistant is geïnstalleerd, maar is niet gestart.",
+            "description": "Panel Assistant is geïnstalleerd maar niet gestart.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Open Panel Assistant op het paneel en selecteer daarna **Opnieuw proberen**.\n\n[Meer informatie]({learn_more_url})",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -1236,19 +1273,19 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "### [Dit ondersteuningsrapport gebruiken]({guide_url})\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie]({issue_url}). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
+            "description": "Dit rapport bevat de opgeslagen details van de mislukte installatie of update.\n\nOm dit op te lossen:\n1. Lees [hoe je dit ondersteuningsrapport gebruikt]({guide_url}).\n2. Controleer het rapport op privégegevens en kopieer het daarna naar een [nieuwe probleemmelding voor de Panel Assistant-integratie]({issue_url}).\n\n{report}\n\n[Meer informatie]({learn_more_url})"
           },
           "clear_error": {
             "title": "Fout wissen",
-            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+            "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
-            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+            "title": "Opnieuw proberen niet voltooid",
+            "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Paneel controleren en veilig opnieuw proberen."
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1269,7 +1306,7 @@
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Panel Assistant is gestart, maar heeft geen gezonde status gemeld.",
+            "description": "Panel Assistant is gestart, maar Home Assistant kon niet bevestigen dat de app goed werkt.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Open Panel Assistant op het paneel, herstel de verbinding en selecteer daarna **Opnieuw proberen**.\n\n[Meer informatie]({learn_more_url})",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -1278,19 +1315,19 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "### [Dit ondersteuningsrapport gebruiken]({guide_url})\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie]({issue_url}). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
+            "description": "Dit rapport bevat de opgeslagen details van de mislukte installatie of update.\n\nOm dit op te lossen:\n1. Lees [hoe je dit ondersteuningsrapport gebruikt]({guide_url}).\n2. Controleer het rapport op privégegevens en kopieer het daarna naar een [nieuwe probleemmelding voor de Panel Assistant-integratie]({issue_url}).\n\n{report}\n\n[Meer informatie]({learn_more_url})"
           },
           "clear_error": {
             "title": "Fout wissen",
-            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+            "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
-            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+            "title": "Opnieuw proberen niet voltooid",
+            "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Paneel controleren en veilig opnieuw proberen."
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1311,7 +1348,7 @@
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Home Assistant kan niet bepalen of de installatie het paneel heeft gewijzigd.",
+            "description": "Home Assistant kan niet bepalen of de installatie het paneel heeft gewijzigd.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Ondersteuningsrapport** en controleer het paneel voordat je het opnieuw probeert. Installeer het niet opnieuw, verwijder de app niet en reset het paneel niet zolang de toestand onbekend is.\n\n[Meer informatie]({learn_more_url})",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -1320,19 +1357,19 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "### [Dit ondersteuningsrapport gebruiken]({guide_url})\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie]({issue_url}). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
+            "description": "Dit rapport bevat de opgeslagen details van de mislukte installatie of update.\n\nOm dit op te lossen:\n1. Lees [hoe je dit ondersteuningsrapport gebruikt]({guide_url}).\n2. Controleer het rapport op privégegevens en kopieer het daarna naar een [nieuwe probleemmelding voor de Panel Assistant-integratie]({issue_url}).\n\n{report}\n\n[Meer informatie]({learn_more_url})"
           },
           "clear_error": {
             "title": "Fout wissen",
-            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+            "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
-            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+            "title": "Opnieuw proberen niet voltooid",
+            "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Paneel controleren en veilig opnieuw proberen."
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1353,7 +1390,7 @@
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Een nieuwe installatie wordt tegengehouden totdat het paneel is gecontroleerd.",
+            "description": "Een nieuwe installatie is geblokkeerd totdat Home Assistant het paneel kan verifiëren.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Ondersteuningsrapport** en zorg dat het paneel weer kan worden geverifieerd voordat je het opnieuw probeert. Installeer de app niet opnieuw en reset deze niet.\n\n[Meer informatie]({learn_more_url})",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -1362,19 +1399,19 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "### [Dit ondersteuningsrapport gebruiken]({guide_url})\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie]({issue_url}). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
+            "description": "Dit rapport bevat de opgeslagen details van de mislukte installatie of update.\n\nOm dit op te lossen:\n1. Lees [hoe je dit ondersteuningsrapport gebruikt]({guide_url}).\n2. Controleer het rapport op privégegevens en kopieer het daarna naar een [nieuwe probleemmelding voor de Panel Assistant-integratie]({issue_url}).\n\n{report}\n\n[Meer informatie]({learn_more_url})"
           },
           "clear_error": {
             "title": "Fout wissen",
-            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+            "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
-            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+            "title": "Opnieuw proberen niet voltooid",
+            "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Paneel controleren en veilig opnieuw proberen."
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1395,7 +1432,7 @@
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Panel Assistant is niet bijgewerkt op het paneel.",
+            "description": "Home Assistant kon niet bevestigen dat het bijwerken van Panel Assistant is voltooid.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Herstel de verbinding van het paneel, bekijk **Ondersteuningsrapport** en selecteer daarna **Opnieuw proberen**.\n\n[Meer informatie]({learn_more_url})",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "authorize_adb": "Updates toestaan",
@@ -1405,23 +1442,24 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "### [Dit ondersteuningsrapport gebruiken]({guide_url})\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie]({issue_url}). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
+            "description": "Dit rapport bevat de opgeslagen details van de mislukte installatie of update.\n\nOm dit op te lossen:\n1. Lees [hoe je dit ondersteuningsrapport gebruikt]({guide_url}).\n2. Controleer het rapport op privégegevens en kopieer het daarna naar een [nieuwe probleemmelding voor de Panel Assistant-integratie]({issue_url}).\n\n{report}\n\n[Meer informatie]({learn_more_url})"
           },
           "clear_error": {
             "title": "Fout wissen",
-            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+            "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
-            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+            "title": "Opnieuw proberen niet voltooid",
+            "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Updates op {panel} toestaan",
-            "description": "Kies ‘Verzenden’ en tik daarna op ‘Toestaan’ bij de vraag ‘Foutopsporing toestaan?’ op het paneel. Hiermee krijgt deze Home Assistant-instantie algemene ADB-shelltoegang tot het paneel zolang foutopsporing via het netwerk ingeschakeld blijft.\n\nKies daarna opnieuw ‘Verzenden’. Je kunt deze toestemming later intrekken in de ontwikkelaarsinstellingen van het paneel."
+            "title": "Updates toestaan",
+            "description": "Home Assistant heeft toestemming van Android nodig voordat het {panel} kan bijwerken.\n\nOm dit op te lossen:\n1. Lees de [stappen voor ADB-toestemming]({approval_url}).\n2. Selecteer **Verzenden**, vink daarna op {panel} **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**.\n3. Selecteer na het geven van toestemming **Opnieuw proberen** in deze reparatie om de update opnieuw te proberen.\n\n[Meer informatie]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Paneel controleren en veilig opnieuw proberen."
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})",
+          "authorize_adb": "Er is nog toestemming van Android op {panel} nodig.\n\nOm dit op te lossen:\n1. Lees de [stappen voor ADB-toestemming]({approval_url}).\n2. Vink op {panel} **Altijd toestaan vanaf deze computer** aan en tik daarna op **Toestaan**.\n\nDit gaat vanzelf verder zodra toestemming is gegeven.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1448,7 +1486,7 @@
           "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert."
         },
         "abort": {
-          "entry_removed": "Dit paneel is verwijderd."
+          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten](/config/integrations/integration/panel_assistant) als je het opnieuw wilt toevoegen.\n2. Sluit anders dit dialoogvenster.\n\n[Meer informatie]({learn_more_url})"
         }
       }
     },
@@ -1458,7 +1496,7 @@
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Nieuwe pogingen worden tegengehouden totdat het paneel kan worden gecontroleerd.",
+            "description": "De nieuwe poging is niet voltooid, dus de opgeslagen fout en het rapport blijven beschikbaar.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Ondersteuningsrapport** en controleer de gemelde oorzaak voordat je het opnieuw probeert. Deze fout wissen geeft geen toestemming voor een installatie.\n\n[Meer informatie]({learn_more_url})",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",
@@ -1467,19 +1505,19 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "### [Dit ondersteuningsrapport gebruiken]({guide_url})\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie]({issue_url}). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
+            "description": "Dit rapport bevat de opgeslagen details van de mislukte installatie of update.\n\nOm dit op te lossen:\n1. Lees [hoe je dit ondersteuningsrapport gebruikt]({guide_url}).\n2. Controleer het rapport op privégegevens en kopieer het daarna naar een [nieuwe probleemmelding voor de Panel Assistant-integratie]({issue_url}).\n\n{report}\n\n[Meer informatie]({learn_more_url})"
           },
           "clear_error": {
             "title": "Fout wissen",
-            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+            "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
-            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+            "title": "Opnieuw proberen niet voltooid",
+            "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Paneel controleren en veilig opnieuw proberen."
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1493,41 +1531,41 @@
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         },
         "abort": {
-          "entry_removed": "Dit paneel is verwijderd."
+          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten](/config/integrations/integration/panel_assistant) als je het opnieuw wilt toevoegen.\n2. Sluit anders dit dialoogvenster.\n\n[Meer informatie]({learn_more_url})"
         }
       }
     },
     "panel_address_unreachable": {
       "title": "{panel} is niet bereikbaar op {address}",
-      "description": "De entiteiten blijven werken via de actieve verbinding vanaf {session_address}.\n\nAls het paneel een nieuw adres heeft, voeg het dan opnieuw toe met dat adres. Dit probleem verdwijnt vanzelf zodra het adres antwoordt."
+      "description": "{panel} is verbonden, maar het opgeslagen adres {address} is niet bereikbaar voor bewerkingen die dat adres nodig hebben.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten]({integration_url}).\n2. Als het paneel een ander adres heeft, voeg het dan opnieuw toe met het huidige adres.\n3. Herstel anders de toegang tot {address}; dit probleem verdwijnt zodra dat adres als dit paneel antwoordt."
     },
     "panel_address_unverified": {
       "title": "{panel} is verplaatst, en het nieuwe adres kon niet worden bevestigd",
-      "description": "{panel} is gekoppeld aan Home Assistant via {session_address}, dus de entiteiten blijven beschikbaar, maar Home Assistant kan het paneel niet lezen op het opgeslagen adres {address}, en een controle op {session_address} leverde geen reactie op van dit paneel, dus het opgeslagen adres is niet gewijzigd. Als het paneel is verplaatst, voeg het dan opnieuw toe op het nieuwe adres; hierdoor wordt het opgeslagen adres bijgewerkt. Het probleem lost zich vanzelf op zodra het opgeslagen adres reageert."
+      "description": "{panel} is verbonden, maar noch {address} noch het voorgestelde adres {session_address} kon worden bevestigd voor bewerkingen die het paneeladres nodig hebben.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten]({integration_url}).\n2. Als het paneel een ander adres heeft, voeg het dan opnieuw toe met het huidige adres.\n3. Herstel anders de toegang tot {address}; dit probleem verdwijnt zodra dat adres als dit paneel antwoordt."
     },
     "panel_identity_mismatch": {
       "title": "Controleer het adres van {panel}",
-      "description": "Op {address} kwam geen antwoord dat overeenkwam met {panel}, dus de bediening van dit paneel is tijdelijk uitgeschakeld. Controleer of dit adres bij het paneel hoort. Als het adres is gewijzigd, voeg het paneel dan opnieuw toe met het huidige adres."
+      "description": "{address} antwoordde niet als {panel}, dus de bediening ervan is gepauzeerd.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten]({integration_url}).\n2. Controleer het huidige adres van het paneel.\n3. Als het adres is gewijzigd, voeg het paneel dan opnieuw toe met dat adres."
     },
     "panel_link_shared": {
       "title": "{panel} is opnieuw geïnstalleerd maar deelt zijn apparaatkoppeling",
-      "description": "{panel} reageerde op {address} nadat de app opnieuw is geïnstalleerd, maar {others} heeft dezelfde apparaatkoppeling. Home Assistant kan daardoor niet bepalen bij welke installatie dit paneel hoort en heeft de bediening gepauzeerd. Het adres klopt. Als {others} niet meer in gebruik is, verwijder het dan; {panel} sluit zich daarna vanzelf weer aan. Voeg anders {panel} opnieuw toe."
+      "description": "{panel} is opnieuw geïnstalleerd op {address}, maar deelt een apparaatkoppeling met {others}, dus de bediening ervan is gepauzeerd.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten]({integration_url}).\n2. Verwijder {others} alleen als die niet meer in gebruik zijn; {panel} sluit zich daarna vanzelf weer aan.\n3. Als die panelen nog in gebruik zijn, voeg dan {panel} opnieuw toe."
     },
     "panel_identity_confirmation": {
       "title": "Bestaande instellingen van {panel} behouden",
       "fix_flow": {
         "step": {
           "confirm_identity": {
-            "title": "Instellingen van vermelde panelen behouden",
-            "description": "De bestaande entiteiten en instellingen van al deze panelen behouden?\n\n{panels}\n\nVerzend één keer om alle vermelde panelen te bevestigen."
+            "title": "Configuraties behouden",
+            "description": "De vermelde panelen moeten worden bevestigd voordat hun bestaande configuraties onder hun nieuwe apparaatidentiteiten behouden kunnen blijven.\n\nOm dit op te lossen:\n1. [Controleer de Panel Assistant-apparaten]({integration_url}) aan de hand van deze lijst.\n2. Bevestig alleen als elk paneel bij de bestaande configuratie ervan hoort.\n3. Selecteer één keer Verzenden om alle vermelde configuraties te behouden.\n\n{panels}\n\n[Meer informatie]({learn_more_url})"
           }
         },
         "abort": {
-          "entry_removed": "Dit paneel is verwijderd.",
-          "identity_changed": "Het paneel is gewijzigd terwijl deze bevestiging openstond. Open de nieuwste reparatiemelding en probeer het opnieuw."
+          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten](/config/integrations/integration/panel_assistant) als je het opnieuw wilt toevoegen.\n2. Sluit anders dit dialoogvenster.\n\n[Meer informatie]({learn_more_url})",
+          "identity_changed": "Een vermeld paneel is gewijzigd terwijl deze bevestiging openstond.\n\nOm dit op te lossen:\n1. [Open Reparaties](/config/repairs) en open de nieuwste paneelbevestiging.\n2. Controleer elk vermeld paneel voordat je Verzenden selecteert.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
-          "cannot_connect": "Niet alle vermelde panelen zijn bereikbaar. Controleer hun verbindingen en probeer het opnieuw."
+          "cannot_connect": "Niet alle vermelde panelen zijn bereikbaar; controleer hun verbindingen en probeer het opnieuw."
         }
       }
     },
@@ -1537,7 +1575,7 @@
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "Home Assistant mag {panel} nog niet bijwerken.",
+            "description": "Home Assistant mag {panel} nog niet bijwerken.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Kies **Updates toestaan**, selecteer daarna **Verzenden** en geef toestemming in de melding op {panel}.\n\n[Meer informatie]({learn_more_url})",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "authorize_adb": "Updates toestaan",
@@ -1547,23 +1585,24 @@
           },
           "support_report": {
             "title": "Ondersteuningsrapport",
-            "description": "### [Dit ondersteuningsrapport gebruiken]({guide_url})\n\nKopieer het onderstaande rapport naar een [nieuw issue voor de Panel Assistant-integratie]({issue_url}). Vraag je hulp aan een AI-assistent, geef dan het rapport mee met de prompt op de gekoppelde hulppagina.\n\n{report}"
+            "description": "Dit rapport bevat de opgeslagen details van de mislukte installatie of update.\n\nOm dit op te lossen:\n1. Lees [hoe je dit ondersteuningsrapport gebruikt]({guide_url}).\n2. Controleer het rapport op privégegevens en kopieer het daarna naar een [nieuwe probleemmelding voor de Panel Assistant-integratie]({issue_url}).\n\n{report}\n\n[Meer informatie]({learn_more_url})"
           },
           "clear_error": {
             "title": "Fout wissen",
-            "description": "Verwijder deze fout en het opgeslagen rapport uit Reparaties. Het paneel wordt niet gewijzigd. Kies Verzenden om de fout te wissen."
+            "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
           },
           "retry_error": {
-            "title": "Opnieuw proberen is niet gelukt",
-            "description": "Opnieuw proberen is onderbroken. De fout blijft in Reparaties staan; het ondersteuningsrapport bevat details."
+            "title": "Opnieuw proberen niet voltooid",
+            "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           },
           "authorize_adb": {
-            "title": "Updates op {panel} toestaan",
-            "description": "Kies ‘Verzenden’ en tik daarna op ‘Toestaan’ bij de vraag ‘Foutopsporing toestaan?’ op het paneel. Hiermee krijgt deze Home Assistant-instantie algemene ADB-shelltoegang tot het paneel zolang foutopsporing via het netwerk ingeschakeld blijft.\n\nKies daarna opnieuw ‘Verzenden’. Je kunt deze toestemming later intrekken in de ontwikkelaarsinstellingen van het paneel."
+            "title": "Updates toestaan",
+            "description": "Home Assistant heeft toestemming van Android nodig voordat het {panel} kan bijwerken.\n\nOm dit op te lossen:\n1. Lees de [stappen voor ADB-toestemming]({approval_url}).\n2. Selecteer **Verzenden**, vink daarna op {panel} **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**.\n3. Selecteer na het geven van toestemming **Opnieuw proberen** in deze reparatie om de update opnieuw te proberen.\n\n[Meer informatie]({learn_more_url})"
           }
         },
         "progress": {
-          "retrying": "Paneel controleren en veilig opnieuw proberen."
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})",
+          "authorize_adb": "Er is nog toestemming van Android op {panel} nodig.\n\nOm dit op te lossen:\n1. Lees de [stappen voor ADB-toestemming]({approval_url}).\n2. Vink op {panel} **Altijd toestaan vanaf deze computer** aan en tik daarna op **Toestaan**.\n\nDit gaat vanzelf verder zodra toestemming is gegeven.\n\n[Meer informatie]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
@@ -1590,7 +1629,7 @@
           "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert."
         },
         "abort": {
-          "entry_removed": "Dit paneel is verwijderd."
+          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten](/config/integrations/integration/panel_assistant) als je het opnieuw wilt toevoegen.\n2. Sluit anders dit dialoogvenster.\n\n[Meer informatie]({learn_more_url})"
         }
       }
     },
@@ -1599,8 +1638,8 @@
       "fix_flow": {
         "step": {
           "authorize_adb": {
-            "title": "Updates op {panel} toestaan",
-            "description": "Kies ‘Verzenden’ en tik daarna op ‘Toestaan’ bij de vraag ‘Foutopsporing toestaan?’ op het paneel. Hiermee krijgt deze Home Assistant-instantie algemene ADB-shelltoegang tot het paneel zolang foutopsporing via het netwerk ingeschakeld blijft.\n\nKies daarna opnieuw ‘Verzenden’. Je kunt deze toestemming later intrekken in de ontwikkelaarsinstellingen van het paneel."
+            "title": "Updates toestaan",
+            "description": "Home Assistant kan pas updates op {panel} installeren als je de ADB-verbinding ervan toestaat.\n\nOm dit op te lossen:\n1. Lees de [stappen voor ADB-toestemming]({approval_url}) en selecteer daarna Verzenden om het toestemmingsverzoek te versturen.\n2. Vink op {panel} **Altijd toestaan vanaf deze computer** aan en tik daarna op **Toestaan**.\n3. Wacht hier tot de toestemming is afgerond; Android kan Home Assistant een computer noemen.\n\n[Meer informatie]({learn_more_url})"
           }
         },
         "error": {
@@ -1619,13 +1658,16 @@
           "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert."
         },
         "abort": {
-          "entry_removed": "Dit paneel is verwijderd."
+          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten](/config/integrations/integration/panel_assistant) als je het opnieuw wilt toevoegen.\n2. Sluit anders dit dialoogvenster.\n\n[Meer informatie]({learn_more_url})"
+        },
+        "progress": {
+          "authorize_adb": "Home Assistant wacht tot {panel} updates toestaat.\n\nOm dit op te lossen:\n1. Volg de [stappen voor ADB-toestemming]({approval_url}) op het paneel.\n2. Vink **Altijd toestaan vanaf deze computer** aan en tik daarna op **Toestaan**.\n3. Wacht hier; dit gaat vanzelf verder zodra toestemming is gegeven.\n\n[Meer informatie]({learn_more_url})"
         }
       }
     },
     "another_home_assistant": {
       "title": "{panel} is aangemeld bij een andere Home Assistant",
-      "description": "{panel} is hier toegevoegd, maar is aangemeld bij een andere Home Assistant. De instellingen en aanmelding ervan zijn niet gewijzigd. Om het hier te verbinden, wijzig je op het paneel Home Assistant en meld je je aan."
+      "description": "{panel} is hier toegevoegd, maar is nog aangemeld bij een andere Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Home Assistant-verbinding van het paneel]({configure_url}).\n2. Als je het hier wilt verbinden, voer dan het adres van deze Home Assistant in en sla het op.\n3. Maak opnieuw verbinding en meld je aan met het account dat je voor het paneel wilt gebruiken; behoud anders de huidige server en negeer deze reparatie."
     }
   },
   "options": {
@@ -1649,8 +1691,8 @@
         "submit": "Klaar"
       },
       "authorize_adb": {
-        "title": "Updates op {panel} toestaan",
-        "description": "Kies ‘Verzenden’ en tik daarna op ‘Toestaan’ bij de vraag ‘Foutopsporing toestaan?’ op het paneel. Hiermee krijgt deze Home Assistant-instantie algemene ADB-shelltoegang tot het paneel zolang foutopsporing via het netwerk ingeschakeld blijft.\n\nKies daarna opnieuw ‘Verzenden’. Je kunt deze toestemming later intrekken in de ontwikkelaarsinstellingen van het paneel."
+        "title": "Geef Home Assistant toestemming op het paneel",
+        "description": "Klik op ‘Verzenden’ en kijk dan naar het scherm van {panel}: vink **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**. Android kan Home Assistant een computer noemen."
       },
       "updates": {
         "title": "Paneelupdates",
@@ -1687,16 +1729,16 @@
       "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket Panel Assistant, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de stappen op {recovery_address}. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
       "unknown": "Onverwachte fout",
       "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert.",
-      "removal_busy": "Een update of verhuizing wijzigt dit paneel al. Er is niets weggehaald; probeer het opnieuw als die klaar is.",
-      "removal_adb_unreachable": "Home Assistant kon het paneel niet bereiken via de Android Debug Bridge (poort 5555). Er is niets weggehaald. Controleer of het paneel aan staat en debuggen via het netwerk nog is ingeschakeld, en probeer het opnieuw.",
-      "removal_adb_authorization": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd voor de Android Debug Bridge. Er is niets verwijderd. Kies eerst ‘Updates toestaan’ en probeer het daarna opnieuw.",
+      "removal_busy": "Een andere bewerking wijzigt dit paneel al. Er is niets weggehaald; probeer het opnieuw als die klaar is.",
+      "removal_adb_unreachable": "Home Assistant kon het paneel niet bereiken via de Android Debug Bridge (poort 5555). Er is niets weggehaald. Controleer of het paneel aan staat en foutopsporing via het netwerk nog is ingeschakeld, en probeer het opnieuw.",
+      "removal_adb_authorization": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd voor de Android Debug Bridge. Er is niets weggehaald. Kies eerst ‘Updates toestaan’ en probeer het daarna opnieuw.",
       "removal_panel_changed": "Op het adres van dit paneel antwoordt nu een ander apparaat. Er is niets weggehaald.",
       "removal_approval_required": "Verhoogde beveiliging is ingeschakeld. Daarom moet het teruggeven van het startscherm op het paneel zelf worden goedgekeurd. Er is niets gewijzigd en Panel Assistant is nog steeds geïnstalleerd. Keur het verzoek op het paneel goed en verzend het formulier daarna opnieuw.",
       "removal_no_replacement_home": "Het paneel kon zijn startscherm niet aan een andere launcher geven: er staat geen andere startscherm-app op, dus Panel Assistant is het enige wat het kan tonen. Er is niets weggehaald en het paneel werkt nog. Installeer een launcher of zet die van de fabrikant weer aan, en probeer het opnieuw.",
       "removal_ownership_unreadable": "Het paneel kon zijn eigen overzicht van de uitgeschakelde fabrikantapps niet lezen. Er is niets weggehaald. Start Panel Assistant opnieuw op het paneel en probeer het daarna nog eens.",
       "removal_package_state_unknown": "Het paneel kon niet lezen welke apps zijn geïnstalleerd of welke zijn startscherm is. Er is niets weggehaald. Probeer het zo meteen opnieuw.",
       "removal_home_not_handed": "Het paneel bevestigde niet dat een andere launcher het startscherm heeft overgenomen, dus Panel Assistant is niet weggehaald. Installeer een launcher of zet die van de fabrikant weer aan, en probeer het opnieuw.",
-      "removal_hand_back_unsupported": "De Panel Assistant-app op dit paneel is te oud om het startscherm terug te geven. Er is niets verwijderd. Werk de app eerst bij en probeer het daarna opnieuw.",
+      "removal_hand_back_unsupported": "De Panel Assistant-app op dit paneel is te oud om het startscherm terug te geven. Er is niets weggehaald. Werk de app eerst bij en probeer het daarna opnieuw.",
       "removal_app_unreachable": "Panel Assistant antwoordde niet en is nog het startscherm van het paneel; nu weghalen zou het paneel zonder startscherm laten. Er is niets weggehaald. Start Panel Assistant op het paneel en probeer het opnieuw.",
       "removal_remove_failed": "Het paneel heeft zijn startscherm al terug, maar Panel Assistant kon niet volledig worden weggehaald. Probeer het opnieuw: een nieuwe poging maakt de rest af.",
       "panel_not_connected": "Het paneel heeft nog geen verbinding gemaakt. Rond de stappen op de installatiepagina af en klik dan opnieuw op Klaar."
@@ -1705,6 +1747,9 @@
       "removed_entry_deleted": "Panel Assistant is weggehaald en het paneel is uit Home Assistant gewist.",
       "removed_entry_kept": "Panel Assistant is weggehaald. Het paneel blijft in Home Assistant tot je het wist.",
       "panel_connected": "Het paneel is ingesteld en verbonden met Home Assistant."
+    },
+    "progress": {
+      "authorize_adb": "Kijk naar het scherm van {panel}: vink **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**. Android kan Home Assistant een computer noemen.\n\nDit gaat vanzelf verder zodra het paneel het toestaat."
     }
   }
 }

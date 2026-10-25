@@ -1,33 +1,126 @@
+# show_page's named-panel forms come before its other forms: those end in
+# {page}, which would take in "sur le panneau de la cuisine" as well. A form
+# naming "le panneau de la/du ... {panel}" comes before the free
+# "sur le ... {panel}", so {panel} is the room the panel is named after.
 language: fr
 commands:
   show_page:
     sentences:
-      - "(affiche|montre) [moi] (la page|la vue|le tableau de bord|l'onglet) [(de|du|des|de la|de l')] {page}"
-      - "(affichez|montrez) [moi] (la page|la vue|le tableau de bord|l'onglet) [(de|du|des|de la|de l')] {page}"
+      - "(affiche|montre|affichez|montrez) [moi] (la page|la vue|le tableau de bord|l'onglet) [(de la|de l'|du|des|de)] {page} sur le panneau (de la |de l'|du |des ){panel}"
+      - "(affiche|montre|affichez|montrez) [moi] (la page|la vue|le tableau de bord|l'onglet) [(de la|de l'|du|des|de)] {page} sur [le |la |l']{panel}"
+      - "(va|allez|aller) (à|sur) (la page|la vue|l'onglet) [(de la|de l'|du|des|de)] {page} sur le panneau (de la |de l'|du |des ){panel}"
+      - "(va|allez|aller) (à|sur) (la page|la vue|l'onglet) [(de la|de l'|du|des|de)] {page} sur [le |la |l']{panel}"
       - "(affiche|montre|affichez|montrez) [moi] (la page|la vue|le tableau de bord|l'onglet) d'{page}"
-      - "(va|allez|aller) (à|sur) (la page|la vue|l'onglet) [(de|du|des|de la|de l')] {page}"
       - "(va|allez|aller) (à|sur) (la page|la vue|l'onglet) d'{page}"
-      - "(va|allez|aller) (au|sur le) tableau de bord [(de|du|des|de la|de l')] {page}"
-      - "(rends-toi|rendez-vous) sur (la page|la vue|le tableau de bord|l'onglet) [(de|du|des|de la|de l')] {page}"
+      - "(affiche|montre|affichez|montrez) [moi] (la page|la vue|le tableau de bord|l'onglet) [(de la|de l'|du|des|de)] {page}"
+      - "(affichez|montrez) [moi] (la page|la vue|le tableau de bord|l'onglet) [(de la|de l'|du|des|de)] {page}"
+      - "(va|allez|aller) (à|sur) (la page|la vue|l'onglet) [(de la|de l'|du|des|de)] {page}"
+      - "(va|allez|aller) (au|sur le) tableau de bord [(de la|de l'|du|des|de)] {page}"
+      - "(rends-toi|rendez-vous) sur (la page|la vue|le tableau de bord|l'onglet) [(de la|de l'|du|des|de)] {page}"
   android_settings:
     sentences:
       - "(affiche|montre|affichez|montrez) [moi] (les paramètres|les réglages) (android|d'android|de la tablette|du système)"
       - "(va|allez) dans (les paramètres|les réglages) (android|d'android|de la tablette|du système)"
       - "(accède|accédez) aux (paramètres|réglages) (android|d'android|de la tablette|du système)"
+      - "(affiche|montre|affichez|montrez) [moi] (les paramètres|les réglages) (android|d'android|de la tablette|du système) sur le panneau (de la |de l'|du |des ){panel}"
+      - "(affiche|montre|affichez|montrez) [moi] (les paramètres|les réglages) (android|d'android|de la tablette|du système) sur [le |la |l']{panel}"
   launcher:
     sentences:
       - "(affiche|montre|affichez|montrez) [moi] (le lanceur|le launcher) [(android|d'applications)]"
       - "(affiche|montre|affichez|montrez) [moi] l'écran d'accueil (android|d'android)"
       - "(va|allez|retourne|retournez|reviens|revenez) (à|sur) l'écran d'accueil (android|d'android)"
       - "(retourne|retournez|reviens|revenez) (au lanceur|au launcher) [android]"
+      - "(affiche|montre|affichez|montrez) [moi] (le lanceur|le launcher) [(android|d'applications)] sur le panneau (de la |de l'|du |des ){panel}"
+      - "(affiche|montre|affichez|montrez) [moi] (le lanceur|le launcher) [(android|d'applications)] sur [le |la |l']{panel}"
+  recents:
+    sentences:
+      - "(affiche|montre|affichez|montrez) [moi] les (applications|applis|apps) récentes"
+      - "(va|allez) (aux|dans les) (applications|applis|apps) récentes"
+      - "(applications|applis|apps) récentes"
+      - "(affiche|montre|affichez|montrez) [moi] les (applications|applis|apps) récentes sur le panneau (de la |de l'|du |des ){panel}"
+      - "(affiche|montre|affichez|montrez) [moi] les (applications|applis|apps) récentes sur [le |la |l']{panel}"
+  back:
+    sentences:
+      - "retour"
+      - "(page|vue) précédente"
+      - "onglet précédent"
+      - "(retourne|retournez|reviens|revenez) (à la page précédente|à la vue précédente|à l'onglet précédent)"
+      - "(page|vue) précédente sur le panneau (de la |de l'|du |des ){panel}"
+      - "(page|vue) précédente sur [le |la |l']{panel}"
+      - "(retourne|retournez|reviens|revenez) (à la page précédente|à la vue précédente|à l'onglet précédent) sur le panneau (de la |de l'|du |des ){panel}"
+      - "(retourne|retournez|reviens|revenez) (à la page précédente|à la vue précédente|à l'onglet précédent) sur [le |la |l']{panel}"
+  screen_wake:
+    sentences:
+      - "(réveille-toi|réveille toi|réveillez-vous|réveillez vous)"
+      - "(réveille|réveillez) (l'écran|le panneau|la tablette)"
+      - "(sors|sortez) [l'écran] de [la] veille"
+      - "(réveille|réveillez) (le|l'écran du) panneau (de la |de l'|du |des ){panel}"
+      - "(réveille|réveillez) [le |la |l']{panel}"
+  screen_sleep:
+    sentences:
+      - "(endors-toi|endors toi|endormez-vous|endormez vous)"
+      - "(va|allez) (dormir|en veille)"
+      - "(endors|endormez) (l'écran|le panneau|la tablette)"
+      - "(endors|endormez) (le|l'écran du) panneau (de la |de l'|du |des ){panel}"
+      - "(endors|endormez) [le |la |l']{panel}"
+  screen_brighter:
+    sentences:
+      - "(rends|rendez) l'écran plus lumineux"
+      - "[écran] plus lumineux"
+      - "plus de luminosité"
+      - "(éclaircis|éclaircissez) l'écran"
+      - "(rends|rendez) l'écran plus lumineux sur le panneau (de la |de l'|du |des ){panel}"
+      - "(rends|rendez) l'écran plus lumineux sur [le |la |l']{panel}"
+      - "(éclaircis|éclaircissez) l'écran du panneau (de la |de l'|du |des ){panel}"
+      - "[écran] plus lumineux sur le panneau (de la |de l'|du |des ){panel}"
+      - "[écran] plus lumineux sur [le |la |l']{panel}"
+  screen_dimmer:
+    sentences:
+      - "(rends|rendez) l'écran moins lumineux"
+      - "[écran] moins lumineux"
+      - "moins de luminosité"
+      - "(assombris|assombrissez|tamise|tamisez) l'écran"
+      - "(rends|rendez) l'écran moins lumineux sur le panneau (de la |de l'|du |des ){panel}"
+      - "(rends|rendez) l'écran moins lumineux sur [le |la |l']{panel}"
+      - "(assombris|assombrissez|tamise|tamisez) l'écran du panneau (de la |de l'|du |des ){panel}"
+      - "[écran] moins lumineux sur le panneau (de la |de l'|du |des ){panel}"
+      - "[écran] moins lumineux sur [le |la |l']{panel}"
+  volume_up:
+    sentences:
+      - "(parle|parlez) plus fort [s'il (te|vous) plaît]"
+      - "(parle|parlez) plus fort sur le panneau (de la |de l'|du |des ){panel}"
+      - "plus fort sur le panneau (de la |de l'|du |des ){panel}"
+  volume_down:
+    sentences:
+      - "(parle|parlez) (moins fort|plus bas|plus doucement) [s'il (te|vous) plaît]"
+      - "(parle|parlez) (moins fort|plus bas|plus doucement) sur le panneau (de la |de l'|du |des ){panel}"
+      - "moins fort sur le panneau (de la |de l'|du |des ){panel}"
 home_pages: [accueil, principal, principale, démarrage]
+back_pages: [précédente, précédent, dernière, dernier]
+panel_words: [panneau, tablette]
 screen_names: [écran]
 responses:
   show_page: "J'affiche {page}"
   android_settings: "J'ouvre les paramètres Android"
   launcher: "J'ouvre le lanceur"
+  recents: "J'affiche les applications récentes"
+  back: "Je reviens en arrière"
+  back_none: "Le panneau ne peut pas revenir en arrière ici"
+  screen_wake: "Je réveille l'écran"
+  screen_sleep: "Je me mets en veille"
+  screen_brighter: "Luminosité de l'écran à {brightness} pour cent"
+  screen_dimmer: "Luminosité de l'écran à {brightness} pour cent"
+  screen_brightest: "L'écran est déjà à la luminosité maximale"
+  screen_dimmest: "L'écran est déjà à la luminosité minimale"
+  screen_dark: "L'écran est éteint"
+  volume_up: "Volume à {volume} pour cent"
+  volume_down: "Volume à {volume} pour cent"
+  volume_max: "Le volume est déjà au maximum"
+  volume_min: "Le volume est déjà au minimum"
   page_unknown: "Ce panneau n'a pas de page appelée {page}"
-  not_a_panel: "Demandez-le à un panneau"
+  panel_unknown: "Aucun panneau ne s'appelle {panel}"
+  panel_ambiguous: "Plusieurs panneaux s'appellent {panel}"
+  not_a_panel: "Demandez-le à un panneau, ou dites lequel"
   panel_unavailable: "Le panneau n'est pas connecté"
   panel_refused: "Le panneau n'a pas pu le faire"
   panel_locked: "Le panneau est verrouillé sur son tableau de bord et ne peut pas ouvrir cela"

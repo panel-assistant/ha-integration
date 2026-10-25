@@ -2,91 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FRONTEND_TRANSLATIONS } from '../src/translations/index.mjs';
 import { frontendMessages } from '../src/frontend-localization.mjs';
+import {
+  markup, store, pushed, replaced, intervals, SIDEBAR_MESSAGES, SELECTION_KEY, RELAY_TYPE, parsePanels, embedToken, versionText,
+  openingText, PanelAssistantSidebar, tick, TOKEN, TOKEN2, url, row, fakeHass, mount, frameWindow, fromWindow,
+} from './fixtures/sidebar-harness.mjs';
 
-// A minimal shadow DOM: fixed markup is parsed for tags, ids and data-message, and every
-// innerHTML assignment is recorded so a test can prove panel text never reaches markup.
-const markup = [];
-class Element {
-  constructor(tag) { this.tagName = tag; this.attributes = new Map(); this.listeners = {}; this.children = []; this.dataset = {}; this.hidden = false; this.textContent = ''; this.value = ''; }
-  set innerHTML(html) { markup.push(html); }
-  addEventListener(name, fn) { (this.listeners[name] ??= []).push(fn); }
-  setAttribute(name, value) { this.attributes.set(name, String(value)); }
-  getAttribute(name) { return this.attributes.has(name) ? this.attributes.get(name) : null; }
-  removeAttribute(name) { this.attributes.delete(name); }
-  append(child) { this.children.push(child); }
-  replaceChildren() { this.children = []; }
-  fire(name, event = {}) { for (const fn of this.listeners[name] ?? []) fn(event); }
-}
-globalThis.HTMLElement = class {
-  isConnected = false; events = []; attributes = new Map();
-  setAttribute(name, value) { this.attributes.set(name, String(value)); }
-  getAttribute(name) { return this.attributes.get(name) ?? null; }
-  dispatchEvent(event) { this.events.push(event); return true; }
-  attachShadow() {
-    const elements = [];
-    this.shadowRoot = {
-      set innerHTML(html) {
-        markup.push(html);
-        for (const [, tag, attrs] of html.replace(/<style>[^]*?<\/style>/, '').matchAll(/<([a-z][a-z0-9]*)([^>]*)>/g)) {
-          const element = new Element(tag);
-          for (const [, name, value] of attrs.matchAll(/([a-z-]+)="([^"]*)"/g)) {
-            if (name === 'data-message') element.dataset.message = value; else element.setAttribute(name, value);
-          }
-          elements.push(element);
-        }
-      },
-      querySelectorAll: selector => selector === '[data-message]' ? elements.filter(e => e.dataset.message) : [],
-      querySelector: selector => elements.find(e => `#${e.getAttribute('id')}` === selector) ?? assert.fail(`missing ${selector}`),
-    };
-  }
-};
-globalThis.document = { createElement: tag => new Element(tag) };
-globalThis.customElements = { get() {}, define() {} };
-const store = new Map();
-globalThis.localStorage = { getItem: key => store.get(key) ?? null, setItem: (key, value) => store.set(key, value) };
-const pushed = [];
-globalThis.history = { pushState: (...args) => pushed.push(args) };
-globalThis.window = new EventTarget();
-globalThis.location = { origin: 'http://ha.example' };
-let intervals = [];
-globalThis.setInterval = (fn, ms) => { const handle = { fn, ms, cleared: false }; intervals.push(handle); return handle; };
-globalThis.clearInterval = handle => { if (handle) handle.cleared = true; };
-
-const { ENGLISH_MESSAGES: { sidebar: SIDEBAR_MESSAGES } } = await import('../src/frontend-localization.mjs');
-const { SELECTION_KEY, RELAY_TYPE, parsePanels, embedToken, versionText, openingText, PanelAssistantSidebar } = await import('../src/sidebar-panel.mjs');
-
-const tick = () => new Promise(resolve => setImmediate(resolve));
-const TOKEN = 'a'.repeat(43);
-const TOKEN2 = 'b'.repeat(43);
-const url = token => `/api/panel_assistant/embed/${token}/`;
-const row = (entry_id, state = 'reachable', title = entry_id, device_id = `${entry_id}-device`) => ({ entry_id, title, state, device_id });
-
-function fakeHass({ panels = [row('one'), row('two')], admin = true, language = 'en', dark = false } = {}) {
-  const connection = {
-    subscriptions: [], listeners: new Map(),
-    addEventListener(name, fn) { this.listeners.set(name, fn); },
-    removeEventListener(name, fn) { if (this.listeners.get(name) === fn) this.listeners.delete(name); },
-    subscribeMessage(callback, message, options) {
-      const sub = { callback, message, options, unsubscribed: 0 };
-      sub.promise = new Promise((resolve, reject) => { sub.resolve = resolve; sub.reject = reject; });
-      sub.resolve(() => { sub.unsubscribed++; return Promise.reject(Error('gone')); });
-      this.subscriptions.push(sub);
-      return sub.promise;
-    },
-  };
-  const hass = { user: { id: 'u', is_admin: admin }, language, themes: { darkMode: dark }, connection, calls: 0, panels };
-  hass.callWS = async message => { assert.deepEqual(message, { type: 'panel_assistant/embed_panels' }); hass.calls++; return { panels: hass.panels }; };
-  return hass;
-}
-
-async function mount(hass, narrow = false, path = '') {
-  intervals = [];
-  const panel = new PanelAssistantSidebar();
-  panel.hass = hass; panel.narrow = narrow; panel.route = { path };
-  panel.isConnected = true; panel.connectedCallback(); await tick();
-  const $ = selector => panel.shadowRoot.querySelector(selector);
-  return { panel, $, subs: hass.connection.subscriptions };
-}
 
 test('panel list parser keeps the display contract and rejects anything else', () => {
   assert.deepEqual(parsePanels({ panels: [{ ...row('A_1-b'), extra: 'drop' }] }), [row('A_1-b')]);
@@ -103,7 +23,7 @@ test('only the embed view root URL yields a token', () => {
   }
 });
 
-test('copy is keyed, markup carries no text and the frame is a titled, unsandboxed iframe', async () => {
+test('copy is keyed, markup carries no text and the frame is a titled iframe sandboxed without the same origin', async () => {
   markup.length = 0;
   const { $ } = await mount(fakeHass());
   assert.doesNotMatch(markup[0].replace(/<style>[^]*?<\/style>/, ''), />\s*[^<\s]/, 'fixed markup contains no copy');
@@ -118,7 +38,7 @@ test('copy is keyed, markup carries no text and the frame is a titled, unsandbox
   assert.equal($('#device').getAttribute('aria-label'), SIDEBAR_MESSAGES.device);
   assert.equal($('#device').getAttribute('title'), SIDEBAR_MESSAGES.device);
   assert.equal($('#frame').getAttribute('title'), SIDEBAR_MESSAGES.frameTitle);
-  assert.equal($('#frame').getAttribute('sandbox'), null);
+  assert.deepEqual($('#frame').getAttribute('sandbox').split(' ').sort(), ['allow-downloads', 'allow-forms', 'allow-modals', 'allow-popups', 'allow-popups-to-escape-sandbox', 'allow-scripts']);
 });
 
 test('a non-administrator sees the admin message and no WebSocket call is made', async () => {
@@ -147,7 +67,14 @@ test('panel titles render as text and the first panel opens a session', async ()
   subs[0].callback({ kind: 'opened', url: url(TOKEN) });
   assert.equal($('#frame').getAttribute('src'), url(TOKEN));
   assert.equal($('#status').hidden, true);
-  assert.equal($('#loading').hidden, true, 'the spinner hides once the frame has a src');
+  assert.equal($('#loading').hidden, false, 'a URL does not mean the panel page has loaded');
+  // A sandboxed document is cross-origin to the sidebar, which cannot read it.
+  $('#frame').contentDocument = null;
+  $('#frame').contentWindow = frameWindow();
+  $('#frame').fire('load');
+  assert.equal($('#loading').hidden, false, 'a load alone does not say the document is a page');
+  fromWindow($('#frame').contentWindow, { type: 'panel-assistant-ready' });
+  assert.equal($('#loading').hidden, true, 'the waiting view clears when the panel page says it loaded');
 });
 
 test('an opened event with a foreign URL never loads the frame', async () => {
@@ -270,6 +197,97 @@ test('an unknown device route uses the existing remembered-panel fallback', asyn
   const { panel, subs } = await mount(fakeHass(), false, '/missing');
   assert.equal(subs[0].message.entry_id, 'two');
   panel.isConnected = false; panel.disconnectedCallback(); await tick();
+  store.clear();
+});
+
+const CARD = 'cfg-proximity-learning';
+
+test('a Repair link opens its panel at the Configure card once; a reconnect keeps the page', async () => {
+  store.set(SELECTION_KEY, 'one');
+  const hass = fakeHass();
+  const { $, subs } = await mount(hass, false, `/two/configure/${CARD}`);
+  assert.equal(subs[0].message.entry_id, 'two');
+  subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  assert.equal($('#frame').getAttribute('src'), `${url(TOKEN)}configure#${CARD}`);
+  hass.connection.listeners.get('ready')(); await tick();
+  subs[1].callback({ kind: 'opened', url: url(TOKEN) });
+  assert.equal($('#frame').getAttribute('src'), `${url(TOKEN)}configure#${CARD}`, 'a resumed session keeps the page');
+  subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
+  assert.equal($('#frame').getAttribute('src'), url(TOKEN2), 'a later session opens the first page');
+  store.clear();
+});
+
+test('the panel picker keeps the served tab, drops its anchor, and follows later frame navigation', async () => {
+  const { $, subs } = await mount(fakeHass(), false, `/one/configure/${CARD}`);
+  subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  subs[0].callback({ kind: 'page', page: 'configure' });
+  $('#panels').fire('change', { target: { value: 'two' } }); await tick();
+  assert.equal(subs[1].message.entry_id, 'two');
+  subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
+  assert.equal($('#frame').getAttribute('src'), `${url(TOKEN2)}configure`);
+  subs[0].callback({ kind: 'page', page: 'install' }); // A late old-session event cannot replace the tab.
+  subs[1].callback({ kind: 'page', page: 'logs' });
+  $('#panels').fire('change', { target: { value: 'one' } }); await tick();
+  subs[2].callback({ kind: 'opened', url: url(TOKEN) });
+  assert.equal($('#frame').getAttribute('src'), `${url(TOKEN)}logs`);
+  subs[2].callback({ kind: 'page', page: '' });
+  subs[2].callback({ kind: 'page', page: '../configure' });
+  $('#panels').fire('change', { target: { value: 'two' } }); await tick();
+  subs[3].callback({ kind: 'opened', url: url(TOKEN2) });
+  assert.equal($('#frame').getAttribute('src'), url(TOKEN2), 'the default tab and invalid pages never add a path');
+  store.clear();
+});
+
+test('the panel picker keeps the tab after the sidebar connection resumes', async () => {
+  const hass = fakeHass();
+  const { $, subs } = await mount(hass, false, '/one');
+  subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  subs[0].callback({ kind: 'page', page: 'entities' });
+  hass.connection.listeners.get('ready')(); await tick();
+  subs[1].callback({ kind: 'opened', url: url(TOKEN) });
+  $('#panels').fire('change', { target: { value: 'two' } }); await tick();
+  subs[2].callback({ kind: 'opened', url: url(TOKEN2) });
+  assert.equal($('#frame').getAttribute('src'), `${url(TOKEN2)}entities`);
+  store.clear();
+});
+
+test('a Repair link to the panel already shown reopens it at the card', async () => {
+  const { panel, $, subs } = await mount(fakeHass(), false, '/one');
+  subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  panel.route = { path: `/one/configure/${CARD}` }; await tick();
+  assert.equal(subs[0].unsubscribed, 1);
+  assert.equal(subs[1].message.entry_id, 'one');
+  subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
+  assert.equal($('#frame').getAttribute('src'), `${url(TOKEN2)}configure#${CARD}`);
+  store.clear();
+});
+
+test('a Repair link falls back safely: unknown panel, another choice, unreachable panel, malformed route', async () => {
+  store.set(SELECTION_KEY, 'two');
+  let mounted = await mount(fakeHass(), false, `/missing/configure/${CARD}`);
+  assert.equal(mounted.subs[0].message.entry_id, 'two');
+  mounted.subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  assert.equal(mounted.$('#frame').getAttribute('src'), url(TOKEN), 'an unknown panel opens the remembered one at its first page');
+  store.clear();
+
+  mounted = await mount(fakeHass(), false, `/one/configure/${CARD}`);
+  mounted.$('#panels').fire('change', { target: { value: 'two' } }); await tick();
+  mounted.subs[1].callback({ kind: 'opened', url: url(TOKEN) });
+  assert.equal(mounted.$('#frame').getAttribute('src'), url(TOKEN), 'another panel chosen by hand opens at its first page');
+
+  const hass = fakeHass({ panels: [row('one', 'unreachable')] });
+  mounted = await mount(hass, false, `/one/configure/${CARD}`);
+  assert.equal(mounted.subs.length, 0);
+  assert.equal(mounted.$('#status').textContent, SIDEBAR_MESSAGES.unreachableBody);
+  hass.panels = [row('one')]; intervals[0].fn(); await tick();
+  mounted.subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  assert.equal(mounted.$('#frame').getAttribute('src'), `${url(TOKEN)}configure#${CARD}`, 'the link waits for the panel to be reachable');
+
+  for (const [path, suffix] of [['/one/unknown/x', ''], ['/one/configure/%22x', 'configure'], ['/one/configure', 'configure']]) {
+    mounted = await mount(fakeHass(), false, path);
+    mounted.subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+    assert.equal(mounted.$('#frame').getAttribute('src'), url(TOKEN) + suffix, path);
+  }
   store.clear();
 });
 
@@ -606,7 +624,9 @@ test('every SIDEBAR_MESSAGES key renders through the real component; nothing is 
   seen((await mount(fakeHass({ panels: [row('one', 'unreachable')] }))).$('#status').textContent);
   seen((await mount(fakeHass({ panels: [row('one', 'not_loaded')] }))).$('#status').textContent);
   {
-    const text = (await mount(fakeHass({ panels: [{ ...row('one', 'restarting'), reason: 'update' }] }))).$('#status').textContent;
+    const { $ } = await mount(fakeHass({ panels: [{ ...row('one', 'restarting'), reason: 'update' }] }));
+    const text = $('#loading-text').textContent;
+    seen($('#loading-hint').textContent);
     assert.equal(text, SIDEBAR_MESSAGES.restarting.replace('{reason}', 'update'));
     seen(text);
   }
@@ -745,15 +765,6 @@ test('the shared card follows Home Assistant light or dark, and each failure nam
 });
 
 // The frame's window as the sidebar sees it, recording what is posted to it.
-function frameWindow() {
-  return { posted: [], postMessage(message, origin) { this.posted.push([message, origin]); } };
-}
-function fromWindow(source, data, origin = 'http://ha.example') {
-  const event = new Event('message');
-  Object.assign(event, { source, data, origin });
-  window.dispatchEvent(event);
-}
-
 async function relaying(hass) {
   const relayed = [];
   const list = hass.callWS;
@@ -783,7 +794,7 @@ test('the relay answers its own frame only and ignores every other source', asyn
   fromWindow(target, { type: RELAY_TYPE, frame: request }); await tick();
   assert.deepEqual(relayed.map(call => call.message), [{ type: 'panel_assistant/ui', entry_id: 'one', request }]);
   relayed[0].resolve({ command_id: 'r1', outcome: 'applied', result: { cpu: 1 } }); await tick();
-  assert.deepEqual(target.posted, [[{ type: RELAY_TYPE, frame: { command_id: 'r1', outcome: 'applied', result: { cpu: 1 } } }, 'http://ha.example']]);
+  assert.deepEqual(target.posted, [[{ type: RELAY_TYPE, frame: { command_id: 'r1', outcome: 'applied', result: { cpu: 1 } } }, '*']]);
 
   // A request the relay rejects still answers, so the page's request fails rather than hangs.
   fromWindow(target, { type: RELAY_TYPE, frame: { ...request, command_id: 'r2' } }); await tick();
@@ -806,6 +817,7 @@ test('a page that is being left still ends its subscriptions, and nothing else i
   assert.equal(target.posted.length, posted, 'the answer would reach the next page, which never asked');
 
   fromWindow(null, unsubscribe('s2'), 'http://elsewhere.example');
+  fromWindow(null, unsubscribe('s2'), 'http://ha.example');
   fromWindow(null, { type: RELAY_TYPE, frame: { kind: 'manage', command_id: 'r9', op: 'perf', args: {} } });
   await tick();
   assert.equal(subs[2].unsubscribed, 0, 'another origin ends nothing');
@@ -869,4 +881,162 @@ test('relayed subscriptions forward updates, close on reconnect and end with the
   const posted = target.posted.length;
   subs[5].callback(update);
   assert.equal(target.posted.length, posted);
+});
+
+function signInWindows(t, blocked = false) {
+  const original = window.open;
+  const opened = [];
+  window.open = (url, target) => {
+    if (blocked) return null;
+    const popup = { url, target, opener: window, closed: false, destinations: [], close() { this.closed = true; } };
+    popup.location = { replace(destination) { popup.destinations.push(destination); } };
+    opened.push(popup);
+    return popup;
+  };
+  t.after(() => { if (original === undefined) delete window.open; else window.open = original; });
+  return opened;
+}
+
+const startSignIn = (target, command_id = 'oauth') => fromWindow(target, {
+  type: RELAY_TYPE, frame: { kind: 'manage', command_id, op: 'ha.oauth.start', args: { ha_url: 'https://ha.example' } },
+});
+
+test('a sidebar Reconnect reserves a detached tab before the panel answers, then opens authorization', async t => {
+  const opened = signInWindows(t);
+  const { relayed, target } = await relaying(fakeHass());
+  startSignIn(target);
+  assert.equal(opened.length, 1, 'the tab is reserved synchronously during the frame request');
+  assert.equal(opened[0].opener, null);
+  assert.equal(opened[0].url, '');
+  assert.equal(opened[0].target, '_blank');
+  assert.deepEqual(opened[0].destinations, [], 'no destination exists until the panel responds');
+  await tick();
+  const reply = { command_id: 'oauth', outcome: 'applied', result: { authorization_url: 'https://ha.example/auth/authorize?state=one-use' } };
+  relayed[0].resolve(reply); await tick();
+  assert.deepEqual(opened[0].destinations, [reply.result.authorization_url]);
+  assert.equal(opened[0].closed, false);
+  assert.deepEqual(target.posted.at(-1), [{ type: RELAY_TYPE, frame: reply }, '*']);
+});
+
+test('a refused or interrupted sign-in closes its reserved sidebar tab', async t => {
+  const opened = signInWindows(t);
+  const { relayed, target } = await relaying(fakeHass());
+  startSignIn(target, 'refused'); await tick();
+  relayed[0].resolve({ command_id: 'refused', outcome: 'refused', result: { error: 'invalid-panel-origin' } }); await tick();
+  assert.equal(opened[0].closed, true);
+  assert.deepEqual(opened[0].destinations, []);
+  startSignIn(target, 'interrupted'); await tick();
+  relayed[1].reject(Error('connection closed')); await tick();
+  assert.equal(opened[1].closed, true);
+  assert.deepEqual(opened[1].destinations, []);
+  assert.equal(target.posted.at(-1)[0].frame.outcome, 'failed');
+});
+
+test('panel-supplied script, data, relative and malformed destinations never run in the sidebar sign-in tab', async t => {
+  const opened = signInWindows(t);
+  const { relayed, target } = await relaying(fakeHass());
+  for (const [index, authorization_url] of ['javascript:alert(document.domain)', 'data:text/html,<script>alert(1)</script>', '/auth/authorize', 'not a URL', undefined].entries()) {
+    startSignIn(target, `invalid-${index}`); await tick();
+    relayed[index].resolve({ command_id: `invalid-${index}`, outcome: 'applied', result: { authorization_url } }); await tick();
+    assert.equal(opened[index].closed, true, String(authorization_url));
+    assert.deepEqual(opened[index].destinations, [], String(authorization_url));
+  }
+});
+
+test('a blocked sidebar popup still returns the authorization URL for the page fallback', async t => {
+  const opened = signInWindows(t, true);
+  const { relayed, target } = await relaying(fakeHass());
+  startSignIn(target); await tick();
+  const reply = { command_id: 'oauth', outcome: 'applied', result: { authorization_url: 'http://ha.example/auth/authorize' } };
+  relayed[0].resolve(reply); await tick();
+  assert.equal(opened.length, 0);
+  assert.deepEqual(target.posted.at(-1), [{ type: RELAY_TYPE, frame: reply }, '*']);
+});
+
+test('switching panels closes a pending sign-in tab when the old panel finally answers', async t => {
+  const opened = signInWindows(t);
+  const { panel, relayed, target } = await relaying(fakeHass());
+  startSignIn(target); await tick();
+  panel.route = { path: '/two' }; await tick();
+  const posted = target.posted.length;
+  relayed[0].resolve({ command_id: 'oauth', outcome: 'applied', result: { authorization_url: 'https://ha.example/auth/authorize' } }); await tick();
+  assert.equal(opened[0].closed, true);
+  assert.deepEqual(opened[0].destinations, []);
+  assert.equal(target.posted.length, posted, 'the old answer cannot reach the new panel page');
+});
+
+test('a foreign window cannot make the sidebar open a sign-in tab', async t => {
+  const opened = signInWindows(t);
+  const { relayed } = await relaying(fakeHass());
+  startSignIn(frameWindow()); await tick();
+  assert.equal(opened.length, 0);
+  assert.equal(relayed.length, 0);
+});
+
+
+test('the device icon leaves a top-level return entry for the selected panel and served tab', async () => {
+  const { panel, $, subs } = await mount(fakeHass(), false, '/one');
+  $('#panels').fire('change', { target: { value: 'two' } }); await tick();
+  subs[1].callback({ kind: 'opened', url: url(TOKEN) });
+  subs[1].callback({ kind: 'page', page: 'entities' });
+  subs[0].callback({ kind: 'page', page: 'configure' });
+  subs[1].callback({ kind: 'page', page: '../config' });
+  const before = pushed.length;
+  $('#device').fire('click', { button: 0, preventDefault() {} });
+  assert.deepEqual(pushed.slice(before).map(args => args[2]), [
+    '/panel-assistant/two/entities', '/config/devices/device/two-device',
+  ]);
+  panel.isConnected = false; panel.disconnectedCallback(); await tick(); store.clear();
+});
+
+test('served tabs replace the reload route without adding history or accepting stale pages', async () => {
+  const { panel, $, subs } = await mount(fakeHass(), false, '/one/configure/voice');
+  subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  const before = replaced.length, historyBefore = pushed.length;
+  for (const page of ['configure', 'profiles', 'entities', 'install', 'logs', '']) subs[0].callback({ kind: 'page', page });
+  assert.deepEqual(replaced.slice(before).map(args => args[2]),
+    ['configure', 'profiles', 'entities', 'install', 'logs', ''].map(page => '/panel-assistant/one' + (page ? '/' + page : '')));
+  $('#panels').fire('change', { target: { value: 'two' } }); await tick();
+  subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
+  subs[1].callback({ kind: 'page', page: 'logs' });
+  const count = replaced.length;
+  subs[0].callback({ kind: 'page', page: 'install' });
+  subs[1].callback({ kind: 'page', page: '../config' });
+  assert.equal(replaced.length, count);
+  assert.equal(replaced.at(-1)[2], '/panel-assistant/two/logs');
+  assert.equal(pushed.length, historyBefore, 'tab reporting adds no top-level history entry');
+  panel.disconnectedCallback(); store.clear();
+});
+
+test('Configure preferences are shared by panels and survive remount with foreign messages ignored', async () => {
+  store.clear();
+  const value = { advanced: true, descriptions: false, revealed: ['Display'], filter: 'brightness' };
+  let mounted = await relaying(fakeHass());
+  fromWindow(frameWindow(), { type: 'panel-assistant-config-view', value });
+  fromWindow(mounted.target, { type: 'panel-assistant-config-view', read: true });
+  assert.deepEqual(mounted.target.posted.at(-1)?.[0], { type: 'panel-assistant-config-view', value: null });
+  fromWindow(mounted.target, { type: 'panel-assistant-config-view', value });
+  mounted.$('#panels').fire('change', { target: { value: 'two' } }); await tick();
+  mounted.subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
+  fromWindow(mounted.target, { type: 'panel-assistant-config-view', read: true });
+  assert.deepEqual(mounted.target.posted.at(-1)[0], { type: 'panel-assistant-config-view', value });
+  mounted.panel.disconnectedCallback();
+  mounted = await relaying(fakeHass());
+  fromWindow(mounted.target, { type: 'panel-assistant-config-view', value: { advanced: 'yes', descriptions: false, revealed: [], filter: '' } });
+  fromWindow(mounted.target, { type: 'panel-assistant-config-view', read: true });
+  assert.deepEqual(mounted.target.posted.at(-1)[0], { type: 'panel-assistant-config-view', value });
+  mounted.panel.disconnectedCallback(); store.clear();
+});
+
+test('storage refusal still retains Configure preferences while switching panels', async t => {
+  const mounted = await relaying(fakeHass());
+  t.mock.method(localStorage, 'getItem', () => { throw Error('denied'); });
+  t.mock.method(localStorage, 'setItem', () => { throw Error('denied'); });
+  const value = { advanced: false, descriptions: false, revealed: [], filter: '' };
+  fromWindow(mounted.target, { type: 'panel-assistant-config-view', value });
+  mounted.$('#panels').fire('change', { target: { value: 'two' } }); await tick();
+  mounted.subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
+  fromWindow(mounted.target, { type: 'panel-assistant-config-view', read: true });
+  assert.deepEqual(mounted.target.posted.at(-1)?.[0], { type: 'panel-assistant-config-view', value });
+  mounted.panel.disconnectedCallback();
 });

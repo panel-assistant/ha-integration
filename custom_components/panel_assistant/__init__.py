@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from pathlib import Path
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
@@ -31,6 +32,7 @@ from .device import (
     async_follow_panel_name,
     async_refresh_panel_device,
     panel_device_info,
+    panel_display_name,
     panel_reported_name,
 )
 from .discovery import async_offer_migration_targets
@@ -43,7 +45,7 @@ from .embed import (
     async_setup_embed,
     panel_state,
 )
-from .entry_issues import async_delete_entry_issues, async_delete_orphan_issues
+from .entry_issues import async_delete_entry_issues, async_reconcile_issues
 from .feed_coordinator import CONF_BUILD_FEED, DATA_BUILD_FEED, BuildFeedCoordinator
 from .foreign_ha import async_clear_foreign_ha_issue
 from .ha_url import async_setup_connection_info
@@ -54,6 +56,7 @@ from .install_executor import (
 )
 from .lifecycle import async_setup_lifecycle
 from .native import CONF_NATIVE_ENTITIES, NATIVE_ONLY_PLATFORMS
+from .panel_backup import delete_panel_backups
 from .removed_panels import (
     async_forget_removed_panel,
     async_load_removed_panels,
@@ -81,6 +84,7 @@ from .voice import (
 )
 from .voice_commands import async_setup_voice_commands
 from .voice_stream import async_get_voice_stream, async_setup_voice_stream
+from .wake_words import async_delete_wake_word_issues
 
 PLATFORMS = [Platform.SENSOR, Platform.UPDATE, *NATIVE_ONLY_PLATFORMS]
 # Panels are config entries. YAML holds only development options: an optional
@@ -110,7 +114,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             DOMAIN,
             CONF_NATIVE_ENTITIES,
         )
-    await async_delete_orphan_issues(hass)
+    await async_reconcile_issues(hass)
     # Before the commands exist, so no hello is answered without them.
     await async_load_removed_panels(hass)
     await async_setup_connection_info(hass)
@@ -126,8 +130,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     await async_register_browser_panel(hass)
     await async_setup_restart_check(hass)
     # Installing or updating Panel Assistant means a restart, and someone at
-    # work in Home Assistant: audit known panels at once, not at the first dhcp
-    # event, which can be hours away on a network that names few devices.
+    # work in Home Assistant: offer the panels other integrations know at once.
     async_at_started(hass, async_offer_migration_targets)
     feed = config.get(DOMAIN, {}).get(CONF_BUILD_FEED)
     if feed is not None:
@@ -233,7 +236,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
         raise ConfigEntryError(
             translation_domain=DOMAIN,
             translation_key="mqtt_panel_needs_090",
-            translation_placeholders={"panel": entry.title},
+            translation_placeholders={"panel": panel_display_name(hass, entry)},
         )
     ir.async_delete_issue(hass, DOMAIN, needs_090_issue_id(entry.entry_id))
     update_coordinator = PanelUpdateCoordinator(hass, client)
@@ -343,6 +346,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
     if entry.runtime_data.voice_setup is not None:
         await entry.runtime_data.voice_setup()
     async_delete_microphone_issue(hass, entry.entry_id)
+    async_delete_wake_word_issues(hass, entry)
     return await hass.config_entries.async_unload_platforms(
         entry, entry.runtime_data.platforms
     )
@@ -361,6 +365,9 @@ async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
     if (voice_stream := async_get_voice_stream(hass)) is not None:
         await voice_stream.async_revoke(entry.entry_id)
     await async_remember_removed_panel(hass, entry)
+    await hass.async_add_executor_job(
+        delete_panel_backups, Path(hass.config.path(DOMAIN, "backups")), entry.entry_id
+    )
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> None:

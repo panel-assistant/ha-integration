@@ -1,6 +1,5 @@
 """Panel update results preserve failure reasons without guessing completion."""
 
-from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -14,12 +13,11 @@ from custom_components.panel_assistant import update_progress
 from custom_components.panel_assistant.app_identity import PACKAGE_ID
 from custom_components.panel_assistant.client import PanelInstallStatus
 from custom_components.panel_assistant.const import DOMAIN
-from custom_components.panel_assistant.coordinator import PanelSnapshot
 from custom_components.panel_assistant.update_coordinator import PanelUpdateSnapshot
 
 from .test_feed_update import _entity as feed_entity
 from .test_feed_update import _restart_into, delivery  # noqa: F401
-from .test_update_failure_repairs import _entity as download_entity
+from .test_update_failure_repairs import _entity as recovered_entity
 
 FAILURES = (
     (
@@ -54,8 +52,9 @@ def update_clock(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     return clock
 
 
+@pytest.mark.usefixtures("delivery")
 @pytest.mark.parametrize("reason", FAILURES)
-async def test_download_terminal_failure_preserves_reason_immediately(
+async def test_terminal_failure_preserves_reason_immediately(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     update_clock: SimpleNamespace,
@@ -64,13 +63,19 @@ async def test_download_terminal_failure_preserves_reason_immediately(
     MockConfigEntry(domain=DOMAIN, entry_id="entry-id", title="Test panel").add_to_hass(
         hass
     )
-    entity, client = download_entity(hass)
-    entity._update_coordinator.data = PanelUpdateSnapshot(
-        operation=PanelInstallStatus(
-            running=False, component="ha-paneld", message=reason
-        ),
-        error=None,
-    )
+    entity, client = feed_entity(hass, package=PACKAGE_ID)
+    entity._entry_id = "entry-id"
+
+    finished = PanelInstallStatus(running=False, component="APK", message=reason)
+
+    async def commit(_token: str) -> None:
+        client.async_get_panel_install_status.return_value = finished
+        entity._update_coordinator.data = PanelUpdateSnapshot(
+            operation=finished, error=None
+        )
+
+    client.async_commit_apk.side_effect = commit
+    entity._update_coordinator.async_request_refresh = AsyncMock()
     record = AsyncMock()
     monkeypatch.setattr(panel_update, "async_record_update_failure", record)
 
@@ -84,36 +89,26 @@ async def test_download_terminal_failure_preserves_reason_immediately(
     }
     assert reason in str(record.await_args.args[4])
     assert update_clock.seconds == 0
-    entity._update_coordinator.async_request_refresh.assert_awaited_once()
-    client.async_start_panel_update.assert_awaited_once()
+    client.async_commit_apk.assert_awaited_once()
     assert entity.in_progress is False
 
 
 @pytest.mark.usefixtures("delivery")
-@pytest.mark.parametrize("route", ["staged", "download"])
 @pytest.mark.parametrize("result", ["running", "empty", "success", "unrelated"])
 async def test_nonfailure_result_keeps_verifying_the_committed_target(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     update_clock: SimpleNamespace,
-    route: str,
     result: str,
 ) -> None:
-    entity, client = (
-        feed_entity(hass, package=PACKAGE_ID)
-        if route == "staged"
-        else download_entity(hass)
-    )
-    component = "APK" if route == "staged" else "ha-paneld"
+    entity, client = feed_entity(hass, package=PACKAGE_ID)
     status = PanelInstallStatus(
         running=result == "running",
-        component="Backup" if result == "unrelated" else component,
+        component="Backup" if result == "unrelated" else "APK",
         message=(
             FAILURES[0]
             if result in ("running", "unrelated")
             else "OK"
-            if route == "staged" and result == "success"
-            else "updating Panel Assistant -> 0.9.10"
             if result == "success"
             else ""
         ),
@@ -122,39 +117,20 @@ async def test_nonfailure_result_keeps_verifying_the_committed_target(
     entity._update_coordinator.data = PanelUpdateSnapshot(operation=None, error=None)
     entity._update_coordinator.async_request_refresh = AsyncMock()
 
-    async def start(_tag: str) -> None:
-        entity._update_coordinator.data = PanelUpdateSnapshot(
-            operation=status, error=None
-        )
-
-    client.async_start_panel_update.side_effect = start
     record = AsyncMock()
     monkeypatch.setattr(panel_update, "async_record_update_failure", record)
 
     async def refresh() -> None:
         if update_clock.seconds < 2:
             return
-        if route == "staged":
-            _restart_into(entity, client, 772, package=PACKAGE_ID)
-            await entity.coordinator.async_request_refresh()
-        else:
-            snapshot = entity.coordinator.data
-            entity.coordinator.data = PanelSnapshot(
-                health=replace(
-                    snapshot.health, version="0.9.10", build="102", version_code=102
-                ),
-                status=snapshot.status,
-                status_error=None,
-            )
-            entity.coordinator.last_update_success = True
+        _restart_into(entity, client, 772, package=PACKAGE_ID)
+        await entity.coordinator.async_request_refresh()
 
     entity.coordinator.async_request_refresh = AsyncMock(side_effect=refresh)
     await entity.async_install(None, backup=False)
     assert update_clock.seconds >= 2
     record.assert_not_awaited()
-    assert entity.installed_version.partition(" build ")[0] == (
-        "0.9.7-rc4" if route == "staged" else "0.9.10"
-    )
+    assert entity.installed_version.partition(" build ")[0] == "0.9.7-rc4"
 
 
 @pytest.mark.parametrize("reason", ["", "OK", FAILURES[0]])
@@ -164,7 +140,7 @@ async def test_targetless_finished_result_stays_unknown_without_failure_repair(
     update_clock: SimpleNamespace,
     reason: str,
 ) -> None:
-    entity, client = download_entity(hass, recovered=True)
+    entity, _client = recovered_entity(hass, recovered=True)
     entity._update_coordinator.data = PanelUpdateSnapshot(
         operation=PanelInstallStatus(
             running=False, component="ha-paneld", message=reason
@@ -174,7 +150,6 @@ async def test_targetless_finished_result_stays_unknown_without_failure_repair(
     monkeypatch.setattr(update_progress, "_TERMINAL_STATUS_GRACE_SECONDS", 0)
     record = AsyncMock()
     monkeypatch.setattr(panel_update, "async_record_update_failure", record)
-    await entity._run_observer(None, recovered=True)
+    await entity._run_observer()
     record.assert_not_awaited()
-    client.async_start_panel_update.assert_not_awaited()
     assert entity.in_progress is False

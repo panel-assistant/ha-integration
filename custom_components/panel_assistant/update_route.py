@@ -52,7 +52,6 @@ from .update_offer import UpdateOffer
 # Which way the last update reached the panel, shown on the entity.
 ROUTE_ATTRIBUTE = "update_route"
 ROUTE_STAGED = "staged_by_home_assistant"
-ROUTE_PANEL = "downloaded_by_panel"
 ROUTE_ADB = "installed_by_home_assistant_adb"
 # The panel fetched the build from Home Assistant over its own session, because
 # Home Assistant could not reach its address.
@@ -110,11 +109,11 @@ async def async_install_route(
             # Older panels exported this exact privileged-route observation
             # as the dashboard's `shot` bit before the typed status field.
             if await coordinator.client.async_get_legacy_install_capability():
-                return ROUTE_PANEL, None, None
+                return ROUTE_STAGED, None, None
         except HaPaneldError:
             pass
     elif capability == "api":
-        return ROUTE_PANEL, None, None
+        return ROUTE_STAGED, None, None
     adb = await async_adb_route(hass, entry_id, coordinator, offer, panel_name)
     if adb is None:
         return None, None, None

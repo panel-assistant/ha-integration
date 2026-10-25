@@ -2,7 +2,7 @@ import { frontendMessages, frontendLocale, formatFrontendMessage } from './front
 import { TOKENS_CSS, COMPONENTS_CSS } from './tokens.mjs';
 import { BRAND_ICON, versionText } from './wizard-look.mjs';
 // The Panel Assistant sidebar: a top menu owned by the integration above a
-// same-origin frame of the selected panel's own interface, served by Home
+// sandboxed frame of the selected panel's own interface, served by Home
 // Assistant from the panel's session. The frame's requests reach the panel
 // through this element (relayFrame below). Copy follows the current Home
 // Assistant user language.
@@ -14,6 +14,30 @@ const GH_ICON = 'M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.
 
 export const SELECTION_KEY = 'panel_assistant.sidebar.entry';
 export const RELAY_TYPE = 'panel-assistant-ui';
+const CONFIG_VIEW_TYPE = 'panel-assistant-config-view';
+const CONFIG_VIEW_KEY = 'ha-paneld.configure.view.v1';
+function configView(value) {
+  if (!value || typeof value.advanced !== 'boolean' || typeof value.descriptions !== 'boolean' ||
+    !Array.isArray(value.revealed) || value.revealed.length > 100 ||
+    !value.revealed.every(group => typeof group === 'string' && group.length <= 128) ||
+    (value.filter !== undefined && (typeof value.filter !== 'string' || value.filter.length > 512))) return null;
+  return { advanced: value.advanced, descriptions: value.descriptions, revealed: value.revealed, filter: value.filter ?? '' };
+}
+// What the embed view's retry document posts: the panel is not back yet.
+const WAIT_TYPE = 'panel-assistant-wait';
+// What every page the embed view serves posts from its own load: it is a page to show.
+const READY_TYPE = 'panel-assistant-ready';
+// A frame document that has loaded and said neither (an error status, a network error page) is a
+// failed open, not a slow one. Its word can follow its load (WebKit); this long it may lag.
+const SILENT_MS = 2000;
+// WebKit fires no load for a frame whose connection fails, so a frame URL that has said nothing
+// this long has failed too. The slowest real first page waits on a page answer (10 s deadline plus
+// 5 s grace) and the panel's bundle upload (120 s plus 5 s, ui_relay.py).
+const OPEN_MS = 150_000;
+// The frame's own sandbox, the same tokens as the embed view's sandbox header (embed.py
+// SECURITY_HEADERS): never allow-same-origin, so a page never runs on Home Assistant's
+// origin even if a response reached the frame without that header.
+export const FRAME_SANDBOX = 'allow-scripts allow-forms allow-downloads allow-modals allow-popups allow-popups-to-escape-sandbox';
 export const ADD_PANEL_PATH = '/config/integrations/dashboard/add?domain=panel_assistant';
 export const SETTINGS_PATH = '/config/integrations/integration/panel_assistant';
 const STATES = new Set(['reachable', 'unreachable', 'not_loaded', 'restarting']);
@@ -36,9 +60,18 @@ export function parsePanels(value) {
   });
 }
 
-// Only the embed view's own root path is ever loaded into the same-origin frame.
+// Only the embed view's own root path is ever loaded into the frame.
 export function embedToken(url) {
   return typeof url === 'string' ? url.match(/^\/api\/panel_assistant\/embed\/([A-Za-z0-9_-]{43})\/$/)?.[1] ?? null : null;
+}
+
+// A route `/<entry>/<page>/<anchor>` opens that panel at one of its pages, scrolled to the element
+// the anchor names (a Repair's link to a settings card). Anything else after the entry is ignored.
+const ROUTE_PAGES = new Set(['configure', 'setup', 'profiles', 'install', 'logs', 'entities']);
+export function routeTarget(path) {
+  const [entryId = '', page, anchor] = typeof path === 'string' ? path.slice(1).split('/') : [];
+  if (!ROUTE_PAGES.has(page)) return { entryId, suffix: '' };
+  return { entryId, suffix: /^[A-Za-z0-9_-]{1,64}$/.test(anchor ?? '') ? `${page}#${anchor}` : page };
 }
 
 export { versionText };
@@ -64,14 +97,42 @@ function writeSelection(entryId) {
 export class PanelAssistantSidebar extends HTMLElement {
   get #messages() { return frontendMessages('sidebar', this.#hass?.language); }
   #hass; #panel; #route; #narrow = false; #connection; #panels = null; #listState = 'loading'; #listGeneration = 0;
-  #signature = ''; #selected = null; #session = null; #timer = null; #alerts = null;
+  #signature = ''; #selected = null; #deepLink = null; #frameUrl = null; #session = null; #timer = null; #alerts = null;
   #onReady = () => this.#reconnected();
   // Relayed subscriptions by the page's command ID; a new generation drops late answers.
   #relays = new Map(); #relayGeneration = 0;
   // Set when the panel's session closed the relayed subscriptions: the page reopens them
   // once the list shows the panel reachable again.
   #relaysClosed = false;
-  #onMessage = event => this.#relayFrame(event);
+  #configView = null;
+  // Each document the frame loads posts one word (ready or wait); loads that outnumber words
+  // mean a document said nothing. Both count from the frame's last clear.
+  #frameLoads = 0; #frameWords = 0;
+  #onMessage = event => {
+    const frame = this.shadowRoot.querySelector('#frame');
+    const kind = event.data?.type;
+    if (event.data?.type === CONFIG_VIEW_TYPE && event.source && event.source === frame.contentWindow && this.#session?.state === 'open') {
+      if (event.data.read === true) {
+        try { this.#configView = configView(JSON.parse(localStorage.getItem(CONFIG_VIEW_KEY))) ?? this.#configView; } catch { /* storage unavailable */ }
+        this.#postToFrame({ type: CONFIG_VIEW_TYPE, value: this.#configView });
+      } else {
+        const value = configView(event.data.value);
+        if (!value) return;
+        this.#configView = value;
+        try { localStorage.setItem(CONFIG_VIEW_KEY, JSON.stringify(value)); } catch { /* keep this sidebar's view */ }
+      }
+    } else if ((kind === WAIT_TYPE || kind === READY_TYPE) && event.source && event.source === frame.contentWindow) {
+      // Each document says what it is. The frame's load event cannot: WebKit delivers the
+      // retry document's message after that document's load, and Chromium before it.
+      if (frame.getAttribute('src')) {
+        frame.dataset.ready = String(kind === READY_TYPE);
+        this.#frameWords++;
+        // A retry document refreshes itself; the refresh must answer too.
+        if (kind === WAIT_TYPE) this.#failSilentOpen();
+      }
+      this.#render();
+    } else this.#relayFrame(event);
+  };
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
@@ -108,14 +169,15 @@ export class PanelAssistantSidebar extends HTMLElement {
       .menu-icon,.item-label,#backdrop{display:none}
       #add-label{display:inline}
       /* Loading and failure fill the pane as one shared card: a pill word, one line, a quiet next step. */
-      .state{flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:safe center;padding:20px}
+      .state{background:var(--bg);box-sizing:border-box;flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:safe center;padding:20px}
       .state .card{width:100%;max-width:520px;margin:0;display:flex;flex-direction:column;align-items:flex-start;gap:12px;color:var(--text)}
       .state .card p{margin:0;line-height:1.5}
       .state .title{font-size:1.5rem;font-weight:300;line-height:1.25;overflow-wrap:anywhere}
       .state .dim{color:var(--dim)}
       #pickles{width:180px;max-width:100%;height:180px;object-fit:contain;flex-shrink:0;align-self:center}
       #status{margin:0;padding:16px;color:var(--secondary-text-color,#727272)}
-      iframe{flex:1;border:0;width:100%;display:block;background:var(--card-background-color,#fff)}
+      iframe{flex:1;min-height:0;border:0;width:100%;display:block;background:var(--bg);color-scheme:light}
+      :host([theme="dark"]) iframe{color-scheme:dark}
       /* On a phone the header is one row like Home Assistant's own panels: menu button, picker, and a
          vertical ellipsis that opens the remaining links as a menu. The picker caption stays for screen readers. */
       [data-narrow] header{position:relative;flex-wrap:nowrap;gap:4px;padding:3px 4px}
@@ -151,8 +213,8 @@ export class PanelAssistantSidebar extends HTMLElement {
       <a id="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg><span class="item-label" data-message="integrationSettings"></span></a>
       </div>
       <div id="slot"></div>
-    </header><div id="failure" class="state" hidden><section class="card"><span id="failure-pill" class="pill dot"></span><img id="pickles" src="/panel_assistant/usb/pickles.svg" alt=""><p id="failure-status" class="title" role="status" aria-live="polite"></p><p id="pickles-story" data-message="picklesStory"></p><p id="next-step" class="dim"></p></section></div><p id="status" role="status" aria-live="polite"></p><div id="loading" class="state" hidden><section class="card"><span class="pill dot" data-message="pillOpening"></span><p id="loading-text" class="title" role="status" aria-live="polite"></p><p id="loading-hint" class="wiz-status dim" data-message="loadingHint"></p></section></div><iframe id="frame"></iframe></div>`;
-    // Pickles art: https://github.com/maxlyth/pickles. Recopy static/pickles.svg for upstream fixes.
+    </header><div id="failure" class="state" hidden><section class="card"><span id="failure-pill" class="pill dot"></span><img id="pickles" src="/panel_assistant/usb/pickles.svg" alt=""><p id="failure-status" class="title" role="status" aria-live="polite"></p><p id="pickles-story" data-message="picklesStory"></p><p id="next-step" class="dim"></p></section></div><p id="status" role="status" aria-live="polite"></p><div id="loading" class="state" hidden><section class="card"><span id="loading-pill" class="pill dot" data-message="pillOpening"></span><p id="loading-text" class="title" role="status" aria-live="polite"></p><p id="loading-hint" class="wiz-status dim" data-message="loadingHint"></p></section></div><iframe id="frame" sandbox="${FRAME_SANDBOX}"></iframe></div>`;
+    // Pickles art: https://github.com/maxlyth/pickles. Refresh static/pickles.svg with: node pickles/sync.mjs <pickles checkout> <commit>
     const root = this.shadowRoot;
     for (const element of root.querySelectorAll('[data-message]')) element.textContent = this.#messages[element.dataset.message];
     const menu = root.querySelector('#menu');
@@ -174,6 +236,16 @@ export class PanelAssistantSidebar extends HTMLElement {
       overflow.focus?.();
     });
     root.querySelector('#frame').setAttribute('title', this.#messages.frameTitle);
+    // The embed token can open before the panel returns. Its self-refreshing retry document
+    // is not a usable page and stays behind the shared Notice: the frame shows only once its
+    // sandboxed document, which the sidebar cannot read, says it is a page (see #onMessage).
+    // A loaded document that never says anything fails the open, which the list refresh retries.
+    root.querySelector('#frame').addEventListener('load', () => {
+      const frame = root.querySelector('#frame');
+      if (!frame.getAttribute('src')) return;
+      const load = ++this.#frameLoads;
+      this.#failUnless(() => this.#frameWords >= load, SILENT_MS);
+    });
     const settings = root.querySelector('#settings');
     settings.setAttribute('aria-label', this.#messages.integrationSettings);
     settings.setAttribute('title', this.#messages.integrationSettings);
@@ -189,6 +261,9 @@ export class PanelAssistantSidebar extends HTMLElement {
       this.#setMenuOpen(false);
       if (!path || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
+      // Give Back a top-level return entry: WebKit can discard the iframe's history on unmount.
+      const page = this.#session?.page;
+      history.pushState(history.state, '', `/panel-assistant/${this.#selected}${page ? '/' + page : ''}`);
       navigate(path);
     });
     for (const [id, path] of [['add', ADD_PANEL_PATH], ['settings', SETTINGS_PATH]]) {
@@ -201,7 +276,12 @@ export class PanelAssistantSidebar extends HTMLElement {
         navigate(path);
       });
     }
-    root.querySelector('#panels').addEventListener('change', event => this.#choose(event.target.value));
+    root.querySelector('#panels').addEventListener('change', event => {
+      const entryId = event.target.value;
+      const page = this.#session?.page;
+      this.#deepLink = page ? { entryId, suffix: page } : null;
+      this.#choose(entryId);
+    });
     this.#render();
   }
 
@@ -230,7 +310,10 @@ export class PanelAssistantSidebar extends HTMLElement {
   set route(value) {
     const previous = this.#route?.path;
     this.#route = value;
-    if (previous !== value?.path) this.#choose(value?.path?.slice(1));
+    if (previous === value?.path) return;
+    const target = routeTarget(value?.path);
+    this.#deepLink = target.suffix ? target : null;
+    this.#choose(target.entryId);
   }
   get narrow() { return this.#narrow; }
   set narrow(value) {
@@ -354,7 +437,7 @@ export class PanelAssistantSidebar extends HTMLElement {
     this.#panels = panels;
     this.#listState = panels.length ? 'ready' : 'empty';
     if (!panels.some(panel => panel.entry_id === this.#selected)) {
-      const requested = this.#route?.path?.slice(1);
+      const requested = routeTarget(this.#route?.path).entryId;
       const stored = panels.some(panel => panel.entry_id === requested) ? requested : readSelection();
       this.#selected = panels.some(panel => panel.entry_id === stored) ? stored : panels[0]?.entry_id ?? null;
     }
@@ -368,7 +451,11 @@ export class PanelAssistantSidebar extends HTMLElement {
   }
 
   #choose(entryId) {
-    if (!this.#panels?.some(panel => panel.entry_id === entryId) || entryId === this.#selected) return;
+    // A deep link belongs to its route's panel; choosing another panel drops it.
+    if (this.#deepLink?.entryId !== entryId) this.#deepLink = null;
+    if (!this.#panels?.some(panel => panel.entry_id === entryId)) return;
+    // A deep link to the panel already shown reopens it there.
+    if (entryId === this.#selected && !this.#deepLink) return;
     this.#selected = entryId;
     writeSelection(entryId);
     this.#endSession();
@@ -391,7 +478,7 @@ export class PanelAssistantSidebar extends HTMLElement {
   #subscribe(entryId, resume, url) {
     const hass = this.#hass;
     // A resumed session follows a closed signal to the page (see #reconnected).
-    const session = { entryId, token: resume, url, state: 'opening', code: null, unsubscribe: null, reopen: Boolean(resume) };
+    const session = { entryId, token: resume, url, state: 'opening', code: null, unsubscribe: null, reopen: Boolean(resume), page: resume ? this.#session?.page : undefined };
     this.#session = session;
     const message = {
       type: 'panel_assistant/embed_session', entry_id: entryId, language: hass.language,
@@ -423,10 +510,29 @@ export class PanelAssistantSidebar extends HTMLElement {
       session.state = 'open';
       const frame = this.shadowRoot.querySelector('#frame');
       // A new URL reloads the page; the same one keeps it, so it is told to reopen what closed.
-      if (frame.getAttribute('src') !== event.url) frame.setAttribute('src', event.url);
-      else if (session.reopen) this.#postToFrame({ type: RELAY_TYPE, open: true });
+      if (this.#frameUrl !== event.url) {
+        delete frame.dataset.ready;
+        this.#frameUrl = event.url;
+        this.#failSilentOpen();
+        // A deep link for this panel opens its page once; later sessions open the panel's first page.
+        const suffix = this.#deepLink?.entryId === session.entryId ? this.#deepLink.suffix : '';
+        if (suffix) this.#deepLink = null;
+        frame.setAttribute('src', event.url + suffix);
+      }
+      else {
+        if (session.reopen) this.#postToFrame({ type: RELAY_TYPE, open: true });
+        // A frame still without a page (its connection went with Home Assistant) must answer again.
+        if (frame.dataset.ready !== 'true') this.#failSilentOpen();
+      }
       session.reopen = false;
       this.#render();
+    } else if (event.kind === 'page') {
+      // The embed view sees navigation inside the opaque frame; the sidebar cannot read its URL.
+      if (event.page === '' || ROUTE_PAGES.has(event.page)) {
+        session.page = event.page;
+        // Reuse the normal deep-link route on reload without adding a history entry per tab.
+        history.replaceState(history.state, '', `/panel-assistant/${session.entryId}${event.page ? '/' + event.page : ''}`);
+      }
     } else if (event.kind === 'closed') {
       // The server has ended this subscription; drop it and let the list decide when to reopen.
       this.#postToFrame({ type: RELAY_TYPE, closed: true });
@@ -460,10 +566,36 @@ export class PanelAssistantSidebar extends HTMLElement {
     this.#clearFrame();
   }
 
-  #clearFrame() { this.shadowRoot.querySelector('#frame').removeAttribute('src'); }
+  // Fails the open, after `ms`, unless `spoke()` by then or another session has taken the frame.
+  #failUnless(spoke, ms) {
+    const session = this.#session;
+    setTimeout(() => {
+      if (this.#session !== session || spoke()) return;
+      session.state = 'failed';
+      session.code = null;
+      this.#clearFrame();
+      this.#render();
+    }, ms);
+  }
 
+  // The frame has no page yet: its next document must answer within the slowest real first page.
+  #failSilentOpen() {
+    const words = this.#frameWords;
+    this.#failUnless(() => this.#frameWords > words, OPEN_MS);
+  }
+
+  #clearFrame() {
+    const frame = this.shadowRoot.querySelector('#frame');
+    delete frame.dataset.ready;
+    this.#frameUrl = null;
+    this.#frameLoads = this.#frameWords = 0;
+    frame.removeAttribute('src');
+  }
+
+  // The frame's pages run with an opaque origin (the embed view's sandbox header), which no target origin
+  // but '*' names; the message goes to this frame's own window only.
   #postToFrame(message) {
-    this.shadowRoot.querySelector('#frame').contentWindow?.postMessage(message, location.origin);
+    this.shadowRoot.querySelector('#frame').contentWindow?.postMessage(message, '*');
   }
 
   // Ends every relayed subscription; after a reconnect they are already gone and must not be ended.
@@ -483,10 +615,10 @@ export class PanelAssistantSidebar extends HTMLElement {
     const session = this.#session;
     if (!source || event.data?.type !== RELAY_TYPE || !request || typeof request !== 'object') return;
     // A page the frame is leaving ends its subscriptions as it goes, and by the time they arrive the browser
-    // names no source for them. Only those are taken from a gone page of this origin: they can end nothing but
+    // names no source for them. Only those are taken from a gone page of the frame: they can end nothing but
     // this sidebar's own subscriptions, and left unread they would hold the panel's subscriptions until the
-    // panel refuses new ones.
-    const leaving = event.source === null && event.origin === location.origin && request.op === 'unsubscribe';
+    // panel refuses new ones. The frame's sandboxed pages have the opaque origin "null".
+    const leaving = event.source === null && event.origin === 'null' && request.op === 'unsubscribe';
     if (event.source !== source && !leaving) return;
     const generation = this.#relayGeneration;
     const post = frame => { if (!leaving && generation === this.#relayGeneration) this.#postToFrame({ type: RELAY_TYPE, frame }); };
@@ -511,7 +643,29 @@ export class PanelAssistantSidebar extends HTMLElement {
       this.#relays.set(request.command_id, relay);
       relay.catch(() => { if (this.#relays.get(request.command_id) === relay) this.#relays.delete(request.command_id); failed(); });
     } else {
-      Promise.resolve().then(() => this.#hass.callWS(message)).then(post, failed);
+      // Reserve sign-in during the frame's click, before the asynchronous panel answer. The
+      // opaque frame cannot detach an escaped popup's opener; its same-origin parent can.
+      let signInWindow = null;
+      if (request.op === 'ha.oauth.start') {
+        try {
+          signInWindow = window.open('', '_blank');
+          if (signInWindow) signInWindow.opener = null;
+        } catch {
+          signInWindow?.close();
+          signInWindow = null;
+        }
+      }
+      Promise.resolve().then(() => this.#hass.callWS(message)).then(reply => {
+        if (signInWindow && !signInWindow.closed) {
+          let url;
+          try { url = new URL(reply?.result?.authorization_url); } catch { /* A failed start has no destination. */ }
+          // The page is supplied by the panel: a script URL must never execute in this blank HA tab.
+          if (generation === this.#relayGeneration && reply?.outcome === 'applied' && ['http:', 'https:'].includes(url?.protocol)) {
+            signInWindow.location.replace(url.href);
+          } else signInWindow.close();
+        }
+        post(reply);
+      }, () => { signInWindow?.close(); failed(); });
     }
   }
 
@@ -561,7 +715,7 @@ export class PanelAssistantSidebar extends HTMLElement {
     else if (panel?.state === 'unreachable') key = 'unreachableBody';
     else if (panel?.state === 'not_loaded') key = 'notLoadedBody';
     else if (session?.state === 'failed') key = session.code === 'not_loaded' ? 'notLoadedBody' : 'failed';
-    else if (session?.state !== 'open' && !frame.getAttribute('src')) opening = true;
+    else if (frame.dataset.ready !== 'true') opening = true;
     const status = root.querySelector('#status');
     status.textContent = key === 'restarting' ? formatFrontendMessage(this.#messages.restarting, { reason: frontendMessages('sidebarReason', language)[panel.reason] }) : key ? this.#messages[key] : '';
     const failure = ['unreachableBody', 'notLoadedBody', 'failed', 'closed'].includes(key);
@@ -569,13 +723,16 @@ export class PanelAssistantSidebar extends HTMLElement {
     root.querySelector('#failure-status').textContent = failure ? status.textContent : '';
     root.querySelector('#next-step').textContent = failure ? this.#messages[{ unreachableBody: 'unreachableNext', notLoadedBody: 'notLoadedNext', failed: 'failedNext', closed: 'closedNext' }[key]] : '';
     root.querySelector('#failure-pill').textContent = failure ? this.#messages[{ unreachableBody: 'pillUnreachable', notLoadedBody: 'pillNotLoaded', failed: 'pillRetrying', closed: 'pillClosed' }[key]] : '';
-    status.hidden = !key || failure;
+    status.hidden = !key || failure || key === 'restarting';
     const loading = root.querySelector('#loading');
-    loading.hidden = !opening;
+    const restarting = key === 'restarting';
+    loading.hidden = !opening && !restarting;
     const loadingText = root.querySelector('#loading-text');
     loadingText.hidden = !panel;
-    if (opening) loadingText.textContent = panel ? openingText(panel.title, language) : '';
-    frame.hidden = !frame.getAttribute('src');
+    if (opening || restarting) loadingText.textContent = restarting ? status.textContent : panel ? openingText(panel.title, language) : '';
+    root.querySelector('#loading-hint').textContent = panel && (opening || restarting) ? messages.restartingNext : messages.loadingHint;
+    root.querySelector('#loading-pill').textContent = restarting ? frontendMessages('sidebarReason', language)[panel.reason] : messages.pillOpening;
+    frame.hidden = Boolean(key) || opening || frame.dataset.ready !== 'true';
   }
 }
 

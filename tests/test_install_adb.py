@@ -13,11 +13,13 @@ import pytest
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 from adb_shell.exceptions import (
     AdbConnectionError,
+    AdbTimeoutError,
     DeviceAuthError,
     InvalidResponseError,
+    TcpTimeoutException,
 )
 
-from custom_components.panel_assistant import adb_protocol
+from custom_components.panel_assistant import adb_protocol, install_adb
 from custom_components.panel_assistant.adb_protocol import (
     AdbInstallTarget,
     AdbRootMode,
@@ -51,6 +53,7 @@ from .install_adb_fakes import (
     _ACCESSIBILITY_SERVICES,
     APK_BYTES,
     APK_SHA256,
+    HANG,
     JOB_ID,
     NONCES,
     REMOTE_PATH,
@@ -190,7 +193,6 @@ async def test_su_cannot_admit_residue_or_unreadable_inventory(
 @pytest.mark.parametrize(
     "output",
     [
-        TimeoutError(),
         b"denied\n",
         _su_output(NONCES[1], uid="2000"),
         _su_output(NONCES[1]).replace(b"\n0\n", b"\nuid=0 noisy\n"),
@@ -214,6 +216,53 @@ async def test_su_timeout_noise_nonroot_or_wrong_nonce_never_admits(
     assert len(fake.commands) == 2
     assert fake.closed
     assert not fake.pushes
+
+
+@pytest.mark.parametrize(
+    "silence",
+    [HANG, TimeoutError(), AdbTimeoutError(), TcpTimeoutException("idle")],
+    ids=["hang", "timeout", "adb-timeout", "tcp-timeout"],
+)
+async def test_su_form_that_never_answers_moves_on_to_the_next(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+    silence: object,
+) -> None:
+    monkeypatch.setattr(install_adb, "_SU_TIMEOUT_SECONDS", 0.05)
+    fake = FakeDevice(
+        [
+            _preflight_output(NONCES[0], su_lines=["present"]),
+            silence,
+            _su_output(NONCES[2]),
+        ]
+    )
+    _install_fakes(monkeypatch, [fake])
+    proof = await async_preflight_install(target, signer, descriptor)
+    assert proof.root_mode is AdbRootMode.ROOT_SU
+    assert [command.split("; ")[1].split(" '")[0] for command in fake.commands[1:]] == [
+        "su 0",
+        "su 0 sh -c",
+    ]
+    assert fake.closed
+    assert not fake.pushes
+
+
+async def test_su_with_no_form_answering_reports_an_unreachable_panel(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+) -> None:
+    monkeypatch.setattr(install_adb, "_SU_TIMEOUT_SECONDS", 0.05)
+    fake = FakeDevice([_preflight_output(NONCES[0], su_lines=["present"]), *[HANG] * 5])
+    _install_fakes(monkeypatch, [fake])
+    with pytest.raises(InstallAdbError) as caught:
+        await async_preflight_install(target, signer, descriptor)
+    assert caught.value.code is InstallAdbErrorCode.TARGET_UNREACHABLE
+    assert len(fake.commands) == 6
+    assert fake.closed
 
 
 async def test_existing_package_short_circuits_before_su_invocation(

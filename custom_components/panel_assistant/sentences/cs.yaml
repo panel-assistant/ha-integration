@@ -6,26 +6,108 @@ commands:
       - "(přejdi|přejděte|jdi|běž) na (stránku|zobrazení|nástěnku|kartu|panel|přehled|dashboard) {page}"
       - "(ukaž|ukažte|zobraz|zobrazte|ukaz) [mi] {page} (stránku|nástěnku)"
       - "(přejdi|přejděte|jdi|běž) na {page} (stránku|nástěnku)"
+      - "na panelu {panel} (ukaž|ukažte|zobraz|zobrazte|ukaz) [mi] (stránku|zobrazení|nástěnku|kartu|přehled|dashboard) {page}"
+      - "na panelu {panel} (přejdi|přejděte|jdi|běž) na (stránku|zobrazení|nástěnku|kartu|přehled|dashboard) {page}"
+      - "na panelu {panel} (ukaž|ukažte|zobraz|zobrazte|ukaz) [mi] {page} (stránku|nástěnku)"
+      - "na panelu {panel} (přejdi|přejděte|jdi|běž) na {page} (stránku|nástěnku)"
   android_settings:
     sentences:
       - "(ukaž|ukažte|zobraz|zobrazte) [mi] nastavení (androidu|systému [android])"
       - "(přejdi|přejděte|jdi|běž) do nastavení (androidu|systému [android])"
       - "(ukaž|ukažte|zobraz|zobrazte) [mi] systémová nastavení"
+      - "(ukaž|ukažte|zobraz|zobrazte) [mi] na panelu {panel} nastavení (androidu|systému [android])"
   launcher:
     sentences:
       - "(ukaž|ukažte|zobraz|zobrazte) [mi] (launcher|spouštěč) [androidu]"
       - "(ukaž|ukažte|zobraz|zobrazte) [mi] domovskou obrazovku androidu"
       - "(ukaž|ukažte|zobraz|zobrazte) [mi] plochu androidu"
       - "(přejdi|přejděte|jdi|běž) na (domovskou obrazovku|plochu) androidu"
+      - "(ukaž|ukažte|zobraz|zobrazte) [mi] na panelu {panel} (launcher|spouštěč) [androidu]"
+      - "(ukaž|ukažte|zobraz|zobrazte) [mi] na panelu {panel} (domovskou obrazovku|plochu) androidu"
+  recents:
+    sentences:
+      - "(ukaž|ukažte|zobraz|zobrazte) [mi] (nedávné|poslední|otevřené|spuštěné) aplikace"
+      - "(ukaž|ukažte|zobraz|zobrazte) [mi] seznam (nedávných|posledních|otevřených|spuštěných) aplikací"
+      - "(ukaž|ukažte|zobraz|zobrazte) [mi] přepínač aplikací"
+      - "(ukaž|ukažte|zobraz|zobrazte) [mi] na panelu {panel} (nedávné|poslední|otevřené|spuštěné) aplikace"
+      - "(ukaž|ukažte|zobraz|zobrazte) [mi] na panelu {panel} přepínač aplikací"
+  back:
+    sentences:
+      - "(zpět|zpátky)"
+      - "(zpět|zpátky) na předchozí (stránku|zobrazení|obrazovku)"
+      - "o (stránku|krok) zpět"
+      - "(zpět|zpátky) na panelu {panel}"
+      - "o (stránku|krok) zpět na panelu {panel}"
+  screen_wake:
+    sentences:
+      - "(probuď|probuďte|vzbuď|vzbuďte) se"
+      - "(probuď|probuďte|vzbuď|vzbuďte) (obrazovku|panel)"
+      - "(probuď|probuďte|vzbuď|vzbuďte) panel {panel}"
+      - "(probuď|probuďte|vzbuď|vzbuďte) obrazovku na panelu {panel}"
+  screen_sleep:
+    sentences:
+      - "(jdi|běž|jděte|běžte) spát"
+      - "(usni|usněte)"
+      - "(uspi|uspěte) (obrazovku|panel)"
+      - "(uspi|uspěte) panel {panel}"
+      - "(uspi|uspěte) obrazovku na panelu {panel}"
+  screen_brighter:
+    sentences:
+      - "(rozjasni|rozjasněte|zesvětli|zesvětlete) obrazovku"
+      - "(udělej|udělejte) obrazovku (jasnější|světlejší)"
+      - "(zvyš|zvyšte) jas obrazovky"
+      - "(víc|více) jasu"
+      - "[(udělej|udělejte)] (jasněji|světleji)"
+      - "(rozjasni|rozjasněte|zesvětli|zesvětlete) obrazovku na panelu {panel}"
+      - "(udělej|udělejte) obrazovku na panelu {panel} (jasnější|světlejší)"
+  screen_dimmer:
+    sentences:
+      - "(ztmav|ztmavte|stmav|stmavte) obrazovku"
+      - "(udělej|udělejte) obrazovku tmavší"
+      - "(sniž|snižte) jas obrazovky"
+      - "(míň|méně) jasu"
+      - "[(udělej|udělejte)] tmavěji"
+      - "(ztmav|ztmavte|stmav|stmavte) obrazovku na panelu {panel}"
+      - "(udělej|udělejte) obrazovku na panelu {panel} tmavší"
+  volume_up:
+    sentences:
+      - "[(mluv|mluvte|udělej|udělejte)] [trochu] hlasitěji [prosím]"
+      - "zesil"
+      - "[(mluv|mluvte|udělej|udělejte)] hlasitěji na panelu {panel}"
+  volume_down:
+    sentences:
+      - "[(mluv|mluvte|udělej|udělejte)] [trochu] (tišeji|potichu) [prosím]"
+      - "(ztiš|ztište) [to|zvuk]"
+      - "zeslab"
+      - "[(mluv|mluvte|udělej|udělejte)] (tišeji|potichu) na panelu {panel}"
+      - "(ztiš|ztište) panel {panel}"
 home_pages: [domovská, domovskou, hlavní, úvodní, výchozí, start]
+back_pages: [předchozí, minulá, minulou]
+panel_words: [panel]
 screen_names: [obrazovka, obrazovku, obrazovky]
 responses:
   show_page: "Zobrazuji {page}"
   android_settings: "Otevírám nastavení Androidu"
   launcher: "Otevírám launcher"
+  recents: "Zobrazuji nedávné aplikace"
+  back: "Vracím se zpět"
+  back_none: "Panel se odsud nemůže vrátit zpět"
+  screen_wake: "Probouzím obrazovku"
+  screen_sleep: "Uspávám obrazovku"
+  screen_brighter: "Jas obrazovky {brightness} %"
+  screen_dimmer: "Jas obrazovky {brightness} %"
+  screen_brightest: "Obrazovka už má plný jas"
+  screen_dimmest: "Obrazovka už má nejnižší jas"
+  screen_dark: "Obrazovka je vypnutá"
+  volume_up: "Hlasitost {volume} %"
+  volume_down: "Hlasitost {volume} %"
+  volume_max: "Hlasitost už je na maximu"
+  volume_min: "Hlasitost už je na minimu"
   page_unknown: "Tento panel nemá stránku {page}"
-  not_a_panel: "Požádejte o to panel"
+  panel_unknown: "Žádný panel se nejmenuje {panel}"
+  panel_ambiguous: "Více panelů se jmenuje {panel}"
+  not_a_panel: "Požádejte o to panel nebo řekněte, který panel má příkaz provést"
   panel_unavailable: "Panel není připojen"
   panel_refused: "Panel to nemohl udělat"
-  panel_locked: "Panel je zamčený na nástěnce a nastavení ani launcher neotevře"
+  panel_locked: "Panel je zamčený na nástěnce"
   needs_update: "Pro tento příkaz aktualizujte aplikaci panelu"

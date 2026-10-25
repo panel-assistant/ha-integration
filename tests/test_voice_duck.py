@@ -1,0 +1,1140 @@
+"""The other players in a panel's area are turned down while it holds a conversation."""
+
+import asyncio
+import logging
+from collections.abc import Iterator
+from datetime import timedelta
+from typing import Any
+
+import pytest
+from homeassistant.components.assist_pipeline import PipelineEvent, PipelineEventType
+from homeassistant.components.media_player import (
+    MediaPlayerEntity,
+    MediaPlayerEntityFeature,
+    MediaPlayerState,
+)
+from homeassistant.config_entries import ConfigEntry, ConfigFlow
+from homeassistant.const import EntityCategory
+from homeassistant.core import Context, HomeAssistant
+from homeassistant.helpers import area_registry as ar
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
+from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    MockModule,
+    async_fire_time_changed,
+    mock_config_flow,
+    mock_integration,
+    mock_platform,
+    setup_test_component_platform,
+)
+
+from custom_components.panel_assistant.voice_stream import async_get_voice_stream
+
+from .test_transport import OTHER_DID, WsClientFactory, _receive
+from .test_voice import (  # noqa: F401  (fixtures)
+    FakePipeline,
+    Panel,
+    _hello,
+    _ready,
+    _run,
+    _satellite,
+    _turn_events,
+    entry,
+    pipeline,
+)
+from .test_voice_stream import (  # noqa: F401  (fixtures)
+    LINGERING,
+    _ClipView,
+    _fetched,
+    _second_entry,
+    _until,
+    _voice_panel,
+    base,
+    wires,
+)
+
+LEVEL = 0.6
+MUTE_ONLY = MediaPlayerEntityFeature.VOLUME_MUTE | MediaPlayerEntityFeature.VOLUME_STEP
+
+
+class _PlayerFlow(ConfigFlow):
+    """The flow Core expects behind the players' config entry."""
+
+    VERSION = 1
+
+
+@pytest.fixture(autouse=True)
+def _player_flow() -> Iterator[None]:
+    with mock_config_flow("test", _PlayerFlow):
+        yield
+
+
+class Player(MediaPlayerEntity):
+    """Another integration's speaker, whose level snaps to 15 steps like a panel's."""
+
+    _attr_should_poll = False
+    _attr_supported_features = (
+        MediaPlayerEntityFeature.VOLUME_SET | MediaPlayerEntityFeature.VOLUME_MUTE
+    )
+
+    def __init__(
+        self,
+        name: str,
+        state: MediaPlayerState = MediaPlayerState.PLAYING,
+        features: MediaPlayerEntityFeature | None = None,
+    ) -> None:
+        self._attr_name = name
+        self._attr_unique_id = name
+        self._attr_state = state
+        self._attr_volume_level = LEVEL
+        self._attr_is_volume_muted = False
+        if features is not None:
+            self._attr_supported_features = features
+        self.changes: list[float | bool] = []
+
+    async def async_set_volume_level(self, volume: float) -> None:
+        self.changes.append(volume)
+        self._attr_volume_level = round(volume * 15) / 15
+        self.async_write_ha_state()
+
+    async def async_mute_volume(self, mute: bool) -> None:
+        self.changes.append(mute)
+        self._attr_is_volume_muted = mute
+        self.async_write_ha_state()
+
+    @property
+    def level(self) -> Any:
+        return self.hass.states.get(self.entity_id).attributes.get("volume_level")
+
+
+async def _room(
+    hass: HomeAssistant,
+    satellite_id: str,
+    *players: Player,
+    elsewhere: Player | None = None,
+) -> None:
+    """Put the panel and the players in one area, and one player in another."""
+
+    async def setup_entry(hass: HomeAssistant, test_entry: ConfigEntry) -> bool:
+        await hass.config_entries.async_forward_entry_setups(
+            test_entry, ["media_player"]
+        )
+        return True
+
+    everything = [*players, *([elsewhere] if elsewhere else [])]
+    mock_integration(hass, MockModule("test", async_setup_entry=setup_entry))
+    mock_platform(hass, "test.config_flow", None)
+    setup_test_component_platform(
+        hass, "media_player", everything, from_config_entry=True
+    )
+    test_entry = MockConfigEntry(domain="test")
+    test_entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(test_entry.entry_id)
+    await hass.async_block_till_done()
+
+    areas = ar.async_get(hass)
+    office, kitchen = areas.async_create("Office"), areas.async_create("Kitchen")
+    entities = er.async_get(hass)
+    device_id = entities.async_get(satellite_id).device_id
+    dr.async_get(hass).async_update_device(device_id, area_id=office.id)
+    for player in players:
+        entities.async_update_entity(player.entity_id, area_id=office.id)
+    if elsewhere is not None:
+        entities.async_update_entity(elsewhere.entity_id, area_id=kitchen.id)
+
+
+def _reply(fake: FakePipeline, *, follow_up: bool) -> None:
+    fake.events[4] = PipelineEvent(
+        PipelineEventType.INTENT_END,
+        {"intent_output": {"continue_conversation": follow_up}},
+    )
+
+
+async def _turn(panel: Panel, *, continued: bool = False) -> None:
+    run_id, handler = await _run(panel, "hey_jarvis", continued=continued)
+    await panel.client.send_bytes(bytes([handler]) + b"\x01\x02" * 160)
+    await panel.client.send_bytes(bytes([handler]))
+    await _turn_events(panel, run_id)
+
+
+async def _played(hass: HomeAssistant, panel: Panel) -> None:
+    played = await panel.send(
+        {"type": "panel_assistant/voice_played", "session": panel.token}
+    )
+    assert played["success"], played
+    await hass.async_block_till_done()
+
+
+async def test_the_rooms_player_is_turned_down_for_the_turn_and_back_exactly(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=False)
+
+    await _turn(panel)
+    await hass.async_block_till_done()
+    assert hass.states.get(satellite).state == "responding"
+    assert speaker.level < LEVEL
+
+    await _played(hass, panel)
+    assert hass.states.get(satellite).state == "idle"
+    assert speaker.level == LEVEL
+    assert len(speaker.changes) == 2
+
+
+async def test_only_sounding_players_in_the_area_are_touched_and_a_tv_is_muted(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    idle = Player("idle", MediaPlayerState.IDLE)
+    tv = Player("tv", MediaPlayerState.ON, MUTE_ONLY)
+    own = Player("own")
+    kitchen = Player("kitchen")
+    await _room(hass, satellite, idle, tv, own, elsewhere=kitchen)
+    # The panel pauses its own player for a turn itself.
+    er.async_get(hass).async_update_entity(
+        own.entity_id, config_entry_id=entry.entry_id
+    )
+    _reply(pipeline, follow_up=False)
+
+    await _turn(panel)
+    await hass.async_block_till_done()
+    assert hass.states.get(tv.entity_id).attributes["is_volume_muted"] is True
+
+    await _played(hass, panel)
+    assert hass.states.get(tv.entity_id).attributes["is_volume_muted"] is False
+    assert tv.changes == [True, False]
+    assert idle.changes == own.changes == kitchen.changes == []
+
+
+async def test_a_level_someone_sets_during_the_conversation_is_kept(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=False)
+
+    await _turn(panel)
+    await hass.services.async_call(
+        "media_player",
+        "volume_set",
+        {"entity_id": speaker.entity_id, "volume_level": 0.8},
+        blocking=True,
+        context=Context(),
+    )
+    await _played(hass, panel)
+
+    assert speaker.level == 0.8
+
+
+def _gone(speaker: Player, how: str) -> None:
+    """Turn the player off, or let it drop out; either way it reports no level."""
+    if how == "off":
+        speaker._attr_state = MediaPlayerState.OFF
+    else:
+        speaker._attr_available = False
+    speaker.async_write_ha_state()
+
+
+def _back(speaker: Player) -> None:
+    speaker._attr_state = MediaPlayerState.PLAYING
+    speaker._attr_available = True
+    speaker.async_write_ha_state()
+
+
+@pytest.mark.parametrize("how", ["off", "unavailable"])
+async def test_a_player_gone_during_the_turn_comes_back_at_its_level(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+    how: str,
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=False)
+
+    await _turn(panel)
+    await hass.async_block_till_done()
+    assert speaker.level < LEVEL
+    # "Turn off the TV", or a speaker regrouping, before the reply ends.
+    _gone(speaker, how)
+    await _played(hass, panel)
+    # Nothing is sent to a player that is not there.
+    assert len(speaker.changes) == 1
+
+    _back(speaker)
+    await hass.async_block_till_done()
+    assert speaker.level == LEVEL
+    # Once back, it is left alone.
+    speaker._attr_state = MediaPlayerState.PAUSED
+    speaker.async_write_ha_state()
+    await hass.async_block_till_done()
+    assert len(speaker.changes) == 2
+
+
+@pytest.mark.parametrize("recovery", ["restore", "manual", "new_turn"])
+async def test_a_stale_return_does_not_consume_the_volume_restore(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+    recovery: str,
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=False)
+    await _turn(panel)
+    await hass.async_block_till_done()
+    _gone(speaker, "off")
+    await _played(hass, panel)
+    assert len(speaker.changes) == 1
+
+    # A proxy can report its cached level before its speaker has rebooted.
+    set_level = speaker.async_set_volume_level
+
+    async def lost_write(volume: float) -> None:
+        speaker.changes.append(volume)
+
+    speaker.async_set_volume_level = lost_write  # type: ignore[method-assign]
+    _back(speaker)
+    await hass.async_block_till_done()
+    assert speaker.changes == [LEVEL * 0.3, LEVEL]
+    assert speaker.level < LEVEL
+
+    # Metadata updates do not mean the device is ready for another command.
+    speaker._attr_media_title = "Next track"
+    speaker.async_write_ha_state()
+    await hass.async_block_till_done()
+    assert len(speaker.changes) == 2
+
+    if recovery == "new_turn":
+        # Another conversation must keep the level from before the first duck.
+        await _turn(panel)
+        await _played(hass, panel)
+    writes = len(speaker.changes)
+    _gone(speaker, "unavailable")
+    await hass.async_block_till_done()
+    assert len(speaker.changes) == writes
+    speaker.async_set_volume_level = set_level  # type: ignore[method-assign]
+    if recovery == "manual":
+        speaker._attr_volume_level = 0.8
+    _back(speaker)
+    await hass.async_block_till_done()
+    assert speaker.level == (0.8 if recovery == "manual" else LEVEL)
+    assert len(speaker.changes) == {"restore": 3, "manual": 2, "new_turn": 5}[recovery]
+    speaker._attr_state = MediaPlayerState.PAUSED
+    speaker.async_write_ha_state()
+    await hass.async_block_till_done()
+    assert len(speaker.changes) == {"restore": 3, "manual": 2, "new_turn": 5}[recovery]
+
+
+async def test_a_level_changed_while_restore_returns_is_kept_for_the_next_turn(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=False)
+    await _turn(panel)
+    set_level = speaker.async_set_volume_level
+
+    async def owner_changed(volume: float) -> None:
+        speaker.changes.append(volume)
+        speaker._attr_volume_level = 0.8
+        speaker.async_write_ha_state()
+        await asyncio.sleep(0)
+
+    speaker.async_set_volume_level = owner_changed  # type: ignore[method-assign]
+    await _played(hass, panel)
+    assert speaker.level == 0.8
+    speaker.async_set_volume_level = set_level  # type: ignore[method-assign]
+    await _turn(panel)
+    await _played(hass, panel)
+    assert speaker.level == 0.8
+    assert len(speaker.changes) == 4
+
+
+async def test_a_level_set_before_a_player_goes_off_is_kept(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=False)
+
+    await _turn(panel)
+    await hass.services.async_call(
+        "media_player",
+        "volume_set",
+        {"entity_id": speaker.entity_id, "volume_level": 0.4},
+        blocking=True,
+        context=Context(),
+    )
+    _gone(speaker, "off")
+    await _played(hass, panel)
+
+    _back(speaker)
+    await hass.async_block_till_done()
+    assert speaker.level == 0.4
+    assert len(speaker.changes) == 2
+
+
+async def test_a_turn_as_a_gone_player_returns_keeps_its_old_level(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=False)
+    await _turn(panel)
+    await hass.async_block_till_done()
+    _gone(speaker, "off")
+    await _played(hass, panel)
+
+    # "Turn on the TV", then the wake word before its volume is back.
+    gate = asyncio.Event()
+    set_level = speaker.async_set_volume_level
+
+    async def slow(volume: float) -> None:
+        await gate.wait()
+        await set_level(volume)
+
+    speaker.async_set_volume_level = slow  # type: ignore[method-assign]
+    _back(speaker)
+    await _turn(panel)
+    gate.set()
+    await hass.async_block_till_done()
+    assert speaker.level < LEVEL
+
+    await _played(hass, panel)
+    assert speaker.level == LEVEL
+
+
+async def test_the_next_conversation_returns_to_the_level_set_in_between(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=False)
+
+    await _turn(panel)
+    await _played(hass, panel)
+    assert speaker.level == LEVEL
+    await hass.services.async_call(
+        "media_player",
+        "volume_set",
+        {"entity_id": speaker.entity_id, "volume_level": 0.8},
+        blocking=True,
+    )
+
+    await _turn(panel)
+    await hass.async_block_till_done()
+    assert speaker.level < 0.8
+    await _played(hass, panel)
+    assert speaker.level == 0.8
+
+
+async def test_the_room_stays_down_through_a_follow_up_and_comes_back_once(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+
+    _reply(pipeline, follow_up=True)
+    await _turn(panel)
+    await _played(hass, panel)
+    assert speaker.level < LEVEL
+
+    _reply(pipeline, follow_up=False)
+    await _turn(panel, continued=True)
+    await _played(hass, panel)
+    assert speaker.level == LEVEL
+    assert len(speaker.changes) == 2
+
+
+async def test_a_follow_up_that_never_starts_lets_the_room_go(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=True)
+
+    await _turn(panel)
+    await _played(hass, panel)
+    assert speaker.level < LEVEL
+
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=5))
+    await hass.async_block_till_done()
+    assert speaker.level == LEVEL
+
+
+async def test_a_reply_the_panel_never_reports_lets_the_room_go_with_a_warning(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=False)
+
+    await _turn(panel)
+    await hass.async_block_till_done()
+    assert speaker.level < LEVEL
+
+    with caplog.at_level(logging.WARNING):
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=121))
+        await hass.async_block_till_done()
+    assert speaker.level == LEVEL
+    assert f"A voice turn on {satellite} did not end" in caplog.text
+
+
+class SlowPlayer(Player):
+    """A speaker that takes its time over the first change of level."""
+
+    def __init__(self, name: str) -> None:
+        super().__init__(name)
+        self.gate = asyncio.Event()
+        self.asked = 0
+
+    async def async_set_volume_level(self, volume: float) -> None:
+        self.asked += 1
+        if self.asked == 1:
+            await self.gate.wait()
+        await super().async_set_volume_level(volume)
+
+
+async def test_a_turn_over_before_a_slow_player_turned_down_still_gives_it_back(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = SlowPlayer("speaker")
+    await _room(hass, satellite, speaker)
+    # Nothing was heard: the turn ends without a reply.
+    pipeline.events = [
+        PipelineEvent(PipelineEventType.STT_START),
+        PipelineEvent(PipelineEventType.ERROR, {"code": "stt-no-text-recognized"}),
+        PipelineEvent(PipelineEventType.RUN_END),
+    ]
+
+    await _turn(panel)
+    # The turn is over and the room let go while the player is still busy.
+    assert hass.states.get(satellite).state == "idle"
+    assert speaker.level == LEVEL
+
+    speaker.gate.set()
+    await hass.async_block_till_done()
+    assert speaker.level == LEVEL
+    assert len(speaker.changes) == 2
+
+
+class SlowRestore(Player):
+    """A speaker that takes its time going back up."""
+
+    def __init__(self, name: str) -> None:
+        super().__init__(name)
+        self.gate = asyncio.Event()
+
+    async def async_set_volume_level(self, volume: float) -> None:
+        if volume == LEVEL:
+            await self.gate.wait()
+        await super().async_set_volume_level(volume)
+
+
+async def test_a_new_conversation_keeps_the_room_down_over_a_slow_restore(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = SlowRestore("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=False)
+
+    await _turn(panel)
+    played = await panel.send(
+        {"type": "panel_assistant/voice_played", "session": panel.token}
+    )
+    assert played["success"], played
+    # The speaker has not gone back up yet when the next conversation starts.
+    await _turn(panel)
+    speaker.gate.set()
+    await hass.async_block_till_done()
+    assert hass.states.get(satellite).state == "responding"
+    assert speaker.level < LEVEL
+
+    await _played(hass, panel)
+    assert speaker.level == LEVEL
+
+
+async def test_a_turn_the_panel_leaves_lets_the_room_go(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+
+    run_id, handler = await _run(panel, "hey_jarvis")
+    await panel.client.send_bytes(bytes([handler]) + b"\x01\x02" * 160)
+    await hass.async_block_till_done()
+    assert speaker.level < LEVEL
+
+    left = await panel.send({"type": "unsubscribe_events", "subscription": run_id})
+    assert left["success"], left
+    await hass.async_block_till_done()
+    assert pipeline.cancelled
+    assert speaker.level == LEVEL
+
+
+async def test_two_panels_in_one_room_give_the_player_back_after_both(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    other = await _second_entry(hass, hass_read_only_user.id)
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await client.send_json_auto_id(
+        _hello(["state", "events", "voice"]) | {"did": OTHER_DID}
+    )
+    hello = await _receive(client)
+    assert hello["success"], hello
+    second = Panel(client, hello)
+    assert (await second.configure())["success"]
+    await hass.async_block_till_done()
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    other_satellite = _satellite(hass, other)
+    assert other_satellite is not None
+    office = (
+        dr.async_get(hass)
+        .async_get(er.async_get(hass).async_get(satellite).device_id)
+        .area_id
+    )
+    dr.async_get(hass).async_update_device(
+        er.async_get(hass).async_get(other_satellite).device_id, area_id=office
+    )
+    _reply(pipeline, follow_up=False)
+
+    await _turn(panel)
+    await _turn(second)
+    await _played(hass, panel)
+    assert speaker.level < LEVEL
+
+    await _played(hass, second)
+    assert speaker.level == LEVEL
+    assert len(speaker.changes) == 2
+
+
+@pytest.mark.parametrize("follow_up", [False, True])
+@pytest.mark.parametrize("loss", ["disconnect", "supersede"])
+async def test_session_loss_settles_url_reply_and_restores_room(
+    hass,
+    hass_ws_client,
+    hass_read_only_access_token,
+    entry,  # noqa: F811
+    pipeline,  # noqa: F811
+    follow_up,
+    loss,
+):
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=follow_up)
+    await _turn(panel)
+    assert hass.states.get(satellite).state == "responding"
+    assert speaker.level < LEVEL
+    if loss == "disconnect":
+        await panel.client.close()
+        await hass.async_block_till_done()
+        assert speaker.level == LEVEL
+    replacement, _ = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    assert hass.states.get(satellite).state == "idle"
+    _reply(pipeline, follow_up=False)
+    await _turn(replacement)
+    stale = await replacement.send(
+        {"type": "panel_assistant/voice_played", "session": panel.token}
+    )
+    assert not stale["success"]
+    assert hass.states.get(satellite).state == "responding"
+    assert speaker.level < LEVEL
+    await _played(hass, replacement)
+    assert speaker.level == LEVEL
+
+
+@LINGERING
+@pytest.mark.parametrize("follow_up", [False, True])
+@pytest.mark.parametrize("loss", ["disconnect", "supersede"])
+async def test_session_loss_settles_streamed_reply_and_restores_room(
+    hass,
+    hass_ws_client,
+    hass_read_only_access_token,
+    entry,  # noqa: F811
+    pipeline,  # noqa: F811
+    base,  # noqa: F811
+    wires,  # noqa: F811
+    follow_up,
+    loss,
+):
+    """A streamed reply cut off by its session settles then, not at its drain."""
+    token = hass_read_only_access_token
+    panel, wire, _ = await _voice_panel(hass, hass_ws_client, token, wires)
+    satellite = _satellite(hass, entry)
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=follow_up)
+    by_url = pipeline.events[-2]
+    pipeline.events[-2] = PipelineEvent(
+        PipelineEventType.TTS_END,
+        {"tts_output": {"url": f"{base}/test_voice_stream/long"}},
+    )
+    run_id, handler = await _run(panel, "hey_jarvis")
+    await panel.client.send_bytes(bytes([handler]))
+    events = await _turn_events(panel, run_id)
+    assert events[-2]["stream"] is True
+    assert hass.states.get(satellite).state == "responding"
+    assert speaker.level < LEVEL
+    if loss == "disconnect":
+        await panel.client.close()
+        await wire.socket.close()
+        await hass.async_block_till_done()
+        assert speaker.level == LEVEL
+
+    # The panel comes back, without its player yet, and answers by URL.
+    replacement, _, _ = await _voice_panel(
+        hass, hass_ws_client, token, wires, connect=False
+    )
+    assert hass.states.get(satellite).state == "idle"
+    assert speaker.level == LEVEL
+    _reply(pipeline, follow_up=False)
+    pipeline.events[-2] = by_url
+    await _turn(replacement)
+    assert hass.states.get(satellite).state == "responding"
+    assert speaker.level < LEVEL
+    # The cut-off stream ends later and cannot end the newer turn.
+    voice_stream = async_get_voice_stream(hass)
+    await _until(lambda: not voice_stream._playing, 15)
+    await hass.async_block_till_done()
+    assert hass.states.get(satellite).state == "responding"
+    assert speaker.level < LEVEL
+    await _played(hass, replacement)
+    assert hass.states.get(satellite).state == "idle"
+    assert speaker.level == LEVEL
+
+
+@LINGERING
+async def test_session_loss_while_a_streamed_reply_is_prepared_settles_it(
+    hass,
+    hass_ws_client,
+    hass_read_only_access_token,
+    entry,  # noqa: F811
+    pipeline,  # noqa: F811
+    base,  # noqa: F811
+    wires,  # noqa: F811
+):
+    """A reply still being fetched for streaming belongs to its session too."""
+    token = hass_read_only_access_token
+    panel, wire, _ = await _voice_panel(hass, hass_ws_client, token, wires)
+    satellite = _satellite(hass, entry)
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=True)
+    pipeline.events[-2] = PipelineEvent(
+        PipelineEventType.TTS_END,
+        {"tts_output": {"url": f"{base}/test_voice_stream/long"}},
+    )
+    view: _ClipView = hass.data[_ClipView.name]
+    view.held["long"] = release = asyncio.Event()
+    _, handler = await _run(panel, "hey_jarvis")
+    await panel.client.send_bytes(bytes([handler]))
+    await _until(lambda: "long" in _fetched(hass))
+    assert hass.states.get(satellite).state == "responding"
+    assert speaker.level < LEVEL
+
+    await panel.client.close()
+    await wire.socket.close()
+    await hass.async_block_till_done()
+    assert speaker.level == LEVEL
+    release.set()
+    await _voice_panel(hass, hass_ws_client, token, wires, connect=False)
+    await hass.async_block_till_done()
+    assert hass.states.get(satellite).state == "idle"
+    assert speaker.level == LEVEL
+
+
+@pytest.mark.parametrize("new_turn", [False, True])
+async def test_a_late_restore_report_does_not_write_the_volume_again(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+    new_turn: bool,
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=False)
+    await _turn(panel)
+    await hass.async_block_till_done()
+    assert speaker.changes == [LEVEL * 0.3]
+
+    set_level = speaker.async_set_volume_level
+
+    async def push_write(volume: float) -> None:
+        speaker.changes.append(volume)
+
+    speaker.async_set_volume_level = push_write  # type: ignore[method-assign]
+    await _played(hass, panel)
+    assert speaker.changes == [LEVEL * 0.3, LEVEL]
+    assert speaker.level < LEVEL
+    if new_turn:
+        await _turn(panel)
+        await hass.async_block_till_done()
+        assert speaker.changes == [LEVEL * 0.3, LEVEL, LEVEL * 0.3]
+
+    # The device confirms the restore after the service call has returned.
+    writes = list(speaker.changes)
+    speaker._attr_volume_level = LEVEL
+    speaker.async_write_ha_state()
+    await hass.async_block_till_done()
+    assert speaker.changes == writes
+    speaker.async_set_volume_level = set_level  # type: ignore[method-assign]
+    if new_turn:
+        await _played(hass, panel)
+        assert speaker.level == LEVEL
+        assert speaker.changes == [*writes, LEVEL]
+
+    # Later reports cannot revive a retired restore or its saved volume.
+    speaker._attr_volume_level = 0.8
+    speaker.async_write_ha_state()
+    await hass.async_block_till_done()
+    writes = list(speaker.changes)
+    assert writes == [LEVEL * 0.3, LEVEL] * (2 if new_turn else 1)
+    await _turn(panel)
+    await _played(hass, panel)
+    assert speaker.level == 0.8
+    assert speaker.changes == [*writes, 0.8 * 0.3, 0.8]
+
+
+async def test_a_late_report_during_a_slow_restore_keeps_later_ducks_serialized(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=False)
+    await _turn(panel)
+    set_level = speaker.async_set_volume_level
+
+    async def push_write(volume: float) -> None:
+        speaker.changes.append(volume)
+
+    speaker.async_set_volume_level = push_write  # type: ignore[method-assign]
+    await _played(hass, panel)
+    await _turn(panel)
+    assert speaker.changes == [LEVEL * 0.3, LEVEL, LEVEL * 0.3]
+
+    gate = asyncio.Event()
+    started = asyncio.Event()
+
+    async def slow_restore(volume: float) -> None:
+        started.set()
+        await gate.wait()
+        await set_level(volume)
+
+    speaker.async_set_volume_level = slow_restore  # type: ignore[method-assign]
+    played = await panel.send(
+        {"type": "panel_assistant/voice_played", "session": panel.token}
+    )
+    assert played["success"], played
+    await started.wait()
+    speaker._attr_volume_level = LEVEL
+    speaker.async_write_ha_state()
+    speaker.async_set_volume_level = set_level  # type: ignore[method-assign]
+    # This turn's duck must wait for the older restore, even after its report.
+    await _turn(panel)
+    try:
+        assert speaker.changes == [LEVEL * 0.3, LEVEL, LEVEL * 0.3]
+    finally:
+        gate.set()
+        await hass.async_block_till_done()
+    assert speaker.level < LEVEL
+    assert speaker.changes == [LEVEL * 0.3, LEVEL, LEVEL * 0.3, LEVEL, LEVEL * 0.3]
+    await _played(hass, panel)
+    assert speaker.level == LEVEL
+    assert speaker.changes == [LEVEL * 0.3, LEVEL] * 3
+
+
+class StuckRestore(Player):
+    """A proxy that never answers its first restore, as when its speaker lost power."""
+
+    def __init__(self, name: str) -> None:
+        super().__init__(name)
+        self.stuck = asyncio.Event()
+
+    async def async_set_volume_level(self, volume: float) -> None:
+        if volume == LEVEL and not self.stuck.is_set():
+            self.stuck.set()
+            await asyncio.Event().wait()
+        await super().async_set_volume_level(volume)
+
+
+async def test_a_write_the_player_never_answers_does_not_hold_up_the_next_turn(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = StuckRestore("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=False)
+
+    await _turn(panel)
+    played = await panel.send(
+        {"type": "panel_assistant/voice_played", "session": panel.token}
+    )
+    assert played["success"], played
+    await speaker.stuck.wait()
+    assert speaker.level < LEVEL
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=11))
+    await _until(lambda: "speaker did not answer a volume change" in caplog.text)
+    await hass.async_block_till_done()
+
+    # The next turn still turns the room down, and gives it back.
+    await _turn(panel)
+    await hass.async_block_till_done()
+    assert hass.states.get(satellite).state == "responding"
+    assert speaker.changes == [LEVEL * 0.3, LEVEL * 0.3]
+    await _played(hass, panel)
+    assert speaker.level == LEVEL
+    assert speaker.changes == [LEVEL * 0.3, LEVEL * 0.3, LEVEL]
+
+
+@pytest.mark.parametrize(
+    "hidden_by", [er.RegistryEntryHider.USER, er.RegistryEntryHider.INTEGRATION]
+)
+@pytest.mark.parametrize("area_source", ["entity", "device"])
+async def test_a_hidden_player_in_the_room_is_turned_down_too(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+    hidden_by: er.RegistryEntryHider,
+    area_source: str,
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    visible, hidden = Player("visible"), Player("hidden")
+    await _room(hass, satellite, visible, hidden)
+    registry = er.async_get(hass)
+    hidden_entry = registry.async_get(hidden.entity_id)
+    if area_source == "device":
+        devices = dr.async_get(hass)
+        device = devices.async_get_or_create(
+            config_entry_id=hidden_entry.config_entry_id,
+            identifiers={("test", "hidden-device")},
+        )
+        devices.async_update_device(device.id, area_id=hidden_entry.area_id)
+        registry.async_update_entity(
+            hidden.entity_id, device_id=device.id, area_id=None
+        )
+    registry.async_update_entity(hidden.entity_id, hidden_by=hidden_by)
+    _reply(pipeline, follow_up=False)
+
+    await _turn(panel)
+    await hass.async_block_till_done()
+    assert hass.states.get(satellite).state == "responding"
+    assert visible.level < LEVEL
+    assert hidden.level < LEVEL
+
+    await _played(hass, panel)
+    assert visible.level == LEVEL
+    assert hidden.level == LEVEL
+    assert len(visible.changes) == len(hidden.changes) == 2
+
+
+class Proxy(Player):
+    """Another integration's copy of a speaker, passing its volume on to it."""
+
+    def __init__(self, name: str, speaker: Player) -> None:
+        super().__init__(name)
+        self.speaker = speaker
+
+    async def async_set_volume_level(self, volume: float) -> None:
+        await super().async_set_volume_level(volume)
+        self.speaker._attr_volume_level = self._attr_volume_level
+        self.speaker.async_write_ha_state()
+
+
+async def test_a_speaker_and_its_hidden_copy_go_down_together_and_back_exactly(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    # As people keep a room: the speaker hidden, and its copy hidden too.
+    speaker = Player("speaker")
+    proxy = Proxy("proxy", speaker)
+    await _room(hass, satellite, speaker, proxy)
+    registry = er.async_get(hass)
+    for player in (speaker, proxy):
+        registry.async_update_entity(
+            player.entity_id, hidden_by=er.RegistryEntryHider.USER
+        )
+    _reply(pipeline, follow_up=False)
+
+    await _turn(panel)
+    await hass.async_block_till_done()
+    assert speaker.level < LEVEL
+    assert proxy.level < LEVEL
+
+    await _played(hass, panel)
+    assert speaker.level == LEVEL
+    assert proxy.level == LEVEL
+    assert len(speaker.changes) == len(proxy.changes) == 2
+
+
+async def test_a_config_media_player_in_the_room_is_left_alone(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker, chime = Player("speaker"), Player("chime")
+    await _room(hass, satellite, speaker, chime)
+    er.async_get(hass).async_update_entity(
+        chime.entity_id, entity_category=EntityCategory.CONFIG
+    )
+    _reply(pipeline, follow_up=False)
+
+    await _turn(panel)
+    await hass.async_block_till_done()
+    assert speaker.level < LEVEL
+    await _played(hass, panel)
+    assert speaker.level == LEVEL
+    assert chime.changes == []

@@ -1,21 +1,60 @@
-# Must-match samples name the command (and {page} value) they must reach and
-# nothing else; must-not-match samples must reach no panel command at all.
+# Must-match samples name the command (and the {page} and {panel} values Home
+# Assistant hands it) they must reach and nothing else; must-not-match samples
+# must reach no panel command at all.
 match:
   - {text: "show the cameras page", command: show_page, page: cameras}
   - {text: "show me the energy dashboard", command: show_page, page: energy}
   - {text: "go to the living room view", command: show_page, page: living room}
   - {text: "show the home page", command: show_page, page: home}
+  - {text: "go to the previous page", command: show_page, page: previous}
+  - {text: "show the cameras page on the attic panel", command: show_page, page: cameras, panel: attic}
+  - {text: "go to the energy dashboard on the garden display", command: show_page, page: energy, panel: garden display}
   - {text: "show android settings", command: android_settings}
   - {text: "show me the android settings", command: android_settings}
+  - {text: "show the attic panel android settings", command: android_settings, panel: attic panel}
   - {text: "show the launcher", command: launcher}
   - {text: "show the android home screen", command: launcher}
+  - {text: "show the attic panel launcher", command: launcher, panel: attic panel}
+  - {text: "show recent apps", command: recents}
+  - {text: "show me the app switcher", command: recents}
+  - {text: "show the attic panel recent apps", command: recents, panel: attic panel}
+  - {text: "back", command: back}
+  - {text: "previous page", command: back}
+  - {text: "back to the previous view", command: back}
+  - {text: "previous page on the attic panel", command: back, panel: attic panel}
+  - {text: "wake up", command: screen_wake}
+  - {text: "wake up the screen", command: screen_wake}
+  - {text: "wake up the attic panel", command: screen_wake, panel: attic panel}
+  - {text: "go to sleep", command: screen_sleep}
+  - {text: "put the screen to sleep", command: screen_sleep}
+  - {text: "put the attic panel to sleep", command: screen_sleep, panel: attic panel}
+  - {text: "dim the screen", command: screen_dimmer}
+  - {text: "make the screen darker", command: screen_dimmer}
+  - {text: "reduce the brightness of the screen", command: screen_dimmer}
+  - {text: "dim the screen on the attic panel", command: screen_dimmer, panel: attic panel}
+  - {text: "brighten the screen", command: screen_brighter}
+  - {text: "make the display brighter", command: screen_brighter}
+  - {text: "make the attic panel screen brighter", command: screen_brighter, panel: attic panel}
+  - {text: "louder", command: volume_up}
+  - {text: "make it a bit louder please", command: volume_up}
+  - {text: "it's too quiet", command: volume_up}
+  - {text: "make the attic panel louder", command: volume_up, panel: attic panel}
+  - {text: "quieter", command: volume_down}
+  - {text: "it is too loud", command: volume_down}
+  - {text: "softer on the attic panel", command: volume_down, panel: attic panel}
 miss:
   - "turn off the screen"
   - "go back"
+  - "go back to the previous page"
   - "show me the weather"
   - "what time is it"
   - "open the garage door"
   - "set the brightness to 50 percent"
+  - "set the screen brightness to 50 percent"
+  - "dim the lights"
+  - "turn up the volume"
+  - "turn it up"
+  - "previous track"
   - "reload the dashboard"
 # Said through Home Assistant's built-in intents, with the screen's alias.
 builtin:

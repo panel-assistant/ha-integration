@@ -8,6 +8,7 @@ from datetime import timedelta
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from yarl import URL
 
@@ -34,6 +35,10 @@ CONF_BUILD_FEED = "build_feed"
 FEED_REFRESH = timedelta(minutes=15)
 DATA_STABLE_RELEASE = "stable_release"
 STABLE_REFRESH = timedelta(hours=6)
+# A requested re-read of GitHub's release catalogue (a check for updates, or a
+# script polling every panel) runs at once and then at most once per cooldown:
+# one read costs about seven of the network's 60 unauthenticated calls an hour.
+STABLE_REQUEST_COOLDOWN = timedelta(minutes=5)
 
 
 def newest_feed_build(builds: Iterable[FeedBuild]) -> FeedBuild | None:
@@ -185,6 +190,12 @@ class StableReleaseCoordinator(DataUpdateCoordinator[ReleaseArtifact | None]):
             config_entry=None,
             name=f"{DOMAIN} stable release",
             update_interval=STABLE_REFRESH,
+            request_refresh_debouncer=Debouncer(
+                hass,
+                _LOGGER,
+                cooldown=STABLE_REQUEST_COOLDOWN.total_seconds(),
+                immediate=True,
+            ),
         )
         self._candidates: dict[tuple[str, str], ReleaseArtifact] = {}
 
@@ -231,12 +242,13 @@ class StableReleaseCoordinator(DataUpdateCoordinator[ReleaseArtifact | None]):
                 async_get_clientsession(self.hass)
             )
         except ReleaseResolutionError as err:
-            _LOGGER.warning(
-                "The recent releases could not be authenticated", exc_info=True
-            )
-            raise UpdateFailed(
-                "The recent releases could not be authenticated"
-            ) from err
+            # GitHub's answer, when it refused the listing, says why: a rate
+            # limit reads differently from a release that failed its checks.
+            reason = "The recent releases could not be authenticated"
+            if str(err):
+                reason = f"{reason}: {err}"
+            _LOGGER.warning(reason, exc_info=True)
+            raise UpdateFailed(reason) from err
         authenticated: dict[tuple[str, str], ReleaseArtifact] = {}
         for bundle in candidates:
             artifact = bundle.artifact

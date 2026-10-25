@@ -28,17 +28,79 @@ match:
   - {text: "wechsle zum tab kameras", command: show_page, page: kameras}
   - {text: "wechsle zum android homescreen", command: launcher}
   - {text: "zurück zum android startbildschirm", command: launcher}
+  - {text: "geh zur vorherigen seite", command: show_page, page: vorherigen}
+  - {text: "zeig mir die kameraseite am küchenpanel", command: show_page, page: kamera, panel: küchenpanel}
+  - {text: "geh zum energie dashboard am büro display", command: show_page, page: energie, panel: büro display}
+  - {text: "zurück zum android startbildschirm am küchenpanel", command: launcher, panel: küchenpanel}
+  - {text: "zeig mir die letzten apps", command: recents}
+  - {text: "zeige die zuletzt verwendeten apps", command: recents}
+  - {text: "zeig die offenen apps", command: recents}
+  - {text: "zuletzt benutzte apps", command: recents}
+  - {text: "wechsle die app", command: recents}
+  - {text: "wechsle die app am küchenpanel", command: recents, panel: küchenpanel}
+  - {text: "zurück", command: back}
+  - {text: "zurück bitte", command: back}
+  - {text: "zurückgehen", command: back}
+  - {text: "zurück zur vorherigen seite", command: back}
+  - {text: "zurück zur vorherigen ansicht am küchenpanel", command: back, panel: küchenpanel}
+  - {text: "aufwachen", command: screen_wake}
+  - {text: "aufwecken", command: screen_wake}
+  - {text: "weck den bildschirm", command: screen_wake}
+  - {text: "beende den ruhemodus", command: screen_wake}
+  - {text: "verlasse bitte den standby", command: screen_wake}
+  - {text: "weck das küchenpanel", command: screen_wake, panel: küchenpanel}
+  - {text: "beende den ruhemodus am küchenpanel", command: screen_wake, panel: küchenpanel}
+  - {text: "geh schlafen", command: screen_sleep}
+  - {text: "schlafen gehen", command: screen_sleep}
+  - {text: "schlaf", command: screen_sleep}
+  - {text: "ruhemodus", command: screen_sleep}
+  - {text: "leg den bildschirm schlafen", command: screen_sleep}
+  - {text: "leg den bildschirm am küchenpanel schlafen", command: screen_sleep, panel: küchenpanel}
+  - {text: "ruhemodus am küchenpanel", command: screen_sleep, panel: küchenpanel}
+  - {text: "mach den bildschirm heller", command: screen_brighter}
+  - {text: "mach bitte das display etwas heller", command: screen_brighter}
+  - {text: "mehr helligkeit", command: screen_brighter}
+  - {text: "mach den bildschirm am küchenpanel heller", command: screen_brighter, panel: küchenpanel}
+  - {text: "mach den bildschirm heller am küchenpanel", command: screen_brighter, panel: küchenpanel}
+  - {text: "mach den bildschirm dunkler", command: screen_dimmer}
+  - {text: "dimm den bildschirm", command: screen_dimmer}
+  - {text: "dimme das display etwas", command: screen_dimmer}
+  - {text: "weniger helligkeit", command: screen_dimmer}
+  - {text: "mach den bildschirm vom küchenpanel etwas dunkler", command: screen_dimmer, panel: küchenpanel}
+  - {text: "mehr lautstärke", command: volume_up}
+  - {text: "mehr lautstärke bitte", command: volume_up}
+  - {text: "mehr lautstärke am küchenpanel", command: volume_up, panel: küchenpanel}
+  - {text: "weniger lautstärke", command: volume_down}
+  - {text: "weniger lautstärke am küchenpanel", command: volume_down, panel: küchenpanel}
 miss:
   - "schalte den bildschirm aus"
   - "geh zurück"
+  - "geh zurück zur vorherigen seite"
+  - "vorheriger titel"
+  - "spiel den vorherigen song"
+  - "vorherige seite"
   - "wie spät ist es"
   - "wie ist das wetter"
   - "öffne das garagentor"
   - "setze die helligkeit auf 50 prozent"
+  - "setze die helligkeit des bildschirms auf 50 prozent"
+  - "dimme den bildschirm auf 50 prozent"
+  - "dimme das licht"
   - "zeig mir die kameras"
   - "lade das dashboard"
   - "lade das dashboard neu"
   - "zeig die einstellungen"
+  - "wach auf"
+  - "lauter"
+  - "leiser"
+  - "mach lauter"
+  - "etwas leiser"
+  - "lauter im wohnzimmer"
+  - "es ist zu leise"
+  - "es ist zu laut"
+  - "erhöhe die lautstärke"
+  - "mach die musik leiser"
+  - "dreh die lautstärke runter"
 builtin:
   screen_off: "schalte den bildschirm aus"
   screen_on: "schalte den bildschirm ein"

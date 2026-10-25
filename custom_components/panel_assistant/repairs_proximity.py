@@ -12,7 +12,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 
-from .const import DOMAIN
+from .const import DOMAIN, help_url
 from .status import PanelStatus
 
 ISSUE_PROXIMITY_SETUP = "panel_proximity_setup"
@@ -52,7 +52,11 @@ def async_reconcile_proximity_issue(
             is_persistent=False,
             severity=ir.IssueSeverity.WARNING,
             translation_key=ISSUE_PROXIMITY_SETUP,
-            translation_placeholders={"panel": panel_display_name(hass, entry)},
+            learn_more_url=help_url("repair", issue=ISSUE_PROXIMITY_SETUP),
+            translation_placeholders={
+                "panel": panel_display_name(hass, entry),
+                "learn_more_url": help_url("repair", issue=ISSUE_PROXIMITY_SETUP),
+            },
             data={"entry_id": entry.entry_id},
         )
     elif state != "calibrating":

@@ -36,6 +36,7 @@ from collections.abc import Callable, Hashable, Iterable, Mapping
 from contextlib import suppress
 from dataclasses import dataclass, field
 from io import BytesIO
+from time import monotonic
 from typing import Any, Final, cast
 
 import av
@@ -88,30 +89,61 @@ MAX_INBOX: Final = 256
 DRAIN_TIMEOUT: Final = 2.0
 # Used when a clip does not state its rate.
 FALLBACK_RATE: Final = 48_000
+# Bound each shared chime/speech preparation. 16 MiB PCM holds about 175 s of
+# 48 kHz mono audio; longer clips use the existing independent URL playback.
+# These are retained-buffer limits, not a bound on codec internals or all groups.
+MAX_ENCODED_BYTES: Final = 16 * 1024 * 1024
+MAX_PCM_BYTES: Final = 16 * 1024 * 1024
+PREPARATION_TIMEOUT: Final = 15.0
 
 
-def decode_clips(clips: Iterable[bytes]) -> tuple[bytes, int]:
+def decode_clips(
+    clips: Iterable[bytes], deadline: float | None = None
+) -> tuple[bytes, int]:
     """Decode clips back to back to mono PCM; return it and its rate.
 
     Each clip keeps its own rate, or the lowest of them all when they differ,
     so nothing is upsampled: the server converts for each player. Blocking:
     run in an executor.
     """
+    if deadline is None:
+        deadline = monotonic() + PREPARATION_TIMEOUT
+
+    def check_deadline() -> None:
+        # Canceling the async wait cannot terminate its executor thread. Check
+        # between native operations too; a blocked codec call is not interruptible.
+        if monotonic() >= deadline:
+            raise TimeoutError("speech preparation deadline exceeded")
+
     clips = list(clips)
     rates = []
     for data in clips:
+        check_deadline()
         with av.open(BytesIO(data), "r") as container:
+            check_deadline()
             rates.append(container.streams.audio[0].rate or FALLBACK_RATE)
     rate = min(rates, default=FALLBACK_RATE)
     out = bytearray()
+
+    def append(frame: av.AudioFrame) -> None:
+        check_deadline()
+        size = frame.samples * 2
+        if size > MAX_PCM_BYTES - len(out):
+            raise ValueError("speech PCM exceeds preparation limit")
+        out.extend(memoryview(frame.planes[0])[:size])
+
     for data in clips:
+        check_deadline()
         with av.open(BytesIO(data), "r") as container:
+            check_deadline()
             resampler = av.AudioResampler(format="s16", layout="mono", rate=rate)
             for frame in container.decode(container.streams.audio[0]):
+                check_deadline()
                 for res in resampler.resample(frame):
-                    out += bytes(res.planes[0])[: res.samples * 2]
+                    append(res)
             for res in resampler.resample(None):
-                out += bytes(res.planes[0])[: res.samples * 2]
+                append(res)
+    check_deadline()
     return bytes(out), rate
 
 
@@ -263,11 +295,13 @@ class SessionSocket:
         return was_open
 
     @callback
-    def close_now(self) -> None:
+    def close_now(self, *, notify: bool = True) -> None:
         """End the connection now, waking a pending receive."""
         if self._closed:
             return
         self._closed = True
+        if notify:
+            self._send({"kind": "sendspin_closed"})
         while True:
             try:
                 self._inbox.put_nowait(WSMessage(WSMsgType.CLOSED, None, ""))
@@ -366,10 +400,17 @@ class VoiceStream:
             self._server, wsock_client=cast(ClientWebSocketResponse, socket)
         )
         task = self._hass.async_create_background_task(
-            connection.handle_client(), f"{DOMAIN} voice stream connection"
+            self._async_serve(connection), f"{DOMAIN} voice stream connection"
         )
         self._links.add(task)
         task.add_done_callback(self._links.discard)
+
+    @staticmethod
+    async def _async_serve(connection: SendspinConnection) -> None:
+        # A session that ends while the server is still answering the player's
+        # handshake leaves nothing to report: the panel dials again.
+        with suppress(ConnectionResetError):
+            await connection.handle_client()
 
     @callback
     def detach(self, token: str) -> None:
@@ -377,7 +418,7 @@ class VoiceStream:
         socket = self._by_token.pop(token, None)
         if socket is None:
             return
-        socket.close_now()
+        socket.close_now(notify=False)
         if self._by_client.get(socket.client_id) is socket:
             del self._by_client[socket.client_id]
 
@@ -387,15 +428,24 @@ class VoiceStream:
         socket = self._by_token.get(token)
         if socket is None:
             return
-        if socket.closed:
-            # The server ended the last connection; the panel is dialling again.
-            fresh = SessionSocket(socket.client_id, socket.send_event)
-            self._by_token[token] = fresh
-            if self._by_client.get(socket.client_id) is socket:
-                self._by_client[socket.client_id] = fresh
-            self._link(fresh)
-            socket = fresh
+        # Only an explicit ordered reset may replace a closed connection. A frame
+        # already in flight from its old player is not a fresh Noise handshake.
         socket.feed(data, text=text)
+
+    async def async_reset(self, token: str) -> None:
+        """End this player's interrupted speech before accepting its next handshake."""
+        socket = self._by_token.get(token)
+        if socket is None:
+            return
+        async with self._start_lock:
+            socket.close_now(notify=False)
+            stream = self._playing.get(socket.client_id)
+            member = None if stream is None else stream.members.get(socket.client_id)
+            if stream is not None and member is not None and member.socket is socket:
+                await self._async_leave(stream, socket.client_id, OUTCOME_FAILED)
+            # A session ending during cleanup must never acquire another link.
+            if self._by_token.get(token) is socket:
+                self.attach(token, socket.client_id, socket._send)
 
     async def async_stop_stream(self, token: str, stream_id: str) -> None:
         """Take a session's panel off the stream it names, at its own request."""
@@ -448,7 +498,27 @@ class VoiceStream:
                 self._async_run_batch(key, batch), f"{DOMAIN} voice announcement"
             )
         batch.members.append(listener)
-        return listener.client_id in await asyncio.shield(batch.done)
+        try:
+            return listener.client_id in await asyncio.shield(batch.done)
+        except asyncio.CancelledError:
+            batch.members[:] = [
+                member for member in batch.members if member is not listener
+            ]
+            raise
+
+    async def async_withdraw(self, listener: Listener) -> None:
+        """Withdraw this listener while preserving other members and newer speech."""
+        async with self._start_lock:
+            cid = listener.client_id
+            stream = self._playing.get(cid) if cid is not None else None
+            member = (
+                stream.members.get(cid)
+                if stream is not None and cid is not None
+                else None
+            )
+            if member is not None and member.listener is listener:
+                assert stream is not None and cid is not None
+                await self._async_leave(stream, cid, OUTCOME_PREEMPTED)
 
     async def _async_run_batch(self, key: Hashable, batch: _Batch) -> None:
         streamed: set[str] = set()
@@ -486,42 +556,59 @@ class VoiceStream:
     async def _async_prepare(self, urls: Iterable[str]) -> tuple[bytes, int]:
         """Fetch and decode, chime and speech back to back in one run."""
         session = async_get_clientsession(self._hass)
+        deadline = monotonic() + PREPARATION_TIMEOUT
         clips = []
-        for url in urls:
-            async with session.get(url) as response:
-                response.raise_for_status()
-                clips.append(await response.read())
-        return await self._hass.async_add_executor_job(decode_clips, clips)
+        total = 0
+        async with asyncio.timeout(PREPARATION_TIMEOUT):
+            for url in urls:
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    body = bytearray()
+                    async for chunk in response.content.iter_chunked(64 * 1024):
+                        total += len(chunk)
+                        if total > MAX_ENCODED_BYTES:
+                            raise ValueError(
+                                "speech download exceeds preparation limit"
+                            )
+                        body.extend(chunk)
+                    clips.append(bytes(body))
+                    del body
+            return await self._hass.async_add_executor_job(
+                decode_clips, clips, deadline
+            )
 
     async def _async_start(
-        self, listeners: Iterable[Listener], pcm: bytes, rate: int
+        self, listeners: list[Listener], pcm: bytes, rate: int
     ) -> set[str]:
         """Start one stream to the listeners whose panels are ready.
 
         Each is told to play before the stream sends anything. Return the
         client ids of the panels it plays to.
         """
-        listeners = [
-            listener
-            for listener in listeners
-            if listener.client_id is not None and self.ready(listener.client_id)
-        ]
         if not listeners or not pcm:
             return set()
         async with self._start_lock:
+            eligible = [
+                listener
+                for listener in listeners
+                if listener.client_id is not None and self.ready(listener.client_id)
+            ]
             # Take these panels off what they were playing first, so its end
             # reaches each of them before the new stream does.
-            for listener in listeners:
+            for listener in eligible:
+                if not any(member is listener for member in listeners):
+                    continue
                 assert listener.client_id is not None
                 if (old := self._playing.get(listener.client_id)) is not None:
                     await self._async_leave(old, listener.client_id, OUTCOME_PREEMPTED)
             stream = _Stream(secrets.token_urlsafe(12))
-            for listener in listeners:
+            for listener in eligible:
                 cid = listener.client_id
                 assert cid is not None
                 socket = self._by_client.get(cid)
                 if (
-                    cid in stream.members
+                    not any(member is listener for member in listeners)
+                    or cid in stream.members
                     or socket is None
                     or not self.ready(cid)
                     or not listener.play(stream.stream_id)
@@ -573,15 +660,17 @@ class VoiceStream:
             push = group.start_stream()
             fmt = AudioFormat(sample_rate=rate, bit_depth=16, channels=1)
             step = rate * SLICE_MS // 1000 * 2
-            start_us: int | None = None
+            end_us = 0
             for offset in range(0, len(pcm), step):
-                push.prepare_audio(pcm[offset : offset + step], fmt)
+                part = pcm[offset : offset + step]
+                push.prepare_audio(part, fmt)
                 at = await push.commit_audio()
-                if start_us is None:
-                    start_us = at
+                if offset == 0:
                     started.set_result(None)
+                # A late producer can move this slice's start forward. End on
+                # the assigned timeline, including a partial final slice.
+                end_us = at + len(part) // 2 * 1_000_000 // rate
                 await push.sleep_to_limit_buffer(MAX_AHEAD_US)
-            end_us = (start_us or 0) + len(pcm) // 2 * 1_000_000 // rate
             # stream/end makes players clear their buffers, so wait on the
             # server's clock until the last sample has played.
             await asyncio.sleep(max(0, end_us - push.now_us()) / 1e6)
@@ -605,27 +694,39 @@ class VoiceStream:
             stream.outcome = outcome
             task.cancel()
             await asyncio.wait({task})
-            return
-        client = self._server.get_client(cid)
-        if stream.group is not None and client is not None:
-            await stream.group.remove_client(client)  # stream/end to it alone
+        else:
+            client = self._server.get_client(cid)
+            if stream.group is not None and client is not None:
+                await stream.group.remove_client(client)  # stream/end to it alone
+        # Cancellation may have interrupted the task's final drain. Complete its
+        # terminal delivery here too; _async_end claims each member only once.
         await self._async_end(stream, cid, outcome)
 
     async def _async_end(self, stream: _Stream, cid: str, outcome: str) -> None:
         """Tell one panel its stream ended, once the stream's end has reached it."""
+        member = stream.members.get(cid)
+        if member is None:
+            return
+        if (
+            not member.socket.closed
+            and (client := self._server.get_client(cid)) is not None
+        ):
+            with suppress(TimeoutError):
+                async with asyncio.timeout(DRAIN_TIMEOUT):
+                    await client.wait_role_drained("player")
+        # Keep the member discoverable during drain, then claim completion
+        # without yielding so reset/preemption cannot lose or duplicate its end.
         member = stream.members.pop(cid, None)
         if member is None:
             return
         if self._playing.get(cid) is stream:
             del self._playing[cid]
-        if (client := self._server.get_client(cid)) is not None:
-            with suppress(TimeoutError):
-                async with asyncio.timeout(DRAIN_TIMEOUT):
-                    await client.wait_role_drained("player")
         socket = member.socket
         if socket.closed:
             outcome = OUTCOME_FAILED
-        elif socket.stream_id == stream.stream_id:
+        if socket.stream_id == stream.stream_id and self._by_client.get(cid) is socket:
+            # The audio link may be closed while its parent session still holds
+            # a delayed play. Cache its failure there before reset is acknowledged.
             socket.send_event(
                 {
                     "kind": EVENT_VOICE_STREAM_END,
@@ -669,7 +770,11 @@ async def async_setup_voice_stream(hass: HomeAssistant) -> None:
         async_get_clientsession(hass),
         pairing_store=pairing,
         allow_unencrypted=False,
-        allow_noncompliant_clients=False,
+        # The panel's sendspin-cpp holds its first client/state until its first
+        # time burst completes, which a busy session can push past aiosendspin's
+        # 5 s deadline; strict mode then drops the panel's player for the rest of
+        # its session. Tolerant mode logs each deviation once per client instead.
+        allow_noncompliant_clients=True,
     )
     voice = VoiceStream(hass, server, pairing)
     hass.data.setdefault(DOMAIN, {})[DATA_VOICE_STREAM] = voice

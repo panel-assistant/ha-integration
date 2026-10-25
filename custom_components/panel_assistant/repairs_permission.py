@@ -4,7 +4,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 
-from .const import DOMAIN
+from .const import DOMAIN, help_url
 from .status import PERMISSION_NAMES, ComponentStatus, PanelStatus
 from .transport_sessions import async_get_sessions
 
@@ -67,7 +67,12 @@ def async_reconcile_permission_issue(
             is_persistent=True,
             severity=ir.IssueSeverity.WARNING,
             translation_key=ISSUE_PANEL_PERMISSIONS,
-            translation_placeholders={"panel": panel_display_name(hass, entry)},
+            learn_more_url=help_url("repair", issue=ISSUE_PANEL_PERMISSIONS),
+            translation_placeholders={
+                "panel": panel_display_name(hass, entry),
+                "learn_more_url": help_url("repair", issue=ISSUE_PANEL_PERMISSIONS),
+                "permissions_url": help_url("repair", issue=ISSUE_PANEL_PERMISSIONS),
+            },
             data={"entry_id": entry.entry_id},
         )
     elif permissions_held(permissions):

@@ -26,6 +26,7 @@ var n = Object.freeze({
 			github: "GitHub",
 			unreachable: "unreachable",
 			restarting: "Restarting ({reason})",
+			restartingNext: "This panel will come back automatically. There is no need to refresh.",
 			not_loaded: "not loaded",
 			opening: "Opening {panel}…",
 			loadingHint: "Just a moment",
@@ -120,7 +121,9 @@ var n = Object.freeze({
 			progress: "Progress",
 			installProgress: "Installation progress",
 			licenses: "Third-party licenses",
-			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here."
+			doneAnotherHomeAssistant: "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here.",
+			reconnectedHeading: "Panel Assistant can reach this panel again",
+			reconnectedBody: "This panel already has the app, so nothing was installed. Home Assistant can now update it over your network."
 		},
 		errors: {
 			installErrorGeneric: "Something went wrong. Keep the panel plugged in and press Try again.",
@@ -183,6 +186,7 @@ var n = Object.freeze({
 			github: "GitHub",
 			unreachable: "nedostupný",
 			restarting: "Restartování ({reason})",
+			restartingNext: "Tento panel bude automaticky znovu dostupný. Stránku není třeba obnovovat.",
 			not_loaded: "nenačtený",
 			opening: "Otevírání panelu {panel}…",
 			loadingHint: "Chvilku strpení",
@@ -277,7 +281,9 @@ var n = Object.freeze({
 			progress: "Průběh",
 			installProgress: "Průběh instalace",
 			licenses: "Licence třetích stran",
-			doneAnotherHomeAssistant: "Tento panel je přihlášen k jiné instanci Home Assistant. Chcete-li jej připojit sem, změňte na panelu instanci Home Assistant a přihlaste se."
+			doneAnotherHomeAssistant: "Tento panel je přihlášen k jiné instanci Home Assistant. Chcete-li jej připojit sem, změňte na panelu instanci Home Assistant a přihlaste se.",
+			reconnectedHeading: "Panel Assistant se k panelu znovu dostane",
+			reconnectedBody: "Aplikace už na panelu je, takže se nic neinstalovalo. Home Assistant ho teď může aktualizovat přes vaši síť."
 		},
 		errors: {
 			installErrorGeneric: "Něco se pokazilo. Nechte panel připojený a stiskněte Zkusit znovu.",
@@ -340,6 +346,7 @@ var n = Object.freeze({
 			github: "GitHub",
 			unreachable: "nicht erreichbar",
 			restarting: "Neustart ({reason})",
+			restartingNext: "Dieses Panel wird automatisch wieder angezeigt. Du musst die Seite nicht aktualisieren.",
 			not_loaded: "nicht geladen",
 			opening: "{panel} wird geöffnet…",
 			loadingHint: "Einen Moment bitte",
@@ -434,7 +441,9 @@ var n = Object.freeze({
 			progress: "Fortschritt",
 			installProgress: "Installationsfortschritt",
 			licenses: "Lizenzen von Drittanbietern",
-			doneAnotherHomeAssistant: "Dieses Panel ist bei einem anderen Home Assistant angemeldet. Ändere Home Assistant und melde dich auf dem Panel an, um es hier zu verbinden."
+			doneAnotherHomeAssistant: "Dieses Panel ist bei einem anderen Home Assistant angemeldet. Ändere Home Assistant und melde dich auf dem Panel an, um es hier zu verbinden.",
+			reconnectedHeading: "Panel Assistant erreicht dieses Panel wieder",
+			reconnectedBody: "Die App ist bereits auf diesem Panel, daher wurde nichts installiert. Home Assistant kann es jetzt über dein Netzwerk aktualisieren."
 		},
 		errors: {
 			installErrorGeneric: "Etwas ist schiefgegangen. Lass das Panel angeschlossen und drücke „Erneut versuchen“.",
@@ -497,6 +506,7 @@ var n = Object.freeze({
 			github: "GitHub",
 			unreachable: "inaccesible",
 			restarting: "Reiniciando ({reason})",
+			restartingNext: "Este panel volverá a estar disponible automáticamente. No es necesario actualizar la página.",
 			not_loaded: "sin cargar",
 			opening: "Abriendo {panel}…",
 			loadingHint: "Un momento",
@@ -591,7 +601,9 @@ var n = Object.freeze({
 			progress: "Progreso",
 			installProgress: "Progreso de la instalación",
 			licenses: "Licencias de terceros",
-			doneAnotherHomeAssistant: "Este panel tiene la sesión iniciada en otro Home Assistant. Cambia de Home Assistant e inicia sesión en el panel para conectarlo aquí."
+			doneAnotherHomeAssistant: "Este panel tiene la sesión iniciada en otro Home Assistant. Cambia de Home Assistant e inicia sesión en el panel para conectarlo aquí.",
+			reconnectedHeading: "Panel Assistant vuelve a llegar a este panel",
+			reconnectedBody: "Este panel ya tiene la app, así que no se ha instalado nada. Home Assistant ya puede actualizarlo a través de tu red."
 		},
 		errors: {
 			installErrorGeneric: "Algo salió mal. Mantén el panel conectado y pulsa Volver a intentar.",
@@ -654,6 +666,7 @@ var n = Object.freeze({
 			github: "GitHub",
 			unreachable: "injoignable",
 			restarting: "Redémarrage ({reason})",
+			restartingNext: "Ce panneau reviendra automatiquement. Il n’est pas nécessaire d’actualiser la page.",
 			not_loaded: "non chargé",
 			opening: "Ouverture de {panel}…",
 			loadingHint: "Un instant",
@@ -748,7 +761,9 @@ var n = Object.freeze({
 			progress: "Progression",
 			installProgress: "Progression de l’installation",
 			licenses: "Licences tierces",
-			doneAnotherHomeAssistant: "Ce panneau a une session ouverte sur un autre Home Assistant. Changez de Home Assistant et connectez-vous sur le panneau pour le connecter ici."
+			doneAnotherHomeAssistant: "Ce panneau a une session ouverte sur un autre Home Assistant. Changez de Home Assistant et connectez-vous sur le panneau pour le connecter ici.",
+			reconnectedHeading: "Panel Assistant peut de nouveau joindre ce panneau",
+			reconnectedBody: "Ce panneau a déjà l'application, rien n'a donc été installé. Home Assistant peut maintenant le mettre à jour via votre réseau."
 		},
 		errors: {
 			installErrorGeneric: "Une erreur s’est produite. Gardez le panneau branché et appuyez sur « Réessayer ».",
@@ -811,6 +826,7 @@ var n = Object.freeze({
 			github: "GitHub",
 			unreachable: "non raggiungibile",
 			restarting: "Riavvio in corso ({reason})",
+			restartingNext: "Questo pannello tornerà disponibile automaticamente. Non è necessario aggiornare la pagina.",
 			not_loaded: "non caricato",
 			opening: "Apertura di {panel}…",
 			loadingHint: "Un momento",
@@ -905,7 +921,9 @@ var n = Object.freeze({
 			progress: "Avanzamento",
 			installProgress: "Avanzamento dell’installazione",
 			licenses: "Licenze di terze parti",
-			doneAnotherHomeAssistant: "Su questo pannello è attivo l'accesso a un altro Home Assistant. Cambia Home Assistant ed esegui l'accesso sul pannello per collegarlo qui."
+			doneAnotherHomeAssistant: "Su questo pannello è attivo l'accesso a un altro Home Assistant. Cambia Home Assistant ed esegui l'accesso sul pannello per collegarlo qui.",
+			reconnectedHeading: "Panel Assistant raggiunge di nuovo questo pannello",
+			reconnectedBody: "Questo pannello ha già l'app, quindi non è stato installato nulla. Home Assistant ora può aggiornarlo tramite la tua rete."
 		},
 		errors: {
 			installErrorGeneric: "Si è verificato un problema. Lascia il pannello collegato e premi Riprova.",
@@ -968,6 +986,7 @@ var n = Object.freeze({
 			github: "GitHub",
 			unreachable: "onbereikbaar",
 			restarting: "Opnieuw starten ({reason})",
+			restartingNext: "Dit paneel komt automatisch terug. Je hoeft de pagina niet te vernieuwen.",
 			not_loaded: "niet geladen",
 			opening: "{panel} openen…",
 			loadingHint: "Een ogenblik",
@@ -1062,7 +1081,9 @@ var n = Object.freeze({
 			progress: "Voortgang",
 			installProgress: "Installatievoortgang",
 			licenses: "Licenties van derden",
-			doneAnotherHomeAssistant: "Dit paneel is aangemeld bij een andere Home Assistant. Wijzig op het paneel Home Assistant en meld je aan om het hier te verbinden."
+			doneAnotherHomeAssistant: "Dit paneel is aangemeld bij een andere Home Assistant. Wijzig op het paneel Home Assistant en meld je aan om het hier te verbinden.",
+			reconnectedHeading: "Panel Assistant kan dit paneel weer bereiken",
+			reconnectedBody: "Dit paneel heeft de app al, dus er is niets geïnstalleerd. Home Assistant kan het nu via je netwerk bijwerken."
 		},
 		errors: {
 			installErrorGeneric: "Er ging iets mis. Laat het paneel aangesloten en druk op Opnieuw proberen.",
@@ -1125,8 +1146,9 @@ var n = Object.freeze({
 			github: "GitHub",
 			unreachable: "nieosiągalny",
 			restarting: "Ponowne uruchamianie ({reason})",
+			restartingNext: "Ten panel automatycznie stanie się ponownie dostępny. Nie trzeba odświeżać strony.",
 			not_loaded: "niewczytany",
-			opening: "Otwieranie {panel}…",
+			opening: "Otwieranie panelu {panel}…",
 			loadingHint: "Chwileczkę",
 			empty: "Nie podłączono jeszcze żadnych paneli.",
 			failed: "Nie udało się otworzyć panelu. Wkrótce nastąpi kolejna próba.",
@@ -1136,7 +1158,7 @@ var n = Object.freeze({
 			closed: "Ten panel został zamknięty.",
 			frameTitle: "Interfejs panelu",
 			picklesStory: "Panda Pickles uciekł i rozrabia. Jest powolny i uparty, więc sprowadzenie go z powrotem może chwilę potrwać.",
-			unreachableNext: "Sprawdź, czy panel jest włączony i połączony z Twoją siecią.",
+			unreachableNext: "Sprawdź, czy panel jest włączony i połączony z twoją siecią.",
 			notLoadedNext: "Otwórz Ustawienia integracji, aby sprawdzić połączenie tego panelu.",
 			failedNext: "Poczekaj chwilę, aż spróbujemy ponownie, lub wybierz inny panel.",
 			closedNext: "Wybierz inny panel lub poczekaj, aż ten panel połączy się ponownie.",
@@ -1191,7 +1213,7 @@ var n = Object.freeze({
 			install: "Zainstaluj",
 			restartedDifferentVersion: "Wcześniejsza próba instalacji używała innego wydania. Ta próba została odłożona na bok.",
 			alreadyInstalledHeading: "Już zainstalowano",
-			alreadyInstalledBody: "Ta wersja jest już na Twoim panelu. Kontynuuj, aby dokończyć konfigurację; nic nie zostanie skopiowane ani zainstalowane ponownie.",
+			alreadyInstalledBody: "Ta wersja jest już na twoim panelu. Kontynuuj, aby dokończyć konfigurację; nic nie zostanie skopiowane ani zainstalowane ponownie.",
 			continueSetup: "Kontynuuj",
 			progressHeading: "Instalowanie",
 			stepCopying: "Kopiowanie aplikacji na panel…",
@@ -1219,7 +1241,9 @@ var n = Object.freeze({
 			progress: "Postęp",
 			installProgress: "Postęp instalacji",
 			licenses: "Licencje innych podmiotów",
-			doneAnotherHomeAssistant: "Ten panel jest zalogowany do innej instancji Home Assistant. Zmień na panelu instancję Home Assistant i zaloguj się, aby połączyć go tutaj."
+			doneAnotherHomeAssistant: "Ten panel jest zalogowany do innej instancji Home Assistant. Zmień na panelu instancję Home Assistant i zaloguj się, aby połączyć go tutaj.",
+			reconnectedHeading: "Panel Assistant znów ma dostęp do tego panelu",
+			reconnectedBody: "Ten panel ma już aplikację, więc nic nie zostało zainstalowane. Home Assistant może go teraz aktualizować przez twoją sieć."
 		},
 		errors: {
 			installErrorGeneric: "Coś poszło nie tak. Zostaw panel podłączony i naciśnij Spróbuj ponownie.",
@@ -1282,6 +1306,7 @@ var n = Object.freeze({
 			github: "GitHub",
 			unreachable: "inacessível",
 			restarting: "Reiniciando ({reason})",
+			restartingNext: "Este painel voltará automaticamente. Não é necessário atualizar a página.",
 			not_loaded: "não carregado",
 			opening: "Abrindo {panel}…",
 			loadingHint: "Só um momento",
@@ -1376,7 +1401,9 @@ var n = Object.freeze({
 			progress: "Progresso",
 			installProgress: "Progresso da instalação",
 			licenses: "Licenças de terceiros",
-			doneAnotherHomeAssistant: "Este painel está atualmente com sessão iniciada em outro Home Assistant. Troque o Home Assistant e faça login no painel para conectá-lo aqui."
+			doneAnotherHomeAssistant: "Este painel está atualmente com sessão iniciada em outro Home Assistant. Troque o Home Assistant e faça login no painel para conectá-lo aqui.",
+			reconnectedHeading: "O Panel Assistant alcança este painel de novo",
+			reconnectedBody: "Este painel já tem o app, então nada foi instalado. O Home Assistant agora pode atualizá-lo pela sua rede."
 		},
 		errors: {
 			installErrorGeneric: "Algo deu errado. Mantenha o painel conectado e pressione Tentar novamente.",
@@ -1437,9 +1464,10 @@ var n = Object.freeze({
 			device: "Пристрій цієї панелі в Home Assistant",
 			showDevice: "Показати пристрій",
 			github: "GitHub",
-			unreachable: "Недоступна",
+			unreachable: "недоступна",
 			restarting: "Перезапускається ({reason})",
-			not_loaded: "Не завантажено",
+			restartingNext: "Ця панель повернеться автоматично. Оновлювати сторінку не потрібно.",
+			not_loaded: "не завантажено",
 			opening: "Відкриття {panel}…",
 			loadingHint: "Зачекайте мить",
 			empty: "Панелей ще не приєднано.",
@@ -1497,7 +1525,7 @@ var n = Object.freeze({
 			usbDebugging: "Налагодження USB має бути ввімкнено в налаштуваннях розробника на панелі.",
 			usbDebuggingHelp: "Як це ввімкнути",
 			connect: "Знайти мою панель",
-			allowHeading: "Дозволити цей комп’ютер",
+			allowHeading: "Дозволити цьому комп’ютеру",
 			allowBody: "На панелі позначте «Завжди дозволяти з цього комп’ютера» й торкніться «Дозволити», щоб Panel Assistant міг пізніше оновлювати її без кабелю.",
 			checkingPanel: "Перевірка панелі…",
 			confirmHeading: "Готово до встановлення",
@@ -1533,7 +1561,9 @@ var n = Object.freeze({
 			progress: "Перебіг",
 			installProgress: "Перебіг встановлення",
 			licenses: "Ліцензії сторонніх компонентів",
-			doneAnotherHomeAssistant: "На цій панелі виконано вхід в інший екземпляр Home Assistant. Змініть на панелі екземпляр Home Assistant і увійдіть, щоб підключити її тут."
+			doneAnotherHomeAssistant: "На цій панелі виконано вхід в інший екземпляр Home Assistant. Змініть на панелі екземпляр Home Assistant і увійдіть, щоб підключити її тут.",
+			reconnectedHeading: "Panel Assistant знову має доступ до цієї панелі",
+			reconnectedBody: "Застосунок уже є на цій панелі, тож нічого не встановлено. Тепер Home Assistant може оновлювати її через вашу мережу."
 		},
 		errors: {
 			installErrorGeneric: "Щось пішло не так. Залиште панель під’єднаною та натисніть «Спробувати ще раз».",
@@ -1554,10 +1584,10 @@ var n = Object.freeze({
 			setup: "Налаштувати"
 		},
 		sidebarReason: {
-			update: "Оновлення",
-			settings: "Налаштування",
-			recovery: "Відновлення",
-			reboot: "Перезавантаження"
+			update: "оновлення",
+			settings: "налаштування",
+			recovery: "відновлення",
+			reboot: "перезавантаження"
 		},
 		support: {
 			stopped: "Зупинено",
@@ -1596,6 +1626,7 @@ var n = Object.freeze({
 			github: "GitHub",
 			unreachable: "无法连接",
 			restarting: "正在重启（{reason}）",
+			restartingNext: "此面板会自动重新显示，无需刷新。",
 			not_loaded: "未加载",
 			opening: "正在打开 {panel}…",
 			loadingHint: "请稍候",
@@ -1690,7 +1721,9 @@ var n = Object.freeze({
 			progress: "进度",
 			installProgress: "安装进度",
 			licenses: "第三方许可",
-			doneAnotherHomeAssistant: "此面板当前已登录另一个 Home Assistant。请在面板上更改 Home Assistant 并登录，以将其连接到此处。"
+			doneAnotherHomeAssistant: "此面板当前已登录另一个 Home Assistant。请在面板上更改 Home Assistant 并登录，以将其连接到此处。",
+			reconnectedHeading: "Panel Assistant 已能再次连接此面板",
+			reconnectedBody: "此面板已安装应用，因此没有安装任何内容。Home Assistant 现在可以通过您的网络更新它。"
 		},
 		errors: {
 			installErrorGeneric: "发生了错误。请保持面板连接，然后点击“重试”。",
@@ -1801,27 +1834,36 @@ var v = `${c}${l}
 .bar>div{height:100%;width:0;background:var(--primary);transition:width .4s ease}
 @media (prefers-reduced-motion:reduce){.bar>div{transition:none}}
 [hidden]{display:none!important}
-`, y = "https://github.com/panel-assistant/ha-integration", b = "M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12", x = "panel_assistant.sidebar.entry", S = "panel-assistant-ui", C = "/config/integrations/dashboard/add?domain=panel_assistant", w = "/config/integrations/integration/panel_assistant", T = /* @__PURE__ */ new Set([
+`, y = "https://github.com/panel-assistant/ha-integration", b = "M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12", x = "panel_assistant.sidebar.entry", S = "panel-assistant-ui", C = "panel-assistant-config-view", w = "ha-paneld.configure.view.v1";
+function T(e) {
+	return !e || typeof e.advanced != "boolean" || typeof e.descriptions != "boolean" || !Array.isArray(e.revealed) || e.revealed.length > 100 || !e.revealed.every((e) => typeof e == "string" && e.length <= 128) || e.filter !== void 0 && (typeof e.filter != "string" || e.filter.length > 512) ? null : {
+		advanced: e.advanced,
+		descriptions: e.descriptions,
+		revealed: e.revealed,
+		filter: e.filter ?? ""
+	};
+}
+var E = "panel-assistant-wait", D = "panel-assistant-ready", O = 2e3, k = 15e4, A = "allow-scripts allow-forms allow-downloads allow-modals allow-popups allow-popups-to-escape-sandbox", j = "/config/integrations/dashboard/add?domain=panel_assistant", ee = "/config/integrations/integration/panel_assistant", te = /* @__PURE__ */ new Set([
 	"reachable",
 	"unreachable",
 	"not_loaded",
 	"restarting"
-]), E = /* @__PURE__ */ new Set([
+]), ne = /* @__PURE__ */ new Set([
 	"update",
 	"settings",
 	"recovery",
 	"reboot"
-]), D = 5e3, O = /* @__PURE__ */ new Set([
+]), re = 5e3, ie = /* @__PURE__ */ new Set([
 	"current",
 	"added",
 	"updated",
 	"removed"
 ]);
-function k(e) {
+function ae(e) {
 	if (!e || !Array.isArray(e.panels) || e.panels.length > 200) throw Error("invalid panels");
 	let t = /* @__PURE__ */ new Set();
 	return e.panels.map((e) => {
-		if (!e || typeof e.entry_id != "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(e.entry_id) || t.has(e.entry_id) || typeof e.title != "string" || e.title.length > 256 || !T.has(e.state) || e.state === "restarting" && !E.has(e.reason) || e.device_id !== null && e.device_id !== void 0 && typeof e.device_id != "string") throw Error("invalid panel");
+		if (!e || typeof e.entry_id != "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(e.entry_id) || t.has(e.entry_id) || typeof e.title != "string" || e.title.length > 256 || !te.has(e.state) || e.state === "restarting" && !ne.has(e.reason) || e.device_id !== null && e.device_id !== void 0 && typeof e.device_id != "string") throw Error("invalid panel");
 		return t.add(e.entry_id), {
 			entry_id: e.entry_id,
 			title: e.title,
@@ -1831,28 +1873,46 @@ function k(e) {
 		};
 	});
 }
-function A(e) {
+function oe(e) {
 	return typeof e == "string" ? e.match(/^\/api\/panel_assistant\/embed\/([A-Za-z0-9_-]{43})\/$/)?.[1] ?? null : null;
 }
-function j(e, t = "en") {
+var se = /* @__PURE__ */ new Set([
+	"configure",
+	"setup",
+	"profiles",
+	"install",
+	"logs",
+	"entities"
+]);
+function ce(e) {
+	let [t = "", n, r] = typeof e == "string" ? e.slice(1).split("/") : [];
+	return se.has(n) ? {
+		entryId: t,
+		suffix: /^[A-Za-z0-9_-]{1,64}$/.test(r ?? "") ? `${n}#${r}` : n
+	} : {
+		entryId: t,
+		suffix: ""
+	};
+}
+function le(e, t = "en") {
 	return s(o("sidebar", t).opening, { panel: typeof e == "string" ? e : "" });
 }
 function M(e) {
 	history.pushState(null, "", e), window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: !1 } }));
 }
-function ee() {
+function ue() {
 	try {
 		return localStorage.getItem(x);
 	} catch {
 		return null;
 	}
 }
-function te(e) {
+function de(e) {
 	try {
 		localStorage.setItem(x, e);
 	} catch {}
 }
-var ne = class extends HTMLElement {
+var fe = class extends HTMLElement {
 	get #e() {
 		return o("sidebar", this.#t?.language);
 	}
@@ -1869,11 +1929,36 @@ var ne = class extends HTMLElement {
 	#d = null;
 	#f = null;
 	#p = null;
-	#m = () => this.#j();
-	#h = /* @__PURE__ */ new Map();
-	#g = 0;
-	#_ = !1;
-	#v = (e) => this.#I(e);
+	#m = null;
+	#h = null;
+	#g = () => this.#I();
+	#_ = /* @__PURE__ */ new Map();
+	#v = 0;
+	#y = !1;
+	#b = null;
+	#x = 0;
+	#S = 0;
+	#C = (e) => {
+		let t = this.shadowRoot.querySelector("#frame"), n = e.data?.type;
+		if (e.data?.type === C && e.source && e.source === t.contentWindow && this.#p?.state === "open") {
+			if (e.data.read === !0) {
+				try {
+					this.#b = T(JSON.parse(localStorage.getItem(w))) ?? this.#b;
+				} catch {}
+				this.#V({
+					type: C,
+					value: this.#b
+				});
+			} else {
+				let t = T(e.data.value);
+				if (!t) return;
+				this.#b = t;
+				try {
+					localStorage.setItem(w, JSON.stringify(t));
+				} catch {}
+			}
+		} else (n === E || n === D) && e.source && e.source === t.contentWindow ? (t.getAttribute("src") && (t.dataset.ready = String(n === D), this.#S++, n === E && this.#z()), this.#W()) : this.#U(e);
+	};
 	constructor() {
 		super(), this.attachShadow({ mode: "open" }), this.shadowRoot.innerHTML = `<style>${c}${l}
       :host{display:block;height:100vh;height:100dvh;overflow:hidden;background:var(--primary-background-color,#fafafa);color:var(--primary-text-color,#212121)}
@@ -1907,14 +1992,15 @@ var ne = class extends HTMLElement {
       .menu-icon,.item-label,#backdrop{display:none}
       #add-label{display:inline}
       /* Loading and failure fill the pane as one shared card: a pill word, one line, a quiet next step. */
-      .state{flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:safe center;padding:20px}
+      .state{background:var(--bg);box-sizing:border-box;flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:safe center;padding:20px}
       .state .card{width:100%;max-width:520px;margin:0;display:flex;flex-direction:column;align-items:flex-start;gap:12px;color:var(--text)}
       .state .card p{margin:0;line-height:1.5}
       .state .title{font-size:1.5rem;font-weight:300;line-height:1.25;overflow-wrap:anywhere}
       .state .dim{color:var(--dim)}
       #pickles{width:180px;max-width:100%;height:180px;object-fit:contain;flex-shrink:0;align-self:center}
       #status{margin:0;padding:16px;color:var(--secondary-text-color,#727272)}
-      iframe{flex:1;border:0;width:100%;display:block;background:var(--card-background-color,#fff)}
+      iframe{flex:1;min-height:0;border:0;width:100%;display:block;background:var(--bg);color-scheme:light}
+      :host([theme="dark"]) iframe{color-scheme:dark}
       /* On a phone the header is one row like Home Assistant's own panels: menu button, picker, and a
          vertical ellipsis that opens the remaining links as a menu. The picker caption stays for screen readers. */
       [data-narrow] header{position:relative;flex-wrap:nowrap;gap:4px;padding:3px 4px}
@@ -1950,7 +2036,7 @@ var ne = class extends HTMLElement {
       <a id="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg><span class="item-label" data-message="integrationSettings"></span></a>
       </div>
       <div id="slot"></div>
-    </header><div id="failure" class="state" hidden><section class="card"><span id="failure-pill" class="pill dot"></span><img id="pickles" src="/panel_assistant/usb/pickles.svg" alt=""><p id="failure-status" class="title" role="status" aria-live="polite"></p><p id="pickles-story" data-message="picklesStory"></p><p id="next-step" class="dim"></p></section></div><p id="status" role="status" aria-live="polite"></p><div id="loading" class="state" hidden><section class="card"><span class="pill dot" data-message="pillOpening"></span><p id="loading-text" class="title" role="status" aria-live="polite"></p><p id="loading-hint" class="wiz-status dim" data-message="loadingHint"></p></section></div><iframe id="frame"></iframe></div>`;
+    </header><div id="failure" class="state" hidden><section class="card"><span id="failure-pill" class="pill dot"></span><img id="pickles" src="/panel_assistant/usb/pickles.svg" alt=""><p id="failure-status" class="title" role="status" aria-live="polite"></p><p id="pickles-story" data-message="picklesStory"></p><p id="next-step" class="dim"></p></section></div><p id="status" role="status" aria-live="polite"></p><div id="loading" class="state" hidden><section class="card"><span id="loading-pill" class="pill dot" data-message="pillOpening"></span><p id="loading-text" class="title" role="status" aria-live="polite"></p><p id="loading-hint" class="wiz-status dim" data-message="loadingHint"></p></section></div><iframe id="frame" sandbox="${A}"></iframe></div>`;
 		let e = this.shadowRoot;
 		for (let t of e.querySelectorAll("[data-message]")) t.textContent = this.#e[t.dataset.message];
 		let t = e.querySelector("#menu");
@@ -1959,25 +2045,38 @@ var ne = class extends HTMLElement {
 			composed: !0
 		})));
 		let n = e.querySelector("#overflow");
-		n.setAttribute("aria-label", this.#e.more), n.setAttribute("title", this.#e.more), n.hidden = !0, e.querySelector("#backdrop").hidden = !0, e.querySelector("#dot").hidden = !0, n.addEventListener("click", () => this.#b(!this.#y())), e.querySelector("#backdrop").addEventListener("click", () => this.#b(!1)), e.querySelector("#root").addEventListener("keydown", (e) => {
-			e.key === "Escape" && this.#y() && (this.#b(!1), n.focus?.());
-		}), e.querySelector("#frame").setAttribute("title", this.#e.frameTitle);
+		n.setAttribute("aria-label", this.#e.more), n.setAttribute("title", this.#e.more), n.hidden = !0, e.querySelector("#backdrop").hidden = !0, e.querySelector("#dot").hidden = !0, n.addEventListener("click", () => this.#T(!this.#w())), e.querySelector("#backdrop").addEventListener("click", () => this.#T(!1)), e.querySelector("#root").addEventListener("keydown", (e) => {
+			e.key === "Escape" && this.#w() && (this.#T(!1), n.focus?.());
+		}), e.querySelector("#frame").setAttribute("title", this.#e.frameTitle), e.querySelector("#frame").addEventListener("load", () => {
+			if (!e.querySelector("#frame").getAttribute("src")) return;
+			let t = ++this.#x;
+			this.#R(() => this.#S >= t, O);
+		});
 		let r = e.querySelector("#settings");
 		r.setAttribute("aria-label", this.#e.integrationSettings), r.setAttribute("title", this.#e.integrationSettings);
 		let i = e.querySelector("#github");
-		i.setAttribute("aria-label", this.#e.github), i.setAttribute("title", this.#e.github), i.addEventListener("click", () => this.#b(!1));
+		i.setAttribute("aria-label", this.#e.github), i.setAttribute("title", this.#e.github), i.addEventListener("click", () => this.#T(!1));
 		let a = e.querySelector("#device");
 		a.setAttribute("aria-label", this.#e.device), a.setAttribute("title", this.#e.device), a.addEventListener("click", (e) => {
 			let t = a.getAttribute("href");
-			this.#b(!1), !(!t || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) && (e.preventDefault(), M(t));
+			if (this.#T(!1), !t || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+			e.preventDefault();
+			let n = this.#p?.page;
+			history.pushState(history.state, "", `/panel-assistant/${this.#u}${n ? "/" + n : ""}`), M(t);
 		});
-		for (let [t, n] of [["add", C], ["settings", w]]) {
+		for (let [t, n] of [["add", j], ["settings", ee]]) {
 			let r = e.querySelector(`#${t}`);
 			r.setAttribute("href", n), r.addEventListener("click", (e) => {
-				this.#b(!1), !(e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) && (e.preventDefault(), M(n));
+				this.#T(!1), !(e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) && (e.preventDefault(), M(n));
 			});
 		}
-		e.querySelector("#panels").addEventListener("change", (e) => this.#D(e.target.value)), this.#L();
+		e.querySelector("#panels").addEventListener("change", (e) => {
+			let t = e.target.value, n = this.#p?.page;
+			this.#d = n ? {
+				entryId: t,
+				suffix: n
+			} : null, this.#M(t);
+		}), this.#W();
 	}
 	get hass() {
 		return this.#t;
@@ -1987,11 +2086,11 @@ var ne = class extends HTMLElement {
 		this.#t = e;
 		let n = e?.themes?.darkMode;
 		if (typeof n == "boolean" && this.setAttribute?.("theme", n ? "dark" : "light"), this.isConnected) {
-			if (this.#x(), t?.connection !== e?.connection || t?.user?.id !== e?.user?.id || t?.user?.is_admin !== e?.user?.is_admin) {
-				this.#T();
+			if (this.#E(), t?.connection !== e?.connection || t?.user?.id !== e?.user?.id || t?.user?.is_admin !== e?.user?.is_admin) {
+				this.#A();
 				return;
 			}
-			(t?.language !== e?.language || !!t?.themes?.darkMode != !!e?.themes?.darkMode) && (this.#M(), this.#O());
+			(t?.language !== e?.language || !!t?.themes?.darkMode != !!e?.themes?.darkMode) && (this.#L(), this.#N());
 		}
 	}
 	get panel() {
@@ -2005,7 +2104,9 @@ var ne = class extends HTMLElement {
 	}
 	set route(e) {
 		let t = this.#r?.path;
-		this.#r = e, t !== e?.path && this.#D(e?.path?.slice(1));
+		if (this.#r = e, t === e?.path) return;
+		let n = ce(e?.path);
+		this.#d = n.suffix ? n : null, this.#M(n.entryId);
 	}
 	get narrow() {
 		return this.#i;
@@ -2025,27 +2126,27 @@ var ne = class extends HTMLElement {
 			let n = t.querySelector(`#${e}`);
 			this.#i ? n.setAttribute("role", "menuitem") : n.removeAttribute("role");
 		}
-		this.#i || this.#b(!1), this.#x();
+		this.#i || this.#T(!1), this.#E();
 	}
-	#y() {
+	#w() {
 		return this.shadowRoot.querySelector("#more").getAttribute("data-open") !== null;
 	}
-	#b(e) {
+	#T(e) {
 		let t = this.shadowRoot, n = t.querySelector("#more"), r = e && this.#i;
 		r ? n.setAttribute("data-open", "") : n.removeAttribute("data-open"), t.querySelector("#backdrop").hidden = !r, t.querySelector("#overflow").setAttribute("aria-expanded", String(r));
 	}
-	#x() {
-		let e = this.isConnected && this.#i ? this.#t?.connection : void 0, t = this.#p;
-		if (t?.connection === e || (t && (this.#p = null, t.unsubscribe?.then((e) => e()).catch(() => {}), this.shadowRoot.querySelector("#dot").hidden = !0), !e?.subscribeMessage)) return;
+	#E() {
+		let e = this.isConnected && this.#i ? this.#t?.connection : void 0, t = this.#h;
+		if (t?.connection === e || (t && (this.#h = null, t.unsubscribe?.then((e) => e()).catch(() => {}), this.shadowRoot.querySelector("#dot").hidden = !0), !e?.subscribeMessage)) return;
 		let n = {
 			connection: e,
 			notifications: {},
 			unsubscribe: null
 		};
-		this.#p = n, n.unsubscribe = Promise.resolve().then(() => e.subscribeMessage((e) => this.#S(n, e), { type: "persistent_notification/subscribe" })), n.unsubscribe.catch(() => {});
+		this.#h = n, n.unsubscribe = Promise.resolve().then(() => e.subscribeMessage((e) => this.#D(n, e), { type: "persistent_notification/subscribe" })), n.unsubscribe.catch(() => {});
 	}
-	#S(e, t) {
-		if (this.#p === e && O.has(t?.type) && t.notifications && typeof t.notifications == "object") {
+	#D(e, t) {
+		if (this.#h === e && ie.has(t?.type) && t.notifications && typeof t.notifications == "object") {
 			if (t.type === "current") e.notifications = { ...t.notifications };
 			else if (t.type === "removed") for (let n of Object.keys(t.notifications)) delete e.notifications[n];
 			else e.notifications = {
@@ -2056,24 +2157,24 @@ var ne = class extends HTMLElement {
 		}
 	}
 	connectedCallback() {
-		window.addEventListener("message", this.#v), clearInterval(this.#f), this.#T(), this.#x(), this.#f = setInterval(() => this.#E(), D);
+		window.addEventListener("message", this.#C), clearInterval(this.#m), this.#A(), this.#E(), this.#m = setInterval(() => this.#j(), re);
 	}
 	disconnectedCallback() {
-		window.removeEventListener("message", this.#v), clearInterval(this.#f), this.#f = null, this.#c++, this.#w(), this.#M(), this.#x();
+		window.removeEventListener("message", this.#C), clearInterval(this.#m), this.#m = null, this.#c++, this.#k(), this.#L(), this.#E();
 	}
-	#C() {
+	#O() {
 		return this.#t?.user?.is_admin === !0;
 	}
-	#w() {
-		this.#a?.removeEventListener?.("ready", this.#m), this.#a = void 0;
+	#k() {
+		this.#a?.removeEventListener?.("ready", this.#g), this.#a = void 0;
 	}
-	#T() {
-		this.#w(), this.#M(), this.#o = null, this.#l = "", this.#s = "loading", this.#C() && this.#t.connection && (this.#a = this.#t.connection, this.#a.addEventListener("ready", this.#m)), this.#L(), this.#E();
+	#A() {
+		this.#k(), this.#L(), this.#o = null, this.#l = "", this.#s = "loading", this.#O() && this.#t.connection && (this.#a = this.#t.connection, this.#a.addEventListener("ready", this.#g)), this.#W(), this.#j();
 	}
-	async #E() {
+	async #j() {
 		let e = ++this.#c;
-		if (!this.#C()) {
-			this.#L();
+		if (!this.#O()) {
+			this.#W();
 			return;
 		}
 		let t;
@@ -2085,32 +2186,32 @@ var ne = class extends HTMLElement {
 				if (this.#o) return;
 				throw e;
 			}
-			t = k(e);
+			t = ae(e);
 		} catch {
 			if (e !== this.#c) return;
-			this.#o = null, this.#s = "failed", this.#M(), this.#L();
+			this.#o = null, this.#s = "failed", this.#L(), this.#W();
 			return;
 		}
 		if (e !== this.#c) return;
 		if (this.#o = t, this.#s = t.length ? "ready" : "empty", !t.some((e) => e.entry_id === this.#u)) {
-			let e = this.#r?.path?.slice(1), n = t.some((t) => t.entry_id === e) ? e : ee();
+			let e = ce(this.#r?.path).entryId, n = t.some((t) => t.entry_id === e) ? e : ue();
 			this.#u = t.some((e) => e.entry_id === n) ? n : t[0]?.entry_id ?? null;
 		}
-		this.#O();
-		let n = this.#d;
-		this.#_ && n?.state === "open" && t.some((e) => e.entry_id === n.entryId && e.state === "reachable") && (this.#_ = !1, this.#P({
+		this.#N();
+		let n = this.#p;
+		this.#y && n?.state === "open" && t.some((e) => e.entry_id === n.entryId && e.state === "reachable") && (this.#y = !1, this.#V({
 			type: S,
 			open: !0
 		}));
 	}
-	#D(e) {
-		this.#o?.some((t) => t.entry_id === e) && e !== this.#u && (this.#u = e, te(e), this.#M(), this.#O());
+	#M(e) {
+		this.#d?.entryId !== e && (this.#d = null), this.#o?.some((t) => t.entry_id === e) && (e !== this.#u || this.#d) && (this.#u = e, de(e), this.#L(), this.#N());
 	}
-	#O() {
-		let e = this.#o?.find((e) => e.entry_id === this.#u), t = this.#d;
-		!e || e.state !== "reachable" ? t && (t.state !== "closed" || t.entryId !== e?.entry_id) && this.#M() : (!t || t.entryId !== e.entry_id || !["opening", "open"].includes(t.state)) && (this.#M(), this.#k(e.entry_id, null, null)), this.#L();
+	#N() {
+		let e = this.#o?.find((e) => e.entry_id === this.#u), t = this.#p;
+		!e || e.state !== "reachable" ? t && (t.state !== "closed" || t.entryId !== e?.entry_id) && this.#L() : (!t || t.entryId !== e.entry_id || !["opening", "open"].includes(t.state)) && (this.#L(), this.#P(e.entry_id, null, null)), this.#W();
 	}
-	#k(e, t, n) {
+	#P(e, t, n) {
 		let r = this.#t, i = {
 			entryId: e,
 			token: t,
@@ -2118,9 +2219,10 @@ var ne = class extends HTMLElement {
 			state: "opening",
 			code: null,
 			unsubscribe: null,
-			reopen: !!t
+			reopen: !!t,
+			page: t ? this.#p?.page : void 0
 		};
-		this.#d = i;
+		this.#p = i;
 		let a = {
 			type: "panel_assistant/embed_session",
 			entry_id: e,
@@ -2128,70 +2230,86 @@ var ne = class extends HTMLElement {
 			theme: r.themes?.darkMode ? "dark" : "light",
 			...t ? { resume: t } : {}
 		};
-		i.unsubscribe = Promise.resolve().then(() => r.connection.subscribeMessage((e) => this.#A(i, e), a, { resubscribe: !1 })), i.unsubscribe.catch((e) => {
-			this.#d === i && (i.state = "failed", i.code = e?.code ?? null, this.#N(), this.#L());
+		i.unsubscribe = Promise.resolve().then(() => r.connection.subscribeMessage((e) => this.#F(i, e), a, { resubscribe: !1 })), i.unsubscribe.catch((e) => {
+			this.#p === i && (i.state = "failed", i.code = e?.code ?? null, this.#B(), this.#W());
 		});
 	}
-	#A(e, t) {
-		if (this.#d === e && t) {
+	#F(e, t) {
+		if (this.#p === e && t) {
 			if (t.kind === "opened") {
-				let n = A(t.url);
+				let n = oe(t.url);
 				if (!n) {
-					this.#M(), this.#d = {
+					this.#L(), this.#p = {
 						entryId: e.entryId,
 						state: "failed",
 						code: null,
 						unsubscribe: null
-					}, this.#L();
+					}, this.#W();
 					return;
 				}
 				e.token = n, e.url = t.url, e.state = "open";
 				let r = this.shadowRoot.querySelector("#frame");
-				r.getAttribute("src") === t.url ? e.reopen && this.#P({
+				if (this.#f !== t.url) {
+					delete r.dataset.ready, this.#f = t.url, this.#z();
+					let n = this.#d?.entryId === e.entryId ? this.#d.suffix : "";
+					n && (this.#d = null), r.setAttribute("src", t.url + n);
+				} else e.reopen && this.#V({
 					type: S,
 					open: !0
-				}) : r.setAttribute("src", t.url), e.reopen = !1, this.#L();
-			} else t.kind === "closed" && (this.#P({
+				}), r.dataset.ready !== "true" && this.#z();
+				e.reopen = !1, this.#W();
+			} else t.kind === "page" ? (t.page === "" || se.has(t.page)) && (e.page = t.page, history.replaceState(history.state, "", `/panel-assistant/${e.entryId}${t.page ? "/" + t.page : ""}`)) : t.kind === "closed" && (this.#V({
 				type: S,
 				closed: !0
-			}), this.#M(), this.#d = {
+			}), this.#L(), this.#p = {
 				entryId: e.entryId,
 				state: "closed",
 				code: null,
 				unsubscribe: null
-			}, this.#L(), this.#E());
+			}, this.#W(), this.#j());
 		}
 	}
-	#j() {
-		let e = this.#d;
-		this.isConnected && e && ["opening", "open"].includes(e.state) && (this.#F(!1), this.#P({
+	#I() {
+		let e = this.#p;
+		this.isConnected && e && ["opening", "open"].includes(e.state) && (this.#H(!1), this.#V({
 			type: S,
 			closed: !0
-		}), this.#k(e.entryId, e.token, e.url), this.#L());
+		}), this.#P(e.entryId, e.token, e.url), this.#W());
 	}
-	#M() {
-		this.#F(!0);
-		let e = this.#d;
-		this.#d = null, e && (e.state = "ended", e.unsubscribe?.then((e) => e()).catch(() => {}), this.#N());
+	#L() {
+		this.#H(!0);
+		let e = this.#p;
+		this.#p = null, e && (e.state = "ended", e.unsubscribe?.then((e) => e()).catch(() => {}), this.#B());
 	}
-	#N() {
-		this.shadowRoot.querySelector("#frame").removeAttribute("src");
+	#R(e, t) {
+		let n = this.#p;
+		setTimeout(() => {
+			this.#p !== n || e() || (n.state = "failed", n.code = null, this.#B(), this.#W());
+		}, t);
 	}
-	#P(e) {
-		this.shadowRoot.querySelector("#frame").contentWindow?.postMessage(e, location.origin);
+	#z() {
+		let e = this.#S;
+		this.#R(() => this.#S > e, k);
 	}
-	#F(e) {
-		this.#g++, this.#_ = !1;
-		let t = [...this.#h.values()];
-		if (this.#h.clear(), e) for (let e of t) e.then((e) => e()).catch(() => {});
+	#B() {
+		let e = this.shadowRoot.querySelector("#frame");
+		delete e.dataset.ready, this.#f = null, this.#x = this.#S = 0, e.removeAttribute("src");
 	}
-	#I(e) {
-		let t = this.shadowRoot.querySelector("#frame").contentWindow, n = e.data?.frame, r = this.#d;
+	#V(e) {
+		this.shadowRoot.querySelector("#frame").contentWindow?.postMessage(e, "*");
+	}
+	#H(e) {
+		this.#v++, this.#y = !1;
+		let t = [...this.#_.values()];
+		if (this.#_.clear(), e) for (let e of t) e.then((e) => e()).catch(() => {});
+	}
+	#U(e) {
+		let t = this.shadowRoot.querySelector("#frame").contentWindow, n = e.data?.frame, r = this.#p;
 		if (!t || e.data?.type !== "panel-assistant-ui" || !n || typeof n != "object") return;
-		let i = e.source === null && e.origin === location.origin && n.op === "unsubscribe";
+		let i = e.source === null && e.origin === "null" && n.op === "unsubscribe";
 		if (e.source !== t && !i) return;
-		let a = this.#g, o = (e) => {
-			!i && a === this.#g && this.#P({
+		let a = this.#v, o = (e) => {
+			!i && a === this.#v && this.#V({
 				type: S,
 				frame: e
 			});
@@ -2210,27 +2328,46 @@ var ne = class extends HTMLElement {
 			request: n
 		}, l = this.#t.connection;
 		if (n.op === "unsubscribe") {
-			let e = this.#h.get(n.args?.subscription);
-			this.#h.delete(n.args?.subscription), e?.then((e) => e()).catch(() => {}), o({
+			let e = this.#_.get(n.args?.subscription);
+			this.#_.delete(n.args?.subscription), e?.then((e) => e()).catch(() => {}), o({
 				command_id: n.command_id,
 				outcome: "applied"
 			});
 		} else if (n.op === "subscribe") {
 			let e = Promise.resolve().then(() => l.subscribeMessage((e) => {
 				if (e?.closed === !0) {
-					if (this.#h.delete(n.command_id), a !== this.#g) return;
-					this.#_ = !0, this.#P({
+					if (this.#_.delete(n.command_id), a !== this.#v) return;
+					this.#y = !0, this.#V({
 						type: S,
 						closed: !0
 					});
 				} else o(e);
 			}, c, { resubscribe: !1 }));
-			this.#h.set(n.command_id, e), e.catch(() => {
-				this.#h.get(n.command_id) === e && this.#h.delete(n.command_id), s();
+			this.#_.set(n.command_id, e), e.catch(() => {
+				this.#_.get(n.command_id) === e && this.#_.delete(n.command_id), s();
 			});
-		} else Promise.resolve().then(() => this.#t.callWS(c)).then(o, s);
+		} else {
+			let e = null;
+			if (n.op === "ha.oauth.start") try {
+				e = window.open("", "_blank"), e && (e.opener = null);
+			} catch {
+				e?.close(), e = null;
+			}
+			Promise.resolve().then(() => this.#t.callWS(c)).then((t) => {
+				if (e && !e.closed) {
+					let n;
+					try {
+						n = new URL(t?.result?.authorization_url);
+					} catch {}
+					a === this.#v && t?.outcome === "applied" && ["http:", "https:"].includes(n?.protocol) ? e.location.replace(n.href) : e.close();
+				}
+				o(t);
+			}, () => {
+				e?.close(), s();
+			});
+		}
 	}
-	#L() {
+	#W() {
 		let e = this.shadowRoot, t = this.#t?.language;
 		this.isConnected && this.setAttribute?.("lang", a(t));
 		let n = this.#e;
@@ -2244,7 +2381,7 @@ var ne = class extends HTMLElement {
 			["add", "addPanel"]
 		]) e.querySelector(`#${t}`).setAttribute("aria-label", n[r]), e.querySelector(`#${t}`).setAttribute("title", n[r]);
 		e.querySelector("#frame").setAttribute("title", n.frameTitle), e.querySelector("#version").textContent = p(this.#n?.config, t);
-		let r = e.querySelector("#panels"), i = this.#C() ? this.#o ?? [] : [], c = JSON.stringify([i, a(t)]);
+		let r = e.querySelector("#panels"), i = this.#O() ? this.#o ?? [] : [], c = JSON.stringify([i, a(t)]);
 		if (c !== this.#l) {
 			this.#l = c, r.replaceChildren();
 			for (let e of i) {
@@ -2255,8 +2392,8 @@ var ne = class extends HTMLElement {
 		r.value = this.#u ?? "", e.querySelector("#picker").hidden = i.length === 0;
 		let l = i.find((e) => e.entry_id === this.#u), u = e.querySelector("#device");
 		u.hidden = !l?.device_id, l?.device_id && u.setAttribute("href", `/config/devices/device/${encodeURIComponent(l.device_id)}`);
-		let d = this.#d, f = e.querySelector("#frame"), m = "", h = !1;
-		this.#C() ? this.#s === "loading" ? h = !0 : this.#s === "ready" ? d?.state === "closed" && d.entryId === l?.entry_id ? m = "closed" : l?.state === "restarting" ? m = "restarting" : l?.state === "unreachable" ? m = "unreachableBody" : l?.state === "not_loaded" ? m = "notLoadedBody" : d?.state === "failed" ? m = d.code === "not_loaded" ? "notLoadedBody" : "failed" : d?.state !== "open" && !f.getAttribute("src") && (h = !0) : m = this.#s : m = "admin";
+		let d = this.#p, f = e.querySelector("#frame"), m = "", h = !1;
+		this.#O() ? this.#s === "loading" ? h = !0 : this.#s === "ready" ? d?.state === "closed" && d.entryId === l?.entry_id ? m = "closed" : l?.state === "restarting" ? m = "restarting" : l?.state === "unreachable" ? m = "unreachableBody" : l?.state === "not_loaded" ? m = "notLoadedBody" : d?.state === "failed" ? m = d.code === "not_loaded" ? "notLoadedBody" : "failed" : f.dataset.ready !== "true" && (h = !0) : m = this.#s : m = "admin";
 		let g = e.querySelector("#status");
 		g.textContent = m === "restarting" ? s(this.#e.restarting, { reason: o("sidebarReason", t)[l.reason] }) : m ? this.#e[m] : "";
 		let _ = [
@@ -2275,17 +2412,17 @@ var ne = class extends HTMLElement {
 			notLoadedBody: "pillNotLoaded",
 			failed: "pillRetrying",
 			closed: "pillClosed"
-		}[m]] : "", g.hidden = !m || _;
-		let v = e.querySelector("#loading");
-		v.hidden = !h;
-		let y = e.querySelector("#loading-text");
-		y.hidden = !l, h && (y.textContent = l ? j(l.title, t) : ""), f.hidden = !f.getAttribute("src");
+		}[m]] : "", g.hidden = !m || _ || m === "restarting";
+		let v = e.querySelector("#loading"), y = m === "restarting";
+		v.hidden = !h && !y;
+		let b = e.querySelector("#loading-text");
+		b.hidden = !l, (h || y) && (b.textContent = y ? g.textContent : l ? le(l.title, t) : ""), e.querySelector("#loading-hint").textContent = l && (h || y) ? n.restartingNext : n.loadingHint, e.querySelector("#loading-pill").textContent = y ? o("sidebarReason", t)[l.reason] : n.pillOpening, f.hidden = !!m || h || f.dataset.ready !== "true";
 	}
 };
-customElements.get("panel-assistant-sidebar") || customElements.define("panel-assistant-sidebar", ne);
+customElements.get("panel-assistant-sidebar") || customElements.define("panel-assistant-sidebar", fe);
 //#endregion
 //#region src/display-provisioning.mjs
-function re(e) {
+function pe(e) {
 	if (typeof e != "object" || !e) return null;
 	let { density: t, font_scale: n } = e;
 	return !(t === null || Number.isInteger(t) && t >= 80 && t <= 640) || !(n === null || typeof n == "number" && n >= .5 && n <= 1.5) || t === null && n === null ? null : Object.freeze({
@@ -2295,31 +2432,31 @@ function re(e) {
 }
 //#endregion
 //#region src/app-identity.mjs
-var ie = "io.panelassistant.android";
+var me = "io.panelassistant.android";
 Object.freeze(["io.panelassistant.android.install.v1", "io.github.maxlyth.hapaneld.install.v1"]), Object.freeze(["io.panelassistant.android.buildfeed.v1", "io.github.maxlyth.hapaneld.buildfeed.v1"]);
 var N = "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity", P = "io.panelassistant.android/io.panelassistant.android.MainActivity";
-Object.freeze({ [ie]: Object.freeze([N, P]) }), Object.freeze({
+Object.freeze({ [me]: Object.freeze([N, P]) }), Object.freeze({
 	[N]: "io.panelassistant.android/io.github.maxlyth.hapaneld.DashboardActivity",
 	[P]: "io.panelassistant.android/io.panelassistant.android.DashboardActivity"
 }), Object.freeze({
 	[N]: Object.freeze(["io.panelassistant.android/io.github.maxlyth.hapaneld.DashboardActivity"]),
 	[P]: Object.freeze(["io.panelassistant.android/.DashboardActivity", "io.panelassistant.android/io.panelassistant.android.DashboardActivity"])
 });
-var ae = Object.freeze({
+var he = Object.freeze({
 	[N]: "io.panelassistant.android/io.github.maxlyth.hapaneld.input.PanelAccessibilityService",
 	[P]: "io.panelassistant.android/io.panelassistant.android.input.PanelAccessibilityService"
 });
 Object.freeze({
 	[N]: Object.freeze(["io.panelassistant.android/io.github.maxlyth.hapaneld.input.PanelAccessibilityService"]),
 	[P]: Object.freeze(["io.panelassistant.android/.input.PanelAccessibilityService", "io.panelassistant.android/io.panelassistant.android.input.PanelAccessibilityService"])
-}), Object.freeze({ [P]: Object.freeze([ae[N]]) });
-var F = 262144, oe = 2147483647, se = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/, ce = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-(?:rc|preview)[1-9][0-9]*$/, le = /^build-([1-9][0-9]{0,9})(-successor)?$/, I = (e, t) => typeof t == "string" && t.length <= 64 && e.exec(t)?.[0] === t, L = (e) => I(se, e), R = (e) => I(ce, e), z = (e) => L(e) || R(e);
-function ue(e) {
-	if (!I(le, e)) return null;
-	let t = Number(le.exec(e)[1]);
-	return t <= oe ? t : null;
+}), Object.freeze({ [P]: Object.freeze([he[N]]) });
+var F = 262144, ge = 2147483647, _e = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/, ve = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-(?:rc|preview)[1-9][0-9]*$/, I = /^build-([1-9][0-9]{0,9})(-successor)?$/, L = (e, t) => typeof t == "string" && t.length <= 64 && e.exec(t)?.[0] === t, R = (e) => L(_e, e), z = (e) => L(ve, e), B = (e) => R(e) || z(e);
+function ye(e) {
+	if (!L(I, e)) return null;
+	let t = Number(I.exec(e)[1]);
+	return t <= ge ? t : null;
 }
-var B = (e) => ue(e) !== null, de = (e) => Array.from(new Uint8Array(e), (e) => e.toString(16).padStart(2, "0")).join(""), fe = (e = crypto) => de(e.getRandomValues(/* @__PURE__ */ new Uint8Array(16))), V = (e, t) => typeof t == "string" && e.exec(t)?.[0] === t, H = (e, t) => typeof e == "object" && !!e && !Array.isArray(e) && Object.keys(e).length === t.length && t.every((t) => Object.hasOwn(e, t)), U = "/api/panel_assistant/usb/release", pe = "/api/panel_assistant/usb/handover", me = "/api/panel_assistant/usb/adb_key", he = 35e3, ge = /(?:[0-9]{1,3}\.){3}[0-9]{1,3}/, _e = /[a-z_]{1,48}/, W = 67108864, ve = 18e5, G = [
+var V = (e) => ye(e) !== null, be = (e) => Array.from(new Uint8Array(e), (e) => e.toString(16).padStart(2, "0")).join(""), xe = (e = crypto) => be(e.getRandomValues(/* @__PURE__ */ new Uint8Array(16))), H = (e, t) => typeof t == "string" && e.exec(t)?.[0] === t, U = (e, t) => typeof e == "object" && !!e && !Array.isArray(e) && Object.keys(e).length === t.length && t.every((t) => Object.hasOwn(e, t)), W = "/api/panel_assistant/usb/release", Se = "/api/panel_assistant/usb/handover", Ce = "/api/panel_assistant/usb/adb_key", we = 35e3, Te = /(?:[0-9]{1,3}\.){3}[0-9]{1,3}/, Ee = /[a-z_]{1,48}/, G = 67108864, De = 18e5, K = [
 	"id",
 	"tag",
 	"checksum",
@@ -2328,7 +2465,7 @@ var B = (e) => ue(e) !== null, de = (e) => Array.from(new Uint8Array(e), (e) => 
 	"descriptor_signature",
 	"apk_size",
 	"apk_sha256"
-], K = [
+], Oe = [
 	"id",
 	"tag",
 	"feed",
@@ -2344,7 +2481,7 @@ function X(e, t = "invalid_response") {
 	if (!e) throw new Y(t);
 }
 function Z(e, t, n = !1) {
-	X(typeof e == "string" && e.length <= Math.ceil(t / 3) * 4 && V(/(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?/, e));
+	X(typeof e == "string" && e.length <= Math.ceil(t / 3) * 4 && H(/(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?/, e));
 	let r = atob(e);
 	return X(btoa(r) === e && r.length > 0 && (n ? r.length === t : r.length <= t)), Uint8Array.from(r, (e) => e.charCodeAt(0));
 }
@@ -2352,7 +2489,7 @@ async function Q(e, t, n, r = null) {
 	X(e.status === 200 && !e.redirected && e.body);
 	let i = e.headers.get("content-length");
 	if (i !== null) {
-		X(V(/0|[1-9][0-9]*/, i));
+		X(H(/0|[1-9][0-9]*/, i));
 		let e = Number(i);
 		X(Number.isSafeInteger(e) && e <= t && (r === null || e === r));
 	}
@@ -2373,7 +2510,7 @@ async function Q(e, t, n, r = null) {
 		n.removeEventListener("abort", o), o(), a.releaseLock();
 	}
 }
-function ye(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () => {}, windowObject: o = window, timeoutMs: s = 3e5 } = {}) {
+function ke(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () => {}, windowObject: o = window, timeoutMs: s = 3e5 } = {}) {
 	let c, l, u = new Promise((e, t) => {
 		c = e, l = t;
 	}), d = new AbortController(), f = !1, p, m, h, g, _ = !1, v = !1, y, b, x, S, C = !1, w = () => {
@@ -2390,13 +2527,13 @@ function ye(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () 
 			}
 			x = setInterval(() => {
 				p.closed && w();
-			}, 2e3), S = setTimeout(w, ve), c();
+			}, 2e3), S = setTimeout(w, De), c();
 		}
 	};
 	async function D() {
 		try {
 			T("preparing"), X(!f, "cancelled");
-			let t = await e.fetchWithAuth(U, {
+			let t = await e.fetchWithAuth(W, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(n === null ? {} : { release_candidate: n }),
@@ -2410,8 +2547,8 @@ function ye(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () 
 			} catch {
 				throw new Y("invalid_response");
 			}
-			let a = B(i?.tag);
-			X(a || r.size <= q), X(!f, "cancelled"), X(H(i, a ? K : G) && V(/[0-9a-f]{32}/, i.id) && typeof i.tag == "string" && i.tag.length <= 64 && (n === null ? z(i.tag) || B(i.tag) : i.tag === n) && V(/[0-9a-f]{64}/, i.apk_sha256) && Number.isSafeInteger(i.apk_size) && i.apk_size > 0 && i.apk_size <= W);
+			let a = V(i?.tag);
+			X(a || r.size <= q), X(!f, "cancelled"), X(U(i, a ? Oe : K) && H(/[0-9a-f]{32}/, i.id) && typeof i.tag == "string" && i.tag.length <= 64 && (n === null ? B(i.tag) || V(i.tag) : i.tag === n) && H(/[0-9a-f]{64}/, i.apk_sha256) && Number.isSafeInteger(i.apk_size) && i.apk_size > 0 && i.apk_size <= G);
 			let o = a ? {
 				tag: i.tag,
 				feed: Z(i.feed, F),
@@ -2424,13 +2561,13 @@ function ye(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () 
 				descriptorSignature: Z(i.descriptor_signature, 256, !0)
 			};
 			T("downloading"), X(!f, "cancelled");
-			let s = await e.fetchWithAuth(`${U}/${i.id}/apk`, {
+			let s = await e.fetchWithAuth(`${W}/${i.id}/apk`, {
 				method: "GET",
 				redirect: "error",
 				signal: d.signal
 			});
 			X(!f, "cancelled");
-			let c = await Q(s, W, d.signal, i.apk_size);
+			let c = await Q(s, G, d.signal, i.apk_size);
 			X(!f && !p.closed, "window_closed"), v = !0, b = i.apk_sha256, y = {
 				type: "ha-paneld/usb-bundle",
 				nonce: g,
@@ -2442,17 +2579,17 @@ function ye(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () 
 		}
 	}
 	async function O(t) {
-		if (!f || !y || p.closed || !H(t, [
+		if (!f || !y || p.closed || !U(t, [
 			"type",
 			"nonce",
 			"requestId",
 			"tag",
 			"apkSha256"
-		]) || !V(/[0-9a-f]{32}/, t.requestId)) return;
+		]) || !H(/[0-9a-f]{32}/, t.requestId)) return;
 		let r = !1;
 		try {
 			X(t.tag === y.bundle.tag && t.apkSha256 === b);
-			let i = AbortSignal.timeout(Math.min(s, 1e4)), a = await e.fetchWithAuth(U, {
+			let i = AbortSignal.timeout(Math.min(s, 1e4)), a = await e.fetchWithAuth(W, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(n === null ? {} : { release_candidate: n }),
@@ -2460,8 +2597,8 @@ function ye(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () 
 				signal: i
 			});
 			X(a.headers.get("content-type")?.split(";")[0].trim() === "application/json");
-			let o = JSON.parse(await (await Q(a, B(t.tag) ? J : q, i)).text());
-			X(H(o, B(t.tag) ? K : G) && V(/[0-9a-f]{32}/, o.id) && o.tag === t.tag && o.apk_sha256 === t.apkSha256 && o.apk_size === y.apk.size), r = !0;
+			let o = JSON.parse(await (await Q(a, V(t.tag) ? J : q, i)).text());
+			X(U(o, V(t.tag) ? Oe : K) && H(/[0-9a-f]{32}/, o.id) && o.tag === t.tag && o.apk_sha256 === t.apkSha256 && o.apk_size === y.apk.size), r = !0;
 		} catch {}
 		if (y && !p.closed) try {
 			p.postMessage({
@@ -2475,11 +2612,11 @@ function ye(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () 
 		} catch {}
 	}
 	async function k(t) {
-		if (C || !f || !y || p.closed || !H(t, [
+		if (C || !f || !y || p.closed || !U(t, [
 			"type",
 			"nonce",
 			"address"
-		]) || !V(ge, t.address)) return;
+		]) || !H(Te, t.address)) return;
 		C = !0;
 		let n = (e, t = {}) => {
 			try {
@@ -2493,14 +2630,14 @@ function ye(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () 
 		n("ha-paneld/usb-handover-accepted");
 		let r, i = null, a;
 		try {
-			let n = await e.fetchWithAuth(pe, {
+			let n = await e.fetchWithAuth(Se, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ address: t.address }),
 				redirect: "error",
-				signal: AbortSignal.timeout(he)
+				signal: AbortSignal.timeout(we)
 			}), o = await n.json().catch(() => null), s = n.status === 200 ? o?.outcome : o?.error;
-			r = V(_e, s) ? s : `http_${n.status}`, n.status === 200 && (i = re(o?.display)), n.status === 200 && o?.registration === "added_to_another_home_assistant" && (a = o.registration);
+			r = H(Ee, s) ? s : `http_${n.status}`, n.status === 200 && (i = pe(o?.display)), n.status === 200 && o?.registration === "added_to_another_home_assistant" && (a = o.registration);
 		} catch {
 			r = "request_failed";
 		} finally {
@@ -2518,7 +2655,7 @@ function ye(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () 
 	async function A() {
 		let t = null;
 		try {
-			let n = await e.fetchWithAuth(me, {
+			let n = await e.fetchWithAuth(Ce, {
 				method: "GET",
 				redirect: "error",
 				signal: AbortSignal.timeout(Math.min(s, 1e4))
@@ -2535,7 +2672,7 @@ function ye(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () 
 	}
 	function j(e) {
 		if (e.source === p && e.origin === h) {
-			if (e.data?.type === "ha-paneld/usb-adb-key" && e.data.nonce === g && H(e.data, ["type", "nonce"])) {
+			if (e.data?.type === "ha-paneld/usb-adb-key" && e.data.nonce === g && U(e.data, ["type", "nonce"])) {
 				f && A();
 				return;
 			}
@@ -2547,7 +2684,7 @@ function ye(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () 
 				k(e.data);
 				return;
 			}
-			if (H(e.data, ["type", "nonce"]) && e.data.nonce === g) {
+			if (U(e.data, ["type", "nonce"]) && e.data.nonce === g) {
 				if (e.data.type === "ha-paneld/usb-ready") {
 					!_ && !f ? (_ = !0, D()) : y && !p.closed && p.postMessage(y, h);
 					return;
@@ -2557,13 +2694,13 @@ function ye(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () 
 		}
 	}
 	try {
-		X(e && typeof e.fetchWithAuth == "function" && (n === null || z(n) || B(n)) && Number.isSafeInteger(s) && s > 0 && s <= 3e5, "invalid_request");
+		X(e && typeof e.fetchWithAuth == "function" && (n === null || B(n) || V(n)) && Number.isSafeInteger(s) && s > 0 && s <= 3e5, "invalid_request");
 		let i = new URL(t);
 		X(!i.username && !i.password && !i.hash && (i.protocol === "https:" || i.protocol === "http:" && [
 			"localhost",
 			"127.0.0.1",
 			"[::1]"
-		].includes(i.hostname)), "invalid_destination"), i.searchParams.set("lang", a(r)), h = i.origin, g = fe(o.crypto), i.hash = new URLSearchParams({
+		].includes(i.hostname)), "invalid_destination"), i.searchParams.set("lang", a(r)), h = i.origin, g = xe(o.crypto), i.hash = new URLSearchParams({
 			ha_origin: o.location.origin,
 			nonce: g,
 			rc: n ?? ""
@@ -2580,28 +2717,28 @@ function ye(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () 
 }
 //#endregion
 //#region src/release-catalog.mjs
-var be = 30, xe = 500, Se = 131072;
+var Ae = 30, je = 500, Me = 131072;
 function $(e) {
 	if (!e) throw Error("Invalid release catalogue");
 }
-var Ce = 128, we = (e) => B(e.tag) && typeof e.prerelease == "boolean" && typeof e.name == "string" && e.name.length > 0 && e.name.length <= Ce;
-function Te(e) {
-	$(H(e, ["releases"]) && Array.isArray(e.releases) && e.releases.length <= 530);
+var Ne = 128, Pe = (e) => V(e.tag) && typeof e.prerelease == "boolean" && typeof e.name == "string" && e.name.length > 0 && e.name.length <= Ne;
+function Fe(e) {
+	$(U(e, ["releases"]) && Array.isArray(e.releases) && e.releases.length <= 530);
 	let t = /* @__PURE__ */ new Set(), n = 0, r = 0;
-	return Object.freeze(e.releases.map((e) => H(e, [
+	return Object.freeze(e.releases.map((e) => U(e, [
 		"tag",
 		"prerelease",
 		"name"
-	]) ? ($(we(e) && !t.has(e.tag) && ++r <= xe), t.add(e.tag), Object.freeze({
+	]) ? ($(Pe(e) && !t.has(e.tag) && ++r <= je), t.add(e.tag), Object.freeze({
 		tag: e.tag,
 		prerelease: e.prerelease,
 		name: e.name
-	})) : ($(H(e, ["tag", "prerelease"]) && typeof e.prerelease == "boolean" && (e.prerelease ? R(e.tag) : L(e.tag)) && !t.has(e.tag) && ++n <= be), t.add(e.tag), Object.freeze({
+	})) : ($(U(e, ["tag", "prerelease"]) && typeof e.prerelease == "boolean" && (e.prerelease ? z(e.tag) : R(e.tag)) && !t.has(e.tag) && ++n <= Ae), t.add(e.tag), Object.freeze({
 		tag: e.tag,
 		prerelease: e.prerelease
 	}))));
 }
-async function Ee(e, { signal: t, timeoutMs: n = 15e3 } = {}) {
+async function Ie(e, { signal: t, timeoutMs: n = 725e3 } = {}) {
 	let r = new AbortController(), i = () => r.abort();
 	t?.addEventListener("abort", i, { once: !0 }), t?.aborted && i();
 	let a = setTimeout(i, n), o, s = new Promise((e, t) => {
@@ -2616,8 +2753,8 @@ async function Ee(e, { signal: t, timeoutMs: n = 15e3 } = {}) {
 				signal: r.signal
 			});
 			$(t.headers.get("content-type")?.split(";")[0].trim() === "application/json");
-			let n = await Q(t, Se, r.signal);
-			return Te(JSON.parse(await n.text()));
+			let n = await Q(t, Me, r.signal);
+			return Fe(JSON.parse(await n.text()));
 		})()]);
 	} finally {
 		clearTimeout(a), t?.removeEventListener("abort", i), r.signal.removeEventListener("abort", o), r.abort();
@@ -2625,7 +2762,7 @@ async function Ee(e, { signal: t, timeoutMs: n = 15e3 } = {}) {
 }
 //#endregion
 //#region src/ha-install-panel.mjs
-var De = class extends HTMLElement {
+var Le = class extends HTMLElement {
 	#e;
 	get #t() {
 		return o("haInstall", this.#e?.language);
@@ -2642,7 +2779,6 @@ var De = class extends HTMLElement {
       :host{display:block;min-height:100%;background:var(--bg);padding:24px 16px}
       #release{border:0;padding:0;margin:14px 0;min-width:0}
       #release legend{font-size:.92rem;font-weight:600;margin-bottom:5px}
-      #release-choices{max-height:min(240px,40vh)}
     </style><main class="wiz">
       ${m}
       <ol id="journey" class="wiz-dots">${g(0)}</ol>
@@ -2650,7 +2786,7 @@ var De = class extends HTMLElement {
         <h2 data-message="title"></h2>
         <p class="wiz-lead" data-message="introduction"></p>
         <details id="versions"><summary data-message="otherVersions"></summary>
-        <fieldset id="release" aria-describedby="catalog-status"><legend data-message="release"></legend><div id="release-choices" class="choice-list"></div></fieldset></details>
+        <fieldset id="release" aria-describedby="catalog-status"><legend id="release-label" data-message="release"></legend><select id="release-choices" aria-labelledby="release-label"></select></fieldset></details>
         <p id="catalog-status" role="status" aria-live="polite"></p>
         <button id="retry" class="pbtn wiz-secondary" data-message="retry"></button>
         <button id="start" class="pbtn primary wiz-primary" data-message="start"></button>
@@ -2682,15 +2818,13 @@ var De = class extends HTMLElement {
 		let e = new AbortController();
 		this.#o = e;
 		try {
-			let t = await Ee(this.#e, { signal: e.signal });
+			let t = await Ie(this.#e, { signal: e.signal });
 			if (this.#o !== e) return;
 			this.#c = t, this.#s = t.length ? "ready" : "empty";
 			let n = this.shadowRoot.querySelector("#release-choices");
-			for (let [e, r] of [null, ...t].entries()) {
-				let t = document.createElement("label"), i = document.createElement("input");
-				i.type = "radio", i.name = "release", i.value = r?.tag ?? "", i.checked = e === 0;
-				let a = document.createElement("span");
-				t.append(i, a), n.append(t);
+			for (let e of [null, ...t]) {
+				let t = document.createElement("option");
+				t.value = e?.tag ?? "", n.append(t);
 			}
 		} catch {
 			if (this.#o !== e) return;
@@ -2708,14 +2842,14 @@ var De = class extends HTMLElement {
 		n.setAttribute("aria-label", o("installer", t).progress), _(n, 0, document, t);
 		let r = e.querySelector("#release-choices").children;
 		if (r.length) {
-			r[0].querySelector("span").textContent = this.#t.choose;
+			r[0].textContent = this.#t.choose;
 			for (let [e, t] of this.#c.entries()) {
 				let n = t.name ? this.#t.devBuild : t.prerelease ? this.#t.testing : "";
-				r[e + 1].querySelector("span").textContent = `${t.name ?? t.tag.replace(/^v/, "")}${n ? ` (${n})` : ""}`;
+				r[e + 1].textContent = `${t.name ?? t.tag.replace(/^v/, "")}${n ? ` (${n})` : ""}`;
 			}
 		}
-		let i = this.#e?.user?.is_admin === !0, s = typeof this.#n?.config?.installer_url == "string" && this.#n.config.installer_url.length > 0, c = this.shadowRoot.querySelector("#release input:checked")?.value, l = c === "" ? this.#c[0] : this.#c.find((e) => e.tag === c), u = this.#a === "installed";
-		this.shadowRoot.querySelector("#start").hidden = u, this.shadowRoot.querySelector("#release").hidden = u, this.shadowRoot.querySelector("#start").disabled = !i || !s || !!this.#r || !l, this.shadowRoot.querySelector("#cancel").disabled = !this.#r, this.shadowRoot.querySelector("#release").disabled = !!this.#r || this.#s !== "ready";
+		let i = this.#e?.user?.is_admin === !0, s = typeof this.#n?.config?.installer_url == "string" && this.#n.config.installer_url.length > 0, c = this.shadowRoot.querySelector("#release-choices").value, l = c === "" ? this.#c[0] : this.#c.find((e) => e.tag === c), u = this.#a === "installed";
+		this.shadowRoot.querySelector("#start").hidden = u, this.shadowRoot.querySelector("#versions").hidden = u, this.shadowRoot.querySelector("#start").disabled = !i || !s || !!this.#r || !l, this.shadowRoot.querySelector("#cancel").disabled = !this.#r, this.shadowRoot.querySelector("#release").disabled = !!this.#r || this.#s !== "ready";
 		let d = this.shadowRoot.querySelector("#catalog-status");
 		d.textContent = i && s && this.#s !== "ready" ? this.#t[this.#s] : "", d.hidden = !d.textContent, this.shadowRoot.querySelector("#retry").hidden = !i || !s || !["catalogError", "empty"].includes(this.#s), this.shadowRoot.querySelector("#cancel").hidden = !this.#r;
 		let f = i ? s ? this.#a : "unavailable" : "admin", m = this.shadowRoot.querySelector("#status");
@@ -2723,11 +2857,11 @@ var De = class extends HTMLElement {
 	}
 	#d() {
 		if (this.#r || this.#e?.user?.is_admin !== !0) return;
-		let e = this.shadowRoot.querySelector("#release input:checked")?.value;
+		let e = this.shadowRoot.querySelector("#release-choices").value;
 		if (!(e === "" ? this.#c[0] : this.#c.find((t) => t.tag === e)) || !this.isConnected) return;
 		this.#i?.cancel(), this.#i = void 0;
 		let t;
-		t = ye(this.#e, this.#n?.config?.installer_url, {
+		t = ke(this.#e, this.#n?.config?.installer_url, {
 			rcTag: e || null,
 			language: a(this.#e?.language),
 			onState: (e) => {
@@ -2740,5 +2874,5 @@ var De = class extends HTMLElement {
 		});
 	}
 };
-customElements.get("panel-assistant-usb-install") || customElements.define("panel-assistant-usb-install", De);
+customElements.get("panel-assistant-usb-install") || customElements.define("panel-assistant-usb-install", Le);
 //#endregion

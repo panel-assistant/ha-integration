@@ -544,6 +544,49 @@ async def test_a_later_report_replaces_the_addresses_and_silence_keeps_them(
     }
 
 
+async def test_a_poll_that_learns_nothing_new_leaves_the_card_alone(
+    hass: HomeAssistant,
+) -> None:
+    """Every dashboard refetches the whole device registry on each card update.
+
+    Home Assistant reports a replaced connection set as an update even when it is
+    the same set, so a card rewritten on every poll made every panel's dashboard
+    download the registry every few seconds.
+    """
+    entry = _loaded_entry(hass)
+    status = _status_body(f'{{"network_macs":["{SHELLY_MAC}"]}}')
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=replace(HEALTH, version="0.9.0", version_code=1144)),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=status),
+        ) as get_status,
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        updates = []
+        hass.bus.async_listen(
+            dr.EVENT_DEVICE_REGISTRY_UPDATED, lambda event: updates.append(event.data)
+        )
+        coordinator = entry.runtime_data.coordinator
+
+        await coordinator.async_refresh()
+        await coordinator.async_refresh()
+        await hass.async_block_till_done()
+        assert updates == []
+
+        get_status.return_value = _status_body('{"network_macs":["00:1a:2b:3c:4d:60"]}')
+        await coordinator.async_refresh()
+        await hass.async_block_till_done()
+
+    assert [update["changes"] for update in updates] == [
+        {"connections": {(dr.CONNECTION_NETWORK_MAC, SHELLY_MAC)}}
+    ]
+
+
 @pytest.mark.parametrize(
     ("macs", "kept"),
     [
@@ -566,3 +609,20 @@ def test_an_address_outside_the_apps_grammar_costs_only_that_link(
         "firmware": "1.11.0",
         "network_macs": kept,
     }
+
+
+async def test_diagnostics_name_the_model_while_the_status_read_fails(
+    hass: HomeAssistant,
+) -> None:
+    """A report from a panel whose status read is failing still says what it is."""
+    entry = _loaded_entry(hass)
+    await _card_after_setup(hass, entry, _status_body('{"firmware":"1.11.0"}'))
+    entry.runtime_data.coordinator.async_set_updated_data(
+        _snapshot(None, with_status=False)
+    )
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+
+    assert diagnostics["status"] is None
+    assert diagnostics["device"]["manufacturer"] == "Sonoff"
+    assert diagnostics["device"]["model"] == "NSPanel Pro"

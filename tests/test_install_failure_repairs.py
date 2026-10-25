@@ -24,6 +24,7 @@ from tests.test_install_jobs import (
     target,
     transition_to_staging,
 )
+from tests.test_repair_links import assert_repair_links
 
 emulate_home_assistant_store_file = job_fixtures.emulate_home_assistant_store_file
 
@@ -74,6 +75,7 @@ async def test_failed_attempts_keep_one_issue_per_panel_with_latest_diagnosis(
     assert first_issue.is_fixable
     assert first_issue.severity is ir.IssueSeverity.ERROR
     assert first_issue.translation_key == "installer_failure_authorization_failed"
+    assert_repair_links(first_issue)
     assert first_issue.data == {"key": first_issue.issue_id}
     await hass.async_block_till_done()
     events = await async_failure_events(hass, first_issue.issue_id)

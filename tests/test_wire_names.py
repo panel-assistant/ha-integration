@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from homeassistant.core import HomeAssistant
 from yarl import URL
 
-from custom_components.panel_assistant import release
+from custom_components.panel_assistant import release, release_catalog
 from custom_components.panel_assistant.install_executor import InstallExecutor
 from custom_components.panel_assistant.install_jobs import (
     InstallJobManager,
@@ -34,7 +34,6 @@ from .test_release import (  # noqa: F401
     _canonical_descriptor,
     _descriptor_document,
     _install_test_key,
-    _metadata_response,
     _signature,
     signing_key,
 )
@@ -100,7 +99,8 @@ def _release(
             {"name": name, "browser_download_url": f"{ROOT}/{name}"} for name in bodies
         ],
     }
-    responses = {str(release._LATEST_RELEASE_URL): _metadata_response(document)}
+    api = URL(f"{release_catalog.ANDROID_RELEASES_API}/tags/{TAG}")
+    responses = {str(api): FakeResponse(200, json.dumps(document).encode(), api)}
     responses |= {
         f"{ROOT}/{name}": FakeResponse(200, body, URL(f"{ROOT}/{name}"))
         for name, body in bodies.items()
@@ -120,9 +120,9 @@ async def test_a_release_under_either_name_installs_and_its_job_resumes(
     """Release, plan, durable job and a resumed worker, end to end."""
     _install_test_key(monkeypatch, signing_key)
 
-    bundle = await release.async_resolve_install_bundle(
-        _release(signing_key, *schemas)  # type: ignore[arg-type]
-    )
+    session = _release(signing_key, *schemas)
+    monkeypatch.setattr(release_catalog, "async_get_clientsession", lambda _: session)
+    bundle = await release_catalog.async_resolve_install_bundle_choice(hass, TAG)
 
     resolved = bundle.artifact
     assert resolved.apk_name == APK
@@ -161,6 +161,7 @@ async def test_a_release_under_either_name_installs_and_its_job_resumes(
     ids=["descriptor v2", "protocol v2", "foreign descriptor"],
 )
 async def test_a_release_under_an_unknown_name_is_ineligible(
+    hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     signing_key: rsa.RSAPrivateKey,  # noqa: F811
     schemas: tuple[str, str],
@@ -168,7 +169,7 @@ async def test_a_release_under_an_unknown_name_is_ineligible(
     """Exactly what 0.8.0 does with a 0.9.11 release: it is skipped, never half-read."""
     _install_test_key(monkeypatch, signing_key)
 
+    session = _release(signing_key, *schemas)
+    monkeypatch.setattr(release_catalog, "async_get_clientsession", lambda _: session)
     with pytest.raises(release.ReleaseResolutionError):
-        await release.async_resolve_install_bundle(
-            _release(signing_key, *schemas)  # type: ignore[arg-type]
-        )
+        await release_catalog.async_resolve_install_bundle_choice(hass, TAG)

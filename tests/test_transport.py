@@ -53,6 +53,7 @@ from custom_components.panel_assistant.transport_sessions import (
     session_available,
     signal_session_changed,
 )
+from tests.test_repair_links import assert_repair_links
 
 DID = "d" * 64
 OTHER_DID = "e" * 64
@@ -1110,7 +1111,8 @@ async def test_two_entries_with_one_identity_refuse_hello(
     assert issue.is_fixable is False
     assert issue.severity is ir.IssueSeverity.ERROR
     assert issue.translation_key == "merged_panel_identity"
-    assert issue.translation_placeholders == {"panels": "alpha, twin"}
+    assert_repair_links(issue)
+    assert {"panels": "alpha, twin"}.items() <= issue.translation_placeholders.items()
 
     twin.runtime_data.coordinator.data = SimpleNamespace(
         health=replace(HEALTH, discovery_id=OTHER_DID)
@@ -1768,8 +1770,6 @@ async def test_binding_repair_is_translated_in_english(hass: HomeAssistant) -> N
     rebind = strings[f"{prefix}.fix_flow.step.confirm_rebind.description"]
     assert "{panel}" in bind and "{user}" in bind
     assert all(name in rebind for name in ("{panel}", "{user}", "{bound_user}"))
-    assert "connect shortly" in bind
-    assert "connect shortly" in rebind
     for reason in ("entry_removed", "user_unavailable"):
         assert strings[f"{prefix}.fix_flow.abort.{reason}"]
 

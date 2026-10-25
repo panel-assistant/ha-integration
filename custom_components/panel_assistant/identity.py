@@ -15,7 +15,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 
 from .client import PanelHealth, is_valid_discovery_id
-from .const import CONF_CUTOVER, DOMAIN
+from .const import CONF_CUTOVER, DOMAIN, help_url
 
 CONF_INSTALL_IDENTITY = "installation_identity"
 CONF_PREVIOUS_IDENTITY = "previous_installation_identity"
@@ -353,9 +353,20 @@ def _reject_health(
         ir.async_get(hass).async_get_issue(DOMAIN, f"{ISSUE_IDENTITY}_{entry.entry_id}")
         is None
     ):
-        placeholders = {"panel": entry.title, "address": entry.data[CONF_ADDRESS]}
+        from .device import panel_display_name
+
+        placeholders = {
+            "panel": panel_display_name(hass, entry),
+            "address": entry.data[CONF_ADDRESS],
+            "integration_url": "/config/integrations/integration/panel_assistant",
+        }
         if shared_with:
-            placeholders["others"] = ", ".join(other.title for other in shared_with)
+            placeholders["others"] = ", ".join(
+                panel_display_name(hass, other) for other in shared_with
+            )
+        translation_key = (
+            "panel_link_shared" if shared_with else "panel_identity_mismatch"
+        )
         ir.async_create_issue(
             hass,
             DOMAIN,
@@ -363,9 +374,8 @@ def _reject_health(
             is_fixable=False,
             is_persistent=False,
             severity=ir.IssueSeverity.ERROR,
-            translation_key="panel_link_shared"
-            if shared_with
-            else "panel_identity_mismatch",
+            translation_key=translation_key,
+            learn_more_url=help_url("repair", issue=translation_key),
             translation_placeholders=placeholders,
         )
     _withdraw_authority(hass, entry)
@@ -436,6 +446,8 @@ def accept_health(hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth) 
             hass, entry, health
         ):
             return True
+        from .device import panel_display_name
+
         ir.async_create_issue(
             hass,
             DOMAIN,
@@ -444,9 +456,12 @@ def accept_health(hass: HomeAssistant, entry: ConfigEntry, health: PanelHealth) 
             is_persistent=False,
             severity=ir.IssueSeverity.WARNING,
             translation_key=ISSUE_IDENTITY,
+            learn_more_url=help_url("repair", issue=ISSUE_IDENTITY),
             translation_placeholders={
-                "panel": entry.title,
+                "panel": panel_display_name(hass, entry),
                 "address": entry.data[CONF_ADDRESS],
+                "integration_url": "/config/integrations/integration/panel_assistant",
+                "learn_more_url": help_url("repair", issue=ISSUE_IDENTITY),
             },
             data={
                 "entry_id": entry.entry_id,
@@ -507,6 +522,7 @@ def _answers_as_itself(entry: ConfigEntry) -> bool:
 def _adopt_reinstalled(hass: HomeAssistant, entry: ConfigEntry, did: str) -> bool:
     """Take the reinstalled panel's identity, unless an update holds the panel."""
     from .panel_operations import claim_panel_operation, release_panel_operation
+    from .transport_binding import async_unbind_user
 
     if not claim_panel_operation(hass, entry.entry_id):
         # An update or a removal is changing the panel's app and proves the
@@ -516,6 +532,8 @@ def _adopt_reinstalled(hass: HomeAssistant, entry: ConfigEntry, did: str) -> boo
     try:
         if not adopt_moved_identity(hass, entry, did):
             return _reject_health(hass, entry)
+        # A reinstalled app binds the account it now signs in as, on every route.
+        async_unbind_user(hass, entry)
     finally:
         release_panel_operation(hass, entry.entry_id)
     _LOGGER.info(

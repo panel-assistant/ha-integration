@@ -15,6 +15,7 @@ import pytest
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 from adb_shell.exceptions import AdbConnectionError
 
+from custom_components.panel_assistant import install_adb
 from custom_components.panel_assistant.adb_protocol import (
     AdbInstallTarget,
     InstallAdbError,
@@ -25,6 +26,7 @@ from custom_components.panel_assistant.install_adb import async_update_installed
 from custom_components.panel_assistant.release import InstallDescriptor
 
 from .install_adb_fakes import (
+    HANG,
     NONCES,
     REMOTE_PATH,
     FakeDevice,
@@ -37,6 +39,7 @@ from .install_adb_fakes import (
     _preflight_output,
     _remote_output,
     _single_output,
+    _su_output,
     _write_private_apk,
     descriptor,
     signer,
@@ -83,6 +86,49 @@ async def test_in_place_update_rechecks_installed_identity_and_cleans_its_stage(
     assert " -d" not in fake.commands[-2]
     assert " -g" not in fake.commands[-2]
     assert "rm -f " + REMOTE_PATH in fake.commands[-1]
+    assert fake.closed
+
+
+async def test_in_place_update_roots_through_the_next_su_form_when_one_hangs(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+) -> None:
+    monkeypatch.setattr(install_adb, "_SU_TIMEOUT_SECONDS", 0.05)
+    apk = tmp_path / "release.apk"
+    _write_private_apk(apk)
+    installed = {
+        "su_lines": ["present"],
+        "successor_retained_lines": [f"package:{descriptor.package_id}"],
+    }
+    fake = FakeDevice(
+        [
+            _preflight_output(NONCES[0], **installed),
+            HANG,
+            _su_output(NONCES[2]),
+            _installed_package_output(NONCES[3]),
+            _single_output("PATH", NONCES[4], ["absent"], 0),
+            _remote_output(NONCES[5]),
+            _preflight_output(NONCES[6], **installed),
+            HANG,
+            _su_output(NONCES[8]),
+            _installed_package_output(NONCES[9]),
+            _remote_output(NONCES[10]),
+            _single_output("INSTALL", NONCES[11], ["Success"], 0),
+            _cleanup_output(NONCES[12]),
+        ]
+    )
+    _install_update_fake(monkeypatch, fake)
+    outcome = await async_update_installed_apk(
+        target, signer, descriptor, apk, before_install=_allow_install
+    )
+
+    assert outcome is InstallOutcome.INSTALLED
+    assert sum("; su 0 '" in command for command in fake.commands) == 2
+    assert sum("; su 0 sh -c '" in command for command in fake.commands) == 2
+    assert "pm install -r " + REMOTE_PATH in fake.commands[-2]
     assert fake.closed
 
 

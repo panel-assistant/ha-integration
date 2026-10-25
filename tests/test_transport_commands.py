@@ -275,8 +275,13 @@ async def test_entry_writes_keep_the_session(
         ("number", "volume", "set_value", {"value": 10}, 10),
         ("number", "volume", "set_value", {"value": 2.5}, 2.5),
         ("select", "cpu_governor", "select_option", {"option": "auto"}, "auto"),
+        ("select", "dashboard_theme", "select_option", {"option": "dark"}, "dark"),
+        ("number", "dashboard_idle_return", "set_value", {"value": 15}, 15),
+        ("number", "screen_off_timeout", "set_value", {"value": 300}, 300),
         ("text", "navigate", "set_value", {"value": "/x"}, "/x"),
         ("button", "reboot", "press", {}, None),
+        ("button", "dashboard", "press", {}, None),
+        ("button", "back", "press", {}, None),
     ],
 )
 async def test_each_platform_sends_its_typed_value(
@@ -526,6 +531,44 @@ async def test_session_end_fails_the_waiting_call_at_once(
 
 # ---------------------------------------------------------------------------
 # Nothing is sent unless the session may carry it.
+
+
+async def test_a_reboot_that_ends_the_session_is_done(
+    hass: HomeAssistant,
+    native: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """The panel going down before it answers a reboot is the reboot working."""
+    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
+    call = _call(
+        hass, "button", "press", {"entity_id": _entity_id(hass, native, "reboot")}
+    )
+    command = await panel.command()
+    assert command["channel"] == "reboot"
+
+    await panel.client.close()
+    async with asyncio.timeout(5):
+        await call
+    commands = await _commands(hass, native)
+    assert commands["counts"] == {"sent": 1, "session_ended": 1}
+
+
+async def test_a_reboot_the_panel_never_answers_still_fails(
+    hass: HomeAssistant,
+    native: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """A panel that stays connected without answering did not reboot."""
+    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token)
+    with patch.object(transport_sessions, "COMMAND_TIMEOUT", 0.2):
+        call = _call(
+            hass, "button", "press", {"entity_id": _entity_id(hass, native, "reboot")}
+        )
+        await panel.command()
+        error = await _raised(call)
+    assert error.translation_key == "panel_unavailable"
 
 
 async def test_no_command_before_the_full_sync(

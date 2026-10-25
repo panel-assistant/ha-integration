@@ -63,6 +63,12 @@ HELLO: dict[str, Any] = {
     "capabilities": RELAY,
     "channels": [],
 }
+# What every embed response tells the browser: framed only by Home Assistant, and
+# run with an opaque origin, never Home Assistant's own.
+ISOLATED = (
+    "frame-ancestors 'self'; sandbox allow-scripts allow-forms allow-downloads "
+    "allow-modals allow-popups allow-popups-to-escape-sandbox"
+)
 PAGE = (
     '<!doctype html><html><head><base href="/"><title>x</title></head>'
     '<body data-ui-relay><a href="configure">c</a><base href="/"></body></html>'
@@ -144,8 +150,8 @@ async def entry(
         yield config_entry
 
 
-async def _receive(client: Any) -> dict[str, Any]:
-    async with asyncio.timeout(5):
+async def _receive(client: Any, answer_seconds: float = 5) -> dict[str, Any]:
+    async with asyncio.timeout(answer_seconds):
         message: dict[str, Any] = await client.receive_json()
     return message
 
@@ -374,29 +380,25 @@ async def test_panels_list_by_device_name_falling_back_to_title(
     reply = await _receive(client)
     assert reply["success"], reply
     assert [(p["title"], p["state"]) for p in reply["result"]["panels"]] == [
-        # No panel_assistant_device.name in STATUS, so this falls back within the device
-        # to health.panel_id -- still nicer than the raw entry.title "attic" here.
+        ("alpha", "reachable"),
+        # The device name is shown rather than the setup-time title "attic".
         ("attic-unit", "unreachable"),
         ("Bedroom", "not_loaded"),
-        # entry fixture's own panel_id ("alpha") reads the same either way.
-        ("alpha", "reachable"),
     ]
-    assert set(reply["result"]["panels"][2]) == {
+    assert set(reply["result"]["panels"][0]) == {
         "entry_id",
         "title",
         "state",
         "device_id",
     }
-    # "attic" did finish loading (then went unreachable), so it has a device.
-    assert reply["result"]["panels"][0]["device_id"] is not None
-    # "Bedroom" never finished loading, so no device -- and no device page -- exists.
-    assert reply["result"]["panels"][1]["device_id"] is None
+    assert reply["result"]["panels"][1]["device_id"] is not None
+    assert reply["result"]["panels"][2]["device_id"] is None
 
     device_registry = dr.async_get(hass)
     device = device_registry.async_get_device_by_identifier(
         (DOMAIN, entry.entry_id), config_entry_id=entry.entry_id
     )
-    assert reply["result"]["panels"][2]["device_id"] == device.id
+    assert reply["result"]["panels"][0]["device_id"] == device.id
     device_registry.async_update_device(device.id, name_by_user="Custom Name")
     await client.send_json_auto_id({"type": "panel_assistant/embed_panels"})
     reply = await _receive(client)
@@ -405,6 +407,62 @@ async def test_panels_list_by_device_name_falling_back_to_title(
         p for p in reply["result"]["panels"] if p["entry_id"] == entry.entry_id
     )
     assert renamed["title"] == "Custom Name"
+
+
+@pytest.mark.parametrize("names", [("Alpha", "Zulu"), ("alpha", "Alpha")])
+async def test_panels_list_sorts_owner_names_with_entry_id_ties(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    entry: MockConfigEntry,
+    names: tuple[str, str],
+) -> None:
+    """The sidebar's default and list order follow the names the owner sees."""
+    hass.config_entries.async_update_entry(entry, title="zz-host")
+    other = MockConfigEntry(
+        domain=DOMAIN,
+        title="aa-host",
+        entry_id="0" * 26,
+        data={CONF_ADDRESS: "127.0.0.1:1"},
+    )
+    other.add_to_hass(hass)
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(
+                return_value=PanelHealth(
+                    version="1.0.0-preview1",
+                    panel_id="aa-host",
+                    build="1000",
+                    config_hash="1a2b3c4d",
+                    discovery_id="c" * 64,
+                    protocol=(5, 5),
+                )
+            ),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=STATUS),
+        ),
+    ):
+        await _load_entry(hass, other)
+    registry = dr.async_get(hass)
+    for panel, name in zip((entry, other), names, strict=True):
+        device = registry.async_get_device_by_identifier(
+            (DOMAIN, panel.entry_id), config_entry_id=panel.entry_id
+        )
+        assert device is not None
+        registry.async_update_device(device.id, name_by_user=name)
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "panel_assistant/embed_panels"})
+    reply = await _receive(client)
+    assert reply["success"], reply
+    expected = sorted(
+        zip((entry.entry_id, other.entry_id), names, strict=True),
+        key=lambda panel: (panel[1].casefold(), panel[0]),
+    )
+    assert [
+        (panel["entry_id"], panel["title"]) for panel in reply["result"]["panels"]
+    ] == expected
 
 
 @pytest.mark.parametrize(
@@ -767,11 +825,16 @@ async def test_a_page_comes_over_the_session_with_its_base_rewritten(
 
     assert response.status == 200
     assert response.content_type == "text/html"
-    assert response.headers["Content-Security-Policy"] == "frame-ancestors 'self'"
+    assert response.headers["Content-Security-Policy"] == ISOLATED
     assert response.headers["X-Content-Type-Options"] == "nosniff"
-    # Only the first base element, the page's own, is pointed at the view.
+    # Only the first base element, the page's own, is pointed at the view, and
+    # the page says from its own load that it is a page: the sidebar shows the
+    # frame on that message alone, in Chromium and WebKit alike.
     assert await response.text() == PAGE.replace(
         '<base href="/">', f'<base href="{url}">', 1
+    ) + (
+        '<script>addEventListener("load",function(){'
+        'parent.postMessage({type:"panel-assistant-ready"},"*")})</script>'
     )
     request = await live.event("page.info")
     assert {k: v for k, v in request["args"].items() if k != "blob_token"} == {
@@ -784,16 +847,147 @@ async def test_a_page_comes_over_the_session_with_its_base_rewritten(
     assert not panel.requests
 
 
-async def test_a_page_asked_for_while_the_panel_session_is_down_asks_again(
+async def test_page_events_follow_navigation_inside_the_embed_frame(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
     hass_client_no_auth: Any,
     entry: MockConfigEntry,
     live: SessionPanel,
 ) -> None:
-    """An open sidebar is not left blank while the panel restarts after an update."""
+    """The sidebar learns the current tab even when the frame navigates itself."""
+
+    async def configure(event: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "outcome": "applied",
+            "result": PAGE.replace(
+                '<a href="configure">c</a>',
+                '<div class="nav"><a class="active" href="configure">Configure</a>'
+                '<a href="logs">Logs</a></div>',
+            ),
+        }
+
+    async def logs(event: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "outcome": "applied",
+            "result": PAGE.replace(
+                '<a href="configure">c</a>',
+                '<div class="nav"><a href="configure">Configure</a>'
+                '<a class="active" href="logs">Logs</a></div>',
+            ),
+        }
+
+    live.answers.update({"page.configure": configure, "page.logs": logs})
+    ws = await hass_ws_client(hass)
+    subscription, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+    response = await browser.get(url + "configure")
+    assert response.status == 200
+    assert await _receive(ws) == {
+        "id": subscription,
+        "type": "event",
+        "event": {"kind": "page", "page": "configure"},
+    }
+
+    # Follow the frame's own link; no sidebar command changes the selected tab.
+    document = await response.text()
+    link = re.search(r'<a href="([^"]+)">Logs</a>', document)
+    assert link is not None
+    response = await browser.get(url + link.group(1))
+    assert response.status == 200
+    assert await _receive(ws) == {
+        "id": subscription,
+        "type": "event",
+        "event": {"kind": "page", "page": "logs"},
+    }
+
+
+@pytest.mark.parametrize("missing", [False, True])
+async def test_unavailable_page_falls_back_to_default_before_reporting_current_tab(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    entry: MockConfigEntry,
+    live: SessionPanel,
+    missing: bool,
+) -> None:
+    """A tab hidden or not served by this panel resolves to its default page."""
+
+    async def hidden_setup(event: dict[str, Any]) -> dict[str, Any]:
+        if missing:
+            return {"outcome": "refused", "code": "unknown_command", "status": 404}
+        return {
+            "outcome": "applied",
+            "result": PAGE.replace(
+                '<a href="configure">c</a>',
+                '<div class="nav"><a href="">Dashboard</a>'
+                '<a href="configure">Configure</a></div>'
+                '<main><a class="active" href="setup">Unrelated active link</a></main>',
+            ),
+        }
+
+    live.answers["page.setup"] = hidden_setup
+    ws = await hass_ws_client(hass)
+    subscription, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+    response = await browser.get(url + "setup?theme=light", allow_redirects=False)
+    assert response.status == 302
+    assert response.headers["Location"] == url
+    # Ordering against a WS command proves the redirect emitted no page event.
+    await ws.send_json_auto_id({"type": "panel_assistant/embed_panels"})
+    assert (await _receive(ws))["type"] == "result"
+
+    response = await browser.get(response.headers["Location"])
+    assert response.status == 200
+    assert await _receive(ws) == {
+        "id": subscription,
+        "type": "event",
+        "event": {"kind": "page", "page": ""},
+    }
+
+
+@pytest.mark.parametrize("status", [None, 503])
+async def test_failed_page_does_not_replace_the_current_tab(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    entry: MockConfigEntry,
+    live: SessionPanel,
+    status: int | None,
+) -> None:
+    """Only a successfully rendered page changes the sidebar's current tab."""
+
+    async def failed(event: dict[str, Any]) -> dict[str, Any]:
+        answer: dict[str, Any] = {
+            "outcome": "refused",
+            "code": "failed",
+            "result": PAGE,
+        }
+        if status is not None:
+            answer["status"] = status
+        return answer
+
+    live.answers["page.configure"] = failed
     ws = await hass_ws_client(hass)
     _, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+    response = await browser.get(url + "configure")
+    assert response.status == (status or 502)
+    await ws.send_json_auto_id({"type": "panel_assistant/embed_panels"})
+    assert (await _receive(ws))["type"] == "result"
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+async def test_a_page_asked_for_while_the_panel_session_is_down_asks_again(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    entry: MockConfigEntry,
+    live: SessionPanel,
+    theme: str,
+) -> None:
+    """An open sidebar is not left blank while the panel restarts after an update."""
+    ws = await hass_ws_client(hass)
+    _, url = await _open_session(ws, entry.entry_id, theme=theme)
     browser = await hass_client_no_auth()
     assert (await browser.get(url)).status == 200
     assert live.task is not None
@@ -805,7 +999,16 @@ async def test_a_page_asked_for_while_the_panel_session_is_down_asks_again(
 
     assert response.status == 503
     assert response.content_type == "text/html"
-    assert '<meta http-equiv="refresh" content="3">' in await response.text()
+    document = await response.text()
+    assert '<meta http-equiv="refresh" content="3">' in document
+    assert '<meta name="panel-assistant-wait" content="true">' in document
+    # The sidebar cannot read the sandboxed document, so it says what it is.
+    assert (
+        '<script>parent.postMessage({type:"panel-assistant-wait"},"*")</script>'
+        in document
+    )
+    assert f'<meta name="color-scheme" content="{theme}">' in document
+    assert "panel-assistant-ready" not in document
 
 
 async def test_each_panel_is_served_the_bundle_of_its_own_build(
@@ -918,6 +1121,115 @@ async def test_a_panel_answering_a_newer_build_is_fetched_once(
     assert len([e for e in live.events if e["op"] == "bundle"]) == 1
 
 
+async def test_a_panel_answering_another_panels_build_never_serves_that_panel(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client: Any,
+    hass_client_no_auth: Any,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    session_panels: list[SessionPanel],
+    entry: MockConfigEntry,
+    live: SessionPanel,
+) -> None:
+    """A session's bundle serves only its own panel, whatever build it names."""
+    other_did = "e" * 64
+    other = MockConfigEntry(
+        domain=DOMAIN, title="Hall", data={CONF_ADDRESS: "127.0.0.1:1"}
+    )
+    other.add_to_hass(hass)
+    with patch(
+        "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+        AsyncMock(
+            return_value=dataclasses.replace(
+                HEALTH, panel_id="beta", build="2000", discovery_id=other_did
+            )
+        ),
+    ):
+        await _load_entry(hass, other)
+    other_panel = await _connect_panel(
+        hass,
+        hass_ws_client,
+        hass_client,
+        session_panels,
+        other,
+        hass_read_only_user.id,
+        hass_read_only_access_token,
+        HELLO | {"did": other_did},
+    )
+    other_panel.answers["bundle"] = _bundle(other_panel, {"info.js": b"honest"})
+
+    async def claims_2000(event: dict[str, Any]) -> dict[str, Any]:
+        reference = await live.upload(event, _zip({"info.js": b"planted"}))
+        return {"outcome": "applied", "result": {"blob": reference, "build": "2000"}}
+
+    live.answers["bundle"] = claims_2000
+    ws = await hass_ws_client(hass)
+    _, first = await _open_session(ws, entry.entry_id)
+    _, second = await _open_session(ws, other.entry_id)
+    browser = await hass_client_no_auth()
+
+    assert await (await browser.get(second + "info.js")).read() == b"honest"
+    assert await (await browser.get(first + "info.js")).read() == b"planted"
+    assert await (await browser.get(second + "info.js")).read() == b"honest"
+
+
+async def test_every_embed_response_runs_with_an_opaque_origin_and_transfers_still_work(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    hass_admin_user: Any,
+    entry: MockConfigEntry,
+    live: SessionPanel,
+) -> None:
+    """The panel's pages cannot reach Home Assistant's origin, yet move files.
+
+    The live session is held by a non-administrator, so its pages are not trusted
+    with the administrator's origin. A sandboxed document's requests carry
+    ``Origin: null``, so a download and an upload need cross-origin answers.
+    """
+    live.answers["bundle"] = _bundle(live, {"info.js": b"one"})
+    ws = await hass_ws_client(hass)
+    _, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+    blobs = async_get_blobs(hass)
+    download, _ = blobs.download(
+        entry.entry_id, b"export", "application/zip", hass_admin_user.id
+    )
+    upload, _ = blobs.upload(entry.entry_id, 1024, hass_admin_user.id)
+    null = {"Origin": "null"}
+
+    page = await browser.get(url, headers=null)
+    bundle_file = await browser.get(url + "info.js", headers=null)
+    missing = await browser.get(url + "nothing", headers=null)
+    got = await browser.get(f"{url}blob/{download}", headers=null)
+    preflight = await browser.options(
+        f"{url}blob/{upload}",
+        headers=null
+        | {
+            "Access-Control-Request-Method": "PUT",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    put = await browser.put(
+        f"{url}blob/{upload}",
+        data=b"app",
+        headers=null | {"Content-Type": "application/zip"},
+    )
+
+    for response in (page, bundle_file, missing, got, put):
+        assert response.headers["Content-Security-Policy"] == ISOLATED
+    sandbox = ISOLATED.split("sandbox ", 1)[1].split()
+    assert "allow-same-origin" not in sandbox
+    assert {"allow-scripts", "allow-downloads"} <= set(sandbox)
+    assert (got.status, await got.read()) == (200, b"export")
+    assert preflight.status == 200
+    assert "PUT" in preflight.headers["Access-Control-Allow-Methods"]
+    assert put.status == 200
+    for response in (got, preflight, put):
+        assert response.headers["Access-Control-Allow-Origin"] in ("*", "null")
+
+
 async def test_a_bundle_gets_two_minutes_and_a_failed_one_is_not_asked_again_at_once(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
@@ -955,11 +1267,13 @@ async def test_a_bundle_gets_two_minutes_and_a_failed_one_is_not_asked_again_at_
 # The relay: panel_assistant/ui.
 
 
-async def _ui(ws: Any, entry_id: str, request: dict[str, Any]) -> dict[str, Any]:
+async def _ui(
+    ws: Any, entry_id: str, request: dict[str, Any], *, answer_seconds: float = 5
+) -> dict[str, Any]:
     await ws.send_json_auto_id(
         {"type": "panel_assistant/ui", "entry_id": entry_id, "request": request}
     )
-    return await _receive(ws)
+    return await _receive(ws, answer_seconds)
 
 
 async def _applied(event: dict[str, Any]) -> dict[str, Any]:
@@ -1099,6 +1413,131 @@ async def test_a_relayed_request_waits_through_its_approval(
         "outcome": "applied",
         "result": {"ok": True},
     }
+
+
+@pytest.mark.parametrize("kind", ["manage", "command"])
+@pytest.mark.parametrize(
+    "completion", ["expiry_poll", "early_refusal", "approved_archive"]
+)
+async def test_approval_completion_reaches_the_waiting_browser(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    entry: MockConfigEntry,
+    live: SessionPanel,
+    monkeypatch: pytest.MonkeyPatch,
+    kind: str,
+    completion: str,
+) -> None:
+    """Expiry and approved work outlive the approval window, not the caller.
+
+    Only the panel's 600-second approval clock and one-second polling interval
+    are scaled by 200. The initial five-second answer grace stays enabled.
+    The panel creates approval before reporting pending; receipt is not creation.
+    """
+    approval_seconds = 3.0
+    poll_seconds = 0.005
+    transit_seconds = 0.03
+    monkeypatch.setattr(ui_relay, "APPROVAL_SECONDS", approval_seconds)
+    assert ui_relay.ANSWER_GRACE_SECONDS == 5.0
+    archive = b"approved backup archive"
+    created = 0.0
+    finished = asyncio.Event()
+
+    async def complete(event: dict[str, Any]) -> dict[str, Any]:
+        nonlocal created
+        created = hass.loop.time()
+        # The earlier-refusal control has a larger creation-to-pending offset:
+        # its expiry answer arrives before receipt + TTL even on the base.
+        await asyncio.sleep(0.2 if completion == "early_refusal" else 0.005)
+        await live.send_result(event, outcome="pending_approval", interim=True)
+        if completion == "approved_archive":
+            # Approved shortly before expiry; archive work starts then.
+            due = created + approval_seconds - 20 * poll_seconds
+        else:
+            # First poll after absolute creation-time expiry, then final transit.
+            due = created + approval_seconds + poll_seconds + transit_seconds
+        await asyncio.sleep(max(0, due - hass.loop.time()))
+        if completion == "approved_archive":
+            assert hass.loop.time() < created + approval_seconds
+            # Work outlasts a grace-only extension, but fits the six-second budget.
+            await asyncio.sleep(5.4)
+            if kind == "manage":
+                reference = await live.upload(event, archive)
+                result = {"blob": reference}
+            else:
+                result = {"ok": True}
+            fields = {"outcome": "applied", "result": result}
+        else:
+            fields = {"outcome": "refused", "code": "approval_timeout"}
+        finished.set()
+        return fields
+
+    live.answers["backup" if kind == "manage" else "screen"] = complete
+    ws = await hass_ws_client(hass)
+    request = {
+        "kind": kind,
+        "command_id": f"{kind}-{completion}",
+        "deadline_ms": 6000,
+        **({"op": "backup"} if kind == "manage" else {"channel": "screen"}),
+    }
+    reply = await _ui(ws, entry.entry_id, request, answer_seconds=12)
+    assert reply["success"], reply
+    frame = reply["result"]
+    assert frame["command_id"] == request["command_id"]
+    assert finished.is_set()
+    if completion == "approved_archive":
+        assert frame["outcome"] == "applied"
+        if kind == "manage":
+            assert frame["result"]["blob"]["size"] == len(archive)
+        else:
+            assert frame["result"] == {"ok": True}
+    else:
+        assert frame == {
+            "command_id": request["command_id"],
+            "outcome": "refused",
+            "code": "approval_timeout",
+        }
+    # The terminal result reached this caller instead of the late-only diagnostics.
+    assert hass.loop.time() - created >= approval_seconds
+
+
+async def test_a_missing_approval_completion_still_has_a_bounded_wait(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    entry: MockConfigEntry,
+    live: SessionPanel,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A lost final answer still releases the browser after its finite budget."""
+    monkeypatch.setattr(ui_relay, "APPROVAL_SECONDS", 0.05)
+    assert ui_relay.ANSWER_GRACE_SECONDS == 5.0
+    held = asyncio.Event()
+
+    async def missing(event: dict[str, Any]) -> dict[str, Any]:
+        await live.send_result(event, outcome="pending_approval", interim=True)
+        await held.wait()
+        return {"outcome": "refused", "code": "approval_timeout"}
+
+    live.answers["backup"] = missing
+    ws = await hass_ws_client(hass)
+    started = hass.loop.time()
+    try:
+        reply = await _ui(
+            ws,
+            entry.entry_id,
+            {
+                "kind": "manage",
+                "command_id": "missing-final",
+                "op": "backup",
+                "deadline_ms": 1,
+            },
+            answer_seconds=8,
+        )
+        assert reply["success"] is False
+        assert reply["error"]["code"] == "panel_unavailable"
+        assert 5 <= hass.loop.time() - started < 7
+    finally:
+        held.set()
 
 
 async def test_a_late_approval_answer_after_the_browser_stopped_waiting_is_accepted(
@@ -1593,3 +2032,407 @@ async def test_an_upload_reaches_the_panel_as_its_own_download(
         "code": "invalid_value",
     }
     assert len([e for e in live.events if e.get("op") == "install.apk"]) == 1
+
+
+@pytest.mark.parametrize(
+    "mode", ["left_before_on_time_answer", "left_before_timeout", "left_after_timeout"]
+)
+async def test_late_subscription_is_unsubscribed_on_its_original_session(
+    hass, hass_ws_client, entry, live, monkeypatch, mode
+):
+    from custom_components.panel_assistant.transport_sessions import async_get_sessions
+
+    monkeypatch.setattr(ui_relay, "ANSWER_GRACE_SECONDS", 0)
+    go = asyncio.Event()
+
+    async def delayed(event):
+        await go.wait()
+        return await _subscribed(event)
+
+    live.answers.update({"subscribe": delayed, "unsubscribe": _applied})
+    browser = await hass_ws_client(hass)
+    deadline = 10000 if mode == "left_before_on_time_answer" else 25
+    await browser.send_json_auto_id(
+        {
+            "type": "panel_assistant/ui",
+            "entry_id": entry.entry_id,
+            "request": {
+                "kind": "manage",
+                "command_id": "independent",
+                "op": "subscribe",
+                "args": {"family": "perf"},
+                "deadline_ms": deadline,
+            },
+        }
+    )
+    assert (await _receive(browser))["success"]
+    request = await live.event("subscribe")
+    session = async_get_sessions(hass).get(entry.entry_id)
+    assert session is not None
+    if mode.startswith("left_before"):
+        await browser.close()
+    if mode != "left_before_on_time_answer":
+        async with asyncio.timeout(3):
+            while not session.late:  # noqa: ASYNC110 - production timeout state has no event hook
+                await asyncio.sleep(0.001)
+        if mode == "left_after_timeout":
+            assert (await _receive(browser))["event"]["outcome"] == "failed"
+            await browser.close()
+    go.set()
+    ended = await live.event("unsubscribe")
+    assert ended["args"]["subscription"] == request["command_id"]
+    assert ended["origin"] == request["origin"]
+    async with asyncio.timeout(3):
+        while session.late:  # noqa: ASYNC110 - observe final protocol settlement
+            await asyncio.sleep(0.001)
+    assert not session.ui_relays
+
+
+async def test_timed_out_subscription_cleanup_survives_late_map_eviction(
+    hass, hass_ws_client, entry, live, monkeypatch
+):
+    monkeypatch.setattr(ui_relay, "ANSWER_GRACE_SECONDS", 0)
+    release = asyncio.Event()
+    remote = set()
+
+    async def subscribe(event):
+        await release.wait()
+        remote.add(event["command_id"])
+        return await _subscribed(event)
+
+    async def unsubscribe(event):
+        remote.discard(event["args"]["subscription"])
+        return await _applied(event)
+
+    live.answers.update({"subscribe": subscribe, "unsubscribe": unsubscribe})
+    browser = await hass_ws_client(hass)
+    for index in range(18):
+        await browser.send_json_auto_id(
+            {
+                "type": "panel_assistant/ui",
+                "entry_id": entry.entry_id,
+                "request": {
+                    "kind": "manage",
+                    "command_id": f"old-{index}",
+                    "op": "subscribe",
+                    "args": {"family": "perf"},
+                    "deadline_ms": 25,
+                },
+            }
+        )
+        # The immediate subscription result and eventual failure share the socket.
+    results = 0
+    async with asyncio.timeout(5):
+        while results < 18:
+            message = await _receive(browser)
+            if (
+                message.get("type") == "event"
+                and message.get("event", {}).get("outcome") == "failed"
+            ):
+                results += 1
+    from custom_components.panel_assistant.transport_sessions import async_get_sessions
+
+    session = async_get_sessions(hass).get(entry.entry_id)
+    assert len(session.late) == 16
+    release.set()
+    async with asyncio.timeout(5):
+        while (  # noqa: ASYNC110 - bounded protocol-observation fixture
+            len([event for event in live.events if event.get("op") == "unsubscribe"])
+            < 18
+        ):
+            await asyncio.sleep(0.001)
+    await hass.async_block_till_done()
+    assert not remote
+    assert not session.ui_relays
+    await browser.close()
+
+
+@pytest.mark.parametrize("same_version", [True, False])
+@pytest.mark.parametrize("reachable", [True, False])
+@pytest.mark.parametrize("health_current", [True, False])
+async def test_returning_page_and_assets_match_before_update_health_refresh(
+    hass,
+    hass_ws_client,
+    hass_client,
+    hass_client_no_auth,
+    hass_read_only_user,
+    hass_read_only_access_token,
+    session_panels,
+    entry,
+    monkeypatch,
+    reachable,
+    health_current,
+    same_version,
+):
+    """Use real hello/embed and update wait while its health I/O is pending."""
+    from custom_components.panel_assistant.transport_sessions import async_get_sessions
+    from custom_components.panel_assistant.update_progress import UpdateProgress
+
+    coordinator = entry.runtime_data.coordinator
+    coordinator.data = dataclasses.replace(
+        coordinator.data,
+        health=dataclasses.replace(
+            coordinator.data.health,
+            version="1.0.0-rc1",
+            version_code=2159,
+        ),
+    )
+    connect_args = (
+        hass,
+        hass_ws_client,
+        hass_client,
+        session_panels,
+        entry,
+        hass_read_only_user.id,
+        hass_read_only_access_token,
+    )
+    old = await _connect_panel(
+        *connect_args, HELLO | {"app": {"version": "1.0.0-rc1", "version_code": 2159}}
+    )
+    old.answers["bundle"] = _bundle(
+        old, {"info.js": b"old-script", "info.css": b"old-style"}
+    )
+    admin = await hass_ws_client(hass)
+    _, first = await _open_session(admin, entry.entry_id)
+    browser = await hass_client_no_auth()
+    assert await (await browser.get(first + "info.js")).read() == b"old-script"
+    old.task.cancel()
+    await old.ws.close()
+    await hass.async_block_till_done()
+    async with asyncio.timeout(3):
+        while coordinator.connected:  # noqa: ASYNC110 - observe real session teardown
+            await asyncio.sleep(0.001)
+    coordinator.reachable = reachable
+    progress = UpdateProgress(
+        entry.entry_id, coordinator, SimpleNamespace(), lambda: None
+    )
+    progress.begin(hass, "1.0.0-rc1", "1.0.0-rc1")
+    progress.enter("installing")
+    progress.hold_through_restart(hass)
+    sessions = async_get_sessions(hass)
+    if not reachable:
+        assert sessions.restart_notice(entry.entry_id) is not None
+    entered, release = asyncio.Event(), asyncio.Event()
+    new_snapshot = dataclasses.replace(
+        coordinator.data,
+        health=dataclasses.replace(
+            coordinator.data.health,
+            build="2000",
+            version_code=2159 if same_version else 2160,
+        ),
+    )
+
+    async def delayed_snapshot(session):
+        entered.set()
+        await release.wait()
+        return new_snapshot
+
+    monkeypatch.setattr(coordinator, "_async_read_session", delayed_snapshot)
+    monkeypatch.setattr(
+        coordinator, "_async_probe_address", AsyncMock(return_value=True)
+    )
+    returning = await _connect_panel(
+        *connect_args,
+        HELLO
+        | {
+            "app": {
+                "version": "1.0.0-rc1",
+                "version_code": 2159 if same_version else 2160,
+            }
+        },
+    )
+    assert sessions.restart_notice(entry.entry_id) is None
+    if health_current:
+        coordinator.async_set_updated_data(new_snapshot)
+
+    async def new_bundle(event):
+        blob = await returning.upload(
+            event, _zip({"info.js": b"new-script", "info.css": b"new-style"})
+        )
+        return {"outcome": "applied", "result": {"blob": blob, "build": "2000"}}
+
+    returning.answers["bundle"] = new_bundle
+
+    async def page(event):
+        return {
+            "outcome": "applied",
+            "result": PAGE.replace("<body ", '<body data-build="2000" ').replace(
+                "</body>",
+                '<script src="info.js"></script>'
+                '<link href="info.css" rel="stylesheet"></body>',
+            ),
+        }
+
+    returning.answers["page.info"] = page
+    waiter = asyncio.create_task(
+        progress.async_wait_for_build(
+            hass, SimpleNamespace(descriptor=None, version="1.0.0-rc1"), ("1000", None)
+        )
+    )
+    await asyncio.wait_for(entered.wait(), 3)
+    _, current = await _open_session(admin, entry.entry_id)
+    try:
+        html = await (await browser.get(current)).text()
+        assert 'data-build="2000"' in html
+        resources = re.findall(r'(?:src|href)="((?:info\.js|info\.css))"', html)
+        assert resources == ["info.js", "info.css"]
+        responses = await asyncio.gather(
+            *(browser.get(current + path) for path in resources)
+        )
+        assert [await response.read() for response in responses] == [
+            b"new-script",
+            b"new-style",
+        ]
+        assert sum(e.get("op") == "bundle" for e in returning.events) == 1
+        assert not waiter.done()
+        release.set()
+        waiter.cancel()
+        await asyncio.gather(waiter, return_exceptions=True)
+        assert await (await browser.get(current + "info.js")).read() == b"new-script"
+        assert sum(e.get("op") == "bundle" for e in returning.events) == 1
+    finally:
+        waiter.cancel()
+        release.set()
+        await asyncio.gather(waiter, return_exceptions=True)
+        progress.end()
+
+
+@pytest.mark.parametrize("warm_returning_bundle", [False, True])
+async def test_same_install_reconnect_reuses_its_page_bundle(
+    hass,
+    hass_ws_client,
+    hass_client,
+    hass_client_no_auth,
+    hass_read_only_user,
+    hass_read_only_access_token,
+    session_panels,
+    entry,
+    live,
+    warm_returning_bundle,
+):
+    """Reconnect between the returning HTML and its assets must keep its token."""
+    live.answers["bundle"] = _bundle(
+        live, {"info.js": b"old-js", "info.css": b"old-css"}
+    )
+    admin = await hass_ws_client(hass)
+    _, url = await _open_session(admin, entry.entry_id)
+    browser = await hass_client_no_auth()
+    assert await (await browser.get(url + "info.js")).read() == b"old-js"
+    connect_args = (
+        hass,
+        hass_ws_client,
+        hass_client,
+        session_panels,
+        entry,
+        hass_read_only_user.id,
+        hass_read_only_access_token,
+        HELLO,
+    )
+
+    async def bundle(event):
+        blob = await current.upload(
+            event, _zip({"info.js": b"new-js", "info.css": b"new-css"})
+        )
+        return {"outcome": "applied", "result": {"blob": blob, "build": "2000"}}
+
+    async def page(_event):
+        return {
+            "outcome": "applied",
+            "result": PAGE.replace("<body ", '<body data-build="2000" ').replace(
+                "</body>",
+                '<script src="info.js"></script><link href="info.css"></body>',
+            ),
+        }
+
+    live.task.cancel()
+    await live.ws.close()
+    await hass.async_block_till_done()
+    current = await _connect_panel(*connect_args)
+    current.answers.update({"page.info": page, "bundle": bundle})
+    html = await (await browser.get(url)).text()
+    resources = re.findall(r'(?:src|href)="((?:info\.js|info\.css))"', html)
+    assert resources == ["info.js", "info.css"]
+    if warm_returning_bundle:
+        assert await (await browser.get(url + "info.js")).read() == b"new-js"
+    current.task.cancel()
+    await current.ws.close()
+    await hass.async_block_till_done()
+    current = await _connect_panel(*connect_args)
+    current.answers["bundle"] = bundle
+    # Use the document already returned; no fresh page request can repair the hint.
+    responses = await asyncio.gather(*(browser.get(url + path) for path in resources))
+    assert [await response.read() for response in responses] == [b"new-js", b"new-css"]
+    asks = [
+        event["args"]["build"] for event in current.events if event["op"] == "bundle"
+    ]
+    assert asks == ([] if warm_returning_bundle else ["2000"])
+
+
+async def test_a_retired_sessions_delayed_bundle_cannot_replace_current_page_assets(
+    hass,
+    hass_ws_client,
+    hass_client,
+    hass_client_no_auth,
+    hass_read_only_user,
+    hass_read_only_access_token,
+    session_panels,
+    entry,
+    live,
+    monkeypatch,
+):
+    """An old upload finishing unzip after reconnect cannot restore its cache alias."""
+    import threading
+
+    parsing = asyncio.Event()
+    release = threading.Event()
+    loop = asyncio.get_running_loop()
+    unzip = ui_relay._unzip
+
+    def delayed(data):
+        files = unzip(data)
+        if files and files.get("info.js") == b"old":
+            loop.call_soon_threadsafe(parsing.set)
+            assert release.wait(10)
+        return files
+
+    monkeypatch.setattr(ui_relay, "_unzip", delayed)
+    live.answers["bundle"] = _bundle(live, {"info.js": b"old"})
+    admin = await hass_ws_client(hass)
+    _, url = await _open_session(admin, entry.entry_id)
+    browser = await hass_client_no_auth()
+    old_request = asyncio.create_task(browser.get(url + "info.js"))
+    try:
+        await asyncio.wait_for(parsing.wait(), 3)
+        live.task.cancel()
+        await live.ws.close()
+        returning = await _connect_panel(
+            hass,
+            hass_ws_client,
+            hass_client,
+            session_panels,
+            entry,
+            hass_read_only_user.id,
+            hass_read_only_access_token,
+            HELLO,
+        )
+
+        async def page(_event):
+            return {
+                "outcome": "applied",
+                "result": PAGE.replace("<body ", '<body data-build="2000" '),
+            }
+
+        async def bundle(event):
+            blob = await returning.upload(event, _zip({"info.js": b"new"}))
+            return {"outcome": "applied", "result": {"blob": blob, "build": "2000"}}
+
+        returning.answers.update({"page.info": page, "bundle": bundle})
+        assert (await browser.get(url)).status == 200
+        assert await (await browser.get(url + "info.js")).read() == b"new"
+        release.set()
+        assert (await old_request).status == 404
+        assert await (await browser.get(url + "info.js")).read() == b"new"
+        assert sum(event["op"] == "bundle" for event in returning.events) == 1
+    finally:
+        release.set()
+        await asyncio.gather(old_request, return_exceptions=True)

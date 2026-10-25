@@ -12,6 +12,7 @@
     "github": "GitHub",
     "unreachable": "injoignable",
     "restarting": "Redémarrage ({reason})",
+    "restartingNext": "Ce panneau reviendra automatiquement. Il n’est pas nécessaire d’actualiser la page.",
     "not_loaded": "non chargé",
     "opening": "Ouverture de {panel}…",
     "loadingHint": "Un instant",
@@ -106,7 +107,9 @@
     "progress": "Progression",
     "installProgress": "Progression de l’installation",
     "licenses": "Licences tierces",
-    "doneAnotherHomeAssistant": "Ce panneau a une session ouverte sur un autre Home Assistant. Changez de Home Assistant et connectez-vous sur le panneau pour le connecter ici."
+    "doneAnotherHomeAssistant": "Ce panneau a une session ouverte sur un autre Home Assistant. Changez de Home Assistant et connectez-vous sur le panneau pour le connecter ici.",
+    "reconnectedHeading": "Panel Assistant peut de nouveau joindre ce panneau",
+    "reconnectedBody": "Ce panneau a déjà l'application, rien n'a donc été installé. Home Assistant peut maintenant le mettre à jour via votre réseau."
   },
   "errors": {
     "installErrorGeneric": "Une erreur s’est produite. Gardez le panneau branché et appuyez sur « Réessayer ».",

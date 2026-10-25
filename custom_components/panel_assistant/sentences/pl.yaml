@@ -1,7 +1,13 @@
 language: pl
+# show_page names its page last, so its {page} would take in a following
+# "na panelu ..." too: its named-panel forms come first, the others after.
+# Every other command keeps the form without {panel} first.
 commands:
   show_page:
     sentences:
+      - "(pokaż|pokaz|wyświetl|pokażesz) [mi] (stronę|widok|pulpit|kartę|panel) [o nazwie] {page} na panelu {panel}"
+      - "(przejdź|przejdz|idź) do (strony|widoku|pulpitu|karty|panelu) [o nazwie] {page} na panelu {panel}"
+      - "(przejdź|przejdz|idź|przełącz [się]|przelacz [sie]) na (stronę|widok|pulpit|kartę) [o nazwie] {page} na panelu {panel}"
       - "(pokaż|pokaz|wyświetl|pokażesz) [mi] (stronę|widok|pulpit|kartę|panel) [o nazwie] {page}"
       - "(przejdź|przejdz|idź) do (strony|widoku|pulpitu|karty|panelu) [o nazwie] {page}"
       - "(przejdź|przejdz|idź|przełącz [się]|przelacz [sie]) na (stronę|widok|pulpit|kartę) [o nazwie] {page}"
@@ -9,21 +15,100 @@ commands:
     sentences:
       - "(pokaż|pokaz|wyświetl) [mi] ustawienia (androida|systemu [android]|systemowe)"
       - "(przejdź|przejdz|idź) do ustawień (androida|systemu [android]|systemowych)"
+      - "(pokaż|pokaz|wyświetl) [mi] ustawienia (androida|systemu [android]|systemowe) na panelu {panel}"
+      - "(przejdź|przejdz|idź) do ustawień (androida|systemu [android]|systemowych) na panelu {panel}"
   launcher:
     sentences:
       - "(pokaż|pokaz|wyświetl) [mi] (launcher|launchera) [androida]"
       - "(przejdź|przejdz|idź) do launchera [androida]"
       - "(pokaż|pokaz|wyświetl) [mi] ekran (główny|startowy|domowy) androida"
       - "(przejdź|przejdz|idź) na ekran (główny|startowy|domowy) androida"
+      - "(pokaż|pokaz|wyświetl) [mi] (launcher|launchera) [androida] na panelu {panel}"
+      - "(przejdź|przejdz|idź) do launchera [androida] na panelu {panel}"
+      - "(pokaż|pokaz|wyświetl) [mi] ekran (główny|startowy|domowy) androida na panelu {panel}"
+  recents:
+    sentences:
+      - "(pokaż|pokaz|wyświetl|wyswietl) [mi] (ostatnie|ostatnio używane|ostatnio uzywane|otwarte) aplikacje"
+      - "(pokaż|pokaz|wyświetl|wyswietl) [mi] (listę|liste) (ostatnich|otwartych) aplikacji"
+      - "(przejdź|przejdz|idź|idz) do (ostatnich|otwartych) aplikacji"
+      - "(pokaż|pokaz|wyświetl|wyswietl) [mi] (ostatnie|ostatnio używane|ostatnio uzywane|otwarte) aplikacje na panelu {panel}"
+      - "(pokaż|pokaz|wyświetl|wyswietl) [mi] (listę|liste) (ostatnich|otwartych) aplikacji na panelu {panel}"
+  back:
+    sentences:
+      - "(wstecz|cofnij)"
+      - "(poprzednia|poprzedni) (strona|widok|ekran)"
+      - "(przejdź|przejdz|idź|idz) do (poprzedniej strony|poprzedniego widoku|poprzedniego ekranu)"
+      - "(pokaż|pokaz) (poprzednią|poprzednia) stronę"
+      - "(pokaż|pokaz) poprzedni (widok|ekran)"
+      - "cofnij do (poprzedniej strony|poprzedniego widoku|poprzedniego ekranu)"
+      - "(wstecz|cofnij) na panelu {panel}"
+      - "(poprzednia|poprzedni) (strona|widok|ekran) na panelu {panel}"
+      - "(przejdź|przejdz|idź|idz) do (poprzedniej strony|poprzedniego widoku|poprzedniego ekranu) na panelu {panel}"
+  screen_wake:
+    sentences:
+      - "(obudź|obudz|wybudź|wybudz) [się|sie]"
+      - "(obudź|obudz|wybudź|wybudz) (ekran|wyświetlacz|wyswietlacz|panel)"
+      - "(obudź|obudz|wybudź|wybudz) (ekran|wyświetlacz|wyswietlacz) na panelu {panel}"
+      - "(obudź|obudz|wybudź|wybudz) panel {panel}"
+  screen_sleep:
+    sentences:
+      - "(idź|idz) spać"
+      - "(śpij|spij|zaśnij|zasnij)"
+      - "(uśpij|uspij) (ekran|wyświetlacz|wyswietlacz|panel)"
+      - "(przejdź|przejdz) w tryb (uśpienia|uspienia)"
+      - "(uśpij|uspij) (ekran|wyświetlacz|wyswietlacz) na panelu {panel}"
+      - "(uśpij|uspij) panel {panel}"
+  screen_brighter:
+    sentences:
+      - "(rozjaśnij|rozjasnij) [mi] (ekran|wyświetlacz|wyswietlacz)"
+      - "[(zrób|zrob)] (ekran|wyświetlacz|wyswietlacz) (jaśniejszy|jasniejszy)"
+      - "(zwiększ|zwieksz|podkręć|podkrec) jasność (ekranu|wyświetlacza|wyswietlacza)"
+      - "(rozjaśnij|rozjasnij) (ekran|wyświetlacz|wyswietlacz) na panelu {panel}"
+      - "(zwiększ|zwieksz|podkręć|podkrec) jasność (ekranu|wyświetlacza|wyswietlacza) na panelu {panel}"
+  screen_dimmer:
+    sentences:
+      - "(przyciemnij|ściemnij|sciemnij) [mi] (ekran|wyświetlacz|wyswietlacz)"
+      - "[(zrób|zrob)] (ekran|wyświetlacz|wyswietlacz) ciemniejszy"
+      - "(zmniejsz|obniż|obniz) jasność (ekranu|wyświetlacza|wyswietlacza)"
+      - "(przyciemnij|ściemnij|sciemnij) (ekran|wyświetlacz|wyswietlacz) na panelu {panel}"
+      - "(zmniejsz|obniż|obniz) jasność (ekranu|wyświetlacza|wyswietlacza) na panelu {panel}"
+  volume_up:
+    sentences:
+      - "[(proszę|prosze)] [(zrób|zrob)] [(trochę|troche|troszkę|troszke)] (głośniej|glosniej) [(proszę|prosze)]"
+      - "[jest] (za|zbyt) cicho"
+      - "[(zrób|zrob)] (głośniej|glosniej) na panelu {panel}"
+  volume_down:
+    sentences:
+      - "[(proszę|prosze)] [(zrób|zrob)] [(trochę|troche|troszkę|troszke)] ciszej [(proszę|prosze)]"
+      - "[jest] (za|zbyt) (głośno|glosno)"
+      - "[(zrób|zrob)] ciszej na panelu {panel}"
 home_pages: [główna, główną, głównej, glowna, główny, głównego, glowny, startowa, startową, startowej, startowy, startowego, domowa, domową, domowej, domowy, domowego, start]
+back_pages: [poprzednia, poprzednią, poprzedniej, poprzedni, poprzedniego, ostatnia, ostatnią, ostatniej]
+panel_words: [panel]
 screen_names: [ekran, ekranu]
 responses:
   show_page: "Pokazuję stronę {page}"
   android_settings: "Otwieram ustawienia Androida"
   launcher: "Otwieram launcher"
+  recents: "Pokazuję ostatnie aplikacje"
+  back: "Wracam"
+  back_none: "Panel nie może się stąd cofnąć"
+  screen_wake: "Budzę ekran"
+  screen_sleep: "Usypiam ekran"
+  screen_brighter: "Jasność ekranu {brightness} procent"
+  screen_dimmer: "Jasność ekranu {brightness} procent"
+  screen_brightest: "Ekran ma już pełną jasność"
+  screen_dimmest: "Ekran jest już maksymalnie przyciemniony"
+  screen_dark: "Ekran jest wyłączony"
+  volume_up: "Głośność {volume} procent"
+  volume_down: "Głośność {volume} procent"
+  volume_max: "Głośność jest już na maksimum"
+  volume_min: "Głośność jest już na minimum"
   page_unknown: "Ten panel nie ma strony o nazwie {page}"
-  not_a_panel: "Poproś o to panel"
+  panel_unknown: "Żaden panel nie nazywa się {panel}"
+  panel_ambiguous: "Więcej niż jeden panel nazywa się {panel}"
+  not_a_panel: "Poproś o to panel albo powiedz, który panel"
   panel_unavailable: "Panel nie jest połączony"
   panel_refused: "Panel nie mógł tego zrobić"
-  panel_locked: "Panel jest zablokowany na pulpicie i nie otworzy ustawień ani launchera"
+  panel_locked: "Panel jest zablokowany na pulpicie"
   needs_update: "Zaktualizuj aplikację panelu, aby użyć tego polecenia"

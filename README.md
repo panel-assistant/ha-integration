@@ -48,7 +48,7 @@ That button opens this repository in the HACS on your own Home Assistant, ready 
 
 [![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=panel_assistant)
 
-HACS offers the latest release. To try new versions before they are released, turn on **Show beta versions** for Panel Assistant in HACS.
+HACS offers the latest release. To try new versions before they are released, open **Settings**, **Devices and services**, **HACS**, choose the **Panel Assistant** device, and turn on its **Pre-release** switch (it is under **Diagnostic** and disabled until you enable it).
 
 ## Add a panel
 
@@ -56,13 +56,13 @@ The hard part of any panel is the first hour. Panel Assistant does that hour for
 
 **Over the network.** [Enable ADB on your panel](https://panel-assistant.io/go/panel-access), add the integration and enter the panel's address. Panel Assistant checks the panel, offers the ha-paneld versions it can install, and connects the panel when its setup is done. A panel that already runs ha-paneld is connected rather than reinstalled.
 
-**Over USB.** Open **Panel Assistant** in the Home Assistant sidebar, choose a version and follow the wizard. Use Chrome or Edge on a computer, and plug the panel into that computer, not into the Home Assistant server. Home Assistant itself does not need a certificate. Either way you approve one prompt on the panel and watch it through.
+**Over USB.** Choose **Add panel** in the **Panel Assistant** sidebar page (or add the integration), pick **Install using USB on this computer**, then **Open the USB installer** and follow the wizard. Use Chrome or Edge on a computer, and plug the panel into that computer, not into the Home Assistant server. Home Assistant itself does not need a certificate. Either way you approve one prompt on the panel and watch it through.
 
 Once a panel is running, point it at the dashboard you want on the wall. The four steps from a bare panel to your dashboard are on the [Getting started](https://panel-assistant.io/start/getting-started/) page, and [Choose a panel](https://panel-assistant.io/install/supported-panels/) says what to expect from each model before you buy one. If an installation stops, see [Updates and recovery](https://panel-assistant.io/manage/updates-and-recovery/).
 
 ## New, and moving fast
 
-Panel Assistant is still in 0.x: the direction is settled, and the internals are still changing. A panel that is already installed is updated from its update entity in Home Assistant. Getting every Android wall panel worth mounting onto the supported list takes real hardware in real houses, which is where you come in.
+Panel Assistant 1.0 is a release candidate: the direction is settled, and the internals are still changing. A panel that is already installed is updated from its update entity in Home Assistant. Getting every Android wall panel worth mounting onto the supported list takes real hardware in real houses, which is where you come in.
 
 - **Star this repository.** The simplest way to tell other Home Assistant users this exists.
 - **Report your panel.** Model name and what worked, in the [issues](https://github.com/panel-assistant/ha-integration/issues).

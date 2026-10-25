@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { LEGACY_PACKAGE_ID, PACKAGE_ID } from '../src/app-identity.mjs';
-import { buildTagPackageId, buildTagVersionCode, descriptorIdentityValid, githubApkName, githubApkNameTag,
-  githubApkNames, githubDescriptorName, isBuildTag, isBuildVersionName, isGithubTag,
+import { buildTagPackageId, buildTagVersionCode, descriptorIdentityValid, githubApkName,
+  githubApkNames, isBuildTag, isBuildVersionName, isGithubTag,
   isRcTag, isStableTag } from '../src/release-identity.mjs';
 
 // The same file the integration's own suite reads, so a rule that moves on one
@@ -51,9 +51,6 @@ test("the shared corpus names this app's APK assets, and the old app's only as a
     // From app 0.9.10 the app's APK has no `.apk` suffix; only this installer
     // and the integration know its name.
     assert.deepEqual(githubApkNames(tag), [successor, successorUnlisted]);
-    assert.equal(githubApkNameTag(successor), tag);
-    // An old-app asset names no release this installer can drive.
-    assert.equal(githubApkNameTag(legacy), null);
     const version = tag.slice(1);
     for (const apkName of [successor, successorUnlisted]) {
       assert.equal(descriptorIdentityValid({ releaseTag: tag, versionName: version, apkName }, tag), true);
@@ -61,16 +58,6 @@ test("the shared corpus names this app's APK assets, and the old app's only as a
     for (const apkName of [legacy, 'ha-paneld.apk']) {
       assert.equal(descriptorIdentityValid({ releaseTag: tag, versionName: version, apkName }, tag), false);
     }
-  }
-  for (const name of ['ha-paneld-manual-setup-required.apk', 'panel-assistant-v1.2-manual-setup-required.apk',
-    'other-v1.2.3-manual-setup-required.apk', 'ha-paneld-v1.2.3.apk', '', undefined]) {
-    assert.equal(githubApkNameTag(name), null, String(name));
-  }
-});
-
-test('the shared corpus names the install descriptor', () => {
-  for (const { tag, name } of corpus.descriptorNames) {
-    assert.equal(githubDescriptorName(tag), name);
   }
 });
 

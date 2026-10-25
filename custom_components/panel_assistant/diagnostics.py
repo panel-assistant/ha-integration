@@ -7,10 +7,11 @@ from typing import Any
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 
 from . import HaPaneldConfigEntry
 from .build import INTEGRATION_BUILD
-from .const import CONF_CUTOVER, CONF_TRANSPORT_USER_ID
+from .const import CONF_CUTOVER, CONF_TRANSPORT_USER_ID, DOMAIN
 from .coordinator import PanelSnapshot
 from .repairs_restart import restart_pending
 from .transport_sessions import session_diagnostics
@@ -37,8 +38,24 @@ async def async_get_config_entry_diagnostics(
     transport = session_diagnostics(hass, entry.entry_id)
     return {
         **_diagnostics(entry),
+        "device": _device(hass, entry),
         "restart_pending": restart_pending(hass),
         "transport": transport,
+    }
+
+
+def _device(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> dict[str, Any] | None:
+    """Name the panel model even when its status read is failing; the card keeps it."""
+    device = dr.async_get(hass).async_get_device_by_identifier(
+        (DOMAIN, entry.entry_id), entry.entry_id
+    )
+    if device is None:
+        return None
+    return {
+        "manufacturer": device.manufacturer,
+        "model": device.model,
+        "hw_version": device.hw_version,
+        "sw_version": device.sw_version,
     }
 
 

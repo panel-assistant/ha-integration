@@ -79,7 +79,8 @@ async def test_learn_more_url_routes_on_what_the_panel_reported(
 
 
 @pytest.mark.parametrize(
-    "language", ["en", "de", "es", "fr", "it", "nl", "pl", "uk", "zh-Hans"]
+    "language",
+    ["en", "cs", "de", "es", "fr", "it", "nl", "pl", "pt-BR", "uk", "zh-Hans"],
 )
 async def test_the_issue_renders_localized_guidance_for_the_named_panel(hass, language):
     from homeassistant.helpers.translation import async_get_translations
@@ -100,4 +101,4 @@ async def test_the_issue_renders_localized_guidance_for_the_named_panel(hass, la
     )
     assert "Study display" in title
     assert "Study display" in description
-    assert issue.translation_placeholders == {"panel": "Study display"}
+    assert {"panel": "Study display"}.items() <= issue.translation_placeholders.items()

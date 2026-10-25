@@ -1,9 +1,7 @@
-"""The panel's own part of an update: fetching and installing the build itself.
+"""What an update leaves to the panel after Home Assistant sends the build.
 
-A panel with a privileged installer downloads and verifies the release Home
-Assistant admitted; Home Assistant only asks it to start. After any update Home
-Assistant did not send over ADB, an already-authorized ADB route restores the
-runtime permissions Android dropped with the old package.
+After any update Home Assistant did not send over ADB, an already-authorized ADB
+route restores the runtime permissions Android dropped with the old package.
 """
 
 from __future__ import annotations
@@ -28,19 +26,13 @@ from .adb_protocol import (
 from .app_identity import reports_package
 from .client import (
     CannotConnectError,
-    HaPaneldClient,
     HaPaneldError,
-    InvalidResponseError,
-    UpdateApprovalRequiredError,
-    UpdateBusyError,
 )
 from .coordinator import HaPaneldDataUpdateCoordinator
 from .install_adb import async_repair_installed_app_permissions
 from .install_network import InstallNetworkError
 from .release import ReleaseArtifact
-from .status import PanelCachedUpdate
 from .update_errors import UPDATE_LOGGER as _LOGGER
-from .update_errors import _update_error
 
 # How long the permission repair after an update waits for the panel's ADB to
 # answer again: twelve tries, fifteen seconds apart.
@@ -57,37 +49,6 @@ async def _retry_unstarted_install(start: Callable[[], Awaitable[None]]) -> None
             raise
         await asyncio.sleep(1)
         await start()
-
-
-async def async_request_panel_download(
-    client: HaPaneldClient,
-    offer: PanelCachedUpdate,
-    artifact: ReleaseArtifact | None,
-    admit: Callable[[ReleaseArtifact], Awaitable[None]],
-) -> None:
-    """Ask the panel to fetch only the host-admitted release."""
-    if artifact is None or artifact.tag != offer.tag:
-        raise _update_error("update_unavailable", "The requested update is unavailable")
-
-    async def start() -> None:
-        await admit(artifact)
-        await client.async_start_panel_update(offer.tag)
-
-    try:
-        await _retry_unstarted_install(start)
-    except UpdateBusyError as err:
-        raise _update_error(
-            "update_busy", "The panel is busy with another operation"
-        ) from err
-    except UpdateApprovalRequiredError as err:
-        raise _update_error(
-            "update_approval_required",
-            "Approve this update on the panel, then try again",
-        ) from err
-    except (CannotConnectError, InvalidResponseError) as err:
-        raise _update_error(
-            "update_not_accepted", "The panel did not accept the update request"
-        ) from err
 
 
 async def async_repair_update_permissions(

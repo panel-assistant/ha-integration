@@ -2,15 +2,14 @@
 
 The config flow's discovery steps delegate here: the app's own announcement
 (`_ha-paneld._tcp`), a vendor's announcement (profile `vendor_mdns`), Android's
-network ADB announcement, and DHCP, which is the cue to raise the panels other
-integrations already know.
+network ADB announcement, and the panels other integrations already know.
 
-Those known panels are also offered in the add-panel form so nobody has to look
-up an address, and each is raised as a discovery so it appears under Discovered
-before anyone opens Add integration. A device is a definite target when its
-network ADB port answers, because that is what the installer needs. Otherwise it
-is listed only when its integration runs on nothing but Android screens; a relay
-with ADB closed is left out, and a phone never appears.
+Those known panels are offered in the add-panel form so nobody has to look up an
+address, and each is raised as a discovery under Discovered when Panel Assistant
+starts and whenever someone opens Add integration. A device is a definite target
+when its network ADB port answers, because that is what the installer needs.
+Otherwise it is listed only when its integration runs on nothing but Android
+screens; a relay with ADB closed is left out, and a phone never appears.
 """
 
 from __future__ import annotations
@@ -20,7 +19,6 @@ import contextlib
 import functools
 import ipaddress
 import logging
-import time
 import unicodedata
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -44,7 +42,6 @@ from homeassistant.helpers.selector import (
     SelectSelectorConfig,
     SelectSelectorMode,
 )
-from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from .adb_protocol import ADB_PORT
@@ -90,9 +87,6 @@ VENDOR_SERVICE_TYPES: dict[str, str] = {"_shelly._tcp.local.": "Shelly Wall Disp
 # An ignored card keeps its address, because the same device can be raised by
 # the registries under one identity and by its ADB announcement under another.
 _IGNORED_ADDRESS = "ignored_address"
-# A candidate at the same address is raised at most this often, so a device that
-# is not a panel (ADB closed) is probed once an hour, not on every dhcp event.
-_REOFFER_SECONDS = 3600
 # Set in a card's own title placeholders the moment someone presses its button:
 # the flow is theirs from then on, though Core keeps reporting the card's step
 # until the press has been handled. The card's title shows only {name}.
@@ -102,7 +96,6 @@ CONFIRMED = "confirmed"
 # CLOSING instead, and the flow ends itself once that step returns.
 RUNNING = "running"
 CLOSING = "closing"
-_DATA_OFFERED = "migration_offered"
 _DATA_DISCOVERY_NAMES = "discovery_names"
 _FRIENDLY_NAME_MAX_LENGTH = 64
 
@@ -405,31 +398,15 @@ async def async_find_migration_targets(hass: HomeAssistant) -> list[MigrationTar
 
 
 @callback
-def async_offer_migration_targets(
-    hass: HomeAssistant, *, recheck: bool = False
-) -> None:
+def async_offer_migration_targets(hass: HomeAssistant) -> None:
     """Raise each known, unconfigured candidate as a discovery.
 
     Only registries are read here. Each discovery flow probes its candidate
-    after its unique id has turned away one that is ignored or already offered.
-    One that was rejected is raised again after an hour, or at once from a new
-    address, so turning ADB on later still brings it under Discovered.
-    `recheck` skips that wait while someone is working in Home Assistant.
+    after its unique id has turned away one that is ignored or already offered,
+    so a panel whose network ADB was turned on since the last search is offered
+    on the next.
     """
-    offered: dict[str, tuple[str, float]] = hass.data.setdefault(DOMAIN, {}).setdefault(
-        _DATA_OFFERED, {}
-    )
-    now = time.monotonic()
     for candidate in _candidates(hass).values():
-        last = offered.get(candidate["key"])
-        if (
-            not recheck
-            and last is not None
-            and last[0] == candidate["address"]
-            and now - last[1] < _REOFFER_SECONDS
-        ):
-            continue
-        offered[candidate["key"]] = (candidate["address"], now)
         discovery_flow.async_create_flow(
             hass,
             DOMAIN,
@@ -483,19 +460,6 @@ async def async_zeroconf(
     return await _async_discovered_app(
         flow, discovery_info, discovery_id, discovery_info.properties.get("name")
     )
-
-
-async def async_dhcp(
-    flow: HaPaneldConfigFlow, discovery_info: DhcpServiceInfo
-) -> ConfigFlowResult:
-    """Any device on the network is the cue to offer panels other apps know.
-
-    Without an entry nothing else runs this integration's code, and Core
-    matches dhcp hostnames by their first character, hence the manifest's
-    one matcher per character.
-    """
-    async_offer_migration_targets(flow.hass)
-    return flow.async_abort(reason="not_panel")
 
 
 async def async_integration_discovery(

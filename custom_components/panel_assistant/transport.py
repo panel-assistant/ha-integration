@@ -50,6 +50,7 @@ from .const import (
     CONF_TRANSPORT_USER_ID,
     DOMAIN,
     INTEGRATION_VERSION,
+    help_url,
 )
 from .const import (
     PROTOCOL_MAX as PROTOCOL_MAX,
@@ -58,6 +59,7 @@ from .const import (
     PROTOCOL_MIN as PROTOCOL_MIN,
 )
 from .contract import catalogue_entry, catalogue_entry_for_channel
+from .device import panel_display_name
 from .ha_url import DATA_INSTANCE_ID, async_connection_urls
 from .lifecycle import DATA_LIFECYCLE
 from .native import shown_elsewhere
@@ -147,7 +149,9 @@ def async_remove_unsupported_channels(
         item = registry.async_get(entity_id)
         if item is None or item.config_entry_id != entry.entry_id:
             continue
-        if channel in {"reboot", "reload"}:
+        # Their routes come and go (a root probe that timed out, an accessibility
+        # service not yet bound after an update), so the entity is kept, unavailable.
+        if channel in {"reboot", "reload", "back"}:
             continue
         registry.async_remove(entity_id)
         removed.add(unique_id)
@@ -230,7 +234,7 @@ def async_raise_merged_identity_issue(
     hass: HomeAssistant, did: str, entries: list[ConfigEntry]
 ) -> None:
     """Tell the user which panel entries report one device identity."""
-    panels = ", ".join(sorted(entry.title for entry in entries))
+    panels = ", ".join(sorted(panel_display_name(hass, entry) for entry in entries))
     ir.async_create_issue(
         hass,
         DOMAIN,
@@ -239,7 +243,11 @@ def async_raise_merged_identity_issue(
         is_persistent=False,
         severity=ir.IssueSeverity.ERROR,
         translation_key=ISSUE_MERGED_PANEL_IDENTITY,
-        translation_placeholders={"panels": panels},
+        learn_more_url=help_url("repair", issue=ISSUE_MERGED_PANEL_IDENTITY),
+        translation_placeholders={
+            "panels": panels,
+            "integration_url": "/config/integrations/integration/panel_assistant",
+        },
     )
 
 
@@ -488,6 +496,8 @@ def _accept_hello(
         # Unknown descriptors are accepted too, but render nothing.
         "channels": {"accepted": len(descriptors), "unknown": sorted(unknown)},
     }
+    if (count := hass.data[DOMAIN][DATA_LIFECYCLE].entity_count()) is not None:
+        result["expected_entity_count"] = count
     if CAPABILITY_VOICE_STREAM_SESSION in capabilities:
         assert voice_stream is not None and stream_client_id is not None
         session.voice_stream_client_id = stream_client_id

@@ -20,6 +20,7 @@ import secrets
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from html.parser import HTMLParser
 from typing import Any, Final
 
 import voluptuous as vol
@@ -53,6 +54,34 @@ from .ui_relay import (
 DATA_EMBED: Final = "embed"
 EMBED_PREFIX: Final = "/api/panel_assistant/embed"
 
+
+class _PageShell(HTMLParser):
+    """Read the shell's build and whether its requested tab is visible."""
+
+    build: str | None = None
+    has_nav = False
+    active_tab = False
+    _nav_depth = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attributes = dict(attrs)
+        classes = (attributes.get("class") or "").split()
+        if tag == "body":
+            self.build = attributes.get("data-build") or None
+        if tag == "div":
+            if self._nav_depth:
+                self._nav_depth += 1
+            elif "nav" in classes:
+                self.has_nav = True
+                self._nav_depth = 1
+        if self._nav_depth and tag == "a" and "active" in classes:
+            self.active_tab = True
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "div" and self._nav_depth:
+            self._nav_depth -= 1
+
+
 REASON_ENTRY_UNLOADED: Final = "entry_unloaded"
 REASON_USER_REMOVED: Final = "user_removed"
 
@@ -85,8 +114,17 @@ PAGES: Final = {
 }
 # The bundle's files outside ``assets/``.
 BUNDLE_FILES: Final = frozenset({"info.js", "info.css", "icon.svg", "favicon.svg"})
+# Every document here comes from a panel's session, which a non-administrator
+# account may hold, so it runs with an opaque origin and never reaches Home
+# Assistant's frontend. The header carries the sandbox for a top-level visit and
+# for any document the frame navigates to; the sidebar's frame carries the same
+# tokens (FRAME_SANDBOX). Each token is one the panel's pages use: dialogs,
+# downloads, new-tab links and forms.
 SECURITY_HEADERS: Final = {
-    "Content-Security-Policy": "frame-ancestors 'self'",
+    "Content-Security-Policy": (
+        "frame-ancestors 'self'; sandbox allow-scripts allow-forms allow-downloads "
+        "allow-modals allow-popups allow-popups-to-escape-sandbox"
+    ),
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "SAMEORIGIN",
     "Referrer-Policy": "no-referrer",
@@ -312,7 +350,7 @@ def ws_embed_panels(
     """List the panels attached to Home Assistant, by display name."""
     entries = sorted(
         hass.config_entries.async_entries(DOMAIN),
-        key=lambda entry: (entry.title.casefold(), entry.entry_id),
+        key=lambda entry: (panel_display_name(hass, entry).casefold(), entry.entry_id),
     )
     connection.send_result(
         msg["id"],
@@ -400,13 +438,35 @@ def _respond(status: int, **fields: Any) -> web.Response:
 RETRY_SECONDS: Final = 3
 
 
-def _retry() -> web.Response:
+def _retry(session: EmbedSession) -> web.Response:
     return _respond(
         503,
-        body=f'<!doctype html><meta http-equiv="refresh" content="{RETRY_SECONDS}">',
+        body=(
+            '<!doctype html><meta name="panel-assistant-wait" content="true">'
+            # The sidebar cannot read a sandboxed document, so this one says so.
+            # It may arrive before or after this document's load (WebKit).
+            '<script>parent.postMessage({type:"panel-assistant-wait"},"*")</script>'
+            f'<meta name="color-scheme" content="{session.theme}">'
+            f'<meta http-equiv="refresh" content="{RETRY_SECONDS}">'
+        ),
         content_type="text/html",
         headers={"Retry-After": str(RETRY_SECONDS)},
     )
+
+
+# Every served page says, from its own load, that it is a page to show. The
+# sidebar shows the frame on that message, never on the frame's load event:
+# WebKit delivers the retry document's message after that document's load, so
+# a load cannot tell a page from a retry document (Safari, 2026-10-24).
+READY_SCRIPT: Final = (
+    b'<script>addEventListener("load",function(){'
+    b'parent.postMessage({type:"panel-assistant-ready"},"*")})</script>'
+)
+
+
+def _page_body(page: bytes, prefix: str) -> bytes:
+    """The page as the frame gets it: inside the embed view, and announcing itself."""
+    return _rebase(page, prefix) + READY_SCRIPT
 
 
 def _rebase(page: bytes, prefix: str) -> bytes:
@@ -430,6 +490,9 @@ class EmbedView(HomeAssistantView):
     name = "api:panel_assistant:embed"
     # The token is the credential, checked on every request below.
     requires_auth = False
+    # A sandboxed page's requests come from origin "null", so its downloads and
+    # uploads are cross-origin; the token, not the origin, admits them.
+    cors_allowed = True
 
     def __init__(self, hass: HomeAssistant) -> None:
         """Initialize the view."""
@@ -496,7 +559,7 @@ class EmbedView(HomeAssistantView):
     ) -> web.Response:
         panel = live_ui_session(self.hass, entry.entry_id)
         if panel is None:
-            return _retry()
+            return _retry(session)
         args: dict[str, Any] = {"embed": session.embed_header}
         for key in ("lang", "ha_lang"):
             if (value := request.query.get(key)) and _valid_language(value):
@@ -512,14 +575,36 @@ class EmbedView(HomeAssistantView):
                 {"user": session.user_id, "connection": session.relay_id},
             )
         except HomeAssistantError:
-            return _retry()
+            return _retry(session)
         if data is None and isinstance(outcome.result, str):
             data = outcome.result.encode()
+        if live_ui_session(self.hass, entry.entry_id) is not panel:
+            return _retry(session)
+        if name != "info" and outcome.status == 404:
+            return _respond(
+                302, headers={"Location": f"{EMBED_PREFIX}/{session.token}/"}
+            )
         if data is None or (outcome.outcome != OUTCOME_APPLIED and not outcome.status):
             return _respond(502)
+        if (outcome.status or 200) == 200:
+            shell = _PageShell()
+            shell.feed(data.decode("utf-8", errors="replace"))
+            if shell.build is not None:
+                async_get_bundles(self.hass).observe_build(entry, panel, shell.build)
+            if name != "info" and shell.has_nav and not shell.active_tab:
+                return _respond(
+                    302, headers={"Location": f"{EMBED_PREFIX}/{session.token}/"}
+                )
+            if session.connection is not None and session.subscription_id is not None:
+                session.connection.send_message(
+                    event_message(
+                        session.subscription_id,
+                        {"kind": "page", "page": "" if name == "info" else name},
+                    )
+                )
         return _respond(
             outcome.status or 200,
-            body=_rebase(data, f"{EMBED_PREFIX}/{session.token}"),
+            body=_page_body(data, f"{EMBED_PREFIX}/{session.token}"),
             content_type="text/html",
             charset="utf-8",
         )

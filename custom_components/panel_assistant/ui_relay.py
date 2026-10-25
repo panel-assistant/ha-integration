@@ -65,6 +65,7 @@ from .transport_sessions import (
     async_deliver,
     async_get_sessions,
 )
+from .wake_words import OP_RELAYED_IMPORT, async_get_shared_wake_words
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -84,8 +85,8 @@ ANSWER_GRACE_SECONDS: Final = 5.0
 # A bundle fetch that failed is not asked again for this long, so a frame's many
 # file requests cannot each start a fresh upload from a panel that is too slow.
 BUNDLE_RETRY_SECONDS: Final = 30.0
-# The panel's approval window: a relayed request someone is approving on the
-# panel's screen is waited for this long after the panel says so.
+# The panel's approval window. The session also retains the request's response
+# budget for expiry polling, approved work and final delivery.
 APPROVAL_SECONDS: Final = 600.0
 # The most a browser may upload for a panel: the panel's own app upload limit.
 MAX_BROWSER_UPLOAD: Final = 256 * 1024 * 1024
@@ -394,8 +395,8 @@ class _Subscription:
         self.session.ui_relays.pop(self.panel_id, None)
         return True
 
-    def _unsubscribe(self) -> None:
-        if not self._leave() or not self.applied:
+    def _unsubscribe(self, *, pending: bool = False) -> None:
+        if not self._leave() or not (self.applied or pending):
             return
         session = self.session
         if async_get_sessions(self.hass).get(session.entry_id) is not session:
@@ -478,6 +479,19 @@ async def _async_relay(
         deadline_ms,
         lent=() if sent is None else (sent,),
     )
+    if (
+        request["op"] == OP_RELAYED_IMPORT
+        and outcome.outcome == OUTCOME_APPLIED
+        and "model" in args
+        and "download" not in args
+    ):
+        # A wake word imported here goes to every panel (wake_words.py).
+        hass.async_create_background_task(
+            async_get_shared_wake_words(hass).async_record(
+                entry_id, args, outcome.result
+            ),
+            f"{DOMAIN} share a wake word",
+        )
     frame = _frame(command_id, outcome)
     if data is not None:
         assert isinstance(outcome.result, dict)
@@ -541,7 +555,14 @@ async def _async_subscribe(
             request["deadline_ms"],
             command_id,
         )
-    except HomeAssistantError:
+    except (HomeAssistantError, asyncio.CancelledError) as err:
+        # Subscribe and unsubscribe share one FIFO session. The command ID is
+        # the native handle, even when its answer misses our bounded wait.
+        # Abandon it now rather than retaining cleanup in the bounded late map.
+        subscription._unsubscribe(pending=True)
+        if isinstance(err, asyncio.CancelledError):
+            subscription.browser_ended()
+            raise
         outcome = CommandOutcome(OUTCOME_FAILED, OUTCOME_FAILED)
     subscription.answered(_frame(request["command_id"], outcome))
 
@@ -659,17 +680,24 @@ def _unzip(data: bytes) -> dict[str, bytes] | None:
 
 
 class BundleStore:
-    """The page bundles of the builds loaded panels report, in memory."""
+    """The page bundles of the builds loaded panels report, in memory.
+
+    Keyed by entry and build: a bundle comes from one panel's session and serves
+    only that panel, so a session naming another panel's build cannot replace it.
+    """
 
     def __init__(self, hass: HomeAssistant) -> None:
         self._hass = hass
-        self._bundles: dict[str, dict[str, bytes]] = {}
-        self._fetching: dict[str, asyncio.Task[dict[str, bytes] | None]] = {}
-        # A panel that answered another build than its entry reports (it was
-        # updated since the last poll), by entry: (reported, answered).
-        self._answered: dict[str, tuple[str, str]] = {}
+        self._bundles: dict[tuple[str, str], dict[str, bytes]] = {}
+        self._fetching: dict[
+            tuple[str, str, str], asyncio.Task[dict[str, bytes] | None]
+        ] = {}
+        # A page or bundle can name a newer install before health catches up.
+        # Keep that page's token across socket reconnects; only a live response
+        # may replace it, so delayed answers from retired sessions cannot win.
+        self._answered: dict[str, tuple[str | None, str]] = {}
         # When a fetch of a build last failed (monotonic seconds).
-        self._failed: dict[str, float] = {}
+        self._failed: dict[tuple[str, str], float] = {}
 
     def _build(self, entry: ConfigEntry) -> str | None:
         """Return the build whose bundle serves the entry's pages now."""
@@ -683,14 +711,21 @@ class BundleStore:
         del self._answered[entry.entry_id]
         return reported
 
+    def observe_build(
+        self, entry: ConfigEntry, session: PanelSession, build: str
+    ) -> None:
+        """Use a live page's install token before its first script or style GET."""
+        if live_ui_session(self._hass, entry.entry_id) is session:
+            self._answered[entry.entry_id] = (reported_build(entry), build)
+
     def _prune(self) -> None:
         kept = {
-            build
+            (entry.entry_id, build)
             for entry in self._hass.config_entries.async_loaded_entries(DOMAIN)
             if (build := self._build(entry)) is not None
         }
-        for build in set(self._bundles) - kept:
-            del self._bundles[build]
+        for key in set(self._bundles) - kept:
+            del self._bundles[key]
 
     async def async_file(
         self, entry: ConfigEntry, session: PanelSession, path: str
@@ -701,10 +736,11 @@ class BundleStore:
         if reported is None or build is None:
             return None
         self._prune()
-        files = self._bundles.get(build)
+        files = self._bundles.get((entry.entry_id, build))
         if files is None:
-            fetch = self._fetching.get(reported)
-            failed = self._failed.get(reported)
+            key = (entry.entry_id, build, session.token)
+            fetch = self._fetching.get(key)
+            failed = self._failed.get((entry.entry_id, build))
             if (
                 fetch is None
                 and failed is not None
@@ -712,11 +748,11 @@ class BundleStore:
             ):
                 return None
             if fetch is None:
-                fetch = self._fetching[reported] = self._hass.async_create_task(
-                    self._fetch(entry.entry_id, session, reported),
+                fetch = self._fetching[key] = self._hass.async_create_task(
+                    self._fetch(entry.entry_id, session, build),
                     f"{DOMAIN} fetch page bundle",
                 )
-                fetch.add_done_callback(lambda _: self._fetching.pop(reported, None))
+                fetch.add_done_callback(lambda _: self._fetching.pop(key, None))
             files = await asyncio.shield(fetch)
         return None if files is None else files.get(path)
 
@@ -724,10 +760,12 @@ class BundleStore:
         self, entry_id: str, session: PanelSession, build: str
     ) -> dict[str, bytes] | None:
         files = await self._fetch_once(entry_id, session, build)
+        if live_ui_session(self._hass, entry_id) is not session:
+            return None
         if files is None:
-            self._failed[build] = time.monotonic()
+            self._failed[(entry_id, build)] = time.monotonic()
         else:
-            self._failed.pop(build, None)
+            self._failed.pop((entry_id, build), None)
         return files
 
     async def _fetch_once(
@@ -755,10 +793,15 @@ class BundleStore:
         ):
             return None
         files = await self._hass.async_add_executor_job(_unzip, data)
-        if files is not None:
-            self._bundles[answered] = files
-            if answered != build:
-                self._answered[entry_id] = (build, answered)
+        if live_ui_session(self._hass, entry_id) is not session:
+            return None
+        if (
+            files is not None
+            and (entry := self._hass.config_entries.async_get_entry(entry_id))
+            is not None
+        ):
+            self._bundles[(entry_id, answered)] = files
+            self.observe_build(entry, session, answered)
             self._prune()
         return files
 
