@@ -85,8 +85,8 @@ ANSWER_GRACE_SECONDS: Final = 5.0
 # A bundle fetch that failed is not asked again for this long, so a frame's many
 # file requests cannot each start a fresh upload from a panel that is too slow.
 BUNDLE_RETRY_SECONDS: Final = 30.0
-# The panel's approval window: a relayed request someone is approving on the
-# panel's screen is waited for this long after the panel says so.
+# The panel's approval window. The session also retains the request's response
+# budget for expiry polling, approved work and final delivery.
 APPROVAL_SECONDS: Final = 600.0
 # The most a browser may upload for a panel: the panel's own app upload limit.
 MAX_BROWSER_UPLOAD: Final = 256 * 1024 * 1024

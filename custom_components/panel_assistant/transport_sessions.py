@@ -588,10 +588,11 @@ async def async_deliver(
 ) -> CommandOutcome:
     """Send one event on a session once and wait for its final outcome.
 
-    With ``approval_seconds``, an interim pending_approval extends the wait to
-    that long after it arrived, for a request a person is approving on the
-    panel's screen. ``on_settled`` runs if the wait ends first and the command
-    is kept: when its final outcome arrives late, or never can.
+    With ``approval_seconds``, an interim pending_approval allows that approval
+    window plus the original response budget after it arrived. The panel may
+    poll expiry or start work just before expiry, then deliver its final answer.
+    ``on_settled`` runs if the wait ends first and the command is kept: when its
+    final outcome arrives late, or never can.
     """
     if command_id is None:
         command_id = secrets.token_urlsafe(24)
@@ -618,7 +619,7 @@ async def async_deliver(
         async with asyncio.timeout(wait_seconds) as scope:
             if approval_seconds:
                 command.on_interim = lambda: scope.reschedule(
-                    hass.loop.time() + approval_seconds
+                    hass.loop.time() + approval_seconds + wait_seconds
                 )
             # Shielded, so a cancelled caller leaves the command to be recorded.
             result = await asyncio.shield(future)

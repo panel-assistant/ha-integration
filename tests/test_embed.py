@@ -150,8 +150,8 @@ async def entry(
         yield config_entry
 
 
-async def _receive(client: Any) -> dict[str, Any]:
-    async with asyncio.timeout(5):
+async def _receive(client: Any, answer_seconds: float = 5) -> dict[str, Any]:
+    async with asyncio.timeout(answer_seconds):
         message: dict[str, Any] = await client.receive_json()
     return message
 
@@ -1267,11 +1267,13 @@ async def test_a_bundle_gets_two_minutes_and_a_failed_one_is_not_asked_again_at_
 # The relay: panel_assistant/ui.
 
 
-async def _ui(ws: Any, entry_id: str, request: dict[str, Any]) -> dict[str, Any]:
+async def _ui(
+    ws: Any, entry_id: str, request: dict[str, Any], *, answer_seconds: float = 5
+) -> dict[str, Any]:
     await ws.send_json_auto_id(
         {"type": "panel_assistant/ui", "entry_id": entry_id, "request": request}
     )
-    return await _receive(ws)
+    return await _receive(ws, answer_seconds)
 
 
 async def _applied(event: dict[str, Any]) -> dict[str, Any]:
@@ -1411,6 +1413,131 @@ async def test_a_relayed_request_waits_through_its_approval(
         "outcome": "applied",
         "result": {"ok": True},
     }
+
+
+@pytest.mark.parametrize("kind", ["manage", "command"])
+@pytest.mark.parametrize(
+    "completion", ["expiry_poll", "early_refusal", "approved_archive"]
+)
+async def test_approval_completion_reaches_the_waiting_browser(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    entry: MockConfigEntry,
+    live: SessionPanel,
+    monkeypatch: pytest.MonkeyPatch,
+    kind: str,
+    completion: str,
+) -> None:
+    """Expiry and approved work outlive the approval window, not the caller.
+
+    Only the panel's 600-second approval clock and one-second polling interval
+    are scaled by 200. The initial five-second answer grace stays enabled.
+    The panel creates approval before reporting pending; receipt is not creation.
+    """
+    approval_seconds = 3.0
+    poll_seconds = 0.005
+    transit_seconds = 0.03
+    monkeypatch.setattr(ui_relay, "APPROVAL_SECONDS", approval_seconds)
+    assert ui_relay.ANSWER_GRACE_SECONDS == 5.0
+    archive = b"approved backup archive"
+    created = 0.0
+    finished = asyncio.Event()
+
+    async def complete(event: dict[str, Any]) -> dict[str, Any]:
+        nonlocal created
+        created = hass.loop.time()
+        # The earlier-refusal control has a larger creation-to-pending offset:
+        # its expiry answer arrives before receipt + TTL even on the base.
+        await asyncio.sleep(0.2 if completion == "early_refusal" else 0.005)
+        await live.send_result(event, outcome="pending_approval", interim=True)
+        if completion == "approved_archive":
+            # Approved shortly before expiry; archive work starts then.
+            due = created + approval_seconds - 20 * poll_seconds
+        else:
+            # First poll after absolute creation-time expiry, then final transit.
+            due = created + approval_seconds + poll_seconds + transit_seconds
+        await asyncio.sleep(max(0, due - hass.loop.time()))
+        if completion == "approved_archive":
+            assert hass.loop.time() < created + approval_seconds
+            # Work outlasts a grace-only extension, but fits the six-second budget.
+            await asyncio.sleep(5.4)
+            if kind == "manage":
+                reference = await live.upload(event, archive)
+                result = {"blob": reference}
+            else:
+                result = {"ok": True}
+            fields = {"outcome": "applied", "result": result}
+        else:
+            fields = {"outcome": "refused", "code": "approval_timeout"}
+        finished.set()
+        return fields
+
+    live.answers["backup" if kind == "manage" else "screen"] = complete
+    ws = await hass_ws_client(hass)
+    request = {
+        "kind": kind,
+        "command_id": f"{kind}-{completion}",
+        "deadline_ms": 6000,
+        **({"op": "backup"} if kind == "manage" else {"channel": "screen"}),
+    }
+    reply = await _ui(ws, entry.entry_id, request, answer_seconds=12)
+    assert reply["success"], reply
+    frame = reply["result"]
+    assert frame["command_id"] == request["command_id"]
+    assert finished.is_set()
+    if completion == "approved_archive":
+        assert frame["outcome"] == "applied"
+        if kind == "manage":
+            assert frame["result"]["blob"]["size"] == len(archive)
+        else:
+            assert frame["result"] == {"ok": True}
+    else:
+        assert frame == {
+            "command_id": request["command_id"],
+            "outcome": "refused",
+            "code": "approval_timeout",
+        }
+    # The terminal result reached this caller instead of the late-only diagnostics.
+    assert hass.loop.time() - created >= approval_seconds
+
+
+async def test_a_missing_approval_completion_still_has_a_bounded_wait(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    entry: MockConfigEntry,
+    live: SessionPanel,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A lost final answer still releases the browser after its finite budget."""
+    monkeypatch.setattr(ui_relay, "APPROVAL_SECONDS", 0.05)
+    assert ui_relay.ANSWER_GRACE_SECONDS == 5.0
+    held = asyncio.Event()
+
+    async def missing(event: dict[str, Any]) -> dict[str, Any]:
+        await live.send_result(event, outcome="pending_approval", interim=True)
+        await held.wait()
+        return {"outcome": "refused", "code": "approval_timeout"}
+
+    live.answers["backup"] = missing
+    ws = await hass_ws_client(hass)
+    started = hass.loop.time()
+    try:
+        reply = await _ui(
+            ws,
+            entry.entry_id,
+            {
+                "kind": "manage",
+                "command_id": "missing-final",
+                "op": "backup",
+                "deadline_ms": 1,
+            },
+            answer_seconds=8,
+        )
+        assert reply["success"] is False
+        assert reply["error"]["code"] == "panel_unavailable"
+        assert 5 <= hass.loop.time() - started < 7
+    finally:
+        held.set()
 
 
 async def test_a_late_approval_answer_after_the_browser_stopped_waiting_is_accepted(
