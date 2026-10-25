@@ -14,6 +14,7 @@ from homeassistant.components.media_player import (
     MediaPlayerState,
 )
 from homeassistant.config_entries import ConfigEntry, ConfigFlow
+from homeassistant.const import EntityCategory
 from homeassistant.core import Context, HomeAssistant
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
@@ -1112,3 +1113,28 @@ async def test_a_speaker_and_its_hidden_copy_go_down_together_and_back_exactly(
     assert speaker.level == LEVEL
     assert proxy.level == LEVEL
     assert len(speaker.changes) == len(proxy.changes) == 2
+
+
+async def test_a_config_media_player_in_the_room_is_left_alone(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker, chime = Player("speaker"), Player("chime")
+    await _room(hass, satellite, speaker, chime)
+    er.async_get(hass).async_update_entity(
+        chime.entity_id, entity_category=EntityCategory.CONFIG
+    )
+    _reply(pipeline, follow_up=False)
+
+    await _turn(panel)
+    await hass.async_block_till_done()
+    assert speaker.level < LEVEL
+    await _played(hass, panel)
+    assert speaker.level == LEVEL
+    assert chime.changes == []
