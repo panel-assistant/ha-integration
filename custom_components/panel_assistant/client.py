@@ -175,6 +175,10 @@ class PanelHealth:
     # build that speaks protocol 4 or older.
     protocol: tuple[int, int] | None = None
     restart: tuple[str, str, int] | None = None
+    # Durable first-setup completion; absent or malformed never authorizes admin.
+    setup_complete: bool = False
+    # One initial HOME claim remains owned by setup, until native readback/handback.
+    home_pending: bool = False
 
     def as_dict(
         self,
@@ -353,6 +357,8 @@ def parse_health_response(body: str) -> PanelHealth:
         installation_identity=fields.get("identity") == "install",
         package=package,
         version_code=version_code,
+        setup_complete=fields.get("setup_complete") == "1",
+        home_pending=fields.get("home_pending") == "1",
         protocol=protocol,
         restart=restart,
     )

@@ -186,7 +186,7 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       binding(receipt, release);
       const n = newNonce();
       if (parseLaunch(await readShell(adb, buildLaunch(n, release.descriptor.packageId,
-        release.descriptor.launchComponent, receipt.target.androidSdk),
+        release.descriptor.launchComponent, receipt.target.androidSdk, receipt.id),
         { timeoutMs: 30000 }), n) !== 'started') fail('launch_refused');
       binding(receipt, release);
     }),
@@ -222,7 +222,8 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       const state = await ports.inspect(launching, release);
       binding(receipt, release);
       if (state.healthy !== true) fail('health_unavailable');
-      const foreground = await readUsbHomeProof(adb, {ensureCurrent: guard, quarantine: stop});
+      const foreground = await readUsbHomeProof(adb, {ensureCurrent: guard, quarantine: stop,
+        requireOwnedHome: permissions.homeChooser !== 'deferred'});
       binding(receipt, release);
       if (!foreground) fail('health_unavailable');
       return Object.freeze({displaySizing: displayOutcome, settlement, permissions});
@@ -254,6 +255,7 @@ export function createUsbTransactionPorts({ adb, usbDevice, authenticate,
       // and a Shelly Wall Display by its launcher, and changes nothing on any
       // other panel. What it read back is reported; an answer that cannot be
       // read is reported too, and never fails the install.
+      if (homeChooser === 'deferred') return result;
       n = newNonce();
       const body = await readShell(adb, buildVendorSetup(n), {timeoutMs: 30000, maximum: 16384});
       binding(receipt, release);

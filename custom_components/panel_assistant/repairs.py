@@ -64,6 +64,11 @@ from .repairs_proximity import (
     proximity_issue_id,
     proximity_state,
 )
+from .repairs_removal import (
+    ISSUE_REMOVE_FROM_PANEL,
+    RemoveFromPanelFlow,
+    removal_issue_id,
+)
 from .repairs_restart import ISSUE_RESTART_REQUIRED, RestartRequiredFlow
 from .transport_binding import (
     ISSUE_DATA_ENTRY_ID,
@@ -721,6 +726,11 @@ async def async_create_fix_flow(
 ) -> RepairsFlow:
     """Create the fix flow for a Panel Assistant issue."""
     values = data or {}
+    if issue_id.startswith(f"{ISSUE_REMOVE_FROM_PANEL}_"):
+        entry_id = values.get("entry_id")
+        if not isinstance(entry_id, str) or issue_id != removal_issue_id(entry_id):
+            raise UnknownStep
+        return RemoveFromPanelFlow(entry_id)
     if issue_id == ISSUE_RESTART_REQUIRED:
         return RestartRequiredFlow()
     if issue_id.startswith(f"{ISSUE_PANEL_PERMISSIONS}_"):

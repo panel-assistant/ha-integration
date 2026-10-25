@@ -1178,6 +1178,7 @@ class InstallExecutor:
                 credential.signer,
                 execution.descriptor,
                 expected_root_mode=_root_mode(receipt),
+                previous_home_job_id=_REMOTE_STAGING_SLOT_ID,
             )
             if outcome is not LaunchOutcome.STARTED:
                 return await self._async_recovery(
@@ -1376,6 +1377,7 @@ class InstallExecutor:
                 credential.signer,
                 execution.descriptor,
                 expected_root_mode=_root_mode(receipt),
+                previous_home_job_id=_REMOTE_STAGING_SLOT_ID,
             )
         except (AdbCredentialError, InstallNetworkError) as err:
             return await self._async_fail(

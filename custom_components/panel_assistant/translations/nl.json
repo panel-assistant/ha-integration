@@ -631,6 +631,9 @@
       },
       "back": {
         "name": "Terug"
+      },
+      "remove_from_panel": {
+        "name": "Van dit paneel verwijderen"
       }
     },
     "camera": {
@@ -1668,6 +1671,32 @@
     "another_home_assistant": {
       "title": "{panel} is aangemeld bij een andere Home Assistant",
       "description": "{panel} is hier toegevoegd, maar is nog aangemeld bij een andere Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Home Assistant-verbinding van het paneel]({configure_url}).\n2. Als je het hier wilt verbinden, voer dan het adres van deze Home Assistant in en sla het op.\n3. Maak opnieuw verbinding en meld je aan met het account dat je voor het paneel wilt gebruiken; behoud anders de huidige server en negeer deze reparatie."
+    },
+    "remove_from_panel": {
+      "title": "Panel Assistant van {panel} halen",
+      "description": "Panel Assistant van {panel} halen\n\n[Meer informatie]({learn_more_url})",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Panel Assistant van {panel} halen",
+            "description": "Eerst geeft Panel Assistant het startscherm terug aan de eigen launcher van het paneel en zet het de fabrikantapps die het had uitgeschakeld weer aan; pas daarna verwijdert het zichzelf. De instellingen van Panel Assistant op het paneel worden gewist.\n\nOp sommige panelen en firmwareversies is er daarna geen weg meer terug naar de Android-instellingen of naar debuggen via het netwerk, zodat de app niet opnieuw kan worden geïnstalleerd zonder het paneel open te maken. Lees [wat het weghalen met dit paneel kan doen]({risks_url}) voordat je op ‘Verzenden’ klikt.\n\nNa het verwijderen van de app wordt dit paneel ook uit Home Assistant verwijderd.\n\n[Meer informatie]({learn_more_url})"
+          }
+        },
+        "error": {
+          "removal_busy": "Een andere bewerking wijzigt dit paneel al. Er is niets weggehaald; probeer het opnieuw als die klaar is.",
+          "removal_adb_unreachable": "Home Assistant kon het paneel niet bereiken via de Android Debug Bridge (poort 5555). Er is niets weggehaald. Controleer of het paneel aan staat en foutopsporing via het netwerk nog is ingeschakeld, en probeer het opnieuw.",
+          "removal_adb_authorization": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd voor de Android Debug Bridge. Er is niets weggehaald. Kies eerst ‘Updates toestaan’ en probeer het daarna opnieuw.",
+          "removal_panel_changed": "Op het adres van dit paneel antwoordt nu een ander apparaat. Er is niets weggehaald.",
+          "removal_approval_required": "Verhoogde beveiliging is ingeschakeld. Daarom moet het teruggeven van het startscherm op het paneel zelf worden goedgekeurd. Er is niets gewijzigd en Panel Assistant is nog steeds geïnstalleerd. Keur het verzoek op het paneel goed en verzend het formulier daarna opnieuw.",
+          "removal_no_replacement_home": "Het paneel kon zijn startscherm niet aan een andere launcher geven: er staat geen andere startscherm-app op, dus Panel Assistant is het enige wat het kan tonen. Er is niets weggehaald en het paneel werkt nog. Installeer een launcher of zet die van de fabrikant weer aan, en probeer het opnieuw.",
+          "removal_ownership_unreadable": "Het paneel kon zijn eigen overzicht van de uitgeschakelde fabrikantapps niet lezen. Er is niets weggehaald. Start Panel Assistant opnieuw op het paneel en probeer het daarna nog eens.",
+          "removal_package_state_unknown": "Het paneel kon niet lezen welke apps zijn geïnstalleerd of welke zijn startscherm is. Er is niets weggehaald. Probeer het zo meteen opnieuw.",
+          "removal_home_not_handed": "Het paneel bevestigde niet dat een andere launcher het startscherm heeft overgenomen, dus Panel Assistant is niet weggehaald. Installeer een launcher of zet die van de fabrikant weer aan, en probeer het opnieuw.",
+          "removal_hand_back_unsupported": "De Panel Assistant-app op dit paneel is te oud om het startscherm terug te geven. Er is niets weggehaald. Werk de app eerst bij en probeer het daarna opnieuw.",
+          "removal_app_unreachable": "Panel Assistant antwoordde niet en is nog het startscherm van het paneel; nu weghalen zou het paneel zonder startscherm laten. Er is niets weggehaald. Start Panel Assistant op het paneel en probeer het opnieuw.",
+          "removal_remove_failed": "Het paneel heeft zijn startscherm al terug, maar Panel Assistant kon niet volledig worden weggehaald. Probeer het opnieuw: een nieuwe poging maakt de rest af."
+        }
+      }
     }
   },
   "options": {
@@ -1679,7 +1708,7 @@
           "onboarding": "Installatie voortzetten",
           "authorize_adb": "Updates toestaan",
           "updates": "Paneelupdates",
-          "remove_app": "Panel Assistant van dit paneel halen"
+          "remove_app": "Van dit paneel verwijderen"
         },
         "menu_option_descriptions": {
           "remove_app": "Geeft het startscherm terug aan de eigen launcher van het paneel en verwijdert daarna de app."
@@ -1706,13 +1735,7 @@
       },
       "remove_app": {
         "title": "Panel Assistant van {panel} halen",
-        "description": "Eerst geeft Panel Assistant het startscherm terug aan de eigen launcher van het paneel en zet het de fabrikantapps die het had uitgeschakeld weer aan; pas daarna verwijdert het zichzelf. De instellingen van Panel Assistant op het paneel worden gewist.\n\nOp sommige panelen en firmwareversies is er daarna geen weg meer terug naar de Android-instellingen of naar debuggen via het netwerk, zodat de app niet opnieuw kan worden geïnstalleerd zonder het paneel open te maken. Lees [wat het weghalen met dit paneel kan doen]({risks_url}) voordat je op ‘Verzenden’ klikt.",
-        "data": {
-          "delete_entry": "Dit paneel ook uit Home Assistant verwijderen"
-        },
-        "data_description": {
-          "delete_entry": "Laat dit uit om de entiteiten en de geschiedenis te bewaren voor als je Panel Assistant opnieuw installeert."
-        }
+        "description": "Eerst geeft Panel Assistant het startscherm terug aan de eigen launcher van het paneel en zet het de fabrikantapps die het had uitgeschakeld weer aan; pas daarna verwijdert het zichzelf. De instellingen van Panel Assistant op het paneel worden gewist.\n\nOp sommige panelen en firmwareversies is er daarna geen weg meer terug naar de Android-instellingen of naar debuggen via het netwerk, zodat de app niet opnieuw kan worden geïnstalleerd zonder het paneel open te maken. Lees [wat het weghalen met dit paneel kan doen]({risks_url}) voordat je op ‘Verzenden’ klikt.\n\nNa het verwijderen van de app wordt dit paneel ook uit Home Assistant verwijderd."
       }
     },
     "error": {
@@ -1745,7 +1768,6 @@
     },
     "abort": {
       "removed_entry_deleted": "Panel Assistant is weggehaald en het paneel is uit Home Assistant gewist.",
-      "removed_entry_kept": "Panel Assistant is weggehaald. Het paneel blijft in Home Assistant tot je het wist.",
       "panel_connected": "Het paneel is ingesteld en verbonden met Home Assistant."
     },
     "progress": {

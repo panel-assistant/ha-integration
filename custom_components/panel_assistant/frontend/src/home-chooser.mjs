@@ -14,7 +14,7 @@ export const APP_LABELS = Object.freeze({
   [PACKAGE_ID]: Object.freeze(['Panel Assistant', 'ha-paneld']),
 });
 export const CHOOSER_DUMP = '/data/local/tmp/panel-assistant-home-chooser.xml';
-export const CHOOSER_OUTCOMES = Object.freeze(['kept', 'set', 'tapped', 'other_app', 'no_button', 'other_home']);
+export const CHOOSER_OUTCOMES = Object.freeze(['deferred', 'kept', 'set', 'tapped', 'other_app', 'no_button', 'other_home']);
 
 const QUIET = '>/dev/null 2>&1';
 const ALWAYS = 'resource-id="android:id/button_always"';

@@ -47,6 +47,21 @@ from .test_install_adb import (  # noqa: F401 - fixtures resolve by parameter na
 )
 
 _STAND_IN_PANEL = r"""
+am() {
+  case "$*" in
+    *"operation setup_eligibility"*)
+      if [ -f "$STATE/legacy.receiver" ]; then echo "Broadcast completed: result=1"
+      elif [ -f "$STATE/incomplete.setup" ]; then echo "Broadcast completed: result=0"
+      else
+        echo 'Broadcast completed: result=1, data="panel-assistant-setup-eligible"'
+      fi ;;
+    *"operation acknowledge_home"*)
+      case "$(cat "$STATE/home" 2>/dev/null)" in
+        io.panelassistant.android/*) touch "$STATE/home_ack" ;;
+      esac
+      echo "Broadcast completed: result=1" ;;
+  esac
+}
 settings() {
   if [ "$1" = get ]; then
     if [ -f "$STATE/$3" ]; then cat "$STATE/$3"; else echo null; fi
@@ -78,7 +93,15 @@ appops() {
   if [ "$1" = get ]; then [ ! -f "$STATE/read_fail.$3" ]; fi
 }
 cmd() {
-  if [ "$1 $2" = "package resolve-activity" ]; then
+  if [ "$1 $2" = "package query-receivers" ]; then
+    if [ -f "$STATE/receiver.disabled" ]; then
+      case " $* " in *" --query-flags 512 "*) ;;
+        *) echo "No receivers found"; return ;; esac
+    fi
+    if [ -f "$STATE/receiver.query.error" ]; then echo "No receivers found"; return 1
+    elif [ -f "$STATE/receiver.absent" ]; then echo "No receivers found"
+    else echo io.panelassistant.android/.platform.PreservePreviousHomeReceiver; fi
+  elif [ "$1 $2" = "package resolve-activity" ]; then
     echo "priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true"
     if [ -f "$STATE/home" ]; then cat "$STATE/home"
     else echo android/com.android.internal.app.ResolverActivity; fi
@@ -151,6 +174,8 @@ dumpsys() {
     done
     return 0
   fi
+  echo "Package [$2]"
+  if [ -f "$STATE/package.unreadable" ]; then return 1; fi
   if [ -f "$STATE/unreadable.permissions" ]; then
     cat "$STATE/unreadable.permissions"
     return
@@ -613,7 +638,7 @@ async def test_an_unreadable_grant_readback_says_the_missing_grants_are_unknown(
 
 
 @pytest.mark.parametrize("identity", list(_CLASS_SETS))
-async def test_the_new_app_is_made_a_device_admin_once(
+async def test_install_leaves_admin_inactive_until_setup_completes(
     monkeypatch: pytest.MonkeyPatch,
     signer: PythonRSASigner,  # noqa: F811
     target: AdbInstallTarget,  # noqa: F811
@@ -621,7 +646,7 @@ async def test_the_new_app_is_made_a_device_admin_once(
     tmp_path: Path,
     identity: str,
 ) -> None:
-    """The screen-off's lock fallback, asked for at install and kept by updates."""
+    """Fresh installs and retries remain removable in Android Settings."""
     installed = replace(descriptor, launch_component=_CLASS_SETS[identity][0])
 
     await _launch_on(monkeypatch, signer, target, installed, tmp_path)
@@ -629,11 +654,8 @@ async def test_the_new_app_is_made_a_device_admin_once(
 
     calls = (tmp_path / "calls").read_text().splitlines()
     admin_calls = [call for call in calls if call.startswith("dpm ")]
-    assert (tmp_path / f"admin.{installed.package_id}").exists()
-    assert admin_calls == [
-        f"dpm set-active-admin {installed.package_id}/"
-        f"{app_identity.DEVICE_ADMIN_RECEIVER}"
-    ]
+    assert not (tmp_path / f"admin.{installed.package_id}").exists()
+    assert admin_calls == []
 
 
 def _seed_granted_panel(

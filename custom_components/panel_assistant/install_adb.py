@@ -109,6 +109,7 @@ from .display_provisioning import (
 )
 from .home_chooser import HOME_QUERY as _HOME_QUERY
 from .install_network import is_allowed_install_address
+from .previous_home import transfer_previous_home
 from .release import (
     _MAX_APK_BYTES,
     _SHA256_PATTERN,
@@ -1071,14 +1072,14 @@ async def _async_repair_app_permissions(
         nonce,
         launch_component,
     )
-    if not grant.home:
+    if not grant.home and grant.chooser != "deferred":
         _LOGGER.warning(
             "The panel did not make %s its home screen (%s). It still runs; "
             "choose it on the panel when Android asks which app to use for Home",
             package_id,
             grant.chooser or "unread",
         )
-    if grant.vendor_setup:
+    if grant.vendor_setup and grant.chooser != "deferred":
         await _async_vendor_setup(device)
     if not grant.granted:
         _LOGGER.warning(
@@ -1303,6 +1304,7 @@ async def async_launch_installed_app(
     descriptor: InstallDescriptor,
     *,
     expected_root_mode: AdbRootMode,
+    previous_home_job_id: str | None = None,
 ) -> LaunchOutcome:
     """Launch the descriptor's one fixed package component exactly once."""
     _validate_request(target, descriptor)
@@ -1313,6 +1315,20 @@ async def async_launch_installed_app(
         async with asyncio.timeout(_LAUNCH_TIMEOUT_SECONDS):
             device = await _async_connect(target, signer)
             await _async_require_identity_root(device, target, expected_root_mode)
+            if previous_home_job_id is not None:
+                remote_apk = _remote_path(previous_home_job_id)
+                nonce = token_hex(16)
+                transferred = await _async_shell(
+                    device,
+                    f"{transfer_previous_home(remote_apk)}; "
+                    f"echo HAPANELD_PREVIOUS_HOME:{nonce}:$?",
+                    read_timeout=_INSTALL_READ_TIMEOUT_SECONDS,
+                )
+                if (
+                    transferred.replace(b"\r\n", b"\n")
+                    != f"HAPANELD_PREVIOUS_HOME:{nonce}:0\n".encode()
+                ):
+                    raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE)
             await _async_repair_app_permissions(
                 device, target, descriptor.package_id, descriptor.launch_component
             )
@@ -1374,7 +1390,12 @@ async def async_cleanup_staged_apk(
             _parse_cleanup(
                 await _async_shell(
                     device,
-                    _cleanup_command(nonce, remote_path),
+                    _cleanup_command(
+                        nonce,
+                        remote_path,
+                        preserve_previous_home=reason
+                        is DefiniteCleanupReason.INSTALL_SUCCEEDED,
+                    ),
                     read_timeout=_READ_TIMEOUT_SECONDS,
                 ),
                 nonce,

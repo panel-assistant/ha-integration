@@ -842,8 +842,7 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
         ".map(c => [c, h.buildHomeClaim(c)])),"
         "grants: Object.fromEntries(Object.keys(a.HOME_COMPONENTS).map(c => [c,"
         " p.buildPermissionGrant('0123456789abcdef0123456789abcdef', 34, '',"
-        " c.split('/')[0], c)])),"
-        "admin: p.buildDeviceAdminClaim(a.PACKAGE_ID)}));"
+        " c.split('/')[0], c)]))}));"
     )
     javascript = json.loads(
         subprocess.run(
@@ -877,13 +876,13 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
         assert claim in adb_protocol._permission_grant_command(
             "0" * 32, launch.partition("/")[0], launch
         )
-    # Both make the app a device admin with the same text.
-    admin = javascript["admin"]
-    assert admin == adb_protocol.device_admin_claim_command(app_identity.PACKAGE_ID)
+    # Neither install program can claim admin before first setup completes.
+    # The emitted shell contract is compared here; real Android-shell behavior
+    # is covered by the network/USB permission tests and coordinator tests.
     for launch, grant in javascript["grants"].items():
         package_id = launch.partition("/")[0]
-        assert admin in grant
-        assert admin in adb_protocol._permission_grant_command(
+        assert "dpm set-active-admin" not in grant
+        assert "dpm set-active-admin" not in adb_protocol._permission_grant_command(
             "0" * 32, package_id, launch
         )
 

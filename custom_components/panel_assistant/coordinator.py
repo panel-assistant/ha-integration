@@ -6,7 +6,10 @@ import asyncio
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
+from secrets import token_hex
+from time import monotonic
 
+from adb_shell.adb_device_async import AdbDeviceAsync
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant, callback
@@ -103,6 +106,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         self.client = client
         self._entry_id = entry_id
         self.identity_mismatch = False
+        self._admin_key: tuple[str, str, int | None, str] | None = None
+        self._admin_done = False
+        self._admin_retry_at = 0.0
         # True until the first poll answers otherwise, as `last_update_success` starts.
         self.reachable = True
         # Where the panel last said it was in an accepted session:
@@ -245,12 +251,179 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                     raise outcome
             assert isinstance(snapshot, PanelSnapshot)
             self._vendor_recovery.observe(snapshot)
+            await self._async_activate_completed_admin(snapshot.health)
             return snapshot
         self.reachable = False
         snapshot = await self._async_poll_address()
         self.reachable = True
         self._vendor_recovery.observe(snapshot)
+        await self._async_activate_completed_admin(snapshot.health)
         return snapshot
+
+    async def _async_activate_completed_admin(self, health: PanelHealth) -> None:
+        """Finish setup-owned HOME and the screen-lock fallback after completion.
+
+        The ordinary poll drives attempts at most once every five minutes.
+        Success needs Android readback and ends further ADB work. Nothing
+        keeps an ADB connection or adds a timer.
+        """
+        from . import adb_protocol as adb
+        from .adb_credentials import (
+            AdbCredentialError,
+            async_get_durable_adb_credential,
+        )
+        from .app_identity import (
+            DEVICE_ADMIN_RECEIVER,
+            EQUIVALENT_HOME_COMPONENTS,
+            LAUNCH_COMPONENTS,
+        )
+        from .home_chooser import HOME_QUERY
+        from .install_adb import _async_repair_app_permissions, _async_vendor_setup
+        from .install_jobs import async_get_install_job_manager
+        from .install_network import (
+            InstallNetworkError,
+            async_pin_entry_target,
+            async_revalidate_install_target,
+        )
+        from .install_receipt import InstallJobError
+        from .panel_operations import claim_panel_operation, release_panel_operation
+        from .provisioning import InstallTargetState, async_probe_install_target
+
+        entry = self._entry()
+        if (
+            not health.setup_complete
+            or not self.reachable
+            or entry is None
+            or not health.discovery_id
+            or health.discovery_id != entry.unique_id
+            or health.package not in LAUNCH_COMPONENTS
+            or self.identity_mismatch
+            or self.hass.is_stopping
+        ):
+            return
+        package = health.package
+        assert package is not None
+        address = entry.data[CONF_ADDRESS]
+        key = (health.discovery_id, package, health.version_code, address)
+        if self._admin_key != key:
+            self._admin_key = key
+            self._admin_done = False
+            self._admin_retry_at = 0.0
+        if (
+            (self._admin_done and not health.home_pending)
+            or monotonic() < self._admin_retry_at
+            or not claim_panel_operation(self.hass, entry.entry_id)
+        ):
+            return
+        device: AdbDeviceAsync | None = None
+        try:
+            async with asyncio.timeout(45):
+                manager = await async_get_install_job_manager(self.hass)
+                self._admin_retry_at = monotonic() + 300
+                credential = await async_get_durable_adb_credential(self.hass)
+                pinned = await async_pin_entry_target(
+                    self.hass, self.client.address, health, entry.unique_id
+                )
+                if pinned is None:
+                    return
+                if await manager.async_find_active(address, pinned.pinned.stored_value):
+                    return
+                probe = await async_probe_install_target(
+                    pinned.pinned, credential.signer
+                )
+                target = probe.adb_target(pinned.pinned)
+                if probe.state is not InstallTargetState.INSTALLED or target is None:
+                    return
+                await async_revalidate_install_target(self.hass, pinned)
+                if (
+                    self._entry() is not entry
+                    or entry.unique_id != health.discovery_id
+                    or entry.data[CONF_ADDRESS] != address
+                    or await manager.async_find_active(
+                        address, pinned.pinned.stored_value
+                    )
+                ):
+                    return
+                device = await adb._async_connect(
+                    target, credential.signer, authorize=False
+                )
+                nonce = token_hex(16)
+                adb._parse_identity_root(
+                    await adb._async_shell(
+                        device,
+                        adb._identity_root_command(nonce),
+                        read_timeout=adb._READ_TIMEOUT_SECONDS,
+                    ),
+                    nonce,
+                    target,
+                )
+                if health.home_pending:
+                    # Only initial setup's durable pending intent permits a HOME
+                    # takeover here. Explicit handback clears it, across HA reloads.
+                    await _async_repair_app_permissions(
+                        device, target, package, LAUNCH_COMPONENTS[package][-1]
+                    )
+                listed = f"{package}/{DEVICE_ADMIN_RECEIVER.removeprefix(package)}:"
+
+                def command(nonce: str) -> str:
+                    return "; ".join(
+                        (
+                            f"echo HAPANELD_ADMIN_BEGIN:{nonce}",
+                            adb.device_admin_claim_command(package),
+                            # Only a successful, matching readback proves admin.
+                            "policy=$(dumpsys device_policy 2>/dev/null); result=$?",
+                            f'case "$result:$policy" in 0:*"{listed}"*) echo active ;; '
+                            "*) echo unknown ;; esac",
+                            f'echo "home:$({HOME_QUERY})"',
+                            f"echo HAPANELD_ADMIN_END:{nonce}:0",
+                        )
+                    )
+
+                nonce = token_hex(16)
+                lines, status = adb._parse_single_section(
+                    await adb._async_shell(
+                        device, command(nonce), read_timeout=adb._READ_TIMEOUT_SECONDS
+                    ),
+                    prefix="ADMIN",
+                    nonce=nonce,
+                )
+                self._admin_done = (
+                    status == 0 and len(lines) == 2 and lines[0] == "active"
+                )
+                own_homes = {
+                    home
+                    for launch in LAUNCH_COMPONENTS[package]
+                    for home in EQUIVALENT_HOME_COMPONENTS[launch]
+                }
+                if (
+                    self._admin_done
+                    and not health.home_pending
+                    and lines[1].removeprefix("home:") in own_homes
+                ):
+                    # Native completion can finish HOME before this poll. Finish
+                    # vendor commissioning only while the app still owns HOME;
+                    # a deliberate handback must never be undone by HA reload.
+                    await _async_vendor_setup(device)
+        except (
+            AdbCredentialError,
+            InstallNetworkError,
+            InstallJobError,
+            HaPaneldError,
+            adb.InstallAdbError,
+            adb._MalformedAdbResponse,
+            adb._UnsafeAdbPacket,
+            *adb._ADB_EXCEPTIONS,
+            OSError,
+            TimeoutError,
+        ):
+            # Admin readback alone cannot finish a pass whose vendor I/O failed.
+            self._admin_done = False
+            _LOGGER.debug("Deferred panel device admin could not be activated")
+        finally:
+            try:
+                await adb._async_close(device)
+            finally:
+                release_panel_operation(self.hass, entry.entry_id)
 
     async def _async_read_session(self, session: PanelSession) -> PanelSnapshot:
         """Read health and status from the panel's own session."""

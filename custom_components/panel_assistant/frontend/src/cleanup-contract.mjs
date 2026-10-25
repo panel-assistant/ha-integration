@@ -1,3 +1,4 @@
+import {discardPreviousHome} from './previous-home.mjs';
 import {stagingPath, StagingError} from './staging-contract.mjs';
 const valid = value => typeof value === 'string' && /^[a-f0-9]{32}$/.test(value) && value.length === 32;
 // Only ever a single-linked regular file owned by adb shell or root, at this
@@ -15,7 +16,7 @@ export function buildPrefixCleanup(nonce, jobId, observation) {
   const checks = [...PARENTS, ...ownFile(path), `[ "$(stat -c %f ${path})" = 81a4 ]`,
     `[ "$(stat -c %s ${path})" = ${observation.size} ]`,
     `[ "$(sha256sum ${path})" = '${observation.sha256}  ${path}' ]`];
-  return `echo HAPANELD_CLEANUP_BEGIN:${nonce}; if ${checks.join(' && ')}; then rm ${path}; else false; fi; echo HAPANELD_CLEANUP_END:${nonce}:$?`;
+  return `echo HAPANELD_CLEANUP_BEGIN:${nonce}; if ${checks.join(' && ')}; then ${discardPreviousHome(path)} && rm ${path}; else false; fi; echo HAPANELD_CLEANUP_END:${nonce}:$?`;
 }
 export function parsePrefixCleanup(body, nonce) {
   if (!valid(nonce) || typeof body !== 'string' || body.length > 1024) throw new StagingError('cleanup_response_invalid');

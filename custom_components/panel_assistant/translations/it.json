@@ -636,6 +636,9 @@
       },
       "back": {
         "name": "Indietro"
+      },
+      "remove_from_panel": {
+        "name": "Rimuovi da questo pannello"
       }
     },
     "event": {
@@ -1668,6 +1671,32 @@
     "another_home_assistant": {
       "title": "Su {panel} è attivo l'accesso a un altro Home Assistant",
       "description": "{panel} è stato aggiunto qui ma rimane connesso con il proprio account a un altro Home Assistant.\n\nPer risolvere:\n1. [Apri la connessione del pannello a Home Assistant]({configure_url}).\n2. Se vuoi collegarlo qui, inserisci l'indirizzo di questo Home Assistant e salva.\n3. Riconnettiti ed effettua l'accesso con l'account che vuoi usare sul pannello; altrimenti, mantieni il server attuale e ignora questa riparazione."
+    },
+    "remove_from_panel": {
+      "title": "Rimuovi Panel Assistant da {panel}",
+      "description": "Rimuovi Panel Assistant da {panel}\n\n[Ulteriori informazioni]({learn_more_url})",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Rimuovi Panel Assistant da {panel}",
+            "description": "Prima Panel Assistant restituisce la schermata iniziale al launcher del pannello e riattiva le app del produttore che aveva disattivato; solo dopo si disinstalla. Le sue impostazioni sul pannello vengono eliminate.\n\nSu alcuni pannelli e versioni firmware, la rimozione non lascia alcun modo di tornare alle Impostazioni di Android o al debug di rete, quindi l'app non potrebbe essere reinstallata senza aprire il pannello. Leggi [cosa può comportare la rimozione per questo pannello]({risks_url}) prima di selezionare Invia.\n\nDopo la disinstallazione, questo pannello verrà eliminato anche da Home Assistant.\n\n[Ulteriori informazioni]({learn_more_url})"
+          }
+        },
+        "error": {
+          "removal_busy": "Un'altra operazione sta già modificando questo pannello. Non è stato rimosso nulla; riprova quando sarà terminata.",
+          "removal_adb_unreachable": "Home Assistant non è riuscito a raggiungere il pannello tramite Android Debug Bridge (porta 5555). Non è stato rimosso nulla. Verifica che il pannello sia acceso e che il debug di rete sia ancora attivo, quindi riprova.",
+          "removal_adb_authorization": "Il pannello non ha accettato questa istanza di Home Assistant per Android Debug Bridge. Non è stato rimosso nulla. Scegli prima «Consenti aggiornamenti», quindi riprova.",
+          "removal_panel_changed": "All'indirizzo di questo pannello ora risponde un altro dispositivo. Non è stato rimosso nulla.",
+          "removal_approval_required": "La sicurezza rafforzata è attiva, quindi la restituzione della schermata iniziale deve essere approvata sul pannello stesso. Non è stato modificato nulla e Panel Assistant è ancora installato. Approva la richiesta sul pannello, quindi invia di nuovo il modulo.",
+          "removal_no_replacement_home": "Il pannello non è riuscito a cedere la schermata iniziale a un altro launcher: non c'è nessun'altra app di schermata iniziale, quindi Panel Assistant è l'unica cosa che può mostrare. Non è stato rimosso nulla e il pannello funziona ancora. Installa un launcher o riattiva quello del produttore, quindi riprova.",
+          "removal_ownership_unreadable": "Il pannello non è riuscito a leggere il proprio registro delle app del produttore che ha disattivato. Non è stato rimosso nulla. Avvia di nuovo Panel Assistant sul pannello, quindi riprova.",
+          "removal_package_state_unknown": "Il pannello non è riuscito a leggere quali app sono installate o quale è la sua schermata iniziale. Non è stato rimosso nulla. Riprova tra poco.",
+          "removal_home_not_handed": "Il pannello non ha confermato che un altro launcher abbia preso la schermata iniziale, quindi Panel Assistant non è stato rimosso. Installa un launcher o riattiva quello del produttore, quindi riprova.",
+          "removal_hand_back_unsupported": "L’app Panel Assistant su questo pannello è troppo vecchia per restituire la schermata iniziale. Non è stato rimosso nulla. Aggiornala prima, quindi riprova.",
+          "removal_app_unreachable": "Panel Assistant non ha risposto ed è ancora la schermata iniziale del pannello, quindi rimuoverlo ora lascerebbe il pannello senza schermata iniziale. Non è stato rimosso nulla. Avvia Panel Assistant sul pannello, quindi riprova.",
+          "removal_remove_failed": "Il pannello ha già riavuto la sua schermata iniziale, ma Panel Assistant non è stato rimosso completamente. Riprova: un nuovo tentativo completa ciò che resta."
+        }
+      }
     }
   },
   "options": {
@@ -1679,7 +1708,7 @@
           "onboarding": "Continua la configurazione",
           "authorize_adb": "Consenti aggiornamenti",
           "updates": "Aggiornamenti del pannello",
-          "remove_app": "Rimuovi Panel Assistant da questo pannello"
+          "remove_app": "Rimuovi da questo pannello"
         },
         "menu_option_descriptions": {
           "remove_app": "Restituisce la schermata iniziale al launcher del pannello, poi disinstalla l'app."
@@ -1706,13 +1735,7 @@
       },
       "remove_app": {
         "title": "Rimuovi Panel Assistant da {panel}",
-        "description": "Prima Panel Assistant restituisce la schermata iniziale al launcher del pannello e riattiva le app del produttore che aveva disattivato; solo dopo si disinstalla. Le sue impostazioni sul pannello vengono eliminate.\n\nSu alcuni pannelli e versioni firmware, la rimozione non lascia alcun modo di tornare alle Impostazioni di Android o al debug di rete, quindi l'app non potrebbe essere reinstallata senza aprire il pannello. Leggi [cosa può comportare la rimozione per questo pannello]({risks_url}) prima di selezionare Invia.",
-        "data": {
-          "delete_entry": "Elimina anche questo pannello da Home Assistant"
-        },
-        "data_description": {
-          "delete_entry": "Lascialo disattivato per mantenere le sue entità e la sua cronologia per quando installerai di nuovo Panel Assistant."
-        }
+        "description": "Prima Panel Assistant restituisce la schermata iniziale al launcher del pannello e riattiva le app del produttore che aveva disattivato; solo dopo si disinstalla. Le sue impostazioni sul pannello vengono eliminate.\n\nSu alcuni pannelli e versioni firmware, la rimozione non lascia alcun modo di tornare alle Impostazioni di Android o al debug di rete, quindi l'app non potrebbe essere reinstallata senza aprire il pannello. Leggi [cosa può comportare la rimozione per questo pannello]({risks_url}) prima di selezionare Invia.\n\nDopo la disinstallazione, questo pannello verrà eliminato anche da Home Assistant."
       }
     },
     "error": {
@@ -1745,7 +1768,6 @@
     },
     "abort": {
       "removed_entry_deleted": "Panel Assistant è stato rimosso e il pannello è stato eliminato da Home Assistant.",
-      "removed_entry_kept": "Panel Assistant è stato rimosso. Il pannello resta in Home Assistant finché non lo elimini.",
       "panel_connected": "Il pannello è configurato e connesso a Home Assistant."
     },
     "progress": {

@@ -15,6 +15,15 @@ import {META_CONTROL_CENTER, META_RESTORE_RECORD, META_SCREENSAVER_COMPONENTS,
 // a real shell whose settings, appops, pm, cmd, getprop and dumpsys keep one
 // panel's state in files. Only the restore records' paths move into that state.
 const STAND_IN = String.raw`
+am() {
+  case "$*" in
+    *"operation setup_eligibility"*)
+      if [ -f "$STATE/legacy.receiver" ]; then echo "Broadcast completed: result=1"
+      elif [ -f "$STATE/incomplete.setup" ]; then echo "Broadcast completed: result=0"
+      else echo 'Broadcast completed: result=1, data="panel-assistant-setup-eligible"'; fi ;;
+    *"operation acknowledge_home"*) echo "Broadcast completed: result=1" ;;
+  esac
+}
 settings() {
   if [ "$1" = get ]; then
     if [ -f "$STATE/$3" ]; then cat "$STATE/$3"; else echo null; fi
@@ -36,13 +45,25 @@ pm() {
   elif [ "$1" = grant ]; then echo "pm $*" >> "$STATE/calls"; echo true > "$STATE/permission.$3"; fi
 }
 dumpsys() {
+  echo "Package [$2]"
+  if [ -f "$STATE/package.unreadable" ]; then
+    mv "$STATE/package.unreadable" "$STATE/package.unreadable.read"; return 1
+  fi
   for p in POST_NOTIFICATIONS CAMERA RECORD_AUDIO; do
     g=false; [ ! -f "$STATE/permission.android.permission.$p" ] || g=true
     echo "      android.permission.$p: granted=$g, flags=[ USER_SET]"
   done
 }
 cmd() {
-  if [ "$2" = resolve-activity ]; then
+  if [ "$2" = query-receivers ]; then
+    if [ -f "$STATE/receiver.disabled" ]; then
+      case " $* " in *" --query-flags 512 "*) ;;
+        *) echo "No receivers found"; return ;; esac
+    fi
+    if [ -f "$STATE/receiver.query.error" ]; then echo "No receivers found"; return 1
+    elif [ -f "$STATE/receiver.absent" ]; then echo "No receivers found"
+    else echo io.panelassistant.android/.platform.PreservePreviousHomeReceiver; fi
+  elif [ "$2" = resolve-activity ]; then
     echo "priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true"
     if [ -f "$STATE/home" ]; then cat "$STATE/home"; else echo android/com.android.internal.app.ResolverActivity; fi
   elif [ "$2" = set-home-activity ]; then
@@ -310,5 +331,41 @@ test('a Shelly Wall Display has its launcher overlay denied once, with the mode 
     const again = await p.commission();
     assert.equal(again.vendor.record, 'allow');
     assert.equal(p.calls().filter(call => call.includes(SHELLY_LAUNCHER)).length, 1);
+  } finally { p.cleanup(); }
+});
+
+
+test('incomplete USB setup keeps the previous HOME and vendor settings until durable completion', async () => {
+  for (const refusal of ['incomplete.setup', 'legacy.receiver', 'package.unreadable', 'receiver.query.error', 'receiver.disabled']) {
+    const p = panel({portal: true});
+    try {
+      writeFileSync(join(p.state, 'home'), 'com.vendor.launcher/.Home\n');
+      writeFileSync(join(p.state, refusal), '');
+      writeFileSync(join(p.state, 'incomplete.setup'), '');
+      const initial = await p.commission();
+      assert.equal(initial.permissionsVerified, true);
+      assert.equal(initial.homeChooser, 'deferred');
+      assert.equal(initial.home, false);
+      assert.equal(p.read('home'), 'com.vendor.launcher/.Home');
+      assert.equal(p.read('screensaver_components'), META_SCREENSAVER_COMPONENTS);
+      assert.equal(p.read('restore-record'), null);
+      rmSync(join(p.state, refusal), {force: true});
+      rmSync(join(p.state, 'incomplete.setup'), {force: true});
+      const complete = await p.commission();
+      assert.equal(complete.home, true);
+      assert.equal(p.read('home'), HOME);
+      assert.notEqual(p.read('restore-record'), null);
+    } finally { p.cleanup(); }
+  }
+});
+
+test('a readable old app without the eligibility receiver retains USB HOME and vendor setup', async () => {
+  const p = panel({portal: true});
+  try {
+    writeFileSync(join(p.state, 'incomplete.setup'), '');
+    writeFileSync(join(p.state, 'receiver.absent'), '');
+    const result = await p.commission();
+    assert.equal(result.home, true);
+    assert.notEqual(p.read('restore-record'), null);
   } finally { p.cleanup(); }
 });

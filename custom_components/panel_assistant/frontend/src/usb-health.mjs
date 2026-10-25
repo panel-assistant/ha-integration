@@ -138,8 +138,10 @@ export async function readUsbHealth(adb, descriptor, options = {}) {
 
 // Ask the app for fresh HOME/foreground proof. The app knows which configured
 // surface owns the screen, including supported external dashboards.
-export async function readUsbHomeProof(adb, options = {}) {
-  return readUsbApp(adb, '/api/v1/status?home_proof=1', text => {
+export async function readUsbHomeProof(adb, {requireOwnedHome = true, ...options} = {}) {
+  if (typeof requireOwnedHome !== 'boolean') fail('invalid_request');
+  const path = '/api/v1/status?home_proof=1' + (requireOwnedHome ? '' : '&setup_foreground=1');
+  return readUsbApp(adb, path, text => {
     let status;
     try { status = JSON.parse(parseHttp(text, 32768)); } catch { malformed(); }
     const home = status?.home_ui;

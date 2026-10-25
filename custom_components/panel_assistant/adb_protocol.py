@@ -45,6 +45,12 @@ from .app_identity import (
 from .client import PanelAddress
 from .home_chooser import CHOOSER_OUTCOMES, home_claim_command
 from .home_chooser import HOME_QUERY as _HOME_QUERY
+from .previous_home import (
+    discard_previous_home,
+    receiver_absence_check,
+    snapshot_previous_home,
+    transfer_previous_home,
+)
 from .release import (
     _MAX_APK_BYTES,
     InstallDescriptor,
@@ -515,7 +521,10 @@ def _install_command(nonce: str, remote_path: str, android_sdk: int) -> str:
     return "; ".join(
         (
             f"echo HAPANELD_INSTALL_BEGIN:{nonce}",
-            f"pm install {no_replace}{remote_path}",
+            f"if {snapshot_previous_home(remote_path)}; then "
+            f"pm install {no_replace}{remote_path}; hp_install=$?; "
+            f'if [ "$hp_install" -eq 0 ]; then {transfer_previous_home(remote_path)}; '
+            'else (exit "$hp_install"); fi; else false; fi',
             f"echo HAPANELD_INSTALL_END:{nonce}:$?",
         )
     )
@@ -664,6 +673,30 @@ def device_admin_claim_command(package_id: str) -> str:
     )
 
 
+def _setup_home_claim_command(package_id: str, launch_component: str) -> str:
+    """Only completed setup can acquire HOME; prove legacy receiver absence."""
+    receiver = (
+        f"{package_id}/io.panelassistant.android.platform.PreservePreviousHomeReceiver"
+    )
+    eligible = 'Broadcast completed: result=1, data="panel-assistant-setup-eligible"'
+    return (
+        f"hp_setup=$(am broadcast --include-stopped-packages -n {receiver} "
+        "--es operation setup_eligibility 2>/dev/null); hp_setup_status=$?; "
+        'hp_eligible=0; if [ "$hp_setup_status" -eq 0 ] && '
+        f"printf '%s\\n' \"$hp_setup\" | grep -Fxq '{eligible}'; "
+        "then hp_eligible=1; else if "
+        + receiver_absence_check(package_id)
+        + "; then hp_eligible=1; fi; fi; "
+        'if [ "$hp_eligible" -eq 1 ]; then '
+        + home_claim_command(launch_component)
+        # Only native verified HOME readback clears pending intent. If the
+        # acknowledgement fails, the live health flag retains retry custody.
+        + f"; am broadcast --include-stopped-packages -n {receiver} "
+        "--es operation acknowledge_home >/dev/null 2>&1; "
+        "else hp_chooser=deferred; fi"
+    )
+
+
 def _permission_grant_command(
     nonce: str, package_id: str, launch_component: str
 ) -> str:
@@ -679,8 +712,8 @@ def _permission_grant_command(
     the write is printed so the readback can prove nothing was dropped. Grant
     output is discarded; only the readback decides.
 
-    The new app is also made a device admin (``device_admin_claim_command``);
-    the panel's own diagnostics report whether its screen-off can use it.
+    Device admin is deferred until health proves setup has completed. HOME and
+    vendor ownership wait for the app's durable setup eligibility response.
 
     The build's dashboard is made the panel's HOME whenever HOME resolves to
     anything else: Android forgets a preferred HOME when the set of packages
@@ -756,7 +789,6 @@ def _permission_grant_command(
             "(default|deny|ignore|foreground|errored)(; [ -~]+)?|"
             'No operations\\.)$"; then '
             f'appops set {package_id} "$operation" allow {quiet}; fi; done',
-            device_admin_claim_command(package_id),
             f"observed=$({_SERVICES_SETTING}); observed_status=$?; "
             'if [ "$before_status" -eq 0 ] && [ "$valid" -eq 1 ] && '
             '[ "$observed_status" -eq 0 ] && [ "$observed" = "$after" ]; then '
@@ -765,7 +797,7 @@ def _permission_grant_command(
             'if [ "$enabled_status" -eq 0 ]; then case "$enabled" in 0|null) '
             f"settings put secure accessibility_enabled 1 {quiet} ;; esac; fi ;; "
             "esac; fi",
-            home_claim_command(launch_component),
+            _setup_home_claim_command(package_id, launch_component),
             _SERVICES_SETTING,
             "settings get secure accessibility_enabled",
             f"for operation in {_GRANTED_APP_OPS}; do "
@@ -892,12 +924,15 @@ def _launch_command(nonce: str, package_id: str, launch_component: str) -> str:
     )
 
 
-def _cleanup_command(nonce: str, remote_path: str) -> str:
+def _cleanup_command(
+    nonce: str, remote_path: str, *, preserve_previous_home: bool = False
+) -> str:
+    discard = "true" if preserve_previous_home else discard_previous_home(remote_path)
     return "; ".join(
         (
             f"echo HAPANELD_CLEANUP_BEGIN:{nonce}",
             f"echo HAPANELD_CLEANUP_RM_BEGIN:{nonce}",
-            f"rm -f {remote_path}",
+            f"{discard} && rm -f {remote_path}",
             f"echo HAPANELD_CLEANUP_RM_END:{nonce}:$?",
             f"echo HAPANELD_CLEANUP_STATE_BEGIN:{nonce}",
             f"if [ -e {remote_path} ] || [ -L {remote_path} ]; then "
