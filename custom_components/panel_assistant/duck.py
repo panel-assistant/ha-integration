@@ -321,6 +321,17 @@ class RoomDuck:
                 return
             unsubscribe()
             held.waiting = False
+            if held.level is not None and self._at_level(entity_id, held.level):
+                # A late report confirms the restore without another write.
+                # An in-flight call still owns its record until it finishes.
+                ducked = self._hass.data.get(_DATA_DUCKED, {})
+                if (
+                    not held.holders
+                    and (held.last is None or held.last.done())
+                    and ducked.get(entity_id) is held
+                ):
+                    del ducked[entity_id]
+                return
             self._call(entity_id, held, held.level, mute=False, restoring=True)
 
         unsubscribe = async_track_state_change_event(self._hass, [entity_id], _changed)

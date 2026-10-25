@@ -860,3 +860,115 @@ async def test_session_loss_while_a_streamed_reply_is_prepared_settles_it(
     await hass.async_block_till_done()
     assert hass.states.get(satellite).state == "idle"
     assert speaker.level == LEVEL
+
+
+@pytest.mark.parametrize("new_turn", [False, True])
+async def test_a_late_restore_report_does_not_write_the_volume_again(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+    new_turn: bool,
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=False)
+    await _turn(panel)
+    await hass.async_block_till_done()
+    assert speaker.changes == [LEVEL * 0.3]
+
+    set_level = speaker.async_set_volume_level
+
+    async def push_write(volume: float) -> None:
+        speaker.changes.append(volume)
+
+    speaker.async_set_volume_level = push_write  # type: ignore[method-assign]
+    await _played(hass, panel)
+    assert speaker.changes == [LEVEL * 0.3, LEVEL]
+    assert speaker.level < LEVEL
+    if new_turn:
+        await _turn(panel)
+        await hass.async_block_till_done()
+        assert speaker.changes == [LEVEL * 0.3, LEVEL, LEVEL * 0.3]
+
+    # The device confirms the restore after the service call has returned.
+    writes = list(speaker.changes)
+    speaker._attr_volume_level = LEVEL
+    speaker.async_write_ha_state()
+    await hass.async_block_till_done()
+    assert speaker.changes == writes
+    speaker.async_set_volume_level = set_level  # type: ignore[method-assign]
+    if new_turn:
+        await _played(hass, panel)
+        assert speaker.level == LEVEL
+        assert speaker.changes == [*writes, LEVEL]
+
+    # Later reports cannot revive a retired restore or its saved volume.
+    speaker._attr_volume_level = 0.8
+    speaker.async_write_ha_state()
+    await hass.async_block_till_done()
+    writes = list(speaker.changes)
+    assert writes == [LEVEL * 0.3, LEVEL] * (2 if new_turn else 1)
+    await _turn(panel)
+    await _played(hass, panel)
+    assert speaker.level == 0.8
+    assert speaker.changes == [*writes, 0.8 * 0.3, 0.8]
+
+
+async def test_a_late_report_during_a_slow_restore_keeps_later_ducks_serialized(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    speaker = Player("speaker")
+    await _room(hass, satellite, speaker)
+    _reply(pipeline, follow_up=False)
+    await _turn(panel)
+    set_level = speaker.async_set_volume_level
+
+    async def push_write(volume: float) -> None:
+        speaker.changes.append(volume)
+
+    speaker.async_set_volume_level = push_write  # type: ignore[method-assign]
+    await _played(hass, panel)
+    await _turn(panel)
+    assert speaker.changes == [LEVEL * 0.3, LEVEL, LEVEL * 0.3]
+
+    gate = asyncio.Event()
+    started = asyncio.Event()
+
+    async def slow_restore(volume: float) -> None:
+        started.set()
+        await gate.wait()
+        await set_level(volume)
+
+    speaker.async_set_volume_level = slow_restore  # type: ignore[method-assign]
+    played = await panel.send(
+        {"type": "panel_assistant/voice_played", "session": panel.token}
+    )
+    assert played["success"], played
+    await started.wait()
+    speaker._attr_volume_level = LEVEL
+    speaker.async_write_ha_state()
+    speaker.async_set_volume_level = set_level  # type: ignore[method-assign]
+    # This turn's duck must wait for the older restore, even after its report.
+    await _turn(panel)
+    try:
+        assert speaker.changes == [LEVEL * 0.3, LEVEL, LEVEL * 0.3]
+    finally:
+        gate.set()
+        await hass.async_block_till_done()
+    assert speaker.level < LEVEL
+    assert speaker.changes == [LEVEL * 0.3, LEVEL, LEVEL * 0.3, LEVEL, LEVEL * 0.3]
+    await _played(hass, panel)
+    assert speaker.level == LEVEL
+    assert speaker.changes == [LEVEL * 0.3, LEVEL] * 3
