@@ -449,6 +449,9 @@ class InstallExecutor:
                     result_code=InstallResultCode.ENTRY_CREATED,
                     consumed_entry_id=entry_id,
                 )
+                from .local_adb import installation_finished
+
+                installation_finished(self._hass, entry_id)
         except Exception:
             _LOGGER.warning("Unable to consume a completed ha-paneld install receipt")
         finally:
@@ -489,6 +492,9 @@ class InstallExecutor:
                     result_code=InstallResultCode.ENTRY_CREATED,
                     consumed_entry_id=entry_id,
                 )
+                from .local_adb import installation_finished
+
+                installation_finished(self._hass, entry_id)
             else:
                 await self._manager.async_transition(
                     job_id,

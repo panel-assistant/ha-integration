@@ -8,10 +8,12 @@ the exact signed build may replace.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 
 from homeassistant.core import HomeAssistant
 
+from . import local_adb
 from .adb_credentials import (
     AdbCredential,
     AdbCredentialError,
@@ -209,9 +211,33 @@ async def async_relaunch_stopped_app(
     try:
         credential = await async_get_durable_adb_credential(hass)
         pinned = await async_pin_install_target(hass, coordinator.client.address)
-        target = await async_probe_adb_target(pinned, credential)
+        entry = coordinator._entry()
+        deadline = hass.loop.time() + (
+            local_adb.recovery_wait(hass, entry) if entry is not None else 0
+        )
+        while True:
+            try:
+                target = await async_probe_adb_target(pinned, credential)
+                break
+            except InstallAdbError as err:
+                if (
+                    err.code is not InstallAdbErrorCode.TARGET_UNREACHABLE
+                    or hass.loop.time() >= deadline
+                    or entry is None
+                    or coordinator._entry() is not entry
+                    or coordinator.available
+                ):
+                    raise
+                await asyncio.sleep(
+                    min(
+                        local_adb.LOCAL_ADB_RECOVERY_RETRY_SECONDS,
+                        deadline - hass.loop.time(),
+                    )
+                )
         if target is None:
             return False
+        if entry is not None:
+            local_adb.require_recovery_identity(hass, entry, target)
         installed = await async_preflight_install(
             target, credential.signer, descriptor, admit_installed_target=True
         )
@@ -225,6 +251,10 @@ async def async_relaunch_stopped_app(
                 expected_root_mode=installed.root_mode,
             )
             is None
+        ):
+            return False
+        if coordinator.available or (
+            entry is not None and coordinator._entry() is not entry
         ):
             return False
         outcome = await async_launch_installed_app(

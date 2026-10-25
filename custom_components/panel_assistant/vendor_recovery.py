@@ -7,7 +7,7 @@ import logging
 import re
 import shlex
 from collections.abc import Coroutine
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from secrets import token_hex
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -15,6 +15,7 @@ from uuid import UUID
 from homeassistant.const import CONF_ADDRESS
 
 from . import adb_protocol as adb
+from . import local_adb
 from .adb_credentials import AdbCredentialError, async_get_durable_adb_credential
 from .app_identity import EQUIVALENT_HOME_COMPONENTS, LAUNCH_COMPONENTS
 from .client import CannotConnectError, HaPaneldError
@@ -65,6 +66,7 @@ class _Witness:
     uptime: float
     home: str
     vendor_pid: int
+    local: bool = False
 
 
 def _observation(nonce: str, package: str, *, logs: bool = False) -> str:
@@ -136,7 +138,15 @@ def _vendor_stop(lines: list[str], witness: _Witness, now: float) -> str | None:
         and first <= witness.uptime
         and latest is not None
         and latest[1] == _VENDOR
-        and 0 <= now - latest[0] <= _STOP_AGE_SECONDS
+        and 0
+        <= now - latest[0]
+        <= _STOP_AGE_SECONDS
+        + (
+            local_adb.LOCAL_ADB_RECOVERY_SECONDS
+            + local_adb.LOCAL_ADB_RECOVERY_OVERHEAD_SECONDS
+            if witness.local
+            else 0
+        )
     ):
         return latest[2]
     return None
@@ -231,19 +241,28 @@ class VendorRecovery:
     async def _arm(self, context: _Context, snapshot: PanelSnapshot) -> None:
         hass = self._coordinator.hass
         try:
-            async with asyncio.timeout(15):
+            async with asyncio.timeout(
+                None if local_adb.session_for(hass, context.entry) is not None else 15
+            ):
                 credential = await async_get_durable_adb_credential(hass)
                 pinned = await async_pin_entry_target(
                     hass, self._coordinator.client.address, snapshot.health, context.did
                 )
                 if pinned is None or not self._current(context, connected=True):
                     return
-                probe = await async_probe_install_target(
-                    pinned.pinned, credential.signer
+                target = await local_adb.async_target(
+                    hass, context.entry, pinned.pinned
                 )
-                target = probe.adb_target(pinned.pinned)
-                if probe.state is not InstallTargetState.INSTALLED or target is None:
-                    return
+                if target is None:
+                    probe = await async_probe_install_target(
+                        pinned.pinned, credential.signer
+                    )
+                    target = probe.adb_target(pinned.pinned)
+                    if (
+                        probe.state is not InstallTargetState.INSTALLED
+                        or target is None
+                    ):
+                        return
                 lines = await _async_target_section(
                     target,
                     credential.signer,
@@ -270,12 +289,13 @@ class VendorRecovery:
                 ):
                     self._witness = _Witness(
                         context,
-                        target,
+                        replace(target, local_shell=None),
                         credential.generation_id,
                         boot,
                         uptime,
                         home,
                         vendor_pid,
+                        target.local_shell is not None,
                     )
         except (
             AdbCredentialError,
@@ -297,7 +317,10 @@ class VendorRecovery:
         claimed = False
         device = None
         try:
-            async with asyncio.timeout(_RECOVERY_SECONDS):
+            recovery_wait = (
+                local_adb.recovery_wait(hass, context.entry) if witness.local else 0
+            )
+            async with asyncio.timeout(_RECOVERY_SECONDS + recovery_wait):
                 await asyncio.sleep(_GRACE_SECONDS)
                 if not self._allowed(context) or not claim_panel_operation(
                     hass, entry_id
@@ -327,9 +350,28 @@ class VendorRecovery:
                 )
                 if not self._allowed(context):
                     return
-                device = await adb._async_connect(
-                    witness.target, credential.signer, authorize=False
-                )
+                deadline = hass.loop.time() + recovery_wait
+                while True:
+                    try:
+                        device = await adb._async_connect(
+                            witness.target, credential.signer, authorize=False
+                        )
+                        break
+                    except adb.InstallAdbError as err:
+                        if (
+                            err.code is not adb.InstallAdbErrorCode.TARGET_UNREACHABLE
+                            or hass.loop.time() >= deadline
+                            or not self._allowed(context)
+                        ):
+                            raise
+                        await asyncio.sleep(
+                            min(
+                                local_adb.LOCAL_ADB_RECOVERY_RETRY_SECONDS,
+                                deadline - hass.loop.time(),
+                            )
+                        )
+                if not self._allowed(context):
+                    return
                 nonce = token_hex(16)
                 adb._parse_identity_root(
                     await adb._async_shell(

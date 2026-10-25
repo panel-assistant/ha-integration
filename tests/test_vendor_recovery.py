@@ -460,3 +460,69 @@ async def test_vendor_shutdown_with_real_android_user_sections_and_old_negative_
     await panel.shutdown()
     assert panel.state.homes == 1
     assert panel.coordinator.reachable
+
+
+@pytest.mark.parametrize("stop_age", [301.0, 314.0])
+async def test_local_witness_survives_app_death_until_independent_adb_recovers(
+    panel: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    stop_age: float,
+) -> None:
+    from custom_components.panel_assistant import local_adb
+    from custom_components.panel_assistant.adb_protocol import AdbInstallTarget
+
+    device = adb_protocol.AdbDeviceAsync(None)
+    target = AdbInstallTarget(
+        panel.coordinator.client.address,
+        "SERIAL-1",
+        "Test Panel",
+        "arm64-v8a",
+        34,
+        local_shell=device,
+    )
+    monkeypatch.setattr(local_adb, "async_target", AsyncMock(return_value=target))
+    monkeypatch.setattr(
+        vendor_recovery,
+        "async_probe_install_target",
+        AsyncMock(
+            side_effect=AssertionError("live local witness must not probe network ADB")
+        ),
+    )
+    session = replace(
+        panel.session,
+        token="local-session",
+        local_adb_identity=("SERIAL-1", "Test Panel", "arm64-v8a", 34),
+    )
+    panel.sessions.open(session)
+    await panel.coordinator.async_refresh()
+    await panel.coordinator.hass.async_block_till_done()
+    original = adb_protocol._async_connect
+    network_attempts = 0
+
+    async def connect(target: Any, signer: Any, *, authorize: bool = True) -> Any:
+        nonlocal network_attempts
+        assert target.local_shell is None, (
+            "app-death recovery needs an independent route"
+        )
+        network_attempts += 1
+        if network_attempts == 1:
+            raise adb_protocol.InstallAdbError(
+                adb_protocol.InstallAdbErrorCode.TARGET_UNREACHABLE
+            )
+        return await original(target, signer, authorize=authorize)
+
+    monkeypatch.setattr(adb_protocol, "_async_connect", connect)
+    monkeypatch.setattr(local_adb, "LOCAL_ADB_RECOVERY_RETRY_SECONDS", 0.001)
+    panel.state.online = False
+    panel.state.stopped = True
+    # Exact vendor provenance remains usable across the admitted recovery wait.
+    panel.state.now = 101.0 + stop_age
+    panel.state.logs.append(
+        f"  101.000 475 1207 I ActivityManager: Force stopping {PACKAGE} "
+        "appid=10115 user=0: from pid 1371"
+    )
+    panel.sessions.close(session, "app died")
+    await panel.coordinator.hass.async_block_till_done()
+    assert network_attempts == 2
+    assert panel.state.homes == 1
+    assert panel.coordinator.reachable

@@ -382,17 +382,22 @@ class BuildDelivery:
                 # A panel that answers, over HTTP or its own session, has its app.
                 or self._coordinator.reachable
                 or self._coordinator.connected
-                or not await async_relaunch_stopped_app(
-                    hass, self._coordinator, artifact, self._panel_name
-                )
             ):
                 raise
-            _LOGGER.warning(
-                "%s installed %s but its app did not start again; "
-                "Panel Assistant started it over ADB",
-                self._panel_name(),
-                artifact.tag,
+            started = await async_relaunch_stopped_app(
+                hass, self._coordinator, artifact, self._panel_name
             )
+            if started:
+                _LOGGER.warning(
+                    "%s installed %s but its app did not start again; "
+                    "Panel Assistant started it over ADB",
+                    self._panel_name(),
+                    artifact.tag,
+                )
+            elif not self._coordinator.available:
+                raise
+            # Independent recovery can outlast the app's own restart. A panel
+            # that returned meanwhile still has to prove this exact build.
             proven = await wait()
         if proven is not None:
             self._record_code(*proven)

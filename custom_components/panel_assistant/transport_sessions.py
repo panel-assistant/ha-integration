@@ -150,6 +150,10 @@ class PanelSession:
     # (``voice.VoiceConfiguration``). A projection of the panel's settings,
     # never a second store: it ends with the session.
     voice: Any = None
+    # A fresh hello may grant local commands once the install finalizer ends.
+    local_adb_deferred: bool = False
+    # A nonce-framed local read proved the recovery route and physical identity.
+    local_adb_identity: tuple[str, str, str, int] | None = None
 
     def count(self, name: str) -> None:
         """Count one command fact for diagnostics."""
@@ -550,6 +554,8 @@ async def async_manage_outcome(
     session: PanelSession,
     op: str,
     wait_seconds: float,
+    *,
+    approval_seconds: float = 0,
     **fields: Any,
 ) -> CommandOutcome:
     """Ask one management request and return its final outcome, whatever it is.
@@ -571,6 +577,7 @@ async def async_manage_outcome(
         {"op": op, **fields},
         wait_seconds,
         kind="manage",
+        approval_seconds=approval_seconds,
     )
 
 

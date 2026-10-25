@@ -269,6 +269,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         keeps an ADB connection or adds a timer.
         """
         from . import adb_protocol as adb
+        from . import local_adb
         from .adb_credentials import (
             AdbCredentialError,
             async_get_durable_adb_credential,
@@ -293,7 +294,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         entry = self._entry()
         if (
             not health.setup_complete
-            or not self.reachable
+            or not self.available
             or entry is None
             or not health.discovery_id
             or health.discovery_id != entry.unique_id
@@ -318,36 +319,56 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             return
         device: AdbDeviceAsync | None = None
         try:
-            async with asyncio.timeout(45):
+            async with asyncio.timeout(
+                None if local_adb.session_for(self.hass, entry) is not None else 45
+            ):
                 manager = await async_get_install_job_manager(self.hass)
                 self._admin_retry_at = monotonic() + 300
-                credential = await async_get_durable_adb_credential(self.hass)
-                pinned = await async_pin_entry_target(
-                    self.hass, self.client.address, health, entry.unique_id
+                target = await local_adb.async_target(
+                    self.hass, entry, self.client.address
                 )
-                if pinned is None:
-                    return
-                if await manager.async_find_active(address, pinned.pinned.stored_value):
-                    return
-                probe = await async_probe_install_target(
-                    pinned.pinned, credential.signer
-                )
-                target = probe.adb_target(pinned.pinned)
-                if probe.state is not InstallTargetState.INSTALLED or target is None:
-                    return
-                await async_revalidate_install_target(self.hass, pinned)
-                if (
-                    self._entry() is not entry
-                    or entry.unique_id != health.discovery_id
-                    or entry.data[CONF_ADDRESS] != address
-                    or await manager.async_find_active(
-                        address, pinned.pinned.stored_value
+                signer = None
+                if target is None:
+                    credential = await async_get_durable_adb_credential(self.hass)
+                    pinned = await async_pin_entry_target(
+                        self.hass, self.client.address, health, entry.unique_id
                     )
+                    if pinned is None:
+                        return
+                    if await manager.async_find_active(
+                        address, pinned.pinned.stored_value
+                    ):
+                        return
+                    probe = await async_probe_install_target(
+                        pinned.pinned, credential.signer
+                    )
+                    target = probe.adb_target(pinned.pinned)
+                    if (
+                        probe.state is not InstallTargetState.INSTALLED
+                        or target is None
+                    ):
+                        return
+                    await async_revalidate_install_target(self.hass, pinned)
+                    if (
+                        self._entry() is not entry
+                        or entry.unique_id != health.discovery_id
+                        or entry.data[CONF_ADDRESS] != address
+                        or await manager.async_find_active(
+                            address, pinned.pinned.stored_value
+                        )
+                    ):
+                        return
+                    signer = credential.signer
+                elif any(
+                    not receipt.is_terminal
+                    and address
+                    in (receipt.target.address, receipt.target.pinned_address)
+                    for receipt in await manager.async_list()
                 ):
                     return
-                device = await adb._async_connect(
-                    target, credential.signer, authorize=False
-                )
+                if self._entry() is not entry or entry.data[CONF_ADDRESS] != address:
+                    return
+                device = await adb._async_connect(target, signer, authorize=False)
                 nonce = token_hex(16)
                 adb._parse_identity_root(
                     await adb._async_shell(

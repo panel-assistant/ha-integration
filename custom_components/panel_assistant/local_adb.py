@@ -1,0 +1,352 @@
+"""Existing panel shell programs carried by their authenticated live session."""
+
+from __future__ import annotations
+
+import asyncio
+import base64
+import binascii
+from collections.abc import AsyncIterator
+from dataclasses import replace
+from secrets import token_hex
+from typing import Any
+
+from adb_shell.adb_device_async import AdbDeviceAsync
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
+
+from . import adb_protocol as adb
+from .client import (
+    _PACKAGE_NAME_PATTERN,
+    HandBackRefusedError,
+    HaPaneldError,
+    PanelAddress,
+    UpdateApprovalRequiredError,
+)
+from .transport_protocol import CAPABILITY_LOCAL_ADB, OUTCOME_APPLIED
+from .transport_sessions import (
+    PanelSession,
+    async_get_sessions,
+    async_manage_outcome,
+    session_manages,
+)
+
+LOCAL_ADB_APPROVAL_SECONDS = 600.0
+LOCAL_ADB_RECOVERY_SECONDS = 300
+LOCAL_ADB_RECOVERY_OVERHEAD_SECONDS = 15
+LOCAL_ADB_RECOVERY_RETRY_SECONDS = 15
+
+
+def _failure() -> adb.InstallAdbError:
+    return adb.InstallAdbError(adb.InstallAdbErrorCode.TARGET_UNREACHABLE)
+
+
+def session_for(hass: HomeAssistant, entry: ConfigEntry) -> PanelSession | None:
+    """Select only this entry's current, authenticated local command carrier."""
+    session = async_get_sessions(hass).get(entry.entry_id)
+    if (
+        hass.config_entries.async_get_entry(entry.entry_id) is not entry
+        or session is None
+        or session.did != entry.unique_id
+        or not session_manages(session)
+        or CAPABILITY_LOCAL_ADB not in session.capabilities
+    ):
+        return None
+    return session
+
+
+async def _request(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    session: PanelSession,
+    op: str,
+    args: dict[str, Any],
+    wait_seconds: float,
+) -> dict[str, Any]:
+    if session_for(hass, entry) is not session:
+        raise _failure()
+    try:
+        outcome = await async_manage_outcome(
+            hass,
+            session,
+            op,
+            wait_seconds,
+            args=args,
+            approval_seconds=LOCAL_ADB_APPROVAL_SECONDS
+            if op in ("adb.shell", "adb.recover")
+            else 0,
+        )
+    except HomeAssistantError as err:
+        raise _failure() from err
+    if outcome.outcome != OUTCOME_APPLIED or not isinstance(outcome.result, dict):
+        raise _failure()
+    return outcome.result
+
+
+async def async_shell(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    command: str,
+    timeout_ms: int,
+    *,
+    session: PanelSession | None = None,
+) -> bytes:
+    """Execute once; an incomplete or ambiguous result is never retried."""
+    session = session or session_for(hass, entry)
+    if (
+        session is None
+        or not command
+        or len(command.encode()) > 65536
+        or type(timeout_ms) is not int
+        or not 1 <= timeout_ms <= 180000
+    ):
+        raise _failure()
+    result = await _request(
+        hass,
+        entry,
+        session,
+        "adb.shell",
+        {"command": command, "timeout_ms": timeout_ms},
+        timeout_ms / 1000 + 10,
+    )
+    if (
+        set(result) != {"stdout_b64", "exit_code", "timed_out", "truncated"}
+        or type(result["exit_code"]) is not int
+        or result["exit_code"] != 0
+        or result["timed_out"] is not False
+        or result["truncated"] is not False
+        or not isinstance(result["stdout_b64"], str)
+        or len(result["stdout_b64"]) > 43692
+    ):
+        raise _failure()
+    try:
+        body = base64.b64decode(result["stdout_b64"], validate=True)
+    except (ValueError, binascii.Error) as err:
+        raise _failure() from err
+    if len(body) > 32768:
+        raise _failure()
+    return body
+
+
+class LocalAdbDevice(AdbDeviceAsync):
+    """The shell interface existing command parsers use, with no TCP fallback."""
+
+    def __init__(
+        self, hass: HomeAssistant, entry: ConfigEntry, session: PanelSession
+    ) -> None:
+        self.hass, self.entry, self.session = hass, entry, session
+
+    async def streaming_shell(
+        self,
+        command: str,
+        transport_timeout_s: float | None = None,
+        read_timeout_s: float = 10,
+        decode: bool = True,
+    ) -> AsyncIterator[Any]:
+        body = await async_shell(
+            self.hass,
+            self.entry,
+            command,
+            min(180000, max(1, int(read_timeout_s * 1000))),
+            session=self.session,
+        )
+        yield body.decode() if decode else body
+
+    async def close(self) -> None:
+        """Closing an operation does not end the panel's shared session."""
+
+    async def push(self, *args: Any, **kwargs: Any) -> None:
+        """File streaming belongs to the original admitted installation route."""
+        raise adb.InstallAdbError(adb.InstallAdbErrorCode.INVALID_REQUEST)
+
+
+def _ready(result: dict[str, Any]) -> bool:
+    required = {"ready", "managed", "recovery_hold"}
+    if set(result) not in (required, required | {"security_unverified"}) or any(
+        type(value) is not bool for value in result.values()
+    ):
+        raise _failure()
+    return result["ready"] is True
+
+
+async def _bootstrap(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    session: PanelSession,
+    address: PanelAddress,
+) -> bool:
+    """Keep the original admitted network route until independent recovery works."""
+    from .adb_credentials import AdbCredentialError, async_get_durable_adb_credential
+    from .install_network import (
+        InstallNetworkError,
+        async_pin_entry_target,
+        async_revalidate_install_target,
+    )
+    from .local_adb_bootstrap import async_bootstrap, prepared_asset
+    from .provisioning import InstallTargetState, async_probe_install_target
+
+    coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
+    snapshot = getattr(coordinator, "data", None)
+    if snapshot is None or getattr(coordinator, "identity_mismatch", False):
+        return False
+    try:
+        credential = await async_get_durable_adb_credential(hass)
+        pinned = await async_pin_entry_target(
+            hass, address, snapshot.health, entry.unique_id
+        )
+        if pinned is None:
+            return False
+        probe = await async_probe_install_target(pinned.pinned, credential.signer)
+        target = probe.adb_target(pinned.pinned)
+        if target is None or probe.state is not InstallTargetState.INSTALLED:
+            return False
+        result = await _request(hass, entry, session, "adb.prepare", {}, 30)
+        path, sha, _build = prepared_asset(result)
+        await async_revalidate_install_target(hass, pinned)
+        return await async_bootstrap(
+            target,
+            credential.signer,
+            path,
+            sha,
+            before_mutation=lambda: session_for(hass, entry) is session,
+        )
+    except AdbCredentialError, InstallNetworkError:
+        return False
+
+
+async def async_target(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    address: PanelAddress,
+) -> adb.AdbInstallTarget | None:
+    """Prove actual readiness and physical identity before selecting local I/O."""
+    session = session_for(hass, entry)
+    if session is None:
+        return None
+    ready = await _request(hass, entry, session, "adb.ready", {}, 10)
+    if not _ready(ready):
+        if not await _bootstrap(hass, entry, session, address):
+            return None
+        for _attempt in range(10):
+            ready = await _request(hass, entry, session, "adb.ready", {}, 10)
+            if _ready(ready):
+                break
+            await asyncio.sleep(0.2)
+        else:
+            raise _failure()
+    device = LocalAdbDevice(hass, entry, session)
+    nonce = token_hex(16)
+    try:
+        observed = adb._parse_identity(
+            await async_shell(
+                hass,
+                entry,
+                "; ".join(adb._framed_value_commands("ID", nonce)),
+                10000,
+                session=session,
+            ),
+            nonce,
+            "ID",
+        )
+        target = adb.AdbInstallTarget(
+            address,
+            observed.serial,
+            observed.model,
+            observed.primary_abi,
+            observed.android_sdk,
+        )
+        nonce = token_hex(16)
+        adb._parse_identity_root(
+            await async_shell(
+                hass, entry, adb._identity_root_command(nonce), 10000, session=session
+            ),
+            nonce,
+            target,
+        )
+    except adb._MalformedAdbResponse as err:
+        raise _failure() from err
+    identity = (target.serial, target.model, target.primary_abi, target.android_sdk)
+    if (
+        session.local_adb_identity is not None
+        and session.local_adb_identity != identity
+    ):
+        raise adb.InstallAdbError(adb.InstallAdbErrorCode.TARGET_CHANGED)
+    session.local_adb_identity = identity
+    return replace(target, local_shell=device)
+
+
+async def async_recover(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Request independent network recovery; callers still prove its identity."""
+    session = session_for(hass, entry)
+    if session is None:
+        raise _failure()
+    result = await _request(hass, entry, session, "adb.recover", {}, 30)
+    if set(result) != {"enabled"} or result["enabled"] is not True:
+        raise _failure()
+
+
+async def async_hand_back_home(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Request the app's existing HOME handback through its current session."""
+    session = session_for(hass, entry)
+    if session is None:
+        raise HaPaneldError
+    try:
+        outcome = await async_manage_outcome(
+            hass,
+            session,
+            "hand-back-home",
+            30,
+            args={},
+            approval_seconds=LOCAL_ADB_APPROVAL_SECONDS,
+        )
+    except HomeAssistantError as err:
+        if err.translation_key == "approval_pending":
+            raise UpdateApprovalRequiredError from err
+        raise HaPaneldError from err
+    result = outcome.result if isinstance(outcome.result, dict) else {}
+    if outcome.outcome != OUTCOME_APPLIED:
+        code = result.get("error")
+        raise HandBackRefusedError(code if isinstance(code, str) else "refused")
+    handed = result.get("home_handed_to")
+    if not isinstance(handed, str) or _PACKAGE_NAME_PATTERN.fullmatch(handed) is None:
+        raise HandBackRefusedError("not-handed")
+
+
+def installation_finished(hass: HomeAssistant, entry_id: str) -> None:
+    """Re-negotiate a deferred grant after the existing finalizer consumes it."""
+    sessions = async_get_sessions(hass)
+    session = sessions.get(entry_id)
+    if session is not None and session.local_adb_deferred:
+        sessions.close(session, "binding_changed")
+
+
+def recovery_wait(hass: HomeAssistant, entry: ConfigEntry) -> float:
+    """Allow the independent lease to expire only for a proven local owner."""
+    session = async_get_sessions(hass).latest(entry.entry_id)
+    if (
+        session is None
+        or session.did != entry.unique_id
+        or session.local_adb_identity is None
+    ):
+        return 0
+    return LOCAL_ADB_RECOVERY_SECONDS + LOCAL_ADB_RECOVERY_OVERHEAD_SECONDS
+
+
+def require_recovery_identity(
+    hass: HomeAssistant, entry: ConfigEntry, target: adb.AdbInstallTarget
+) -> None:
+    """A reopened address cannot replace the panel the local channel proved."""
+    session = async_get_sessions(hass).latest(entry.entry_id)
+    if (
+        session is not None
+        and session.did == entry.unique_id
+        and session.local_adb_identity is not None
+        and session.local_adb_identity
+        != (
+            target.serial,
+            target.model,
+            target.primary_abi,
+            target.android_sdk,
+        )
+    ):
+        raise adb.InstallAdbError(adb.InstallAdbErrorCode.TARGET_CHANGED)
