@@ -275,7 +275,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             ):
                 # A snapshot deadline also covers optional diagnostics. Keep the
                 # health this same panel just answered, without another request.
-                await self._async_clear_update_failure(health, allow_http=True)
+                await self._async_clear_update_failure(
+                    health, allow_http=True, is_current=probe_current
+                )
                 if probe_current():
                     self.identity_mismatch = False
                     snapshot = PanelSnapshot(
@@ -634,7 +636,11 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         return PanelSnapshot(health=health, status=status, status_error=None)
 
     async def _async_clear_update_failure(
-        self, health: PanelHealth, *, allow_http: bool = False
+        self,
+        health: PanelHealth,
+        *,
+        allow_http: bool = False,
+        is_current: Callable[[], bool] | None = None,
     ) -> None:
         """Withdraw a failed-update repair once the panel runs the build it named.
 
@@ -660,6 +666,8 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             else:
                 if name != health.version:
                     installed_code = None
+        if is_current is not None and not is_current():
+            return
         feed = async_get_feed_coordinator(self.hass)
         current = (
             feed.verified_newest(
@@ -676,6 +684,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             health.version,
             installed_code,
             verified_current_code=current_code,
+            is_current=is_current,
         )
 
     async def _async_recover_address(self) -> PanelHealth | None:

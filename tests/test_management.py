@@ -16,11 +16,16 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.client import CannotConnectError, HaPaneldClient
+from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.repairs_failure import (
+    _failure_store,
+    async_failure_events,
     async_record_update_failure,
+    panel_failure_issue_id,
 )
 from custom_components.panel_assistant.transport_sessions import async_get_sessions
 
@@ -216,10 +221,16 @@ async def test_a_snapshot_timeout_cannot_publish_a_retired_health_probe(
     monkeypatch.setattr(
         "custom_components.panel_assistant.transport_sessions.MANAGE_TIMEOUT", 0.01
     )
+    issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
+    saved_events: list[dict[str, Any]] = []
     if retired_by == "repair":
         await async_record_update_failure(
             hass, entry.entry_id, entry.title, "0.9.8-rc1 build 1", RuntimeError()
         )
+
+        saved_events = await async_failure_events(hass, issue_id)
+        assert saved_events
+        assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
 
         async def version_after_address_edit(
             _client: HaPaneldClient,
@@ -251,6 +262,78 @@ async def test_a_snapshot_timeout_cannot_publish_a_retired_health_probe(
         await refresh
 
     assert not coordinator.last_update_success
+    if retired_by == "repair":
+        assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+        assert await async_failure_events(hass, issue_id) == saved_events
+
+
+@pytest.mark.parametrize(
+    "retired_by", ["address", "identity", "session", pytest.param(None, id="current")]
+)
+async def test_a_timeout_probe_can_clear_a_repair_only_while_current_at_the_store(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    monkeypatch: pytest.MonkeyPatch,
+    retired_by: str | None,
+) -> None:
+    """A probe waiting to save cannot resolve a Repair after losing its panel."""
+    entry = await _load(hass, hass_read_only_user.id)
+    coordinator = entry.runtime_data.coordinator
+    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token, MANAGED)
+    monkeypatch.setattr(
+        "custom_components.panel_assistant.transport_sessions.MANAGE_TIMEOUT", 0.01
+    )
+    await async_record_update_failure(
+        hass, entry.entry_id, entry.title, "0.9.11-rc1 build 1200", RuntimeError()
+    )
+    issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
+    saved_events = await async_failure_events(hass, issue_id)
+    assert saved_events
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+    version_answered = asyncio.Event()
+
+    async def version_code(_client: HaPaneldClient) -> tuple[str, int]:
+        version_answered.set()
+        return HEALTH.version, 1200
+
+    monkeypatch.setattr(HaPaneldClient, "async_get_version_code", version_code)
+    store = _failure_store(hass)
+    await store.lock.acquire()
+    try:
+        with _http_answers():
+            refresh = asyncio.ensure_future(coordinator.async_refresh())
+            await panel.manage()
+            # Let the real snapshot deadline pass and the healthy HTTP probe
+            # reach its version read; its Repair clear then waits on this lock.
+            await asyncio.wait_for(version_answered.wait(), timeout=1)
+            assert not refresh.done()
+            if retired_by == "address":
+                hass.config_entries.async_update_entry(
+                    entry, data={**entry.data, CONF_ADDRESS: "192.168.1.77"}
+                )
+            elif retired_by == "identity":
+                hass.config_entries.async_update_entry(entry, unique_id="b" * 64)
+            elif retired_by == "session":
+                sessions = async_get_sessions(hass)
+                live = sessions.get(entry.entry_id)
+                assert live is not None
+                sessions.open(dataclasses.replace(live, token="newer-session"))
+            store.lock.release()
+            await refresh
+    finally:
+        if store.lock.locked():
+            store.lock.release()
+
+    if retired_by is None:
+        assert coordinator.last_update_success
+        assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+        assert await async_failure_events(hass, issue_id) == []
+    else:
+        assert not coordinator.last_update_success
+        assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+        assert await async_failure_events(hass, issue_id) == saved_events
 
 
 @pytest.mark.parametrize("health_line", ["invalid", HEALTH_LINE.replace(DID, "b" * 64)])
