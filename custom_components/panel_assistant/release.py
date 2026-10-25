@@ -431,14 +431,30 @@ async def _async_fetch_bounded(
     headers: dict[str, str],
     total_seconds: float = _REQUEST_TIMEOUT_SECONDS,
     read_seconds: float = _READ_TIMEOUT_SECONDS,
+    allow_catalog_redirects: bool = False,
 ) -> bytes:
     """Fetch one response under fixed status, redirect, time and byte bounds."""
+
+    def trusted_redirect(target: URL) -> bool:
+        if allow_catalog_redirects:
+            return (
+                target.scheme == "https"
+                and target.host is not None
+                and target.user is None
+                and target.password is None
+                and target.port == 443
+                and not target.fragment
+            )
+        return is_trusted_download_url(target)
+
     current_url = url
     redirects = 0
     try:
         async with asyncio.timeout(total_seconds):
             while True:
-                if allow_release_redirects and not is_trusted_download_url(current_url):
+                if (
+                    allow_release_redirects or allow_catalog_redirects
+                ) and not trusted_redirect(current_url):
                     raise ReleaseResolutionError
 
                 async with session.get(
@@ -451,10 +467,13 @@ async def _async_fetch_bounded(
                         raise ReleaseResolutionError
 
                     if response.status in _REDIRECT_STATUSES:
-                        if not allow_release_redirects or redirects >= _MAX_REDIRECTS:
+                        if (
+                            not (allow_release_redirects or allow_catalog_redirects)
+                            or redirects >= _MAX_REDIRECTS
+                        ):
                             raise ReleaseResolutionError
                         next_url = redirect_target(current_url, response)
-                        if next_url is None or not is_trusted_download_url(next_url):
+                        if next_url is None or not trusted_redirect(next_url):
                             raise ReleaseResolutionError
                         current_url = next_url
                         redirects += 1
@@ -805,15 +824,19 @@ async def _async_resolve_release(
     url: URL,
     *,
     expected_rc_tag: str | None = None,
+    release_body: bytes | None = None,
 ) -> tuple[ReleaseArtifact, SignedReleaseMetadata | None]:
     """Share identical byte bounds, signatures and descriptor binding for both paths."""
-    release_body = await _async_fetch_bounded(
-        session,
-        url,
-        _MAX_RELEASE_RESPONSE_BYTES,
-        allow_release_redirects=False,
-        headers=_API_HEADERS,
-    )
+    if release_body is None:
+        release_body = await _async_fetch_bounded(
+            session,
+            url,
+            _MAX_RELEASE_RESPONSE_BYTES,
+            allow_release_redirects=False,
+            headers=_API_HEADERS,
+        )
+    if len(release_body) > _MAX_RELEASE_RESPONSE_BYTES:
+        raise ReleaseResolutionError
     tag, apk_name, assets = _parse_release_metadata(
         release_body, expected_rc_tag=expected_rc_tag
     )
