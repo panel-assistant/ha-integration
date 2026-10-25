@@ -253,31 +253,47 @@ async def test_the_usb_installer_dialog_finishes_when_the_panel_is_added(
     assert (untouched["type"], untouched["step_id"]) == ("form", "install_usb")
 
 
+@pytest.mark.parametrize("ignored", [False, True], ids=["new", "ignored"])
 async def test_usb_dialog_finishes_when_the_pending_wizard_completes(
-    endpoint: Any, hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+    endpoint: Any, hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, ignored: bool
 ) -> None:
     """Completing the existing wizard closes the waiting USB tab too."""
     monkeypatch.setattr(
         "custom_components.panel_assistant.config_flow._SETUP_POLL_SECONDS", 0.01
     )
     assert await async_setup_component(hass, "config", {})
+    if ignored:
+        MockConfigEntry(
+            domain=DOMAIN,
+            source="ignore",
+            unique_id=_HEALTH.discovery_id,
+            data={},
+        ).add_to_hass(hass)
     waiting = await _open_usb_dialog(endpoint)
     panel = _Panel(PanelSetupState(complete=False, accepts_handover=True))
     _status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
     assert body["registration"] == "pending"
-    assert not hass.config_entries.async_entries(DOMAIN)
+    assert all(
+        entry.source == "ignore" for entry in hass.config_entries.async_entries(DOMAIN)
+    )
     still = await (await endpoint.get(f"{_FLOWS}/{waiting}")).json()
     assert still["type"] == "external"
     panel.state = PanelSetupState(complete=True, accepts_handover=True)
     state, hand = _patched(panel)
+    finished = still
     with state, hand:
-        async with asyncio.timeout(5):
-            while True:
-                finished = await (await endpoint.get(f"{_FLOWS}/{waiting}")).json()
-                if finished["type"] == "abort":
-                    break
-                await asyncio.sleep(0.01)
+        try:
+            async with asyncio.timeout(5):
+                while True:
+                    finished = await (await endpoint.get(f"{_FLOWS}/{waiting}")).json()
+                    if finished["type"] == "abort":
+                        break
+                    await asyncio.sleep(0.01)
+        except TimeoutError:
+            pass
     assert len(hass.config_entries.async_entries(DOMAIN)) == 1
+    assert hass.config_entries.async_entries(DOMAIN)[0].source != "ignore"
+    assert finished["type"] == "abort", "USB installer dialog did not finish"
     assert (finished["type"], finished["reason"]) == ("abort", "usb_installed")
     assert panel.posted == ["http://192.168.1.5:8123"]
 

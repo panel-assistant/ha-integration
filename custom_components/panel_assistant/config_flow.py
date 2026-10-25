@@ -543,9 +543,15 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                         self.source == SOURCE_USB_INSTALL
                         and result["type"] is FlowResultType.EXTERNAL_STEP_DONE
                     ):
-                        await self.hass.config_entries.flow.async_configure(
+                        result = await self.hass.config_entries.flow.async_configure(
                             flow_id=self.flow_id, user_input={}
                         )
+                        # Core skips async_on_create_entry when replacing Ignore.
+                        # Settle the waiting USB dialog after either add path.
+                        if result["type"] is FlowResultType.CREATE_ENTRY or (
+                            result.get("reason") == "already_configured"
+                        ):
+                            await self._async_finish_usb_installers()
                 return
 
     async def _async_load_install_releases(self) -> None:
@@ -1367,8 +1373,6 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             address = entry.data.get(CONF_ADDRESS)
             if isinstance(address, str):
                 close_offers(self.hass, address, self.flow_id, pressed=True)
-            if self.source == SOURCE_USB_INSTALL:
-                await self._async_finish_usb_installers()
         if job_id is not None and executor is not None:
             if isinstance(entry, ConfigEntry):
                 # Never raises: the entry exists, and a receipt that cannot be
