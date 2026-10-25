@@ -40,7 +40,6 @@ from custom_components.panel_assistant.browser_delivery import (
 )
 from custom_components.panel_assistant.client import (
     CannotConnectError,
-    InvalidAddressError,
     InvalidResponseError,
     PanelHealth,
     PanelSetupState,
@@ -262,41 +261,6 @@ async def test_connect_existing_duplicate_address_is_rejected(
     assert second["type"] is FlowResultType.ABORT
     assert second["reason"] == "already_configured"
     assert first["result"].data[CONF_ADDRESS] == "panel.local"
-
-
-async def test_connect_existing_expected_errors(hass: HomeAssistant) -> None:
-    """Address and health failures remain actionable connect-form errors."""
-    invalid_form = await _start_step(hass, "add_panel")
-    with patch(
-        "custom_components.panel_assistant.config_flow.normalize_address",
-        side_effect=InvalidAddressError,
-    ):
-        invalid = await hass.config_entries.flow.async_configure(
-            invalid_form["flow_id"], {CONF_ADDRESS: "bad"}
-        )
-
-    # A failed HTTP health read falls through to the read-only install probe,
-    # regardless of the HTTP port.
-    unavailable_form = await _start_step(hass, "add_panel")
-    with (
-        patch(
-            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
-            AsyncMock(side_effect=CannotConnectError),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_probe_install_target",
-            AsyncMock(return_value=_probe("retained_or_ambiguous")),
-        ) as probe_mock,
-    ):
-        unavailable = await hass.config_entries.flow.async_configure(
-            unavailable_form["flow_id"], {CONF_ADDRESS: "panel.local:8123"}
-        )
-
-    assert invalid["step_id"] == "add_panel"
-    assert invalid["errors"] == {"base": "invalid_address"}
-    assert unavailable["step_id"] == "add_panel"
-    assert unavailable["errors"] == {"base": "retained_or_ambiguous"}
-    probe_mock.assert_awaited_once()
 
 
 async def test_connect_existing_unexpected_error(hass: HomeAssistant) -> None:
@@ -935,13 +899,22 @@ async def test_installed_panel_only_connects_without_release_work(
     install_release_catalog.assert_not_awaited()
 
 
+@pytest.mark.parametrize("address", ["panel.local", "panel.local:17242"])
 @pytest.mark.parametrize("active_tag", ["v0.9.7", "v0.9.7-rc3"])
 async def test_active_job_resumes_with_its_own_release(
-    hass: HomeAssistant, active_tag: str, install_release_catalog: AsyncMock
+    hass: HomeAssistant,
+    active_tag: str,
+    address: str,
+    install_release_catalog: AsyncMock,
 ) -> None:
     """An active job resumes its original release; no version is ever asked."""
     receipt = replace(
         _receipt(InstallPhase.APPROVED),
+        target=replace(
+            TARGET,
+            address=address,
+            pinned_address=address.replace("panel.local", "192.168.1.23"),
+        ),
         artifact=replace(
             ARTIFACT,
             release_tag=active_tag,
@@ -975,7 +948,7 @@ async def test_active_job_resumes_with_its_own_release(
     ):
         form = await _start_step(hass, "add_panel")
         result = await hass.config_entries.flow.async_configure(
-            form["flow_id"], {CONF_ADDRESS: "panel.local"}
+            form["flow_id"], {CONF_ADDRESS: address}
         )
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "install_worker_stopped"

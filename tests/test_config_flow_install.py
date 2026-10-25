@@ -27,6 +27,7 @@ from custom_components.panel_assistant.const import (
     INSTALL_RECOVERY_PLACEHOLDERS,
     help_url,
 )
+from custom_components.panel_assistant.install_jobs import async_get_install_job_manager
 from custom_components.panel_assistant.install_network import (
     InstallNetworkError,
     InstallNetworkErrorCode,
@@ -337,16 +338,27 @@ async def test_connect_found_failure_returns_to_address_form_and_can_retry(
     assert result["data"] == {CONF_ADDRESS: "panel.local"}
 
 
-@pytest.mark.parametrize("port", [8888, 17242])
-@pytest.mark.parametrize("healthy", [True, False], ids=["healthy", "not_installed"])
-async def test_install_needed_comes_from_health_on_any_http_port(
-    hass: HomeAssistant, install_network_pin: SimpleNamespace, port: int, healthy: bool
+@pytest.mark.parametrize(
+    ("address", "port"),
+    [("panel.local", 8888), ("panel.local:17242", 17242)],
+    ids=["default", "custom"],
+)
+@pytest.mark.parametrize(
+    "health",
+    [HEALTH, CannotConnectError, InvalidResponseError],
+    ids=["healthy", "unreachable", "invalid"],
+)
+async def test_install_requires_a_verified_port_or_host_only_first_contact(
+    hass: HomeAssistant,
+    install_network_pin: SimpleNamespace,
+    address: str,
+    port: int,
+    health: object,
 ) -> None:
-    """HTTP health decides connect vs installation, independently of its port."""
+    """Never install against an unverified custom listener the app cannot honor."""
+    healthy = health is HEALTH
     health_mock = (
-        AsyncMock(return_value=HEALTH)
-        if healthy
-        else AsyncMock(side_effect=CannotConnectError)
+        AsyncMock(return_value=health) if healthy else AsyncMock(side_effect=health)
     )
     probe_mock = AsyncMock(
         return_value=_probe(
@@ -357,7 +369,6 @@ async def test_install_needed_comes_from_health_on_any_http_port(
             android_sdk=31,
         )
     )
-    address = "panel.local" if port == 8888 else f"panel.local:{port}"
     pinned = "192.168.1.23" if port == 8888 else f"192.168.1.23:{port}"
     with (
         patch(
@@ -377,7 +388,6 @@ async def test_install_needed_comes_from_health_on_any_http_port(
             form["flow_id"], {CONF_ADDRESS: address}
         )
 
-    assert result.get("errors") in (None, {})
     if healthy:
         assert result["type"] is FlowResultType.MENU
         assert result["step_id"] == "found_panel"
@@ -386,15 +396,22 @@ async def test_install_needed_comes_from_health_on_any_http_port(
             "version": "0.9.0",
         }
         probe_mock.assert_not_awaited()
-    else:
+    elif port == 8888:
+        assert result.get("errors") in (None, {})
         assert result["step_id"] == "choose_version"
         probe_mock.assert_awaited_once()
         assert probe_mock.await_args.args[0].stored_value == pinned
-        # The HTTP port is metadata, not a user-selected ADB port or authorization.
         assert len(probe_mock.await_args.args) == 1
+    else:
+        assert result["type"] is FlowResultType.FORM
+        assert result["step_id"] == "add_panel"
+        assert result["errors"] == {"base": "invalid_install_address"}
+        probe_mock.assert_not_awaited()
     health_mock.assert_awaited_once()
     assert client_class.call_args.args[1].stored_value == pinned
     install_network_pin.pin.assert_awaited_once()
+    manager = await async_get_install_job_manager(hass)
+    assert await manager.async_list() == ()
     assert not hass.config_entries.async_entries(DOMAIN)
 
 

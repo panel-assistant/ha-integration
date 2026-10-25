@@ -635,6 +635,15 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             self._pending_health = health
             return await self._async_show_found_panel()
 
+        # A fresh install chooses its listener; typing a custom port does not
+        # configure it. Require health proof before using that endpoint, or a
+        # host-only first contact before offering installation.
+        host = f"[{address.host}]" if ":" in address.host else address.host
+        if address.port != normalize_address(host).port:
+            return self._show_add_panel_form(
+                user_input, {"base": "invalid_install_address"}
+            )
+
         try:
             # The first probe deliberately has no key. Discovering an authorization
             # requirement must remain read-only; only the explicit authorization
