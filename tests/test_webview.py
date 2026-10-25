@@ -12,7 +12,10 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.setup import async_setup_component
 
-from custom_components.panel_assistant.client import CannotConnectError
+from custom_components.panel_assistant.client import (
+    CannotConnectError,
+    InvalidResponseError,
+)
 from custom_components.panel_assistant.const import (
     CONF_TRANSPORT_USER_ID,
     DOMAIN,
@@ -108,10 +111,21 @@ async def test_polling_recovers_attempts_into_one_combined_repair_without_instal
         assert registry.async_get_issue(DOMAIN, issue_id) is not None
 
 
-@pytest.mark.parametrize("newer_offer", [False, True, "behind"])
-@pytest.mark.parametrize("receipt", [None, "submitted_unknown", "deferred"])
+@pytest.mark.parametrize(
+    "receipt,newer_offer,compatibility",
+    [
+        (receipt, offer, "bound")
+        for receipt in [None, "submitted_unknown", "deferred"]
+        for offer in [False, True, "behind"]
+    ]
+    + [(None, False, mode) for mode in ["unbound", "legacy", "unpaired"]],
+)
 async def test_combined_repair_retries_provider_without_reinstalling_current_app(
-    hass: HomeAssistant, hass_client: Any, newer_offer: bool | str, receipt: str | None
+    hass: HomeAssistant,
+    hass_client: Any,
+    newer_offer: bool | str,
+    receipt: str | None,
+    compatibility: str,
 ) -> None:
     assert await async_setup_component(hass, "repairs", {})
     assert await async_setup_component(hass, DOMAIN, {})
@@ -149,8 +163,10 @@ async def test_combined_repair_retries_provider_without_reinstalling_current_app
         entry.title,
         "0.9.10 build 102",
         RuntimeError("provider interrupted"),
-        webview_pending=True,
+        webview_pending=compatibility != "unpaired",
     )
+    if compatibility in {"unbound", "unpaired"}:
+        async_unbind_user(hass, entry)
     issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
     operations = []
     session = SimpleNamespace(
@@ -160,6 +176,8 @@ async def test_combined_repair_retries_provider_without_reinstalling_current_app
     async def manage(_hass: Any, _session: Any, op: str, **fields: Any) -> Any:
         operations.append(op)
         if op == "webview.observe":
+            if compatibility == "legacy":
+                raise InvalidResponseError
             return observation(receipt)
         assert fields["artifact_sha256"] == "c" * 64
         return observation("installed", eligible=False)
@@ -171,7 +189,13 @@ async def test_combined_repair_retries_provider_without_reinstalling_current_app
         patch.object(
             coordinator.client,
             "async_get_status",
-            AsyncMock(return_value=status(observation(receipt))),
+            AsyncMock(
+                return_value=parse_status_response(
+                    '{"warnings": [], "capabilities": []}'
+                )
+                if compatibility == "legacy"
+                else status(observation(receipt))
+            ),
         ),
         patch(
             "custom_components.panel_assistant.repairs_webview.async_get_sessions"
@@ -202,16 +226,24 @@ async def test_combined_repair_retries_provider_without_reinstalling_current_app
         service.assert_not_awaited()
     assert operations == (
         []
-        if newer_offer == "behind"
+        if newer_offer == "behind" or compatibility in {"unbound", "unpaired"}
         else ["webview.observe"]
-        + ([] if receipt == "submitted_unknown" else ["webview.install"])
+        + (
+            []
+            if receipt == "submitted_unknown" or compatibility == "legacy"
+            else ["webview.install"]
+        )
     )
     assert (ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None) == (
-        receipt == "submitted_unknown" or newer_offer == "behind"
+        receipt == "submitted_unknown"
+        or newer_offer == "behind"
+        or compatibility == "unbound"
     )
     assert done["type"] == (
         "form"
-        if receipt == "submitted_unknown" or newer_offer == "behind"
+        if receipt == "submitted_unknown"
+        or newer_offer == "behind"
+        or compatibility == "unbound"
         else "create_entry"
     )
 
@@ -276,3 +308,42 @@ async def test_bundle_observes_one_submission_through_reconnect_and_binding_reti
     assert result == (None if retire is None else "webview_unavailable")
     assert operations.count("webview.install") == 1
     assert operations.count("webview.observe") == (3 if retire is None else 2)
+
+
+@pytest.mark.parametrize("native_receipt", [False, True])
+async def test_startup_restores_combined_repair_when_only_report_was_saved(
+    hass: HomeAssistant, native_receipt: bool
+) -> None:
+    """A hard stop before IssueRegistry saves cannot hide the durable bundle."""
+    from custom_components.panel_assistant.repairs_failure import (
+        async_record_update_bundle,
+    )
+    from custom_components.panel_assistant.repairs_webview import (
+        async_reconcile_webview_issue,
+    )
+
+    entry, _coordinator = _panel(hass)
+    hass.config_entries.async_update_entry(
+        entry, data={**entry.data, CONF_TRANSPORT_USER_ID: "owner"}
+    )
+    issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
+    await async_record_update_bundle(hass, entry.entry_id, "0.9.10 build 102", None)
+    saved = await async_failure_events(hass, issue_id)
+    ir.async_delete_issue(hass, DOMAIN, issue_id)
+    hass.data.pop(f"{DOMAIN}.failure_repair_store")
+    with patch(
+        "custom_components.panel_assistant.repairs_webview.async_manage", AsyncMock()
+    ) as manage:
+        assert await async_setup_component(hass, DOMAIN, {})
+        if native_receipt:
+            await async_reconcile_webview_issue(
+                hass, entry, status(observation("submitted_unknown"))
+            )
+        manage.assert_not_awaited()
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    assert issue is not None and issue.is_fixable
+    assert await async_failure_events(hass, issue_id) == saved
+    assert (
+        saved[-1]["target_version"] == "0.9.10 build 102"
+        and saved[-1]["webview_pending"]
+    )

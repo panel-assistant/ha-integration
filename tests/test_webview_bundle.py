@@ -196,8 +196,10 @@ async def test_new_owner_update_replaces_an_older_pending_target(
     assert events[-1]["target_version"] == "0.9.10 build 102"
 
 
+@pytest.mark.parametrize("cancelled", [False, True])
 async def test_unpaired_app_update_does_not_create_provider_failure(
     hass: HomeAssistant,
+    cancelled: bool,
 ) -> None:
     entity, _client = _entity(hass)
     entry = MockConfigEntry(domain=DOMAIN, data={CONF_ADDRESS: "panel.local"})
@@ -205,13 +207,26 @@ async def test_unpaired_app_update_does_not_create_provider_failure(
     entry.runtime_data = SimpleNamespace(coordinator=entity.coordinator)
     entity._entry_id = entry.entry_id
     entity._async_install_route = AsyncMock(return_value=(ROUTE_STAGED, None, None))
-    entity._delivery.async_deliver_build = AsyncMock()
+    entity._delivery.async_deliver_build = AsyncMock(
+        side_effect=asyncio.CancelledError if cancelled else None
+    )
     with patch(
         "custom_components.panel_assistant.repairs_webview.async_manage", AsyncMock()
     ) as manage:
-        await entity.async_install(None, backup=False)
+        if cancelled:
+            with pytest.raises(asyncio.CancelledError):
+                await entity.async_install(None, backup=False)
+        else:
+            await entity.async_install(None, backup=False)
         manage.assert_not_awaited()
     issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
+    if cancelled:
+        assert not (await async_failure_events(hass, issue_id))[-1].get(
+            "webview_pending"
+        )
+        await async_clear_update_failure_if_installed(
+            hass, entry.entry_id, "0.9.10", None
+        )
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
 
 

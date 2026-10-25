@@ -619,6 +619,31 @@ async def async_update_failure_entry_ids(hass: HomeAssistant) -> set[str]:
     return {entry_id for entry_id in named if entry_id is not None}
 
 
+async def async_restore_update_failure(hass: HomeAssistant, entry_id: str) -> None:
+    """Restore a Repair when its report outlived the registry's delayed save."""
+    issue_id = panel_failure_issue_id(f"update:{entry_id}")
+    store = _failure_store(hass)
+    async with store.lock:
+        if ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None:
+            return
+        entry = hass.config_entries.async_get_entry(entry_id)
+        if entry is None:
+            return
+        records = await store.load()
+        events = records.get(issue_id, {}).get("events", [])
+        if (
+            not isinstance(events, list)
+            or update_failure_entry_id(issue_id, events) != entry_id
+        ):
+            return
+        latest = next(
+            (event for event in reversed(events) if isinstance(event, dict)), {}
+        )
+        kind = "retry_hold" if latest.get("kind") == "retry_hold" else "update"
+        reason = str(latest.get("reason", ""))
+        _issue(hass, issue_id, panel_display_name(hass, entry), kind, reason, entry_id)
+
+
 async def async_record_retry_hold(
     hass: HomeAssistant, issue_id: str, previous: dict[str, Any], error: Exception
 ) -> None:
