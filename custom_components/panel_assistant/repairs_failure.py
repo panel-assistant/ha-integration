@@ -22,7 +22,7 @@ from homeassistant.helpers.storage import Store
 from .build import INTEGRATION_BUILD
 from .build_feed import parse_build_request
 from .client import is_newer_stable_version, is_version_at_least
-from .const import DOMAIN, INTEGRATION_VERSION, help_url
+from .const import CONF_TRANSPORT_USER_ID, DOMAIN, INTEGRATION_VERSION, help_url
 from .device import panel_display_name
 from .transport_protocol import CAPABILITY_UI_SUBSCRIBE, OUTCOME_APPLIED
 from .transport_sessions import async_get_sessions, session_manages
@@ -357,6 +357,41 @@ def clear_install_failure(hass: HomeAssistant, receipt: InstallJobReceipt) -> No
     )
 
 
+async def async_record_update_bundle(
+    hass: HomeAssistant,
+    entry_id: str,
+    target_version: str,
+    artifact: dict[str, Any] | None,
+) -> None:
+    """Retain unfinished components before an app restart can interrupt the bundle."""
+    events = await async_failure_events(
+        hass, panel_failure_issue_id(f"update:{entry_id}")
+    )
+    previous = next(
+        (event for event in reversed(events) if event.get("kind") == "update"), None
+    )
+    if previous is not None and isinstance(previous.get("target_version"), str):
+        saved = previous["target_version"]
+        old_code, new_code = (
+            parse_build_request(saved),
+            parse_build_request(target_version),
+        )
+        if (old_code is not None and new_code is not None and old_code > new_code) or (
+            old_code is None and is_newer_stable_version(saved, target_version)
+        ):
+            return
+    entry = hass.config_entries.async_get_entry(entry_id)
+    await async_record_update_failure(
+        hass,
+        entry_id,
+        "",
+        target_version,
+        RuntimeError("The combined app and WebView update is unfinished"),
+        artifact=artifact,
+        webview_pending=bool(entry and entry.data.get(CONF_TRANSPORT_USER_ID)),
+    )
+
+
 async def async_record_update_failure(
     hass: HomeAssistant,
     entry_id: str,
@@ -366,6 +401,7 @@ async def async_record_update_failure(
     *,
     artifact: dict[str, Any] | None = None,
     observed_before: tuple[str, int | None] | None = None,
+    webview_pending: bool = False,
 ) -> None:
     """Retain the cause that Home Assistant's update toast otherwise loses."""
     entry = hass.config_entries.async_get_entry(entry_id)
@@ -390,6 +426,8 @@ async def async_record_update_failure(
         event["artifact"] = artifact
     if observed_before is not None:
         event["observed_before"] = list(observed_before)
+    if webview_pending:
+        event["webview_pending"] = True
     await _failure_store(hass).append(
         issue_id,
         event,
@@ -443,6 +481,7 @@ async def async_clear_update_failure_if_installed(
     verified_success: bool = False,
     verified_current_code: int | None = None,
     is_current: Callable[[], bool] | None = None,
+    webview_completed: bool = False,
 ) -> None:
     """Resolve a saved failure only after this panel reaches its failed build."""
     issue_id = panel_failure_issue_id(f"update:{entry_id}")
@@ -463,6 +502,12 @@ async def async_clear_update_failure_if_installed(
             ),
             None,
         )
+        if (
+            previous is not None
+            and previous.get("webview_pending")
+            and not webview_completed
+        ):
+            return False
         target = previous.get("target_version") if previous is not None else None
         if not isinstance(target, str):
             if previous is None:

@@ -316,6 +316,10 @@ async def _entity(
     package: str | None = PACKAGE_ID,
 ) -> tuple[HaPaneldUpdateEntity, SimpleNamespace]:
     """A panel on 0.9.9 whose app restarts into 0.9.10 once an install starts."""
+    # Provider bundle coverage drives real bound entries in test_webview_bundle.
+    monkeypatch.setattr(
+        panel_update, "async_update_webview", AsyncMock(return_value=None)
+    )
     monkeypatch.setattr(feed_coordinator, "async_get_clientsession", lambda _h: github)
     monkeypatch.setattr(update_staging, "async_get_clientsession", lambda _h: github)
     monkeypatch.setattr(panel_update.asyncio, "sleep", AsyncMock())

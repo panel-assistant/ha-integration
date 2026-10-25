@@ -13,16 +13,19 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType, UnknownStep
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from .build_feed import parse_build_request
 from .client import (
     CannotConnectError,
     HaPaneldClient,
     InvalidAddressError,
     InvalidResponseError,
     is_valid_discovery_id,
+    is_version_at_least,
     normalize_address,
 )
 from .config_flow import AdbAuthorization, async_authorize_adb_form
@@ -38,6 +41,7 @@ from .identity import (
 from .install_executor import async_get_install_executor
 from .install_jobs import async_get_install_job_manager
 from .install_receipt import InstallPhase
+from .panel_operations import claim_panel_operation, release_panel_operation
 from .release import ReleaseResolutionError
 from .release_catalog import async_resolve_install_choice
 from .repairs_failure import (
@@ -46,6 +50,7 @@ from .repairs_failure import (
     RetrySafetyHold,
     adb_authorization_issue_id,
     async_clear_failure,
+    async_clear_update_failure_if_installed,
     async_delete_issue_and_report,
     async_failure_events,
     async_record_retry_hold,
@@ -70,7 +75,7 @@ from .repairs_removal import (
     removal_issue_id,
 )
 from .repairs_restart import ISSUE_RESTART_REQUIRED, RestartRequiredFlow
-from .repairs_webview import ISSUE_WEBVIEW, WebViewRepairFlow, webview_issue_id
+from .repairs_webview import ISSUE_WEBVIEW, async_update_webview, webview_issue_id
 from .transport_binding import (
     ISSUE_DATA_ENTRY_ID,
     ISSUE_DATA_USER_ID,
@@ -501,12 +506,62 @@ class InstallerFailureFlow(RepairsFlow):
                 if state
                 else None
             )
+            target = previous.get("target_version")
+            target_code = (
+                parse_build_request(target) if isinstance(target, str) else None
+            )
+            installed_code = (
+                parse_build_request(installed) if isinstance(installed, str) else None
+            )
+            app_reached = isinstance(installed, str) and (
+                target is None
+                or (
+                    target_code is not None
+                    and installed_code is not None
+                    and installed_code >= target_code
+                )
+                or (
+                    target_code is None
+                    and is_version_at_least(installed.partition(" build ")[0], target)
+                    is True
+                )
+            )
+            if (
+                previous.get("webview_pending")
+                and app_reached
+                and isinstance(installed, str)
+            ):
+                if not claim_panel_operation(self.hass, entry_id):
+                    return "retry_failed"
+                try:
+                    entry = self.hass.config_entries.async_get_entry(entry_id)
+                    if entry is None or not entry.data.get(CONF_TRANSPORT_USER_ID):
+                        return "retry_failed"
+                    reason = await async_update_webview(
+                        self.hass, entry_id, allow_legacy=True
+                    )
+                    if reason is not None:
+                        raise HomeAssistantError(reason)
+                    await async_clear_update_failure_if_installed(
+                        self.hass,
+                        entry_id,
+                        installed.partition(" build ")[0],
+                        parse_build_request(installed),
+                        verified_success=True,
+                        webview_completed=True,
+                    )
+                    return "_update_completed"
+                finally:
+                    release_panel_operation(self.hass, entry_id)
             if (
                 state is not None
                 and state.state == STATE_OFF
                 and isinstance(installed, str)
                 and offered == installed
             ):
+                if previous.get("webview_pending"):
+                    # A missing offer is not proof that the saved app target landed.
+                    return "retry_cannot_prove_safe"
                 # The panel already runs the newest build on offer: the update
                 # that failed to report back has since landed, or nothing newer
                 # exists. There is nothing to install, so the failure is over;
@@ -738,7 +793,9 @@ async def async_create_fix_flow(
         entry_id = values.get("entry_id")
         if not isinstance(entry_id, str) or issue_id != webview_issue_id(entry_id):
             raise UnknownStep
-        return WebViewRepairFlow(entry_id)
+        # A flow opened before an integration upgrade cannot authorize a new
+        # standalone operation. The combined update Repair owns any pending work.
+        raise UnknownStep
     if issue_id.startswith(f"{ISSUE_PANEL_PERMISSIONS}_"):
         entry_id = values.get("entry_id")
         if not isinstance(entry_id, str) or issue_id != permission_issue_id(entry_id):

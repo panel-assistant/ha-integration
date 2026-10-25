@@ -512,7 +512,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         if entry is not None:
             async_reconcile_permission_issue(self.hass, entry, status)
             async_reconcile_proximity_issue(self.hass, entry, status)
-            async_reconcile_webview_issue(self.hass, entry, status)
+            await async_reconcile_webview_issue(self.hass, entry, status)
         return PanelSnapshot(health=health, status=status, status_error=None)
 
     async def _async_probe_address(self, session: PanelSession) -> PanelHealth | None:
@@ -632,7 +632,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         if entry is not None:
             async_reconcile_permission_issue(self.hass, entry, status)
             async_reconcile_proximity_issue(self.hass, entry, status)
-            async_reconcile_webview_issue(self.hass, entry, status)
+            await async_reconcile_webview_issue(self.hass, entry, status)
         return PanelSnapshot(health=health, status=status, status_error=None)
 
     async def _async_clear_update_failure(

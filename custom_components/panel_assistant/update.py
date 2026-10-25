@@ -31,7 +31,7 @@ from .build_feed import (
     parse_build_request,
 )
 from .client import HaPaneldError, UpdateRejectedError, _version_key
-from .const import DOMAIN, update_unique_id
+from .const import CONF_TRANSPORT_USER_ID, DOMAIN, update_unique_id
 from .coordinator import (
     HaPaneldDataUpdateCoordinator,
     PanelCoordinatorEntity,
@@ -49,11 +49,13 @@ from .panel_operations import claim_panel_operation, release_panel_operation
 from .release import ReleaseArtifact, is_feed_build_tag
 from .repairs_failure import (
     async_clear_update_failure_if_installed,
+    async_record_update_bundle,
     async_record_update_failure,
     async_refresh_update_failure_name,
 )
 from .repairs_update_route import async_reconcile_update_route_issue
 from .repairs_upgrade import runs_old_app
+from .repairs_webview import async_update_webview
 from .status import PanelCachedUpdate
 from .update_coordinator import PanelUpdateCoordinator
 from .update_errors import (
@@ -749,6 +751,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             target_version = offer.target_version
             release = self._offer.host_release()
             repair_artifact = release
+        webview_pending = bool(entry and entry.data.get(CONF_TRANSPORT_USER_ID))
+        await async_record_update_bundle(
+            self.hass, self._entry_id, target_version, failure_artifact
+        )
         self._progress.begin(self.hass, self.installed_version, self.latest_version)
         self._delivery.session = route == ROUTE_SESSION
         self.async_write_ha_state()
@@ -775,18 +781,19 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     await self._delivery.async_deliver_adb(
                         self.hass, release, adb_target, adb_credential
                     )
-                    await async_clear_update_failure_if_installed(
-                        self.hass,
-                        self._entry_id,
-                        target_version,
-                        None,
-                        verified_success=True,
-                    )
-                    return
                 # The offer is the release Home Assistant authenticated; the
                 # panel no longer fetches one itself.
-                assert release is not None
-                await self._delivery.async_deliver_build(self.hass, release)
+                else:
+                    assert release is not None
+                    await self._delivery.async_deliver_build(self.hass, release)
+            reason = await async_update_webview(
+                self.hass, self._entry_id, allow_legacy=True
+            )
+            if reason is not None:
+                raise _update_error(
+                    "update_not_complete",
+                    f"The app is installed; its WebView update is unfinished: {reason}",
+                )
         except UpdateRejectedError as refusal:
             error = refusal_error(self._panel_name(), refusal)
             await async_record_update_failure(
@@ -796,6 +803,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 target_version,
                 error,
                 artifact=failure_artifact,
+                webview_pending=webview_pending,
             )
             raise error from None
         except Exception as err:
@@ -806,6 +814,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 target_version,
                 err,
                 artifact=failure_artifact,
+                webview_pending=webview_pending,
             )
             raise
         else:
@@ -854,6 +863,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 else target_version,
                 build.version_code if feed is not None else None,
                 verified_success=True,
+                webview_completed=True,
             )
         finally:
             self._delivery.session = False

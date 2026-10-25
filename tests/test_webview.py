@@ -1,21 +1,28 @@
-"""Provider updates remain optional at install and explicit after pairing."""
+"""Provider work belongs to an owner-started app bundle and its one retry Repair."""
 
-import asyncio
 import json
-from contextlib import suppress
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.setup import async_setup_component
 
 from custom_components.panel_assistant.client import CannotConnectError
-from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
-from custom_components.panel_assistant.repairs_webview import (
-    async_reconcile_webview_issue,
+from custom_components.panel_assistant.const import (
+    CONF_TRANSPORT_USER_ID,
+    DOMAIN,
+    update_unique_id,
+)
+from custom_components.panel_assistant.repairs_failure import (
+    async_clear_update_failure_if_installed,
+    async_failure_events,
+    async_record_update_failure,
+    panel_failure_issue_id,
 )
 from custom_components.panel_assistant.status import parse_status_response
 from custom_components.panel_assistant.transport_binding import async_unbind_user
@@ -40,6 +47,12 @@ def observation(state: str | None = None, *, eligible: bool = True) -> dict[str,
     }
 
 
+def status(value: dict[str, Any]) -> Any:
+    return parse_status_response(
+        json.dumps({"warnings": [], "capabilities": [], "webview": value})
+    )
+
+
 @pytest.mark.parametrize(
     "state", ["installed", "deferred", "rejected", "submitted_unknown"]
 )
@@ -54,15 +67,15 @@ async def test_resumed_installer_never_replays_a_provider_transaction(
     client.async_install_webview.assert_not_awaited()
 
 
-async def test_a_rootless_panel_gets_a_guide_repair_after_pairing_without_a_request(
-    hass: HomeAssistant,
+@pytest.mark.parametrize("attempted", [False, True])
+async def test_polling_recovers_attempts_into_one_combined_repair_without_installing(
+    hass: HomeAssistant, attempted: bool
 ) -> None:
     entry, coordinator = _panel(hass)
     hass.config_entries.async_update_entry(
         entry, data={**entry.data, CONF_TRANSPORT_USER_ID: "owner"}
     )
-    unavailable = observation(eligible=False)
-    unavailable["reason"] = "no_install_route"
+    issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
     with (
         patch.object(
             coordinator.client, "async_get_health", AsyncMock(return_value=HEALTH)
@@ -71,45 +84,8 @@ async def test_a_rootless_panel_gets_a_guide_repair_after_pairing_without_a_requ
             coordinator.client,
             "async_get_status",
             AsyncMock(
-                return_value=parse_status_response(
-                    json.dumps(
-                        {
-                            "warnings": [],
-                            "capabilities": [],
-                            "webview": unavailable,
-                        }
-                    )
-                )
+                return_value=status(observation("deferred" if attempted else None))
             ),
-        ),
-    ):
-        await coordinator.async_refresh()
-    assert (
-        ir.async_get(hass).async_get_issue(DOMAIN, f"panel_webview_{entry.entry_id}")
-        is not None
-    )
-
-
-async def test_polling_only_raises_repair_after_binding_and_never_installs(
-    hass: HomeAssistant,
-) -> None:
-    entry, coordinator = _panel(hass)
-    status = parse_status_response(
-        json.dumps(
-            {
-                "warnings": [],
-                "capabilities": [],
-                "webview": observation("deferred"),
-            }
-        )
-    )
-    issue_id = f"panel_webview_{entry.entry_id}"
-    with (
-        patch.object(
-            coordinator.client, "async_get_health", AsyncMock(return_value=HEALTH)
-        ),
-        patch.object(
-            coordinator.client, "async_get_status", AsyncMock(return_value=status)
         ),
         patch(
             "custom_components.panel_assistant.repairs_webview.async_manage",
@@ -117,160 +93,186 @@ async def test_polling_only_raises_repair_after_binding_and_never_installs(
         ) as manage,
     ):
         await coordinator.async_refresh()
-        assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
-        hass.config_entries.async_update_entry(
-            entry, data={**entry.data, CONF_TRANSPORT_USER_ID: "owner"}
-        )
-        await coordinator.async_refresh()
-        issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
-        assert issue is not None and issue.is_persistent and issue.is_fixable
         await coordinator.async_refresh()
         manage.assert_not_awaited()
-    # An owner may resolve a safely failed attempt outside Panel Assistant.
-    # Current/newer provider evidence clears it; an ambiguous submission does not.
-    for state, retained in [("submitted_unknown", True), ("deferred", False)]:
-        current = parse_status_response(
-            json.dumps(
-                {
-                    "warnings": [],
-                    "capabilities": [],
-                    "webview": observation(state, eligible=False),
-                }
-            )
+    registry = ir.async_get(hass)
+    assert registry.async_get_issue(DOMAIN, f"panel_webview_{entry.entry_id}") is None
+    assert (registry.async_get_issue(DOMAIN, issue_id) is not None) == attempted
+    if attempted:
+        events = await async_failure_events(hass, issue_id)
+        assert len(events) == 1 and events[0]["webview_pending"]
+        # A healthy app read cannot erase the unfinished provider component.
+        await async_clear_update_failure_if_installed(
+            hass, entry.entry_id, HEALTH.version, 100, verified_success=True
         )
-        with (
-            patch.object(
-                coordinator.client, "async_get_health", AsyncMock(return_value=HEALTH)
-            ),
-            patch.object(
-                coordinator.client, "async_get_status", AsyncMock(return_value=current)
-            ),
-        ):
-            await coordinator.async_refresh()
-        assert (
-            ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
-        ) == retained
+        assert registry.async_get_issue(DOMAIN, issue_id) is not None
 
 
-@pytest.mark.parametrize("retire", [None, "remove", "unbind", "identity"])
-async def test_repair_one_press_has_progress_then_observation_only(
-    hass: HomeAssistant,
-    hass_client: Any,
-    retire: str | None,
+@pytest.mark.parametrize("newer_offer", [False, True, "behind"])
+@pytest.mark.parametrize("receipt", [None, "submitted_unknown", "deferred"])
+async def test_combined_repair_retries_provider_without_reinstalling_current_app(
+    hass: HomeAssistant, hass_client: Any, newer_offer: bool | str, receipt: str | None
 ) -> None:
     assert await async_setup_component(hass, "repairs", {})
     assert await async_setup_component(hass, DOMAIN, {})
-    await hass.async_block_till_done()
-    entry, _ = _panel(hass)
+    entry, coordinator = _panel(hass)
     hass.config_entries.async_update_entry(
         entry, data={**entry.data, CONF_TRANSPORT_USER_ID: "owner"}
     )
-    async_reconcile_webview_issue(
-        hass,
-        entry,
-        parse_status_response(
-            json.dumps(
-                {
-                    "warnings": [],
-                    "capabilities": [],
-                    "webview": observation(),
-                }
-            )
-        ),
+    entity = er.async_get(hass).async_get_or_create(
+        Platform.UPDATE,
+        DOMAIN,
+        update_unique_id(entry.entry_id),
+        config_entry=entry,
+        suggested_object_id="panel_app",
     )
-    admin = await hass_client()
+    hass.states.async_set(
+        entity.entity_id,
+        "on" if newer_offer else "off",
+        {
+            "installed_version": "0.9.10 build 102",
+            "latest_version": "0.9.10 build 103" if newer_offer else "0.9.10 build 102",
+        },
+    )
+    if newer_offer == "behind":
+        hass.states.async_set(
+            entity.entity_id,
+            "off",
+            {
+                "installed_version": "0.9.9 build 101",
+                "latest_version": "0.9.9 build 101",
+            },
+        )
+    await async_record_update_failure(
+        hass,
+        entry.entry_id,
+        entry.title,
+        "0.9.10 build 102",
+        RuntimeError("provider interrupted"),
+        webview_pending=True,
+    )
+    issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
+    operations = []
     session = SimpleNamespace(
         did=entry.unique_id, user_id="owner", capabilities={"management"}
     )
-    operations = []
-    current_session = [session]
-    read_started, release_read = asyncio.Event(), asyncio.Event()
-    reconnecting = asyncio.Event()
 
-    async def manage(
-        _hass: Any, _session: Any, op: str, **fields: Any
-    ) -> dict[str, Any]:
+    async def manage(_hass: Any, _session: Any, op: str, **fields: Any) -> Any:
         operations.append(op)
-        if len(operations) == 1:
-            return observation()
-        if op == "webview.install":
-            assert fields["artifact_sha256"] == "c" * 64
-            return observation("installing")
-        if len(operations) == 3:
-            # Updating the provider can end the native process/session. The
-            # accepted operation remains panel-owned while it reconnects.
-            current_session[0] = None
-            reconnecting.set()
-            raise CannotConnectError
-        read_started.set()
-        await release_read.wait()
-        assert _session is current_session[0]
+        if op == "webview.observe":
+            return observation(receipt)
+        assert fields["artifact_sha256"] == "c" * 64
         return observation("installed", eligible=False)
 
+    service = AsyncMock()
+    hass.services.async_register("update", "install", service)
+    client = await hass_client()
     with (
+        patch.object(
+            coordinator.client,
+            "async_get_status",
+            AsyncMock(return_value=status(observation(receipt))),
+        ),
         patch(
             "custom_components.panel_assistant.repairs_webview.async_get_sessions"
         ) as sessions,
         patch("custom_components.panel_assistant.repairs_webview.async_manage", manage),
     ):
-        sessions.return_value.get.side_effect = lambda _: current_session[0]
-        response = await admin.post(
-            "/api/repairs/issues/fix",
-            json={"handler": DOMAIN, "issue_id": f"panel_webview_{entry.entry_id}"},
+        sessions.return_value.get.return_value = session
+        response = await client.post(
+            "/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue_id}
         )
         flow = await response.json()
-        assert flow["type"] == "form" and operations == []
-        response = await admin.post(
-            f"/api/repairs/issues/fix/{flow['flow_id']}", json={}
+        assert flow["type"] == "menu" and operations == []
+        response = await client.post(
+            f"/api/repairs/issues/fix/{flow['flow_id']}", json={"next_step_id": "retry"}
         )
-        progress = await response.json()
-        assert progress["type"] == "progress"
-        assert progress["step_id"] == "webview_progress"
-        with suppress(TimeoutError):
-            await asyncio.wait_for(reconnecting.wait(), 3)
-        assert reconnecting.is_set(), (
-            "an admitted install must keep observing through provider rebind"
+        done = await response.json()
+        if done["type"] == "progress":
+            await hass.async_block_till_done()
+            response = await client.post(
+                f"/api/repairs/issues/fix/{flow['flow_id']}", json={}
+            )
+            done = await response.json()
+        if done["type"] == "progress_done":
+            response = await client.post(
+                f"/api/repairs/issues/fix/{flow['flow_id']}", json={}
+            )
+            done = await response.json()
+        service.assert_not_awaited()
+    assert operations == (
+        []
+        if newer_offer == "behind"
+        else ["webview.observe"]
+        + ([] if receipt == "submitted_unknown" else ["webview.install"])
+    )
+    assert (ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None) == (
+        receipt == "submitted_unknown" or newer_offer == "behind"
+    )
+    assert done["type"] == (
+        "form"
+        if receipt == "submitted_unknown" or newer_offer == "behind"
+        else "create_entry"
+    )
+
+
+@pytest.mark.parametrize("retire", [None, "remove", "unbind", "identity"])
+async def test_bundle_observes_one_submission_through_reconnect_and_binding_retirement(
+    hass: HomeAssistant, retire: str | None
+) -> None:
+    # This operation is invoked by both the update entity and combined Repair.
+    from custom_components.panel_assistant.repairs_webview import async_update_webview
+
+    entry, coordinator = _panel(hass)
+    hass.config_entries.async_update_entry(
+        entry, data={**entry.data, CONF_TRANSPORT_USER_ID: "owner"}
+    )
+    current = [
+        SimpleNamespace(
+            did=entry.unique_id, user_id="owner", capabilities={"management"}
         )
-        if retire == "remove":
-            await hass.config_entries.async_remove(entry.entry_id)
-        elif retire == "unbind":
-            async_unbind_user(hass, entry)
-            assert (
-                ir.async_get(hass).async_get_issue(
-                    DOMAIN, f"panel_webview_{entry.entry_id}"
+    ]
+    operations = []
+    reads = 0
+
+    async def manage(_hass: Any, _session: Any, op: str, **fields: Any) -> Any:
+        nonlocal reads
+        operations.append(op)
+        if op == "webview.install":
+            assert fields["artifact_sha256"] == "c" * 64
+            return observation("installing")
+        reads += 1
+        if reads == 1:
+            return observation()
+        if reads == 2:
+            if retire == "remove":
+                await hass.config_entries.async_remove(entry.entry_id)
+            elif retire == "unbind":
+                async_unbind_user(hass, entry)
+            elif retire == "identity":
+                current[0] = SimpleNamespace(
+                    did="b" * 64, user_id="owner", capabilities={"management"}
                 )
-                is None
-            )
-        elif retire == "identity":
-            current_session[0] = SimpleNamespace(
-                did="b" * 64, user_id="owner", capabilities={"management"}
-            )
-        if retire is None:
-            current_session[0] = SimpleNamespace(
-                did=entry.unique_id, user_id="owner", capabilities={"management"}
-            )
-            await read_started.wait()
-        release_read.set()
-        finished = False
-        with suppress(TimeoutError):
-            await asyncio.wait_for(hass.async_block_till_done(), 3)
-            finished = True
-        assert finished, "definitive identity retirement must end progress promptly"
-        # Core's progress continuation, not another install form submission.
-        response = await admin.post(
-            f"/api/repairs/issues/fix/{flow['flow_id']}", json={}
-        )
-        result = await response.json()
-        assert operations == [
-            "webview.observe",
-            "webview.install",
-            "webview.observe",
-        ] + (["webview.observe"] if retire is None else [])
-        if retire == "remove":
-            assert result["type"] == "abort" and result["reason"] == "entry_removed"
-        elif retire in ("unbind", "identity"):
-            assert result["type"] == "form" and result["errors"] == {
-                "base": "webview_unavailable"
-            }
-        else:
-            assert result["type"] == "create_entry"
+            raise CannotConnectError
+        return observation("installed", eligible=False)
+
+    with (
+        patch.object(
+            coordinator.client,
+            "async_get_status",
+            AsyncMock(return_value=status(observation())),
+        ),
+        patch(
+            "custom_components.panel_assistant.repairs_webview.async_get_sessions"
+        ) as sessions,
+        patch("custom_components.panel_assistant.repairs_webview.async_manage", manage),
+        patch(
+            "custom_components.panel_assistant.repairs_webview.asyncio.sleep",
+            AsyncMock(),
+        ),
+    ):
+        sessions.return_value.get.side_effect = lambda _: current[0]
+        result = await async_update_webview(hass, entry.entry_id)
+    assert result == (None if retire is None else "webview_unavailable")
+    assert operations.count("webview.install") == 1
+    assert operations.count("webview.observe") == (3 if retire is None else 2)

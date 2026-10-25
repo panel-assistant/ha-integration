@@ -256,6 +256,10 @@ def delivery(
 ) -> SimpleNamespace:
     """Keep backups in a temporary config dir and stub the APK download."""
     hass.config.config_dir = str(tmp_path)
+    # Provider bundle coverage drives real entries in test_webview_bundle.
+    monkeypatch.setattr(
+        panel_update, "async_update_webview", AsyncMock(return_value=None)
+    )
     session = object()
     download = AsyncMock(return_value=APK)
     monkeypatch.setattr(

@@ -1,20 +1,18 @@
-"""Owner-started WebView updates on the panel's authenticated native session."""
+"""The WebView leg of an owner-started panel update, with one combined Repair."""
 
 from __future__ import annotations
 
 import asyncio
 from secrets import token_hex
-from typing import Any
 
-import voluptuous as vol
-from homeassistant.components.repairs import RepairsFlow, RepairsFlowResult
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 
 from .client import CannotConnectError, InvalidResponseError
-from .const import CONF_TRANSPORT_USER_ID, DOMAIN, help_url
+from .const import CONF_TRANSPORT_USER_ID, DOMAIN
+from .panel_operations import claim_panel_operation, release_panel_operation
 from .status import PanelStatus
 from .transport_sessions import (
     PanelSession,
@@ -24,195 +22,172 @@ from .transport_sessions import (
 )
 from .webview import ACTIVE_STATES, WebViewStatus, parse_webview
 
+# Retained only to retire issues created by older integration versions.
 ISSUE_WEBVIEW = "panel_webview"
 
 
 def webview_issue_id(entry_id: str) -> str:
-    """One persistent issue, independent of address or provider attempts."""
+    """The retired standalone issue ID, also used during entry cleanup."""
     return f"{ISSUE_WEBVIEW}_{entry_id}"
 
 
-def async_reconcile_webview_issue(
+async def async_reconcile_webview_issue(
     hass: HomeAssistant, entry: ConfigEntry, status: PanelStatus
 ) -> None:
-    """Read-only reconciliation; pairing always precedes this advisory Repair."""
-    if CONF_TRANSPORT_USER_ID not in entry.data:
-        ir.async_delete_issue(hass, DOMAIN, webview_issue_id(entry.entry_id))
-        return
+    """Recover attempted provider work into the combined Repair, without installing.
+
+    An eligible candidate alone is not a job: only installing a new panel app or
+    retrying its unfinished bundle authorizes a provider attempt. First-install
+    and older integration attempts already have a durable panel transaction.
+    """
+    # The coordinator imports this module before device helpers are initialised.
+    from .repairs_failure import (
+        async_failure_events,
+        async_record_update_failure,
+        panel_failure_issue_id,
+    )
+
+    ir.async_delete_issue(hass, DOMAIN, webview_issue_id(entry.entry_id))
     observation = status.webview
-    if observation is None:
-        return  # Unknown/older status cannot prove that a persistent issue is fixed.
-    _reconcile(hass, entry, observation)
-
-
-def _reconcile(hass: HomeAssistant, entry: ConfigEntry, status: WebViewStatus) -> None:
-    issue_id = webview_issue_id(entry.entry_id)
-    if status.needs_attention or status.transaction_state in ACTIVE_STATES:
-        from .device import panel_display_name
-
-        ir.async_create_issue(
+    if (
+        CONF_TRANSPORT_USER_ID not in entry.data
+        or observation is None
+        or not (
+            observation.needs_attention
+            or observation.transaction_state in ACTIVE_STATES | {"submitted_unknown"}
+        )
+        or observation.transaction_state is None
+    ):
+        return
+    if not claim_panel_operation(hass, entry.entry_id):
+        return
+    try:
+        issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
+        events = await async_failure_events(hass, issue_id)
+        previous = next(
+            (event for event in reversed(events) if event.get("kind") == "update"), None
+        )
+        if previous is not None:
+            return
+        await async_record_update_failure(
             hass,
-            DOMAIN,
-            issue_id,
-            is_fixable=True,
-            is_persistent=True,
-            severity=ir.IssueSeverity.WARNING,
-            translation_key=ISSUE_WEBVIEW,
-            learn_more_url=help_url("repair", issue=ISSUE_WEBVIEW),
-            translation_placeholders={
-                "panel": panel_display_name(hass, entry),
-                "learn_more_url": help_url("repair", issue=ISSUE_WEBVIEW),
-            },
-            data={"entry_id": entry.entry_id},
+            entry.entry_id,
+            entry.title,
+            None,
+            RuntimeError("The app is installed; its WebView update is unfinished"),
+            webview_pending=True,
         )
-    else:
-        ir.async_delete_issue(hass, DOMAIN, issue_id)
+    finally:
+        release_panel_operation(hass, entry.entry_id)
 
 
-class WebViewRepairFlow(RepairsFlow):
-    """One explicit start, then bounded read-only progress owned by this flow."""
+async def async_update_webview(
+    hass: HomeAssistant, entry_id: str, *, allow_legacy: bool = False
+) -> str | None:
+    """Observe once, submit an exact eligible pin once, then only observe.
 
-    def __init__(self, entry_id: str) -> None:
-        self._entry_id = entry_id
-        self._task: asyncio.Task[str | None] | None = None
+    The caller owns the existing panel-operation claim. A missing WebView status
+    is compatible with older apps; known work requires the same paired identity.
+    """
+    entry = hass.config_entries.async_get_entry(entry_id)
+    if entry is None or entry.domain != DOMAIN:
+        return "entry_removed"
+    coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
+    user_id, did = entry.data.get(CONF_TRANSPORT_USER_ID), entry.unique_id
+    if not user_id:
+        return None if allow_legacy else "webview_unavailable"
+    if coordinator is None:
+        return "webview_unavailable"
 
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> RepairsFlowResult:
-        return await self.async_step_update_webview()
-
-    async def async_step_update_webview(
-        self, user_input: dict[str, Any] | None = None
-    ) -> RepairsFlowResult:
-        if user_input is not None:
-            if self._task is None:
-                self._task = self.hass.async_create_task(
-                    self._async_update(), f"WebView repair {self._entry_id}"
-                )
-            return await self.async_step_webview_progress()
-        return self._show_form()
-
-    def _show_form(self, error: str | None = None) -> RepairsFlowResult:
-        from .device import panel_display_name
-
-        entry = self.hass.config_entries.async_get_entry(self._entry_id)
-        if entry is None or entry.domain != DOMAIN:
-            ir.async_delete_issue(self.hass, DOMAIN, webview_issue_id(self._entry_id))
-            return self.async_abort(reason="entry_removed")
-        return self.async_show_form(
-            step_id="update_webview",
-            data_schema=vol.Schema({}),
-            errors={"base": error} if error else {},
-            description_placeholders={
-                "panel": panel_display_name(self.hass, entry),
-                "learn_more_url": help_url("repair", issue=ISSUE_WEBVIEW),
-            },
-        )
-
-    async def async_step_webview_progress(
-        self, user_input: dict[str, Any] | None = None
-    ) -> RepairsFlowResult:
-        if self._task is None:
-            return self._show_form()
-        if self._task.done():
-            return self.async_show_progress_done(next_step_id="webview_result")
-        return self.async_show_progress(
-            step_id="webview_progress",
-            progress_action="updating_webview",
-            progress_task=self._task,
-        )
-
-    async def async_step_webview_result(
-        self, user_input: dict[str, Any] | None = None
-    ) -> RepairsFlowResult:
-        if self._task is None:
-            return self._show_form()
-        try:
-            reason = self._task.result()
-        except Exception:
-            reason = "webview_unavailable"
-        self._task = None
-        if self.hass.config_entries.async_get_entry(self._entry_id) is None:
-            return self._show_form()
-        if reason is None:
-            return self.async_create_entry(data={})
-        return self._show_form(reason)
-
-    def _session(
-        self, entry: ConfigEntry, user_id: object, did: str | None
-    ) -> PanelSession | None:
-        """Recheck the same entry, binding and authenticated identity each time."""
-        session = async_get_sessions(self.hass).get(entry.entry_id)
+    def session() -> PanelSession | None:
+        current = async_get_sessions(hass).get(entry_id)
         if (
-            self.hass.config_entries.async_get_entry(entry.entry_id) is not entry
+            hass.config_entries.async_get_entry(entry_id) is not entry
             or not user_id
             or entry.data.get(CONF_TRANSPORT_USER_ID) != user_id
             or entry.unique_id != did
+            or getattr(getattr(entry, "runtime_data", None), "coordinator", None)
+            is not coordinator
             or (
-                session is not None
-                and (session.did != did or session.user_id != user_id)
+                current is not None
+                and (current.did != did or current.user_id != user_id)
             )
         ):
             raise ValueError("panel_unavailable")
-        # A provider rebind may temporarily remove its native session. Missing
-        # transport is different from the entry, account or identity retiring.
-        return session if session_manages(session) else None
+        return current if session_manages(current) else None
 
-    async def _async_update(self) -> str | None:
-        entry = self.hass.config_entries.async_get_entry(self._entry_id)
-        if entry is None or entry.domain != DOMAIN:
-            return "entry_removed"
-        user_id, did = entry.data.get(CONF_TRANSPORT_USER_ID), entry.unique_id
+    async def observe() -> WebViewStatus:
+        current = session()
+        if current is None:
+            raise ConnectionError("panel_reconnecting")
+        observed = parse_webview(await async_manage(hass, current, "webview.observe"))
+        session()
+        return observed
 
-        async def observe() -> WebViewStatus:
-            session = self._session(entry, user_id, did)
-            if session is None:
-                raise ConnectionError("panel_reconnecting")
-            status = parse_webview(
-                await async_manage(self.hass, session, "webview.observe")
-            )
-            self._session(entry, user_id, did)
-            return status
-
-        try:
-            async with asyncio.timeout(120):
+    try:
+        async with asyncio.timeout(120):
+            # The successor app owns the profile. Its authenticated native read
+            # also works on panels whose HTTP listener is unreachable.
+            try:
                 status = await observe()
+            except (
+                HomeAssistantError,
+                CannotConnectError,
+                InvalidResponseError,
+                ConnectionError,
+            ):
+                if not allow_legacy:
+                    raise
+                fresh = await coordinator.client.async_get_status()
+                session()
+                if fresh.webview is None:
+                    # Older apps omit the additive contract entirely.
+                    return None
                 if (
-                    status.transaction_state not in ACTIVE_STATES
-                    and status.supported
-                    and status.eligible
-                    and status.candidate_sha256
+                    not fresh.webview.needs_attention
+                    and fresh.webview.transaction_state
+                    not in ACTIVE_STATES | {"submitted_unknown"}
                 ):
-                    session = self._session(entry, user_id, did)
-                    if session is None:
-                        raise ConnectionError("panel_reconnecting")
-                    status = parse_webview(
-                        await async_manage(
-                            self.hass,
-                            session,
-                            "webview.install",
-                            request_id=f"pa-repair-{token_hex(16)}",
-                            artifact_sha256=status.candidate_sha256,
-                        )
+                    return None
+                raise
+            if (
+                status.transaction_state not in ACTIVE_STATES | {"submitted_unknown"}
+                and status.supported
+                and status.eligible
+                and status.candidate_sha256
+            ):
+                current = session()
+                if current is None:
+                    raise ConnectionError("panel_reconnecting")
+                status = parse_webview(
+                    await async_manage(
+                        hass,
+                        current,
+                        "webview.install",
+                        request_id=f"pa-update-{token_hex(16)}",
+                        artifact_sha256=status.candidate_sha256,
                     )
-                    self._session(entry, user_id, did)
-                while status.transaction_state in ACTIVE_STATES:
-                    await asyncio.sleep(1)
-                    try:
-                        status = await observe()
-                    except (
-                        HomeAssistantError,
-                        CannotConnectError,
-                        InvalidResponseError,
-                        ConnectionError,
-                    ):
-                        # The accepted update may restart its process. Reacquire
-                        # only the same bound identity; retirement still aborts.
-                        self._session(entry, user_id, did)
-                        continue
-                _reconcile(self.hass, entry, status)
-                return "webview_deferred" if status.needs_attention else None
-        except Exception:
-            # The app owns a possibly committed operation. Progress never posts
-            # again; another explicit press always starts with fresh observation.
-            return "webview_unavailable"
+                )
+                session()
+            while status.transaction_state in ACTIVE_STATES:
+                await asyncio.sleep(1)
+                try:
+                    status = await observe()
+                except (
+                    HomeAssistantError,
+                    CannotConnectError,
+                    InvalidResponseError,
+                    ConnectionError,
+                ):
+                    session()
+                    continue
+            return (
+                "webview_deferred"
+                if status.transaction_state == "submitted_unknown"
+                or status.needs_attention
+                else None
+            )
+    except Exception:
+        # An accepted request may have lost its answer. The durable panel record
+        # owns the outcome; an explicit retry starts with observation, never POST.
+        return "webview_unavailable"
