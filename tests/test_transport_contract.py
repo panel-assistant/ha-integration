@@ -49,7 +49,7 @@ VOICE_SCHEMAS = {
 }
 
 _HA_VECTOR_REVISION = "502dc6575cdd214a3cc0890ea3594e60758c8b97"
-_ANDROID_PRODUCER_REVISION = "562ad120a51ff40964ec781bb98340dae6567f46"
+_ANDROID_PRODUCER_REVISION = "324c65188036f45370c9e3368957ea9ab9c6e365"
 
 
 def test_shared_vectors_name_the_ha_source_revision_vendored_by_android() -> None:
@@ -110,6 +110,7 @@ def test_real_android_transport_messages_pass_ha_schemas(
         assert message["contract_digest"] != local_digest
         # The channels the producer states it cannot serve reach the handler.
         assert validated["unsupported"] == message.get("unsupported", [])
+        assert validated.get("http_port") == message.get("http_port")
 
 
 def _old_panel(channel: str, platform: str, **facts: Any) -> dict[str, Any]:
