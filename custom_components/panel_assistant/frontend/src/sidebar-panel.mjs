@@ -27,6 +27,13 @@ function configView(value) {
 const WAIT_TYPE = 'panel-assistant-wait';
 // What every page the embed view serves posts from its own load: it is a page to show.
 const READY_TYPE = 'panel-assistant-ready';
+// A frame document that has loaded and said neither (an error status, a network error page) is a
+// failed open, not a slow one. Its word can follow its load (WebKit); this long it may lag.
+const SILENT_MS = 2000;
+// WebKit fires no load for a frame whose connection fails, so a frame URL that has said nothing
+// this long has failed too. The slowest real first page waits on a page answer (10 s deadline plus
+// 5 s grace) and the panel's bundle upload (120 s plus 5 s, ui_relay.py).
+const OPEN_MS = 150_000;
 // The frame's own sandbox, the same tokens as the embed view's sandbox header (embed.py
 // SECURITY_HEADERS): never allow-same-origin, so a page never runs on Home Assistant's
 // origin even if a response reached the frame without that header.
@@ -98,6 +105,9 @@ export class PanelAssistantSidebar extends HTMLElement {
   // once the list shows the panel reachable again.
   #relaysClosed = false;
   #configView = null;
+  // Each document the frame loads posts one word (ready or wait); loads that outnumber words
+  // mean a document said nothing. Both count from the frame's last clear.
+  #frameLoads = 0; #frameWords = 0;
   #onMessage = event => {
     const frame = this.shadowRoot.querySelector('#frame');
     const kind = event.data?.type;
@@ -114,7 +124,10 @@ export class PanelAssistantSidebar extends HTMLElement {
     } else if ((kind === WAIT_TYPE || kind === READY_TYPE) && event.source && event.source === frame.contentWindow) {
       // Each document says what it is. The frame's load event cannot: WebKit delivers the
       // retry document's message after that document's load, and Chromium before it.
-      if (frame.getAttribute('src')) frame.dataset.ready = String(kind === READY_TYPE);
+      if (frame.getAttribute('src')) {
+        frame.dataset.ready = String(kind === READY_TYPE);
+        this.#frameWords++;
+      }
       this.#render();
     } else this.#relayFrame(event);
   };
@@ -224,6 +237,13 @@ export class PanelAssistantSidebar extends HTMLElement {
     // The embed token can open before the panel returns. Its self-refreshing retry document
     // is not a usable page and stays behind the shared Notice: the frame shows only once its
     // sandboxed document, which the sidebar cannot read, says it is a page (see #onMessage).
+    // A loaded document that never says anything fails the open, which the list refresh retries.
+    root.querySelector('#frame').addEventListener('load', () => {
+      const frame = root.querySelector('#frame');
+      if (!frame.getAttribute('src')) return;
+      const load = ++this.#frameLoads;
+      this.#failUnless(() => this.#frameWords >= load, SILENT_MS);
+    });
     const settings = root.querySelector('#settings');
     settings.setAttribute('aria-label', this.#messages.integrationSettings);
     settings.setAttribute('title', this.#messages.integrationSettings);
@@ -491,6 +511,8 @@ export class PanelAssistantSidebar extends HTMLElement {
       if (this.#frameUrl !== event.url) {
         delete frame.dataset.ready;
         this.#frameUrl = event.url;
+        const words = this.#frameWords;
+        this.#failUnless(() => this.#frameWords > words, OPEN_MS);
         // A deep link for this panel opens its page once; later sessions open the panel's first page.
         const suffix = this.#deepLink?.entryId === session.entryId ? this.#deepLink.suffix : '';
         if (suffix) this.#deepLink = null;
@@ -539,10 +561,23 @@ export class PanelAssistantSidebar extends HTMLElement {
     this.#clearFrame();
   }
 
+  // Fails the open, after `ms`, unless `spoke()` by then or another session has taken the frame.
+  #failUnless(spoke, ms) {
+    const session = this.#session;
+    setTimeout(() => {
+      if (this.#session !== session || spoke()) return;
+      session.state = 'failed';
+      session.code = null;
+      this.#clearFrame();
+      this.#render();
+    }, ms);
+  }
+
   #clearFrame() {
     const frame = this.shadowRoot.querySelector('#frame');
     delete frame.dataset.ready;
     this.#frameUrl = null;
+    this.#frameLoads = this.#frameWords = 0;
     frame.removeAttribute('src');
   }
 

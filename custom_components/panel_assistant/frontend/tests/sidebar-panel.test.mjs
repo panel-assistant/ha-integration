@@ -52,6 +52,8 @@ globalThis.location = { origin: 'http://ha.example', pathname: '/panel-assistant
 let intervals = [];
 globalThis.setInterval = (fn, ms) => { const handle = { fn, ms, cleared: false }; intervals.push(handle); return handle; };
 globalThis.clearInterval = handle => { if (handle) handle.cleared = true; };
+// The sidebar's open deadlines never fire on their own here; a test that needs them mocks the clock.
+globalThis.setTimeout = () => 0;
 
 const { ENGLISH_MESSAGES: { sidebar: SIDEBAR_MESSAGES } } = await import('../src/frontend-localization.mjs');
 const { SELECTION_KEY, RELAY_TYPE, parsePanels, embedToken, versionText, openingText, PanelAssistantSidebar } = await import('../src/sidebar-panel.mjs');
@@ -1018,6 +1020,100 @@ test('a retry message after its own load does not hold back the next page', asyn
   fromWindow(frame.contentWindow, { type: 'panel-assistant-ready' });
   assert.equal(frame.hidden, false);
   assert.equal($('#loading').hidden, true);
+});
+
+test('switching to a panel whose page says nothing shows the retrying failure, and the refresh opens it again', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { $, subs } = await mount(fakeHass({ panels: [row('shown'), row('silent')] }));
+  const frame = $('#frame');
+  frame.contentWindow = frameWindow();
+  subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  frame.fire('load');
+  fromWindow(frame.contentWindow, { type: 'panel-assistant-ready' });
+  assert.equal(frame.hidden, false);
+  $('#panels').fire('change', { target: { value: 'silent' } }); await tick();
+  assert.equal(subs[1].message.entry_id, 'silent');
+  subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
+  // An error status or a network error page loads without the embed view's script.
+  frame.fire('load');
+  t.mock.timers.tick(1999);
+  assert.equal($('#loading').hidden, false);
+  t.mock.timers.tick(1);
+  assert.equal($('#loading').hidden, true, 'not an endless Opening');
+  assert.equal($('#failure').hidden, false);
+  assert.equal($('#failure-status').textContent, SIDEBAR_MESSAGES.failed);
+  assert.equal($('#failure-pill').textContent, SIDEBAR_MESSAGES.pillRetrying);
+  assert.equal(frame.getAttribute('src'), null);
+  intervals[0].fn(); await tick();
+  assert.equal(subs.length, 3);
+  assert.equal(subs[2].message.entry_id, 'silent');
+  subs[2].callback({ kind: 'opened', url: url(TOKEN) });
+  // WebKit can deliver a page's word just after its load.
+  frame.fire('load');
+  t.mock.timers.tick(500);
+  fromWindow(frame.contentWindow, { type: 'panel-assistant-ready' });
+  t.mock.timers.tick(150_000);
+  assert.equal(frame.hidden, false);
+  assert.equal($('#failure').hidden, true);
+  assert.equal($('#loading').hidden, true);
+});
+
+test('a panel left before its silent page fails opens the next panel undisturbed', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { $, subs } = await mount(fakeHass({ panels: [row('left'), row('next')] }));
+  const frame = $('#frame');
+  frame.contentWindow = frameWindow();
+  subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  frame.fire('load');
+  t.mock.timers.tick(1000);
+  $('#panels').fire('change', { target: { value: 'next' } }); await tick();
+  // WebKit can load a blank document into the frame whose URL was removed.
+  frame.fire('load');
+  subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
+  t.mock.timers.tick(1500);
+  frame.fire('load');
+  fromWindow(frame.contentWindow, { type: 'panel-assistant-ready' });
+  t.mock.timers.tick(150_000);
+  assert.equal(frame.getAttribute('src'), url(TOKEN2));
+  assert.equal(frame.hidden, false);
+  assert.equal($('#failure').hidden, true);
+});
+
+test('a frame whose connection fails without a load fails once the slowest real page would have opened', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { $, subs } = await mount(fakeHass());
+  const frame = $('#frame');
+  frame.contentWindow = frameWindow();
+  subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  t.mock.timers.tick(149_999);
+  assert.equal($('#loading').hidden, false, 'a slow first page (the panel uploading its bundle) keeps loading');
+  t.mock.timers.tick(1);
+  assert.equal($('#failure').hidden, false);
+  assert.equal(frame.getAttribute('src'), null);
+  // A retry document is an answer: the panel is coming back, so it stays Opening.
+  intervals[0].fn(); await tick();
+  subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
+  fromWindow(frame.contentWindow, { type: 'panel-assistant-wait' });
+  frame.fire('load');
+  t.mock.timers.tick(150_000);
+  assert.equal($('#failure').hidden, true);
+  assert.equal($('#loading').hidden, false);
+});
+
+test('a reconnect that moves the frame to a URL that never answers fails it too', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const hass = fakeHass();
+  const { $, subs } = await mount(hass);
+  const frame = $('#frame');
+  frame.contentWindow = frameWindow();
+  subs[0].callback({ kind: 'opened', url: url(TOKEN) });
+  frame.fire('load');
+  fromWindow(frame.contentWindow, { type: 'panel-assistant-ready' });
+  hass.connection.listeners.get('ready')(); await tick();
+  subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
+  t.mock.timers.tick(150_000);
+  assert.equal($('#failure').hidden, false);
+  assert.equal(frame.getAttribute('src'), null);
 });
 
 test('a page message before any frame URL shows nothing', async () => {
