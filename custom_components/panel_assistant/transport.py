@@ -496,6 +496,8 @@ def _accept_hello(
         # Unknown descriptors are accepted too, but render nothing.
         "channels": {"accepted": len(descriptors), "unknown": sorted(unknown)},
     }
+    if (count := hass.data[DOMAIN][DATA_LIFECYCLE].entity_count()) is not None:
+        result["expected_entity_count"] = count
     if CAPABILITY_VOICE_STREAM_SESSION in capabilities:
         assert voice_stream is not None and stream_client_id is not None
         session.voice_stream_client_id = stream_client_id

@@ -27,6 +27,7 @@ class CoreLifecycle:
         self.store: Store[dict[str, Any]] = Store(hass, 1, f"{DOMAIN}.lifecycle")
         self.history: dict[str, list[dict[str, int | float]]] = {}
         self.pending: dict[str, Any] | None = None
+        self.expected_entity_count: int | None = None
         self.reason = "unknown"
         self.phase = "ready" if hass.state is CoreState.running else "starting"
         self.started_at: float | None = None
@@ -37,6 +38,9 @@ class CoreLifecycle:
         now = dt_util.utcnow().timestamp()
         if not isinstance(raw, dict):
             return
+        count = raw.get("expected_entity_count")
+        if type(count) is int and count > 0:
+            self.expected_entity_count = count
         history = raw.get("history")
         if isinstance(history, dict):
             for reason in _REASONS:
@@ -68,8 +72,23 @@ class CoreLifecycle:
     @callback
     def _save(self) -> None:
         self.store.async_delay_save(
-            lambda: {"history": self.history, "pending": self.pending}, 30
+            lambda: {
+                "history": self.history,
+                "pending": self.pending,
+                "expected_entity_count": self.expected_entity_count,
+            },
+            30,
         )
+
+    @callback
+    def entity_count(self) -> int | None:
+        """Keep the last running count while Core's states are still filling."""
+        if self.hass.state is CoreState.running:
+            count = self.hass.states.async_entity_ids_count()
+            if count > 0 and count != self.expected_entity_count:
+                self.expected_entity_count = count
+                self._save()
+        return self.expected_entity_count
 
     @callback
     def snapshot(self) -> dict[str, Any]:
@@ -148,6 +167,7 @@ class CoreLifecycle:
                 del samples[:-8]
         self.pending = None
         self.phase = "ready"
+        self.entity_count()
         self._save()
         self._broadcast()
 
