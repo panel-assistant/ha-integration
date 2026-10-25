@@ -506,7 +506,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         # Assistant is, so the wizard has one less question to ask by the time it
         # renders. The panel verifies the address itself and shows the step as a
         # correction if it does not answer.
-        await async_offer_ha_url(self.hass, self._found_client())
+        # USB's handover endpoint has just offered this same address before
+        # starting our flow; opening its wizard must not send it a second time.
+        if self.source != SOURCE_USB_INSTALL:
+            await async_offer_ha_url(self.hass, self._found_client())
         if self._setup_watch is None or self._setup_watch.done():
             self._setup_watch = self.hass.async_create_background_task(
                 self._async_watch_setup(),
@@ -527,10 +530,22 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             except HaPaneldError:
                 continue
             if complete:
+                # USB may finish its background flow inside this callback.
+                # Removing that completed flow must not cancel its own watcher.
+                self._setup_watch = None
                 with contextlib.suppress(UnknownFlow):
-                    await self.hass.config_entries.flow.async_configure(
+                    result = await self.hass.config_entries.flow.async_configure(
                         flow_id=self.flow_id, user_input={}
                     )
+                    # USB registration has no foreground config-flow dialog
+                    # to submit the continuation after external_done.
+                    if (
+                        self.source == SOURCE_USB_INSTALL
+                        and result["type"] is FlowResultType.EXTERNAL_STEP_DONE
+                    ):
+                        await self.hass.config_entries.flow.async_configure(
+                            flow_id=self.flow_id, user_input={}
+                        )
                 return
 
     async def _async_load_install_releases(self) -> None:
@@ -1352,6 +1367,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             address = entry.data.get(CONF_ADDRESS)
             if isinstance(address, str):
                 close_offers(self.hass, address, self.flow_id, pressed=True)
+            if self.source == SOURCE_USB_INSTALL:
+                await self._async_finish_usb_installers()
         if job_id is not None and executor is not None:
             if isinstance(entry, ConfigEntry):
                 # Never raises: the entry exists, and a receipt that cannot be
