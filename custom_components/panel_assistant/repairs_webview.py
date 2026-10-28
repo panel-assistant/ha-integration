@@ -124,6 +124,7 @@ async def async_update_webview(
         session()
         return observed
 
+    submitted = False
     try:
         async with asyncio.timeout(120):
             # The successor app owns the profile. Its authenticated native read
@@ -159,6 +160,7 @@ async def async_update_webview(
                 current = session()
                 if current is None:
                     raise ConnectionError("panel_reconnecting")
+                submitted = True
                 status = parse_webview(
                     await async_manage(
                         hass,
@@ -187,7 +189,12 @@ async def async_update_webview(
                 or status.needs_attention
                 else None
             )
-    except Exception:
+    except Exception as err:
         # An accepted request may have lost its answer. The durable panel record
         # owns the outcome; an explicit retry starts with observation, never POST.
-        return "webview_unavailable"
+        # Before any submission, or once this panel left the entry, nothing is
+        # pending that the entry still owns.
+        retired = isinstance(err, ValueError) and str(err) == "panel_unavailable"
+        return (
+            "webview_deferred" if submitted and not retired else "webview_unavailable"
+        )

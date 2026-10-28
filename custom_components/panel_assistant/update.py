@@ -31,7 +31,7 @@ from .build_feed import (
     parse_build_request,
 )
 from .client import HaPaneldError, UpdateRejectedError, _version_key
-from .const import CONF_TRANSPORT_USER_ID, DOMAIN, update_unique_id
+from .const import DOMAIN, update_unique_id
 from .coordinator import (
     HaPaneldDataUpdateCoordinator,
     PanelCoordinatorEntity,
@@ -751,7 +751,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             target_version = offer.target_version
             release = self._offer.host_release()
             repair_artifact = release
-        webview_pending = bool(entry and entry.data.get(CONF_TRANSPORT_USER_ID))
+        # Only WebView work the panel still holds keeps the Repair past the
+        # target build; a read that failed before any submission does not.
+        webview_pending = False
         await async_record_update_bundle(
             self.hass, self._entry_id, target_version, failure_artifact
         )
@@ -790,6 +792,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 self.hass, self._entry_id, allow_legacy=True
             )
             if reason is not None:
+                webview_pending = reason == "webview_deferred"
                 raise _update_error(
                     "update_not_complete",
                     f"The app is installed; its WebView update is unfinished: {reason}",

@@ -180,7 +180,7 @@ async def test_owner_app_update_retains_and_finishes_successor_provider_bundle(
     assert (ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None) == (
         pending
     )
-    if pending:
+    if pending and not legacy_unavailable:
         events = await async_failure_events(hass, issue_id)
         assert events[-1]["webview_pending"] is True
         await async_clear_update_failure_if_installed(
