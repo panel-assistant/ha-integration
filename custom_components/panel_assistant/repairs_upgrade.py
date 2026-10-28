@@ -196,10 +196,3 @@ def async_raise_needs_090(hass: HomeAssistant, entry: ConfigEntry) -> None:
             "recovery_url": help_url("repair", issue=ISSUE_MQTT_PANEL_NEEDS_090),
         },
     )
-
-
-@callback
-def async_delete_upgrade_issues(hass: HomeAssistant, entry_id: str) -> None:
-    """Withdraw both of an entry's upgrade Repairs."""
-    ir.async_delete_issue(hass, DOMAIN, app_too_old_issue_id(entry_id))
-    ir.async_delete_issue(hass, DOMAIN, needs_090_issue_id(entry_id))
