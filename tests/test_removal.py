@@ -1112,9 +1112,13 @@ async def test_entry_deleted_during_identity_read_prevents_panel_changes(
         assert await hass.config_entries.async_remove(entry.entry_id)
 
     fake.health_hook = remove_entry
-    with pytest.raises(removal.RemovalError, match="panel_changed"):
+    # The caller must receive the deliberate withdrawal result, not an internal
+    # registry exception from continuing with a deleted entry.
+    with pytest.raises(Exception) as result:
         await removal.async_remove_app(hass, entry)
 
+    assert isinstance(result.value, removal.RemovalError)
+    assert result.value.reason == "panel_changed"
     assert fake.installed == [PACKAGE_ID]
     assert fake.hand_back_requests == 0
     assert fake.read()["events"] == []
