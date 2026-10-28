@@ -292,9 +292,9 @@ async def test_non_admin_panel_account_opens_a_session(
     """A dedicated non-admin panel account is accepted without admin rights."""
     assert not hass_read_only_user.is_admin
     registry_before = _registry_digest(hass, entry.entry_id)
-    # The status sensor, the Panel Assistant version sensor, the update entity and
-    # their device: never an empty digest.
-    assert (len(registry_before[0]), len(registry_before[1])) == (3, 1)
+    # The status sensor, the Panel Assistant version sensor, the update entity,
+    # the Remove from this panel button and their device: never an empty digest.
+    assert (len(registry_before[0]), len(registry_before[1])) == (4, 1)
     client = await hass_ws_client(hass, hass_read_only_access_token)
 
     response = await _send(client, _hello(future_field={"ignored": True}))
@@ -1511,8 +1511,9 @@ async def test_a_usb_installed_panel_connects_with_nothing_to_confirm(
         patch(f"{client}.async_get_status", AsyncMock(return_value=STATUS)),
         patch(
             f"{client}.async_get_setup_state",
+            # A new panel is added only once its own setup has completed.
             AsyncMock(
-                return_value=PanelSetupState(complete=False, accepts_handover=True)
+                return_value=PanelSetupState(complete=True, accepts_handover=True)
             ),
         ),
         patch(f"{client}.async_hand_over_ha_url", AsyncMock()),
