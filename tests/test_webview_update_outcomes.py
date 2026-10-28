@@ -1,8 +1,10 @@
 """How the WebView leg of an owner-started app update ends, seen from its caller."""
 
 import asyncio
+import json
 from collections.abc import Callable
 from dataclasses import replace
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -14,16 +16,21 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.panel_assistant.client import CannotConnectError
 from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
 from custom_components.panel_assistant.repairs_failure import (
     async_clear_update_failure_if_installed,
     async_failure_events,
+    async_record_update_failure,
     panel_failure_issue_id,
 )
 from custom_components.panel_assistant.update_route import ROUTE_STAGED
 
+from .test_permission_repairs import HEALTH, _panel
 from .test_update_failure_repairs import _entity
-from .test_webview import observation
+from .test_webview import observation, status
+
+STRINGS = "custom_components/panel_assistant/strings.json"
 
 
 def _native(hass: HomeAssistant) -> tuple[Any, Any, MockConfigEntry, str]:
@@ -172,4 +179,96 @@ async def test_unpublished_webview_download_leaves_the_app_update_complete(
     assert any(
         record.levelname == "WARNING" and "c" * 64 in record.getMessage()
         for record in caplog.records
+    )
+
+
+async def _poll(hass: HomeAssistant, document: dict[str, Any], *, pending: bool) -> str:
+    """One health poll of a native panel that reports this WebView document."""
+    entry, coordinator = _panel(hass)
+    hass.config_entries.async_update_entry(
+        entry, data={**entry.data, CONF_TRANSPORT_USER_ID: "owner"}
+    )
+    issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
+    if pending:
+        await async_record_update_failure(
+            hass,
+            entry.entry_id,
+            "Panel",
+            HEALTH.version,
+            RuntimeError("The app is installed; its WebView update is unfinished"),
+            webview_pending=True,
+        )
+    with (
+        patch.object(
+            coordinator.client, "async_get_health", AsyncMock(return_value=HEALTH)
+        ),
+        patch.object(
+            coordinator.client,
+            "async_get_status",
+            AsyncMock(return_value=status(document)),
+        ),
+        patch.object(
+            coordinator.client,
+            "async_get_version_code",
+            AsyncMock(side_effect=CannotConnectError),
+        ),
+    ):
+        await coordinator.async_refresh()
+    return issue_id
+
+
+@pytest.mark.parametrize("state", [None, "installed"])
+async def test_poll_seeing_the_webview_current_clears_its_pending_repair(
+    hass: HomeAssistant, state: str | None
+) -> None:
+    issue_id = await _poll(hass, observation(state, eligible=False), pending=True)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
+async def test_poll_keeps_the_repair_while_the_webview_is_still_offered(
+    hass: HomeAssistant,
+) -> None:
+    issue_id = await _poll(hass, observation("deferred"), pending=True)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+
+
+async def test_running_webview_install_after_setup_raises_no_repair(
+    hass: HomeAssistant,
+) -> None:
+    issue_id = await _poll(hass, observation("downloading"), pending=False)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+    assert await async_failure_events(hass, issue_id) == []
+
+
+async def test_unfinished_webview_names_the_webview_and_the_installed_app(
+    hass: HomeAssistant,
+) -> None:
+    entity, _client, entry, issue_id = _native(hass)
+
+    async def manage(_hass: Any, _session: Any, operation: str, **_: Any) -> Any:
+        if operation == "webview.observe":
+            return observation()
+        return observation("rejected")
+
+    with pytest.raises(HomeAssistantError) as raised:
+        await _install(hass, entity, entry, manage)
+    assert raised.value.translation_key == "update_webview_unfinished"
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_key == "installer_failure_update_webview"
+    assert "issue=installer_failure_update" in (issue.learn_more_url or "")
+    strings = json.loads(
+        (Path(__file__).parents[1] / STRINGS).read_text(encoding="utf-8")
+    )
+    message = strings["exceptions"]["update_webview_unfinished"]["message"]
+    text = strings["issues"]["installer_failure_update_webview"]
+    for value in (
+        message,
+        text["title"],
+        text["fix_flow"]["step"]["init"]["description"],
+    ):
+        assert "WebView" in value
+    assert (
+        "installed" in message
+        and "installed" in text["fix_flow"]["step"]["init"]["description"]
     )

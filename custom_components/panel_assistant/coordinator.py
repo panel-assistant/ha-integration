@@ -67,6 +67,16 @@ _LOGGER = logging.getLogger(__name__)
 _MAX_REFUSED_HELLOS = 16
 
 
+def _webview_done(status: PanelStatus) -> bool:
+    """The panel says its WebView is current, with no install left open."""
+    webview = status.webview
+    return (
+        webview is not None
+        and webview.reason == "current"
+        and webview.transaction_state in (None, "installed")
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class PanelSnapshot:
     """Cached health authority and optional sanitized status diagnostics."""
@@ -509,7 +519,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                 translation_domain=DOMAIN, translation_key="health_update_failed"
             )
         self.identity_mismatch = False
-        await self._async_clear_update_failure(health)
+        await self._async_clear_update_failure(
+            health, webview_completed=_webview_done(status)
+        )
         if entry is not None:
             async_reconcile_permission_issue(self.hass, entry, status)
             async_reconcile_proximity_issue(self.hass, entry, status)
@@ -631,6 +643,11 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             raise UpdateFailed(
                 translation_domain=DOMAIN, translation_key="health_address_retired"
             )
+        if self._entry_id is not None and _webview_done(status):
+            # The earlier health-only clear could not see the WebView finish.
+            await self._async_clear_update_failure(
+                health, allow_http=True, webview_completed=True
+            )
         if entry is not None:
             async_reconcile_permission_issue(self.hass, entry, status)
             async_reconcile_proximity_issue(self.hass, entry, status)
@@ -644,6 +661,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         *,
         allow_http: bool = False,
         is_current: Callable[[], bool] | None = None,
+        webview_completed: bool = False,
     ) -> None:
         """Withdraw a failed-update repair once the panel runs the build it named.
 
@@ -688,6 +706,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             installed_code,
             verified_current_code=current_code,
             is_current=is_current,
+            webview_completed=webview_completed,
         )
 
     async def _async_recover_address(self) -> PanelHealth | None:

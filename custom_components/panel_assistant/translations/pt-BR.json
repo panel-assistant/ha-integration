@@ -827,6 +827,9 @@
     "update_not_complete": {
       "message": "A atualização do painel não foi concluída"
     },
+    "update_webview_unfinished": {
+      "message": "The app is installed, but its WebView update did not finish. Open the Repair for this panel to try the WebView step again."
+    },
     "panel_backup_failed": {
       "message": "Não foi possível fazer backup do painel, portanto nada foi instalado"
     },
@@ -1436,6 +1439,70 @@
           "init": {
             "title": "Resolver erro do painel",
             "description": "O Home Assistant não conseguiu confirmar que o Panel Assistant terminou de atualizar.\n\nPara corrigir:\n1. Siga as [etapas de recuperação]({repair_url}).\n2. Restaure a conexão do painel, verifique **Relatório de suporte** e selecione **Tentar novamente**.\n\n[Saiba mais]({learn_more_url})",
+            "menu_options": {
+              "retry": "Tentar novamente",
+              "authorize_adb": "Permitir atualizações",
+              "support_report": "Relatório de suporte",
+              "clear_error": "Limpar erro"
+            }
+          },
+          "support_report": {
+            "title": "Relatório de suporte",
+            "description": "Este relatório contém os detalhes salvos da instalação ou atualização que falhou.\n\nPara corrigir:\n1. Leia [como usar este relatório de suporte]({guide_url}).\n2. Revise o relatório para identificar informações privadas e copie-o para um [novo problema da integração Panel Assistant]({issue_url}).\n\n{report}\n\n[Saiba mais]({learn_more_url})"
+          },
+          "clear_error": {
+            "title": "Limpar erro",
+            "description": "Limpar este erro exclui seu relatório salvo sem alterar o painel.\n\nPara corrigir:\n1. [Salve um relatório de suporte]({guide_url}) primeiro, se precisar dele.\n2. Selecione **Enviar** para remover este erro e seu relatório.\n\n[Saiba mais]({learn_more_url})"
+          },
+          "retry_error": {
+            "title": "Nova tentativa incompleta",
+            "description": "A nova tentativa não pôde ser concluída, então este erro e seu relatório continuam em Reparos.\n\nPara corrigir:\n1. Siga as [etapas de recuperação]({repair_url}).\n2. Selecione **Enviar** e depois **Relatório de suporte** para verificar a causa antes de tentar novamente.\n\n[Saiba mais]({learn_more_url})"
+          },
+          "authorize_adb": {
+            "title": "Permitir atualizações",
+            "description": "O Home Assistant precisa da aprovação do Android antes de atualizar {panel}.\n\nPara corrigir:\n1. Leia as [etapas de aprovação do ADB]({approval_url}).\n2. Selecione **Enviar** e, em {panel}, marque **Sempre permitir a partir deste computador** e toque em **Permitir**.\n3. Após a aprovação, selecione **Tentar novamente** neste reparo para tentar a atualização novamente.\n\n[Saiba mais]({learn_more_url})"
+          }
+        },
+        "progress": {
+          "retrying": "O Home Assistant está verificando o painel e tentando executar novamente a operação salva.\n\nPara corrigir:\n1. Leia as [orientações para tentar novamente]({repair_url}), se necessário.\n2. Aguarde aqui o resultado antes de decidir o que fazer em seguida.\n\n[Saiba mais]({learn_more_url})",
+          "authorize_adb": "A aprovação do Android em {panel} ainda é necessária.\n\nPara corrigir:\n1. Leia as [etapas de aprovação do ADB]({approval_url}).\n2. Em {panel}, marque **Sempre permitir a partir deste computador** e toque em **Permitir**.\n\nO processo continua automaticamente após a aprovação.\n\n[Saiba mais]({learn_more_url})"
+        },
+        "error": {
+          "retry_target_changed": "O painel não corresponde mais ao destino salvo. Verifique-o antes de tentar novamente.",
+          "retry_release_changed": "A versão selecionada não corresponde mais à versão salva. Escolha uma nova tentativa de instalação.",
+          "retry_credential_changed": "A credencial ADB do Home Assistant mudou. Verifique o painel antes de tentar novamente.",
+          "retry_panel_ambiguous": "Não foi possível verificar o aplicativo instalado no painel. Nenhuma nova instalação foi iniciada.",
+          "retry_cannot_prove_safe": "Não foi possível verificar o painel o suficiente para tentar novamente com segurança. Tente novamente mais tarde.",
+          "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
+          "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
+          "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer.",
+          "cannot_connect": "Não foi possível se conectar a um endpoint válido de integridade do Panel Assistant.",
+          "invalid_install_address": "Digite apenas o nome de host ou o endereço IP do painel.",
+          "install_resolution_failed": "O Home Assistant não conseguiu resolver este endereço do painel. Verifique o endereço e o DNS local e tente novamente.",
+          "install_resolution_timeout": "O tempo limite da resolução de nomes local foi atingido antes que o endereço do painel pudesse ser fixado com segurança. Verifique o DNS local e tente novamente.",
+          "install_too_many_addresses": "Este nome de host foi resolvido para endereços demais para fixá-lo com segurança. Use um nome de host local dedicado ou um endereço IP privado.",
+          "unsafe_install_target": "A instalação é permitida somente em um endereço IPv4 local privado ou em um endereço IPv6 local único. Nenhuma conexão ADB foi tentada.",
+          "install_target_changed": "O nome de host não é mais resolvido para o mesmo endereço fixado do painel. Nenhuma chave ADB ou instalação foi enviada. Verifique o endereço e comece novamente.",
+          "adb_unreachable": "O painel respondeu, mas nada respondeu na porta do Android Debug Bridge (5555). No painel, habilite o Android Debug Bridge e permita seu uso pela rede. Depois, tente novamente. Se puder conectar o painel ao computador em que está navegando, faça a instalação por USB.",
+          "adb_still_unauthorized": "O painel ainda não aceitou esta instância do Home Assistant. Aprove a solicitação ADB no painel e tente novamente.",
+          "adb_credential_error": "O Home Assistant não conseguiu carregar ou salvar de forma persistente sua credencial ADB com segurança. Nenhuma alteração no painel foi tentada. Verifique o armazenamento e os registros do Home Assistant antes de tentar novamente.",
+          "retained_or_ambiguous": "O painel pode conter um registro retido do pacote Panel Assistant ou não foi possível comprovar a ausência do estado do pacote. Nenhuma alteração foi feita no painel. Tente novamente uma vez se a conexão estava instável; caso contrário, siga as etapas em {recovery_address}. Não desinstale nem redefina o aplicativo sem uma cópia de segurança verificada.",
+          "unknown": "Erro inesperado",
+          "panel_identity_changed": "O endereço não responde mais como este painel configurado. Verifique o painel e seu endereço antes de tentar novamente."
+        },
+        "abort": {
+          "entry_removed": "Este painel não está mais configurado no Home Assistant.\n\nPara corrigir:\n1. [Abra os dispositivos do Panel Assistant](/config/integrations/integration/panel_assistant) se quiser adicioná-lo novamente.\n2. Caso contrário, feche esta caixa de diálogo.\n\n[Saiba mais]({learn_more_url})"
+        }
+      }
+    },
+    "installer_failure_update_webview": {
+      "title": "The WebView update on {panel} did not finish",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolver erro do painel",
+            "description": "The panel app is installed, but its WebView (browser engine) update did not finish.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Keep the panel connected, then select **Try again** to repeat only the WebView step.\n\n[Learn more]({learn_more_url})",
             "menu_options": {
               "retry": "Tentar novamente",
               "authorize_adb": "Permitir atualizações",

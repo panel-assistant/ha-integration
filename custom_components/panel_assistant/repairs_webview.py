@@ -55,10 +55,12 @@ async def async_reconcile_webview_issue(
     if (
         CONF_TRANSPORT_USER_ID not in entry.data
         or observation is None
+        # A running install is not a failure; only an ended one needs the owner.
         or not (
             observation.needs_attention
-            or observation.transaction_state in ACTIVE_STATES | {"submitted_unknown"}
+            or observation.transaction_state == "submitted_unknown"
         )
+        or observation.transaction_state in ACTIVE_STATES
         or observation.transaction_state is None
     ):
         return

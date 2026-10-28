@@ -112,7 +112,8 @@ async def test_every_issue_has_a_repair_map_entry(hass: HomeAssistant) -> None:
     ).get("repair", {})
     # Owner-requested removal links directly to the existing removal-risks topic.
     # Fault Repairs use /go/repair and require an issue-specific destination.
-    fault_issues = issues - {"remove_from_panel"}
+    # The unfinished-WebView wording of the update Repair shares its page.
+    fault_issues = issues - {"remove_from_panel", "installer_failure_update_webview"}
     assert fault_issues and fault_issues == set(pinned)
     assert len(set(pinned.values())) == len(fault_issues)
     assert all("#" in destination for destination in pinned.values())

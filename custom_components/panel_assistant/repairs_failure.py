@@ -300,12 +300,16 @@ def _issue(
         translation_key = f"{ISSUE_INSTALLER_FAILURE}_{reason}"
     elif kind == "update" and reason == "adb_authorization_required":
         translation_key = "installer_failure_adb_authorization"
+    elif kind == "update" and reason == "update_webview_unfinished":
+        translation_key = f"{ISSUE_INSTALLER_FAILURE}_update_webview"
     elif kind == "update":
         translation_key = f"{ISSUE_INSTALLER_FAILURE}_update"
     elif kind == "retry_hold":
         translation_key = f"{ISSUE_INSTALLER_FAILURE}_retry_hold"
     else:
         translation_key = ISSUE_INSTALLER_FAILURE
+    # The WebView wording shares the update Repair's help page.
+    anchor = translation_key.removesuffix("_webview")
     if translation_key == "installer_failure_adb_authorization" and entry_id:
         ir.async_delete_issue(hass, DOMAIN, adb_authorization_issue_id(entry_id))
     ir.async_create_issue(
@@ -316,11 +320,11 @@ def _issue(
         is_persistent=True,
         severity=ir.IssueSeverity.ERROR,
         translation_key=translation_key,
-        learn_more_url=help_url("repair", issue=translation_key),
+        learn_more_url=help_url("repair", issue=anchor),
         translation_placeholders={
             "panel": panel,
-            "repair_url": help_url("repair", issue=translation_key),
-            "learn_more_url": help_url("repair", issue=translation_key),
+            "repair_url": help_url("repair", issue=anchor),
+            "learn_more_url": help_url("repair", issue=anchor),
             "guide_url": help_url("support-report"),
             "approval_url": help_url("repair", issue="adb_update_authorization"),
         },

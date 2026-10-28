@@ -794,7 +794,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             if reason not in (None, "webview_download_deferred"):
                 webview_pending = reason == "webview_deferred"
                 raise _update_error(
-                    "update_not_complete",
+                    "update_webview_unfinished",
                     f"The app is installed; its WebView update is unfinished: {reason}",
                 )
         except UpdateRejectedError as refusal:
