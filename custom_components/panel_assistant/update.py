@@ -17,6 +17,7 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -53,7 +54,10 @@ from .repairs_failure import (
     async_record_update_failure,
     async_refresh_update_failure_name,
 )
-from .repairs_update_route import async_reconcile_update_route_issue
+from .repairs_update_route import (
+    async_reconcile_update_route_issue,
+    no_update_route_issue_id,
+)
 from .repairs_upgrade import runs_old_app
 from .repairs_webview import async_update_webview
 from .status import PanelCachedUpdate
@@ -302,6 +306,13 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         if entry is None:
             return
         snapshot: PanelSnapshot | None = self.coordinator.data
+        if snapshot is not None and runs_old_app(snapshot.health):
+            # The old-app refusal already says what to do; a no-route Repair
+            # beside it would disagree.
+            ir.async_delete_issue(
+                self.hass, DOMAIN, no_update_route_issue_id(self._entry_id)
+            )
+            return
         async_reconcile_update_route_issue(
             self.hass,
             entry,

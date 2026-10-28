@@ -153,3 +153,32 @@ async def test_adding_a_moving_panel_again_still_repairs_its_address(
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "already_configured"
     assert entry.data[CONF_ADDRESS] == "panel.local"
+
+
+@pytest.mark.parametrize("old_app", [True, False])
+async def test_old_app_panel_without_a_route_gets_only_the_refusal(
+    hass: HomeAssistant, hass_read_only_user: Any, old_app: bool
+) -> None:
+    """The no-route Repair would contradict the old-app refusal, so it goes."""
+    from custom_components.panel_assistant.repairs_update_route import (
+        async_reconcile_update_route_issue,
+        no_update_route_issue_id,
+    )
+
+    entry = _entry(hass, hass_read_only_user.id)
+    health = replace(CURRENT, package=LEGACY_PACKAGE_ID) if old_app else CURRENT
+    await _set_up(hass, entry, health)
+    entity_id = next(
+        item.entity_id
+        for item in er.async_entries_for_config_entry(
+            er.async_get(hass), entry.entry_id
+        )
+        if item.domain == "update"
+    )
+    entity = hass.data["update"].get_entity(entity_id)
+    issue_id = no_update_route_issue_id(entry.entry_id)
+    # One left from before the panel was seen running the old app.
+    async_reconcile_update_route_issue(hass, entry, has_route=False, status=None)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+    entity._async_reconcile_route_issue(has_route=False)
+    assert (ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None) == old_app
