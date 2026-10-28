@@ -99,7 +99,7 @@
       "installing": "Instalando Panel Assistant en {address}. Mantén abierto este cuadro de diálogo; terminará por sí solo.\n\nSi lo cierras, la instalación seguirá en marcha. Añade de nuevo la misma dirección para terminar."
     },
     "error": {
-      "old_app_installed": "Este panel todavía ejecuta la antigua app ha-paneld. Panel Assistant 1.0 no puede moverlo a la nueva app y no instala nada a su lado. Instala primero Panel Assistant 0.9.0 (en HACS abre Panel Assistant, elige Redownload y selecciona la versión 0.9.0), añade el panel y muévelo con su reparación, y después instala 1.0.0.",
+      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "cannot_connect": "No se puede conectar a un punto de conexión de estado válido de Panel Assistant.",
       "invalid_address": "Introduce un nombre de host o una dirección IP sin esquema de URL ni ruta.",
       "invalid_install_address": "Introduce solo el nombre de host o la dirección IP del panel.",
@@ -130,7 +130,7 @@
       "release_selection_required": "Elige una versión de la lista."
     },
     "abort": {
-      "old_app_installed": "Este panel todavía ejecuta la antigua app ha-paneld. Panel Assistant 1.0 no puede moverlo a la nueva app y no instala nada a su lado. Instala primero Panel Assistant 0.9.0 (en HACS abre Panel Assistant, elige Redownload y selecciona la versión 0.9.0), añade el panel y muévelo con su reparación, y después instala 1.0.0.",
+      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "already_configured": "Este panel ya está configurado.",
       "reinstall_successful": "La aplicación se ha vuelto a instalar. Este panel conserva su historial y sus ajustes en Home Assistant.",
       "usb_installed": "Panel Assistant está instalado y el panel se ha añadido a Home Assistant. Termina la configuración del panel en la ventana del instalador.",

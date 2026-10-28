@@ -99,7 +99,7 @@
       "installing": "正在 {address} 上安装 Panel Assistant。请保持此对话框打开；操作会自动完成。\n\n如果关闭对话框，安装仍会继续。请再次添加同一地址以完成操作。"
     },
     "error": {
-      "old_app_installed": "此面板仍在运行旧版 ha-paneld 应用。Panel Assistant 1.0 无法将其迁移到新应用，也不会在旁边安装任何内容。请先安装 Panel Assistant 0.9.0（在 HACS 中打开 Panel Assistant，选择 Redownload，然后选择 0.9.0 版本），添加面板并通过其修复完成迁移，再安装 1.0.0。",
+      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
       "invalid_address": "请输入不含 URL 方案或路径的主机名或 IP 地址。",
       "invalid_install_address": "请只输入面板的主机名或 IP 地址。",
@@ -130,7 +130,7 @@
       "release_selection_required": "请从列表中选择一个版本。"
     },
     "abort": {
-      "old_app_installed": "此面板仍在运行旧版 ha-paneld 应用。Panel Assistant 1.0 无法将其迁移到新应用，也不会在旁边安装任何内容。请先安装 Panel Assistant 0.9.0（在 HACS 中打开 Panel Assistant，选择 Redownload，然后选择 0.9.0 版本），添加面板并通过其修复完成迁移，再安装 1.0.0。",
+      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "already_configured": "此面板已配置。",
       "reinstall_successful": "应用已重新安装。此面板在 Home Assistant 中的历史记录和设置会保留。",
       "usb_installed": "Panel Assistant 已安装，面板已添加到 Home Assistant。请在安装程序窗口中完成面板的设置。",

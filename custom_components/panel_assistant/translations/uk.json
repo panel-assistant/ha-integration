@@ -99,7 +99,7 @@
       "installing": "Встановлення Panel Assistant за адресою {address}. Залиште цей діалог відкритим; операція завершиться автоматично.\n\nЯкщо ви закриєте його, встановлення триватиме. Додайте ту саму адресу ще раз, щоб завершити операцію."
     },
     "error": {
-      "old_app_installed": "На цій панелі досі працює старий застосунок ha-paneld. Panel Assistant 1.0 не може перенести її в новий застосунок і нічого не встановлює поруч із ним. Спершу встановіть Panel Assistant 0.9.0 (у HACS відкрийте Panel Assistant, виберіть Redownload і версію 0.9.0), додайте панель і перенесіть її за допомогою її запису в розділі «Виправлення проблем», а потім встановіть 1.0.0.",
+      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "cannot_connect": "Не вдалося встановити з'єднання з дійсною кінцевою точкою перевірки працездатності Panel Assistant.",
       "invalid_address": "Введіть ім’я хоста або адресу IP без схеми URL та шляху.",
       "invalid_install_address": "Введіть лише ім’я хоста або IP-адресу панелі.",
@@ -130,7 +130,7 @@
       "release_selection_required": "Оберіть версію зі списку."
     },
     "abort": {
-      "old_app_installed": "На цій панелі досі працює старий застосунок ha-paneld. Panel Assistant 1.0 не може перенести її в новий застосунок і нічого не встановлює поруч із ним. Спершу встановіть Panel Assistant 0.9.0 (у HACS відкрийте Panel Assistant, виберіть Redownload і версію 0.9.0), додайте панель і перенесіть її за допомогою її запису в розділі «Виправлення проблем», а потім встановіть 1.0.0.",
+      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "already_configured": "Ця панель вже налаштована.",
       "reinstall_successful": "Застосунок установлено повторно. Ця панель зберігає свою історію та налаштування в Home Assistant.",
       "usb_installed": "Panel Assistant установлено, і панель додано до Home Assistant. Завершіть налаштування панелі у вікні інсталятора.",

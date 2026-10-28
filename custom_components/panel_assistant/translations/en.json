@@ -99,7 +99,7 @@
       "installing": "Installing Panel Assistant on {address}. Keep this dialog open; it finishes on its own.\n\nIf you close it, the install keeps running. Add the same address again to finish."
     },
     "error": {
-      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Install Panel Assistant 0.9.0 first (in HACS open Panel Assistant, choose Redownload, and pick version 0.9.0), add the panel and move it with its Repair, then install 1.0.0.",
+      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "cannot_connect": "Unable to connect to a valid Panel Assistant health endpoint.",
       "invalid_address": "Enter a hostname or IP address without a URL scheme or path.",
       "invalid_install_address": "Enter only the panel hostname or IP address.",
@@ -130,7 +130,7 @@
       "release_selection_required": "Choose a version from the list."
     },
     "abort": {
-      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Install Panel Assistant 0.9.0 first (in HACS open Panel Assistant, choose Redownload, and pick version 0.9.0), add the panel and move it with its Repair, then install 1.0.0.",
+      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "already_configured": "This panel is already configured.",
       "reinstall_successful": "The app was installed again. This panel keeps its Home Assistant history and settings.",
       "usb_installed": "Panel Assistant is installed and the panel has been added to Home Assistant. Finish the panel's setup in the installer window.",

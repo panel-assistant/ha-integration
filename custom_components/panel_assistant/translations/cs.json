@@ -99,7 +99,7 @@
       "installing": "Instalace Panel Assistant na adrese {address}. Nechte tento dialog otevřený; operace se dokončí sama.\n\nPokud ho zavřete, instalace bude pokračovat. Pro dokončení přidejte stejnou adresu znovu."
     },
     "error": {
-      "old_app_installed": "Na tomto panelu stále běží stará aplikace ha-paneld. Panel Assistant 1.0 ji nedokáže převést na novou aplikaci a vedle ní nic neinstaluje. Nejprve nainstalujte Panel Assistant 0.9.0 (v HACS otevřete Panel Assistant, zvolte Redownload a vyberte verzi 0.9.0), přidejte panel a převeďte ho jeho opravou, poté nainstalujte 1.0.0.",
+      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "cannot_connect": "Nelze se připojit k platnému koncovému bodu kontroly stavu Panel Assistant.",
       "invalid_address": "Zadejte název hostitele nebo IP adresu bez schématu URL či cesty.",
       "invalid_install_address": "Zadejte pouze název hostitele nebo IP adresu panelu.",
@@ -130,7 +130,7 @@
       "release_selection_required": "Vyberte verzi ze seznamu."
     },
     "abort": {
-      "old_app_installed": "Na tomto panelu stále běží stará aplikace ha-paneld. Panel Assistant 1.0 ji nedokáže převést na novou aplikaci a vedle ní nic neinstaluje. Nejprve nainstalujte Panel Assistant 0.9.0 (v HACS otevřete Panel Assistant, zvolte Redownload a vyberte verzi 0.9.0), přidejte panel a převeďte ho jeho opravou, poté nainstalujte 1.0.0.",
+      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "already_configured": "Tento panel je již nastavený.",
       "reinstall_successful": "Aplikace byla znovu nainstalována. Tento panel si zachovává svou historii a nastavení v Home Assistant.",
       "usb_installed": "Panel Assistant je nainstalován a panel byl přidán do Home Assistant. Dokončete nastavení panelu v okně instalátoru.",

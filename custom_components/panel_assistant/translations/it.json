@@ -99,7 +99,7 @@
       "installing": "Installazione di Panel Assistant all’indirizzo {address}. Tieni aperta questa finestra di dialogo; l’operazione termina da sola.\n\nSe la chiudi, l’installazione continua. Aggiungi di nuovo lo stesso indirizzo per completare l’operazione."
     },
     "error": {
-      "old_app_installed": "Questo pannello esegue ancora la vecchia app ha-paneld. Panel Assistant 1.0 non può spostarlo sulla nuova app e non installa nulla accanto. Installa prima Panel Assistant 0.9.0 (in HACS apri Panel Assistant, scegli Redownload e seleziona la versione 0.9.0), aggiungi il pannello e spostalo con la sua riparazione, poi installa 1.0.0.",
+      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "cannot_connect": "Impossibile connettersi a un endpoint valido sullo stato di funzionamento di Panel Assistant.",
       "invalid_address": "Inserisci un nome host o un indirizzo IP senza schema URL né percorso.",
       "invalid_install_address": "Inserisci solo il nome host o l’indirizzo IP del pannello.",
@@ -130,7 +130,7 @@
       "release_selection_required": "Scegli una versione dall'elenco."
     },
     "abort": {
-      "old_app_installed": "Questo pannello esegue ancora la vecchia app ha-paneld. Panel Assistant 1.0 non può spostarlo sulla nuova app e non installa nulla accanto. Installa prima Panel Assistant 0.9.0 (in HACS apri Panel Assistant, scegli Redownload e seleziona la versione 0.9.0), aggiungi il pannello e spostalo con la sua riparazione, poi installa 1.0.0.",
+      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "already_configured": "Questo pannello è già configurato.",
       "reinstall_successful": "L’app è stata reinstallata. Questo pannello conserva la cronologia e le impostazioni in Home Assistant.",
       "usb_installed": "Panel Assistant è installato e il pannello è stato aggiunto a Home Assistant. Completa la configurazione del pannello nella finestra dell'installer.",

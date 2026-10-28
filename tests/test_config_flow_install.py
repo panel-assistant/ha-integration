@@ -84,6 +84,7 @@ async def test_install_rejects_invalid_address_before_network_calls(
         **INSTALL_RECOVERY_PLACEHOLDERS,
         "panel_access_url": help_url("panel-access"),
         "panel_help_url": help_url("panel-unreachable"),
+        "old_app_help_url": help_url("repair", issue="old_app_needs_090"),
     }
     health_mock.assert_not_awaited()
     probe_mock.assert_not_awaited()

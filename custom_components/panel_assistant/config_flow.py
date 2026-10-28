@@ -127,7 +127,7 @@ from .removal import RemovalError, async_read_firmware, async_remove_app
 from .repairs_failure import async_clear_adb_authorization
 from .repairs_removal import async_request_removal
 from .repairs_update_route import help_parameters
-from .repairs_upgrade import runs_old_app
+from .repairs_upgrade import ISSUE_OLD_APP_NEEDS_090, runs_old_app
 from .status import PanelStatus
 from .transport import _panel_did
 from .transport_binding import (
@@ -137,6 +137,10 @@ from .transport_binding import (
 )
 from .update_policy import prereleases_allowed
 
+# The old_app_installed text links to the same steps as its Repair.
+_OLD_APP_PLACEHOLDERS = {
+    "old_app_help_url": help_url("repair", issue=ISSUE_OLD_APP_NEEDS_090)
+}
 _LOGGER = logging.getLogger(__name__)
 
 _CANCELLED_ABORT_REASONS = {
@@ -366,6 +370,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 "panel_access_url": help_url("panel-access"),
                 "panel_help_url": help_url("panel-unreachable"),
                 **INSTALL_RECOVERY_PLACEHOLDERS,
+                **_OLD_APP_PLACEHOLDERS,
             },
         )
 
@@ -461,7 +466,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._pending_address, self._pending_health
             )
         if runs_old_app(self._pending_health):
-            return self.async_abort(reason="old_app_installed")
+            return self.async_abort(
+                reason="old_app_installed",
+                description_placeholders=_OLD_APP_PLACEHOLDERS,
+            )
         try:
             state = await self._found_client().async_get_setup_state()
             needs_user = not state.complete
@@ -1487,7 +1495,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                     updates={CONF_ADDRESS: address.stored_value}, reload_on_update=False
                 )
         if runs_old_app(health):
-            return self.async_abort(reason="old_app_installed")
+            return self.async_abort(
+                reason="old_app_installed",
+                description_placeholders=_OLD_APP_PLACEHOLDERS,
+            )
         if not await self._async_new_panel_setup_complete(address):
             self._pending_address = address
             self._pending_health = health
