@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from secrets import token_hex
 
 from homeassistant.config_entries import ConfigEntry
@@ -21,6 +22,8 @@ from .transport_sessions import (
     session_manages,
 )
 from .webview import ACTIVE_STATES, WebViewStatus, parse_webview
+
+_LOGGER = logging.getLogger(__name__)
 
 # Retained only to retire issues created by older integration versions.
 ISSUE_WEBVIEW = "panel_webview"
@@ -183,6 +186,19 @@ async def async_update_webview(
                 ):
                     session()
                     continue
+            if (
+                status.transaction_state == "deferred"
+                and status.transaction_reason == "download_failed"
+            ):
+                # The WebView files are not published for this panel yet; the
+                # app update itself is complete.
+                _LOGGER.warning(
+                    "%s could not download its WebView update %s; it is offered "
+                    "again once the files are available",
+                    entry.title,
+                    status.candidate_sha256,
+                )
+                return "webview_download_deferred"
             return (
                 "webview_deferred"
                 if status.transaction_state == "submitted_unknown"

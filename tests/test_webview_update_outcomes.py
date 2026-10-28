@@ -152,3 +152,24 @@ async def test_running_update_shows_no_failure_repair(
     if not fails:
         # Nothing is left for a later startup to turn into a Repair.
         assert await async_failure_events(hass, issue_id) == []
+
+
+async def test_unpublished_webview_download_leaves_the_app_update_complete(
+    hass: HomeAssistant, caplog: pytest.LogCaptureFixture
+) -> None:
+    entity, _client, entry, issue_id = _native(hass)
+
+    async def manage(_hass: Any, _session: Any, operation: str, **_: Any) -> Any:
+        if operation == "webview.observe":
+            return observation()
+        document = observation("deferred")
+        document["transaction"]["reason"] = "download_failed"
+        return document
+
+    await _install(hass, entity, entry, manage)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+    assert await async_failure_events(hass, issue_id) == []
+    assert any(
+        record.levelname == "WARNING" and "c" * 64 in record.getMessage()
+        for record in caplog.records
+    )

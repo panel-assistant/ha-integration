@@ -791,7 +791,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             reason = await async_update_webview(
                 self.hass, self._entry_id, allow_legacy=True
             )
-            if reason is not None:
+            if reason not in (None, "webview_download_deferred"):
                 webview_pending = reason == "webview_deferred"
                 raise _update_error(
                     "update_not_complete",
