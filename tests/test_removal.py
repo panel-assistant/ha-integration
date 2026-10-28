@@ -376,6 +376,17 @@ async def _open_form(hass: HomeAssistant, entry: Any) -> dict[str, Any]:
     return result
 
 
+async def _choose_removal(admin: Any, menu: dict[str, Any]) -> dict[str, Any]:
+    """Pick Remove in the Repair's menu, as the owner does."""
+    assert menu["type"] == "menu", menu
+    assert menu["menu_options"] == ["confirm", "keep_app"]
+    response = await admin.post(
+        f"/api/repairs/issues/fix/{menu['flow_id']}", json={"next_step_id": "confirm"}
+    )
+    assert response.status == 200
+    return await response.json()
+
+
 async def _remove(hass: HomeAssistant, entry: Any) -> dict[str, Any]:
     form = await _open_form(hass, entry)
     return await hass.config_entries.options.async_configure(form["flow_id"], {})
@@ -1009,7 +1020,7 @@ async def test_device_action_waits_for_owner_confirmation_then_deletes_entry(
         "/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue_id}
     )
     assert response.status == 200
-    form = await response.json()
+    form = await _choose_removal(admin, await response.json())
     assert form.get("step_id") == "confirm"
     assert fake.hand_back_requests == 0
     response = await admin.post(f"/api/repairs/issues/fix/{form['flow_id']}", json={})
@@ -1100,7 +1111,7 @@ async def test_deleted_entry_withdraws_an_open_removal_confirmation(
         json={"handler": DOMAIN, "issue_id": removal_issue_id(entry.entry_id)},
     )
     assert response.status == 200
-    form = await response.json()
+    form = await _choose_removal(admin, await response.json())
     assert form.get("step_id") == "confirm"
     assert await hass.config_entries.async_remove(entry.entry_id)
 
@@ -1158,7 +1169,7 @@ async def test_uninstall_keeps_repair_until_entry_deletion_has_completed(
         "/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue_id}
     )
     assert response.status == 200
-    form = await response.json()
+    form = await _choose_removal(admin, await response.json())
     removal_started = asyncio.Event()
     allow_entry_removal = asyncio.Event()
     remove_entry = hass.config_entries.async_remove
@@ -1217,7 +1228,7 @@ async def test_options_uninstall_retains_retry_when_entry_deletion_is_interrupte
         "/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue_id}
     )
     assert response.status == 200
-    form = await response.json()
+    form = await _choose_removal(admin, await response.json())
     response = await admin.post(f"/api/repairs/issues/fix/{form['flow_id']}", json={})
     assert response.status == 200
     assert (await response.json())["type"] == "create_entry"
@@ -1247,7 +1258,7 @@ async def test_repair_keeps_request_when_home_assistant_declines_entry_deletion(
         "/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue_id}
     )
     assert response.status == 200
-    form = await response.json()
+    form = await _choose_removal(admin, await response.json())
     with patch.object(
         hass.config_entries, "async_remove", AsyncMock(return_value=False)
     ):
@@ -1527,7 +1538,7 @@ async def test_repair_keeps_failed_app_removal_retryable(
         "/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue_id}
     )
     assert response.status == 200
-    form = await response.json()
+    form = await _choose_removal(admin, await response.json())
 
     response = await admin.post(f"/api/repairs/issues/fix/{form['flow_id']}", json={})
 
@@ -1612,3 +1623,44 @@ async def test_withdrawal_during_vendor_restore_preserves_pending_display_restor
         assert not display.exists()
         assert not (fake.state_path / "density").exists()
         assert f"uninstall {PACKAGE_ID}" in fake.read()["events"]
+
+
+async def test_the_owner_can_withdraw_a_removal_request_and_keep_the_app(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer], hass_client: Any
+) -> None:
+    """Keep Panel Assistant clears the Repair and touches neither panel nor entry."""
+    from homeassistant.helpers import issue_registry as ir
+    from homeassistant.setup import async_setup_component
+
+    from custom_components.panel_assistant.repairs_removal import (
+        async_request_removal,
+        removal_issue_id,
+    )
+
+    assert await async_setup_component(hass, "repairs", {})
+    assert await async_setup_component(hass, DOMAIN, {})
+    fake, server = panel
+    entry = _entry(hass, server)
+    async_request_removal(hass, entry)
+    issue_id = removal_issue_id(entry.entry_id)
+    admin = await hass_client()
+    response = await admin.post(
+        "/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue_id}
+    )
+    menu = await response.json()
+    assert menu["type"] == "menu", menu
+    response = await admin.post(
+        f"/api/repairs/issues/fix/{menu['flow_id']}", json={"next_step_id": "keep_app"}
+    )
+    assert (await response.json())["type"] == "create_entry"
+    await hass.async_block_till_done()
+
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+    assert hass.config_entries.async_get_entry(entry.entry_id) is entry
+    assert fake.installed == [PACKAGE_ID]
+    assert fake.hand_back_requests == 0
+
+    async_request_removal(hass, entry)
+    again = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    assert again is not None
+    assert again.dismissed_version is None

@@ -1745,9 +1745,16 @@
       "title": "Odebrat Panel Assistant z panelu {panel}",
       "fix_flow": {
         "step": {
+          "init": {
+            "title": "Remove or keep Panel Assistant",
+            "menu_options": {
+              "confirm": "Remove Panel Assistant",
+              "keep_app": "Keep Panel Assistant"
+            }
+          },
           "confirm": {
             "title": "Odebrat Panel Assistant z panelu {panel}",
-            "description": "Panel Assistant obnoví domovskou obrazovku panelu a aplikace a nastavení výrobce, které změnil, potom se odinstaluje a odstraní tento panel z Home Assistant. Jeho nastavení na panelu budou smazána.\n\nPostup odebrání:\n1. Přečtěte si, [jak může odebrání ovlivnit tento panel]({risks_url}). Některé panely ztratí přístup k nastavení systému Android nebo k ladění po síti, což může znemožnit opětovnou instalaci aplikace bez otevření panelu.\n2. Zvolte Odeslat pro potvrzení odebrání.\n\n[Další informace]({learn_more_url})"
+            "description": "Panel Assistant restores the panel's home screen and the vendor apps and settings it changed, then uninstalls itself and deletes this panel from Home Assistant. Its settings on the panel are deleted.\n\nTo remove:\n1. Read [what removal can do to this panel]({risks_url}). Some panels lose access to Android Settings or network debugging, which may prevent reinstalling the app without opening the panel.\n2. Select Submit to confirm removal.\n\nIf you no longer want to remove it, close this dialog and choose Keep Panel Assistant instead; that changes nothing on the panel.\n\n[Learn more]({learn_more_url})"
           }
         },
         "error": {

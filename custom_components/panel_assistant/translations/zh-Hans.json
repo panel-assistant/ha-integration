@@ -1745,9 +1745,16 @@
       "title": "从 {panel} 移除 Panel Assistant",
       "fix_flow": {
         "step": {
+          "init": {
+            "title": "Remove or keep Panel Assistant",
+            "menu_options": {
+              "confirm": "Remove Panel Assistant",
+              "keep_app": "Keep Panel Assistant"
+            }
+          },
           "confirm": {
             "title": "从 {panel} 移除 Panel Assistant",
-            "description": "Panel Assistant 会恢复面板的主屏幕以及它更改过的厂商应用和设置，然后卸载自身，并从 Home Assistant 中删除此面板。它在面板上的设置会被删除。\n\n移除步骤：\n1. 阅读[移除可能对此面板造成的影响]({risks_url})。某些面板会失去对 Android 设置或网络调试的访问，这可能导致不打开面板就无法重新安装该应用。\n2. 选择“提交”以确认移除。\n\n[了解更多]({learn_more_url})"
+            "description": "Panel Assistant restores the panel's home screen and the vendor apps and settings it changed, then uninstalls itself and deletes this panel from Home Assistant. Its settings on the panel are deleted.\n\nTo remove:\n1. Read [what removal can do to this panel]({risks_url}). Some panels lose access to Android Settings or network debugging, which may prevent reinstalling the app without opening the panel.\n2. Select Submit to confirm removal.\n\nIf you no longer want to remove it, close this dialog and choose Keep Panel Assistant instead; that changes nothing on the panel.\n\n[Learn more]({learn_more_url})"
           }
         },
         "error": {

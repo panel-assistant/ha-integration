@@ -53,7 +53,22 @@ class RemoveFromPanelFlow(RepairsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> RepairsFlowResult:
-        return await self.async_step_confirm()
+        """Let the owner remove the app, or withdraw the request and keep it."""
+        entry = self.hass.config_entries.async_get_entry(self._entry_id)
+        if entry is None or entry.domain != DOMAIN:
+            return await self.async_step_confirm()
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=["confirm", "keep_app"],
+            description_placeholders={"panel": panel_display_name(self.hass, entry)},
+        )
+
+    async def async_step_keep_app(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        """Withdraw the request; the panel and its entry are left untouched."""
+        ir.async_delete_issue(self.hass, DOMAIN, self.issue_id)
+        return self.async_create_entry(data={})
 
     async def async_step_confirm(
         self, user_input: dict[str, Any] | None = None
