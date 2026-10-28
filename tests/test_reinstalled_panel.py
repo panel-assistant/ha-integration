@@ -512,3 +512,50 @@ async def test_an_identity_another_entry_holds_is_never_adopted(
 
     assert entry.unique_id == OLD
     assert _wifi(hass) == f"{OLD}_wifi"
+
+
+def _removal_issue(hass: HomeAssistant, entry: MockConfigEntry) -> bool:
+    return (
+        ir.async_get(hass).async_get_issue(
+            DOMAIN, f"remove_from_panel_{entry.entry_id}"
+        )
+        is not None
+    )
+
+
+async def test_a_reinstall_withdraws_an_unsubmitted_removal_request(
+    hass: HomeAssistant, hass_read_only_user: Any, network: Network
+) -> None:
+    from custom_components.panel_assistant.repairs_removal import (
+        async_request_removal,
+    )
+
+    entry = await _load(hass, network, hass_read_only_user.id)
+    async_request_removal(hass, entry)
+    assert _removal_issue(hass, entry)
+    network.answers[STORED] = _health(NEW)
+
+    await _poll(hass, entry)
+
+    assert _adopted(hass, entry)
+    assert not _removal_issue(hass, entry)
+
+
+async def test_a_removal_request_stays_while_an_operation_holds_the_panel(
+    hass: HomeAssistant, hass_read_only_user: Any, network: Network
+) -> None:
+    from custom_components.panel_assistant.repairs_removal import (
+        async_request_removal,
+    )
+
+    entry = await _load(hass, network, hass_read_only_user.id)
+    async_request_removal(hass, entry)
+    network.answers[STORED] = _health(NEW)
+    assert claim_panel_operation(hass, entry.entry_id)
+    try:
+        await _poll(hass, entry)
+    finally:
+        release_panel_operation(hass, entry.entry_id)
+
+    assert entry.unique_id == OLD
+    assert _removal_issue(hass, entry)
