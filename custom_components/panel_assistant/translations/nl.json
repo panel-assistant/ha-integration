@@ -1717,6 +1717,10 @@
           "updating_webview": "De browserengine wordt bijgewerkt en het resultaat wordt gecontroleerd.\n\nOm dit op te lossen:\n1. Houd het paneel ingeschakeld; [open de handleiding]({learn_more_url}) als de update niet kan worden voltooid.\n\n[Meer informatie]({learn_more_url})"
         }
       }
+    },
+    "dashboard_unfiltered": {
+      "title": "{panel} toont zijn dashboard zonder entiteitfilter",
+      "description": "{panel} heeft zijn dashboard met alle entiteiten geopend, omdat het entiteitfilter niet op tijd klaar was. Het blijft het proberen en gaat vanzelf terug naar het gefilterde dashboard.\n\nOm dit op te lossen:\n1. Open de [entiteitinstellingen]({entities_url}) van {panel} om te zien waarop het wacht.\n2. Als het om een beslissing of een nieuwe aanmelding vraagt, volg dan de stappen daar."
     }
   },
   "options": {

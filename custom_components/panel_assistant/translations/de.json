@@ -1717,6 +1717,10 @@
           "updating_webview": "Die Browser-Engine wird aktualisiert und das Ergebnis geprüft.\n\nSo behebst du das Problem:\n1. Lass das Panel eingeschaltet; [öffne die Anleitung]({learn_more_url}), falls das Update nicht abgeschlossen werden kann.\n\n[Mehr erfahren]({learn_more_url})"
         }
       }
+    },
+    "dashboard_unfiltered": {
+      "title": "{panel} zeigt sein Dashboard ohne Entitätsfilter",
+      "description": "{panel} hat sein Dashboard mit allen Entitäten geöffnet, weil der Entitätsfilter nicht rechtzeitig fertig wurde. Es versucht es weiter und wechselt von selbst zum gefilterten Dashboard zurück.\n\nSo behebst du das Problem:\n1. Öffne die [Entitätseinstellungen]({entities_url}) für {panel}, um zu sehen, worauf es wartet.\n2. Wenn dort eine Entscheidung oder eine neue Anmeldung verlangt wird, folge den Schritten dort."
     }
   },
   "options": {

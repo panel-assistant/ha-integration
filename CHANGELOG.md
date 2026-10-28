@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- A Repair now says when a panel is showing its dashboard without entity filtering because the panel could not finish preparing its entity filter in time. It clears itself once the panel filters again. Pairs with the 1.0.0-rc2 panel app, which no longer leaves a panel on its "Learning" screen indefinitely.
 - Removing the Home Assistant entry while vendor settings are being restored stops the following display-sizing restore and keeps the panel app installed.
 
 ### Development

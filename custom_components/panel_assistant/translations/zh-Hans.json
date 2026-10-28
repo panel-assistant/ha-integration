@@ -1717,6 +1717,10 @@
           "updating_webview": "正在更新浏览器引擎并检查结果。\n\n解决方法：\n1. 请保持面板通电；如果更新无法完成，请[打开指南]({learn_more_url})。\n\n[了解更多]({learn_more_url})"
         }
       }
+    },
+    "dashboard_unfiltered": {
+      "title": "{panel} 正在显示未经实体筛选的仪表板",
+      "description": "{panel} 未能及时准备好实体筛选器，因此以全部实体打开了仪表板。它会继续尝试，并自动回到筛选后的仪表板。\n\n解决方法：\n1. 打开 {panel} 的[实体设置]({entities_url})，查看它在等待什么。\n2. 如果需要做出决定或重新登录，请按照其中的步骤操作。"
     }
   },
   "options": {

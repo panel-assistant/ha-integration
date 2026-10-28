@@ -359,6 +359,11 @@ _RENDERER_FIELDS: dict[str, FieldValidator] = {
     "theme_policy": _token,
     "theme_effective": _nullable_token,
     "theme_overridden": _boolean,
+    # The entity hold keeping the built-in dashboard off screen, or the one it was
+    # released from past its time limit; absent from apps that predate it.
+    "entity_hold": _nullable_token,
+    "entity_hold_state": _nullable_token,
+    "entity_hold_age_ms": _nullable_nonnegative_integer,
 }
 
 

@@ -1717,6 +1717,10 @@
           "updating_webview": "Aktualizowanie silnika przeglądarki i sprawdzanie wyniku.\n\nAby rozwiązać problem:\n1. Nie wyłączaj zasilania panelu; jeśli aktualizacja nie może się zakończyć, [otwórz poradnik]({learn_more_url}).\n\n[Dowiedz się więcej]({learn_more_url})"
         }
       }
+    },
+    "dashboard_unfiltered": {
+      "title": "{panel} pokazuje pulpit bez filtrowania encji",
+      "description": "{panel} otworzył pulpit ze wszystkimi encjami, ponieważ nie zdążył przygotować filtra encji. Nadal próbuje i sam wróci do przefiltrowanego pulpitu.\n\nAby rozwiązać problem:\n1. Otwórz [ustawienia encji]({entities_url}) dla {panel}, aby zobaczyć, na co czeka.\n2. Jeśli prosi o decyzję lub ponowne zalogowanie, wykonaj podane tam kroki."
     }
   },
   "options": {
