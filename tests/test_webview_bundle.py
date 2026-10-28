@@ -48,6 +48,7 @@ from .test_webview import observation, status
     [
         "installed",
         "submitted_unknown",
+        "unknown_without_candidate",
         "cancel_app",
         "cancel_provider",
         "managed",
@@ -73,10 +74,22 @@ async def test_owner_app_update_retains_and_finishes_successor_provider_bundle(
     issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
     operations = []
     submitted = False
-    skipped = outcome in {"managed", "no_candidate", "current", "legacy"}
+    skipped = outcome in {
+        "managed",
+        "no_candidate",
+        "current",
+        "legacy",
+        "unknown_without_candidate",
+    }
     legacy_unavailable = outcome == "legacy" and route == ROUTE_SESSION
     pending = (
-        outcome in {"submitted_unknown", "cancel_app", "cancel_provider"}
+        outcome
+        in {
+            "submitted_unknown",
+            "unknown_without_candidate",
+            "cancel_app",
+            "cancel_provider",
+        }
         or legacy_unavailable
     )
 
@@ -119,6 +132,11 @@ async def test_owner_app_update_retains_and_finishes_successor_provider_bundle(
         if operation == "webview.observe":
             if outcome == "legacy":
                 raise InvalidResponseError
+            if outcome == "unknown_without_candidate":
+                # A durable receipt remains authoritative after its pin is retired.
+                document = observation("submitted_unknown", eligible=False)
+                document["candidate"] = None
+                return document
             document = observation(eligible=outcome != "current")
             if outcome in {"managed", "no_candidate"}:
                 document.update(
@@ -144,7 +162,10 @@ async def test_owner_app_update_retains_and_finishes_successor_provider_bundle(
         if outcome.startswith("cancel_"):
             with pytest.raises(asyncio.CancelledError):
                 await entity.async_install(None, backup=False)
-        elif outcome == "submitted_unknown" or legacy_unavailable:
+        elif (
+            outcome in {"submitted_unknown", "unknown_without_candidate"}
+            or legacy_unavailable
+        ):
             with pytest.raises(HomeAssistantError):
                 await entity.async_install(None, backup=False)
         else:
