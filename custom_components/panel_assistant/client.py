@@ -15,7 +15,9 @@ from .const import (
     APK_COMMIT_PATH,
     APK_DISCARD_PATH,
     APK_STAGE_PATH,
+    APK_STAGE_TIMEOUT_SECONDS,
     BACKUP_PATH,
+    BACKUP_TIMEOUT_SECONDS,
     CONFIG_PATH,
     DEFAULT_PORT,
     DEFAULT_TIMEOUT_SECONDS,
@@ -24,6 +26,7 @@ from .const import (
     HEALTH_PATH,
     INSTALL_STATUS_PATH,
     MAX_ANDROID_INTEGER,
+    MAX_BACKUP_BYTES,
     MAX_HEALTH_RESPONSE_BYTES,
     MAX_INSTALL_RESPONSE_BYTES,
     MAX_STATUS_RESPONSE_BYTES,
@@ -515,10 +518,6 @@ _MAX_DISPLAY_BYTES = 16 * 1024
 # The panel verifies the address it is handed before answering, with its own
 # bounded probe, so this waits out that probe rather than the default request.
 _HANDOVER_TIMEOUT_SECONDS = 20.0
-_MAX_BACKUP_BYTES = 64 * 1024 * 1024
-_BACKUP_TIMEOUT_SECONDS = 120.0
-# The panel allows 600 s to receive an upload; stop just after it gives up.
-_UPLOAD_TIMEOUT_SECONDS = 630.0
 _DIAG_FIRST_LINE = re.compile(
     rf"ha-paneld diagnostics \u2014 ({VERSION_NAME_BODY}) "
     rf"\(build ({VERSION_CODE_BODY})\)"
@@ -858,8 +857,8 @@ class HaPaneldClient:
         status, body = await self._async_post_bounded(
             self.address.base_url.with_path(BACKUP_PATH),
             {"allow_plaintext": "1", "include_companion": "false"},
-            _MAX_BACKUP_BYTES,
-            _BACKUP_TIMEOUT_SECONDS,
+            MAX_BACKUP_BYTES,
+            BACKUP_TIMEOUT_SECONDS,
         )
         if status == 200 and body:
             return body
@@ -907,7 +906,7 @@ class HaPaneldClient:
             url,
             apk,
             MAX_INSTALL_RESPONSE_BYTES,
-            _UPLOAD_TIMEOUT_SECONDS,
+            APK_STAGE_TIMEOUT_SECONDS,
         )
         if status == 200:
             return parse_staged_apk(body)
