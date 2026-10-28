@@ -90,7 +90,7 @@ def session_candidates(
         )
     )
     if listener != stored:
-        return (*candidates, listener)
+        return (listener, *candidates)
     return candidates
 
 
