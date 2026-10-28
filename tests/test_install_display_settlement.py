@@ -290,11 +290,16 @@ class ShellySettlementHarness(Harness):
         descriptor: InstallDescriptor,
         *,
         expected_root_mode: AdbRootMode,
+        previous_home_job_id: str | None = None,
     ) -> LaunchOutcome:
         if self.launch_arguments:
             assert self.settled, "The final app launch must follow native settlement"
         outcome = await super().async_launch(
-            target, signer, descriptor, expected_root_mode=expected_root_mode
+            target,
+            signer,
+            descriptor,
+            expected_root_mode=expected_root_mode,
+            previous_home_job_id=previous_home_job_id,
         )
         self.stopped = False
         return outcome
