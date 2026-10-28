@@ -1,5 +1,6 @@
 """How the WebView leg of an owner-started app update ends, seen from its caller."""
 
+import asyncio
 from collections.abc import Callable
 from dataclasses import replace
 from types import SimpleNamespace
@@ -113,3 +114,41 @@ async def test_submitted_webview_install_keeps_its_repair_through_the_poll(
         hass, entry.entry_id, "0.9.10", 102, verified_current_code=102
     )
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+
+
+@pytest.mark.parametrize("fails", [False, True])
+async def test_running_update_shows_no_failure_repair(
+    hass: HomeAssistant, fails: bool
+) -> None:
+    entity, _client, entry, issue_id = _native(hass)
+    entity._async_install_route = AsyncMock(return_value=(ROUTE_STAGED, None, None))
+    started, release = asyncio.Event(), asyncio.Event()
+
+    async def delivery(*_args: Any, **_kwargs: Any) -> None:
+        started.set()
+        await release.wait()
+        if fails:
+            raise RuntimeError("delivery failed")
+        current = entity.coordinator.data
+        entity.coordinator.data = replace(
+            current, health=replace(current.health, version="0.9.10", version_code=102)
+        )
+
+    entity._delivery.async_deliver_build = AsyncMock(side_effect=delivery)
+
+    async def manage(_hass: Any, _session: Any, operation: str, **_: Any) -> Any:
+        return observation(eligible=False)
+
+    task = asyncio.create_task(_install(hass, entity, entry, manage))
+    await started.wait()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+    release.set()
+    if fails:
+        with pytest.raises(RuntimeError):
+            await task
+    else:
+        await task
+    assert (ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None) == fails
+    if not fails:
+        # Nothing is left for a later startup to turn into a Repair.
+        assert await async_failure_events(hass, issue_id) == []

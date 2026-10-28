@@ -94,8 +94,10 @@ async def test_owner_app_update_retains_and_finishes_successor_provider_bundle(
     )
 
     async def delivery(*_args: Any, **_kwargs: Any) -> None:
-        # Persistence precedes the app restart, including cancellation with no receipt.
-        assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+        # Persistence precedes the app restart, including cancellation with no
+        # receipt; the Repair itself waits for a real failure or a restart.
+        assert await async_failure_events(hass, issue_id)
+        assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
         operations.append("app.install")
         if outcome == "cancel_app":
             raise asyncio.CancelledError
@@ -177,8 +179,11 @@ async def test_owner_app_update_retains_and_finishes_successor_provider_bundle(
         expected += ["webview.install"]
     assert operations == ["app.install", *expected]
     assert submitted == (outcome != "cancel_app" and not skipped)
+    # A cancelled update keeps only its record; the next startup restores the
+    # Repair from it.
+    cancelled = outcome.startswith("cancel_")
     assert (ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None) == (
-        pending
+        pending and not cancelled
     )
     if pending and not legacy_unavailable:
         events = await async_failure_events(hass, issue_id)
@@ -186,7 +191,7 @@ async def test_owner_app_update_retains_and_finishes_successor_provider_bundle(
         await async_clear_update_failure_if_installed(
             hass, entry.entry_id, "0.9.10", 102, verified_success=True
         )
-        assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+        assert await async_failure_events(hass, issue_id)
     # The existing single operation owner is released even when either leg is cancelled.
     from custom_components.panel_assistant.panel_operations import (
         claim_panel_operation,

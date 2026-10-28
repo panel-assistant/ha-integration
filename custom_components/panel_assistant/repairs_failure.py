@@ -389,6 +389,9 @@ async def async_record_update_bundle(
         RuntimeError("The combined app and WebView update is unfinished"),
         artifact=artifact,
         webview_pending=bool(entry and entry.data.get(CONF_TRANSPORT_USER_ID)),
+        # A normal update is not a failure: only a startup that finds this
+        # record left behind turns it into the Repair.
+        raise_issue=False,
     )
 
 
@@ -402,6 +405,7 @@ async def async_record_update_failure(
     artifact: dict[str, Any] | None = None,
     observed_before: tuple[str, int | None] | None = None,
     webview_pending: bool = False,
+    raise_issue: bool = True,
 ) -> None:
     """Retain the cause that Home Assistant's update toast otherwise loses."""
     entry = hass.config_entries.async_get_entry(entry_id)
@@ -431,7 +435,9 @@ async def async_record_update_failure(
     await _failure_store(hass).append(
         issue_id,
         event,
-        lambda: _issue(
+        None
+        if not raise_issue
+        else lambda: _issue(
             hass,
             issue_id,
             panel,
@@ -485,8 +491,8 @@ async def async_clear_update_failure_if_installed(
 ) -> None:
     """Resolve a saved failure only after this panel reaches its failed build."""
     issue_id = panel_failure_issue_id(f"update:{entry_id}")
-    if ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None:
-        return
+    # A record can exist without its Repair (an update still running, or one
+    # restored at startup), so the record decides, not the registry.
 
     def reached(record: dict[str, Any]) -> bool:
         if is_current is not None and not is_current():
