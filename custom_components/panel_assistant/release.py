@@ -112,6 +112,10 @@ class ReleaseResolutionError(Exception):
     """Raised when a selected release cannot be authenticated exactly."""
 
 
+class ReleaseDownloadError(ReleaseResolutionError):
+    """Raised when release data could not be downloaded at all."""
+
+
 @dataclass(frozen=True, slots=True)
 class InstallDescriptor:
     """Signed installation and compatibility facts for one exact APK."""
@@ -480,7 +484,7 @@ async def _async_fetch_bounded(
                         continue
 
                     if response.status != 200:
-                        raise ReleaseResolutionError(f"HTTP {response.status}")
+                        raise ReleaseDownloadError(f"HTTP {response.status}")
 
                     content_length = response.content_length
                     if content_length is not None and content_length > maximum_bytes:
@@ -496,7 +500,9 @@ async def _async_fetch_bounded(
                     return bytes(body)
     except ReleaseResolutionError:
         raise
-    except (ClientError, TimeoutError, ValueError) as err:
+    except (ClientError, TimeoutError) as err:
+        raise ReleaseDownloadError from err
+    except ValueError as err:
         raise ReleaseResolutionError from err
 
 

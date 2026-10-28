@@ -6,9 +6,13 @@ from unittest.mock import AsyncMock
 import pytest
 
 from custom_components.panel_assistant import release_catalog as catalog
+from custom_components.panel_assistant.feed_coordinator import StableReleaseCoordinator
 from custom_components.panel_assistant.release import ReleaseResolutionError
 
 from .http_fakes import FakeResponse, FakeSession
+
+# Captured before conftest stubs the release refresh for unrelated tests.
+_REAL_STABLE_UPDATE = StableReleaseCoordinator._async_update_data
 
 
 def document(tag="v1.2.3", *, prerelease=False):
@@ -465,3 +469,103 @@ async def test_install_recommendation_keeps_github_name_order_over_feed_code(
     recommended = await catalog.async_resolve_install_choice(hass, None)
     assert recommended.tag == choices[0]["tag"]
     assert recommended.descriptor.version_code == 701
+
+
+def _fail_tags(client, tags, status=403):
+    from yarl import URL
+
+    for tag in tags:
+        url = URL(f"{catalog.ANDROID_RELEASES_API}/tags/{tag}")
+        client.responses[str(url)] = FakeResponse(status, b"", url)
+
+
+@pytest.mark.parametrize("site", [FakeResponse(404, b""), FakeResponse(200, b"{")])
+async def test_site_list_failure_is_logged_before_the_github_fallback(
+    release_key, caplog, site
+):
+    import logging
+
+    client = authenticated_session(release_key, [("v1.2.0", (5, 5))])
+    site.url = catalog._SITE_RELEASES_URL
+    client.responses[str(catalog._SITE_RELEASES_URL)] = site
+    caplog.set_level(logging.DEBUG, logger=catalog.__name__)
+    candidates = await catalog.async_resolve_update_candidates(client)
+    assert [bundle.artifact.tag for bundle in candidates] == ["v1.2.0"]
+    assert str(catalog._SITE_RELEASES_URL) in caplog.text
+    if site.status == 404:
+        assert "HTTP 404" in caplog.text
+
+
+async def test_every_release_download_failing_is_a_failed_check(release_key):
+    client = authenticated_session(
+        release_key, [("v1.2.0", (5, 5)), ("v1.1.0", (5, 5))]
+    )
+    _fail_tags(client, ["v1.2.0", "v1.1.0"])
+    with pytest.raises(ReleaseResolutionError):
+        await catalog.async_resolve_update_candidates(client)
+
+
+async def test_one_failed_release_leaves_the_other_offered(release_key):
+    client = authenticated_session(
+        release_key, [("v1.2.0", (5, 5)), ("v1.1.0", (5, 5))]
+    )
+    _fail_tags(client, ["v1.2.0"])
+    candidates = await catalog.async_resolve_update_candidates(client)
+    assert [bundle.artifact.tag for bundle in candidates] == ["v1.1.0"]
+
+
+async def test_every_release_rejected_is_an_empty_successful_check(
+    release_key, monkeypatch
+):
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    client = authenticated_session(
+        release_key, [("v1.2.0", (5, 5)), ("v1.1.0", (5, 5))]
+    )
+    from .test_release import _install_test_key
+
+    _install_test_key(
+        monkeypatch, rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    )
+    assert await catalog.async_resolve_update_candidates(client) == []
+
+
+async def test_stable_coordinator_keeps_its_offer_when_every_download_fails(
+    hass, release_key, caplog, monkeypatch
+):
+    import logging
+    from unittest.mock import patch
+
+    from custom_components.panel_assistant import feed_coordinator, update_policy
+
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "1.0.0")
+
+    client = authenticated_session(release_key, [("v1.1.0", (5, 5))])
+    coordinator = feed_coordinator.StableReleaseCoordinator(hass)
+    caplog.set_level(logging.WARNING)
+    with (
+        patch.object(
+            feed_coordinator.StableReleaseCoordinator,
+            "_async_update_data",
+            _REAL_STABLE_UPDATE,
+        ),
+        patch.object(feed_coordinator, "async_get_clientsession", lambda _: client),
+    ):
+        await coordinator.async_refresh()
+        offered = coordinator.data
+        assert offered is not None and offered.tag == "v1.1.0"
+        _fail_tags(client, ["v1.1.0"])
+        await coordinator.async_refresh()
+    assert coordinator.last_update_success is False
+    assert coordinator.data is offered
+    assert "could not be authenticated" in caplog.text
+
+
+async def test_install_choices_without_feed_fail_when_every_download_fails(
+    hass, release_key, monkeypatch
+):
+    client = authenticated_session(release_key, [("v1.1.0", (5, 5))])
+    _fail_tags(client, ["v1.1.0"])
+    monkeypatch.setattr(catalog, "async_get_clientsession", lambda _: client)
+    with pytest.raises(ReleaseResolutionError):
+        await catalog.async_list_install_choices(hass)

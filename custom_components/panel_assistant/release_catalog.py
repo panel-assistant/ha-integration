@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from typing import Any
 
 from aiohttp import ClientSession
@@ -22,6 +23,7 @@ from .release import (
     _MAX_RELEASE_RESPONSE_BYTES,
     InstallReleaseBundle,
     ReleaseArtifact,
+    ReleaseDownloadError,
     ReleaseResolutionError,
     _async_fetch_bounded,
     _async_resolve_release,
@@ -35,6 +37,8 @@ from .release import (
     strict_json_hooks,
 )
 from .update_policy import build_allowed, feed_build_key, prereleases_allowed
+
+_LOGGER = logging.getLogger(__name__)
 
 _SITE_RELEASES_URL = URL("https://panel-assistant.io/releases/v1.json")
 _RECENT_RELEASES_URL = URL(f"{ANDROID_RELEASES_API}?per_page=30")
@@ -124,8 +128,12 @@ async def _async_release_documents(
     try:
         latest, recent = await _async_site_release_documents(session)
         return latest, recent, True
-    except ReleaseResolutionError:
-        pass
+    except ReleaseResolutionError as err:
+        _LOGGER.debug(
+            "Release list %s unavailable (%s); using GitHub",
+            _SITE_RELEASES_URL,
+            err or type(err).__name__,
+        )
     try:
         async with asyncio.timeout(20):
             latest = _decode(
@@ -212,7 +220,9 @@ async def async_resolve_update_candidates(
     """Authenticate the bounded recent catalogue, including stable promotions.
 
     A missing or incompatible head must not conceal a compatible older build.
-    No APK is downloaded here. Failed individual releases are simply ineligible.
+    No APK is downloaded here. A release that fails is ineligible, but when
+    every release fails to download the check itself has failed, so raise
+    rather than report that nothing is available.
     """
     latest, recent, site_snapshot = await _async_release_documents(session)
     choices = _release_choices(latest, recent)
@@ -224,12 +234,20 @@ async def async_resolve_update_candidates(
                 tag,
                 release_body=json.dumps(document).encode() if site_snapshot else None,
             )
+        except ReleaseDownloadError as err:
+            download_errors.append(err)
+            return None
         except ReleaseResolutionError:
             return None
 
+    download_errors: list[ReleaseDownloadError] = []
     async with asyncio.timeout(60):
         resolved = await asyncio.gather(
             *(resolve(str(choice["tag"]), document) for choice, document in choices)
+        )
+    if choices and len(download_errors) == len(choices):
+        raise ReleaseResolutionError(
+            f"No release could be downloaded: {download_errors[0]}"
         )
     return sorted(
         (bundle for bundle in resolved if bundle is not None),
