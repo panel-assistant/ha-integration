@@ -16,7 +16,7 @@ from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
 
 from homeassistant.components.websocket_api.connection import ActiveConnection
 from homeassistant.components.websocket_api.messages import event_message
@@ -47,6 +47,9 @@ from .transport_protocol import (
 )
 from .update_policy import prereleases_allowed
 from .voice_stream import async_get_voice_stream
+
+if TYPE_CHECKING:
+    from .voice import VoiceConfiguration
 
 # Logged under the transport's own name, which predates this module.
 _LOGGER = logging.getLogger(f"{__package__}.transport")
@@ -146,10 +149,10 @@ class PanelSession:
         default_factory=lambda: deque(maxlen=MAX_RECENT_OUTCOMES)
     )
     command_counts: dict[str, int] = field(default_factory=dict)
-    # The panel's own wake words and their pipelines, as it last reported them
-    # (``voice.VoiceConfiguration``). A projection of the panel's settings,
-    # never a second store: it ends with the session.
-    voice: Any = None
+    # The panel's own wake words and their pipelines, as it last reported them.
+    # A projection of the panel's settings, never a second store: it ends with
+    # the session.
+    voice: VoiceConfiguration | None = None
     # A fresh hello may grant local commands once the install finalizer ends.
     local_adb_deferred: bool = False
     # A nonce-framed local read proved the recovery route and physical identity.
