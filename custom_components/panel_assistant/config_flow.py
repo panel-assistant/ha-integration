@@ -500,6 +500,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         """Open the panel's setup wizard, then connect it once setup is done."""
         if self._pending_address is None:
             return self.async_abort(reason="unknown")
+        if self.source != SOURCE_USB_INSTALL:
+            return await self._async_panel_setup_form(user_input)
         if user_input is not None:
             return self.async_external_step_done(
                 next_step_id=(
@@ -509,14 +511,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                     else "connect_found"
                 )
             )
-        # Before the browser goes to the wizard, tell the panel where Home
-        # Assistant is, so the wizard has one less question to ask by the time it
-        # renders. The panel verifies the address itself and shows the step as a
-        # correction if it does not answer.
-        # USB's handover endpoint has just offered this same address before
-        # starting our flow; opening its wizard must not send it a second time.
-        if self.source != SOURCE_USB_INSTALL:
-            await async_offer_ha_url(self.hass, self._found_client())
+        # USB's handover endpoint has already offered Home Assistant's address
+        # before starting this background flow; it is never sent a second time.
         if self._setup_watch is None or self._setup_watch.done():
             self._setup_watch = self.hass.async_create_background_task(
                 self._async_watch_setup(),
@@ -524,6 +520,39 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             )
         return self.async_external_step(
             step_id="panel_setup", url=self._found_client().setup_url
+        )
+
+    async def _async_panel_setup_form(
+        self, user_input: dict[str, Any] | None
+    ) -> ConfigFlowResult:
+        """Link the panel's setup page in a titled form; Submit checks it is done.
+
+        Home Assistant's dialog shows an external step with no title or text,
+        and a form never moves on by itself, so the owner says when they are
+        done, as in the onboarding step.
+        """
+        client = self._found_client()
+        errors: dict[str, str] = {}
+        if user_input is None:
+            await async_offer_ha_url(self.hass, client)
+        else:
+            try:
+                complete = await client.async_get_setup_complete()
+            except HaPaneldError:
+                complete = False
+            if complete:
+                if (
+                    self._pending_job_id is not None
+                    and self._pending_reinstall_entry is None
+                ):
+                    return await self.async_step_install_result()
+                return await self.async_step_connect_found()
+            errors["base"] = "panel_setup_not_finished"
+        return self.async_show_form(
+            step_id="panel_setup",
+            data_schema=vol.Schema({}),
+            description_placeholders={"setup_url": client.setup_url},
+            errors=errors,
         )
 
     async def _async_watch_setup(self) -> None:

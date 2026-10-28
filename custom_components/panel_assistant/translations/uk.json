@@ -56,7 +56,7 @@
       },
       "panel_setup": {
         "title": "Завершіть налаштування панелі",
-        "description": "Завершіть роботу майстра налаштування у вікні, що відкрилося. Home Assistant підключить панель, щойно її налаштування буде завершено."
+        "description": "Complete the panel's [setup page]({setup_url}), then select Submit to connect the panel to Home Assistant."
       },
       "choose_version": {
         "title": "Виберіть версію",
@@ -99,6 +99,7 @@
       "installing": "Встановлення Panel Assistant за адресою {address}. Залиште цей діалог відкритим; операція завершиться автоматично.\n\nЯкщо ви закриєте його, встановлення триватиме. Додайте ту саму адресу ще раз, щоб завершити операцію."
     },
     "error": {
+      "panel_setup_not_finished": "The panel has not finished its setup yet. Finish the setup page, then select Submit again.",
       "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "cannot_connect": "Не вдалося встановити з'єднання з дійсною кінцевою точкою перевірки працездатності Panel Assistant.",
       "invalid_address": "Введіть ім’я хоста або адресу IP без схеми URL та шляху.",

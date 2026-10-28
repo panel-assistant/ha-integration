@@ -56,7 +56,7 @@
       },
       "panel_setup": {
         "title": "Finish the panel's setup",
-        "description": "Complete the setup wizard in the window that opened. Home Assistant connects the panel as soon as its setup is done."
+        "description": "Complete the panel's [setup page]({setup_url}), then select Submit to connect the panel to Home Assistant."
       },
       "choose_version": {
         "title": "Choose a version",
@@ -99,6 +99,7 @@
       "installing": "Installing Panel Assistant on {address}. Keep this dialog open; it finishes on its own.\n\nIf you close it, the install keeps running. Add the same address again to finish."
     },
     "error": {
+      "panel_setup_not_finished": "The panel has not finished its setup yet. Finish the setup page, then select Submit again.",
       "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "cannot_connect": "Unable to connect to a valid Panel Assistant health endpoint.",
       "invalid_address": "Enter a hostname or IP address without a URL scheme or path.",

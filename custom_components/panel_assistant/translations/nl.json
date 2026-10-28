@@ -56,7 +56,7 @@
       },
       "panel_setup": {
         "title": "Rond de installatie van het paneel af",
-        "description": "Volg de stappen van de installatiewizard in het venster dat is geopend. Home Assistant maakt verbinding met het paneel zodra de installatie is voltooid."
+        "description": "Complete the panel's [setup page]({setup_url}), then select Submit to connect the panel to Home Assistant."
       },
       "choose_version": {
         "title": "Kies een versie",
@@ -99,6 +99,7 @@
       "installing": "Panel Assistant wordt geïnstalleerd op {address}. Houd dit dialoogvenster open; de bewerking wordt vanzelf afgerond.\n\nAls je het sluit, gaat de installatie door. Voeg hetzelfde adres opnieuw toe om af te ronden."
     },
     "error": {
+      "panel_setup_not_finished": "The panel has not finished its setup yet. Finish the setup page, then select Submit again.",
       "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig Panel Assistant-status-eindpunt.",
       "invalid_address": "Voer een hostnaam of een IP-adres in zonder het URL-schema of een pad.",

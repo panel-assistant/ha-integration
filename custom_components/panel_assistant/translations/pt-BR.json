@@ -56,7 +56,7 @@
       },
       "panel_setup": {
         "title": "Concluir a configuração do painel",
-        "description": "Conclua o assistente de configuração na janela que foi aberta. O Home Assistant conecta o painel assim que a configuração for concluída."
+        "description": "Complete the panel's [setup page]({setup_url}), then select Submit to connect the panel to Home Assistant."
       },
       "choose_version": {
         "title": "Escolher uma versão",
@@ -99,6 +99,7 @@
       "installing": "Instalando Panel Assistant em {address}. Mantenha esta caixa de diálogo aberta; a operação termina sozinha.\n\nSe você fechar a caixa, a instalação continuará. Adicione o mesmo endereço novamente para concluir."
     },
     "error": {
+      "panel_setup_not_finished": "The panel has not finished its setup yet. Finish the setup page, then select Submit again.",
       "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "cannot_connect": "Não foi possível conectar-se a um endpoint válido de verificação de funcionamento do Panel Assistant.",
       "invalid_address": "Informe um nome de host ou endereço IP sem esquema de URL nem caminho.",

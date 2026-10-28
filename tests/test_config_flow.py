@@ -2820,10 +2820,32 @@ async def test_adopting_a_panel_mid_setup_tells_it_where_home_assistant_is(
         assert form["step_id"] == "confirm_discovery"
         result = await hass.config_entries.flow.async_configure(form["flow_id"], {})
 
-    assert result["type"] is FlowResultType.EXTERNAL_STEP
-    assert result["step_id"] == "panel_setup"
-    assert not hass.config_entries.async_entries(DOMAIN)
-    assert hand_over.await_args.args == ("http://192.0.2.5:8123",)
+        # A titled form with a link, not a bare external step (F3-02).
+        assert result["type"] is FlowResultType.FORM
+        assert result["step_id"] == "panel_setup"
+        assert result["description_placeholders"]["setup_url"].startswith("http")
+        assert not hass.config_entries.async_entries(DOMAIN)
+        assert hand_over.await_args.args == ("http://192.0.2.5:8123",)
+
+        with patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_setup_complete",
+            AsyncMock(return_value=False),
+        ):
+            again = await hass.config_entries.flow.async_configure(
+                result["flow_id"], {}
+            )
+        assert again["type"] is FlowResultType.FORM
+        assert again["step_id"] == "panel_setup"
+        assert again["errors"] == {"base": "panel_setup_not_finished"}
+
+        with patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_setup_state",
+            AsyncMock(
+                return_value=PanelSetupState(complete=True, accepts_handover=True)
+            ),
+        ):
+            done = await hass.config_entries.flow.async_configure(result["flow_id"], {})
+    assert done["type"] is FlowResultType.CREATE_ENTRY, done
 
 
 async def test_adopting_an_older_panel_sends_it_no_key_it_would_refuse(
@@ -2859,7 +2881,7 @@ async def test_adopting_an_older_panel_sends_it_no_key_it_would_refuse(
         )
         result = await hass.config_entries.flow.async_configure(form["flow_id"], {})
 
-    assert result["type"] is FlowResultType.EXTERNAL_STEP
+    assert result["type"] is FlowResultType.FORM
     assert not hass.config_entries.async_entries(DOMAIN)
     hand_over.assert_not_awaited()
 

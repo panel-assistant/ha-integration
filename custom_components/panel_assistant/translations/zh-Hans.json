@@ -56,7 +56,7 @@
       },
       "panel_setup": {
         "title": "完成面板设置",
-        "description": "在打开的窗口中完成设置向导。设置完成后，Home Assistant 会立即连接面板。"
+        "description": "Complete the panel's [setup page]({setup_url}), then select Submit to connect the panel to Home Assistant."
       },
       "choose_version": {
         "title": "选择版本",
@@ -99,6 +99,7 @@
       "installing": "正在 {address} 上安装 Panel Assistant。请保持此对话框打开；操作会自动完成。\n\n如果关闭对话框，安装仍会继续。请再次添加同一地址以完成操作。"
     },
     "error": {
+      "panel_setup_not_finished": "The panel has not finished its setup yet. Finish the setup page, then select Submit again.",
       "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
       "invalid_address": "请输入不含 URL 方案或路径的主机名或 IP 地址。",

@@ -56,7 +56,7 @@
       },
       "panel_setup": {
         "title": "Dokončit nastavení panelu",
-        "description": "Dokončete průvodce nastavením v otevřeném okně. Home Assistant připojí panel, jakmile bude jeho nastavení hotové."
+        "description": "Complete the panel's [setup page]({setup_url}), then select Submit to connect the panel to Home Assistant."
       },
       "choose_version": {
         "title": "Vybrat verzi",
@@ -99,6 +99,7 @@
       "installing": "Instalace Panel Assistant na adrese {address}. Nechte tento dialog otevřený; operace se dokončí sama.\n\nPokud ho zavřete, instalace bude pokračovat. Pro dokončení přidejte stejnou adresu znovu."
     },
     "error": {
+      "panel_setup_not_finished": "The panel has not finished its setup yet. Finish the setup page, then select Submit again.",
       "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "cannot_connect": "Nelze se připojit k platnému koncovému bodu kontroly stavu Panel Assistant.",
       "invalid_address": "Zadejte název hostitele nebo IP adresu bez schématu URL či cesty.",

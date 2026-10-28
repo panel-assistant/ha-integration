@@ -81,11 +81,10 @@ async def test_interrupted_first_setup_keeps_receipt_retryable_after_restart(
     first._install_executor = InstallExecutor(hass, manager)
     result = await first._async_finalize_healthy_install(receipt)
 
-    assert result["type"] is FlowResultType.EXTERNAL_STEP
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "panel_setup"
     assert not first._install_executor.is_finalizer_active(receipt.job_id)
     assert not hass.config_entries.async_entries(DOMAIN)
-    continued = await first.async_step_panel_setup({})
-    assert continued["step_id"] == "install_result"
     first.async_remove()
     restarted = InstallJobManager(hass)
     saved = await restarted.async_get(receipt.job_id)
