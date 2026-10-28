@@ -10,6 +10,7 @@ const inet = (index, iface, address) =>
 test('the panel is found at its private Wi-Fi address', () => {
   assert.equal(parsePanelAddress(framed([inet(3, 'wlan0', '172.16.5.20/24')]), nonce), '172.16.5.20');
   assert.equal(setupUrl('172.16.5.20'), 'http://172.16.5.20:8888/setup');
+  assert.equal(setupUrl('172.16.5.20', 8889), 'http://172.16.5.20:8889/setup', 'the port the app took');
 });
 
 test('Wi-Fi is preferred over Ethernet, and both over anything else', () => {

@@ -9,6 +9,7 @@ import { readShell } from './shell-session.mjs';
 const LINE = /^\d+:\s+([a-z][a-z0-9]{0,14})\s+inet\s+(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\/(\d{1,2})\s/;
 const PREFERENCE = [/^wlan\d+$/, /^eth\d+$/];
 export const SETUP_PORT = 8888;
+// The app's own port when the install learnt it; 8888 otherwise.
 
 function isPrivate([a, b]) {
   return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
@@ -41,15 +42,15 @@ export function parsePanelAddress(text, nonce) {
   return null;
 }
 
-export function setupUrl(address) {
-  return address ? `http://${address}:${SETUP_PORT}/setup` : null;
+export function setupUrl(address, port = SETUP_PORT) {
+  return address ? `http://${address}:${port}/setup` : null;
 }
 
-export async function readSetupUrl(adb, newNonce) {
+export async function readSetupUrl(adb, newNonce, port = SETUP_PORT) {
   const nonce = newNonce();
   try {
     const text = await readShell(adb, buildAddressProbe(nonce), { maximum: 8192, timeoutMs: 5000 });
-    return setupUrl(parsePanelAddress(text, nonce));
+    return setupUrl(parsePanelAddress(text, nonce), port);
   } catch {
     // Not knowing the address is never a failure: setup continues on the panel.
     return null;

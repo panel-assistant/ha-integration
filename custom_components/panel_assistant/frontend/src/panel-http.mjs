@@ -4,4 +4,6 @@
 // string past the end of the packet. Without the terminator that read picks up
 // trailing bytes, the port no longer parses, and adbd refuses the connection
 // as "arbitrary tcp". Newer adbd strips trailing NULs, so this form works on both.
-export const PANEL_HTTP_SERVICE = 'tcp:8888\0';
+export const DEFAULT_PANEL_PORT = 8888;
+export const panelHttpService = (port = DEFAULT_PANEL_PORT) => `tcp:${port}\0`;
+export const PANEL_HTTP_SERVICE = panelHttpService();

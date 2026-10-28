@@ -5,20 +5,27 @@ import { createUsbTransactionPorts } from '../src/usb-transaction-ports.mjs';
 import { PACKAGE_ID } from '../src/app-identity.mjs';
 
 const nonce = 'f'.repeat(32);
-const frame = status => `HAPANELD_READY_BEGIN:${nonce}\nHAPANELD_READY_END:${nonce}:${status}\n`;
+const frame = (status, port = null) =>
+  `HAPANELD_READY_BEGIN:${nonce}\n${port === null ? '' : `${port}\n`}HAPANELD_READY_END:${nonce}:${status}\n`;
 
 test('the wait is a bounded, read-only loop on the app port', () => {
-  const program = buildAppReady(nonce);
+  const program = buildAppReady(nonce, PACKAGE_ID);
   assert.match(program, /while \[ \$i -lt 30 \]/, 'at most 30 checks');
   assert.match(program, /sleep 2/, 'two seconds apart, about a minute in all');
-  assert.match(program, /grep -q ':8888 '/);
+  assert.match(program, /grep -q ':8888 '/, 'any listener on 8888 only where the socket table is unreadable');
+  assert.match(program, /\/proc\/net\/tcp/, "otherwise the app's own listening socket");
+  assert.ok(program.includes(`/data/data/${PACKAGE_ID}`), "found by the app's user id");
   assert.ok(!/am |pm |kill|rm |settings /.test(program), 'waiting never starts, stops or changes anything');
-  assert.throws(() => buildAppReady('bad'));
+  assert.throws(() => buildAppReady('bad', PACKAGE_ID));
+  assert.throws(() => buildAppReady(nonce, 'x; reboot'), 'never takes shell text');
 });
 
 test('listening and not-yet-listening are both answers, anything else is malformed', () => {
-  assert.equal(parseAppReady(frame(0), nonce), true);
-  assert.equal(parseAppReady(frame(1), nonce), false);
+  assert.equal(parseAppReady(frame(0, 8888), nonce), 8888);
+  assert.equal(parseAppReady(frame(0, 8889), nonce), 8889);
+  assert.equal(parseAppReady(frame(1), nonce), null);
+  assert.throws(() => parseAppReady(frame(0), nonce), 'listening names its port');
+  assert.throws(() => parseAppReady(frame(0, 70000), nonce));
   assert.throws(() => parseAppReady(frame(2), nonce));
   assert.throws(() => parseAppReady(`HAPANELD_READY_BEGIN:${nonce}\nstray\nHAPANELD_READY_END:${nonce}:0\n`, nonce));
 });

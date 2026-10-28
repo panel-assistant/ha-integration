@@ -40,7 +40,7 @@ function journey({ key, runsTheApp = false, networkAdb = 'turned_on', adopted = 
       adopt: async () => (stored = {id: 'b'.repeat(32), revision: 0, phase: 'installed', target, artifact}),
       create: async () => { throw Error('must adopt without a new install'); },
       advance: async (key, revision, phase) => (stored = {...stored, revision: revision + 1, phase})};
-    globalThis.testPorts = {authenticate: async () => ({kind: 'authenticated-apk-bytes', descriptor: artifact}),
+    globalThis.testPorts = {appPort: () => 8888, authenticate: async () => ({kind: 'authenticated-apk-bytes', descriptor: artifact}),
       inspect: async receipt => { assert.ok(['installed', 'launching', 'healthy'].includes(receipt.phase)); return {target, installed: true, healthy: true}; },
       launch: async () => { order.push('launch'); }, removeSetAside: async () => 'absent',
       commissionPermissions: async () => { order.push('commission'); return {permissionsVerified: true}; },
@@ -53,7 +53,7 @@ function journey({ key, runsTheApp = false, networkAdb = 'turned_on', adopted = 
       'usb-bounds.mjs': 'export const boundedUsb = value => value;',
       'session-target.mjs': 'export const inspectSessionTarget = async () => ({ serial: "RAW_SERIAL" });',
       'job-store.mjs': 'export const openJobStore = async () => ({ close() {} });',
-      'usb-transaction-ports.mjs': 'export function createUsbTransactionPorts(options) { return {}; }',
+      'usb-transaction-ports.mjs': 'export function createUsbTransactionPorts(options) { return { appPort: () => 8888 }; }',
       'install-controller.mjs': 'export function createInstallController() { return { preview: async () => { if (${runsTheApp}) throw Object.assign(new Error("target_installed"), { code: "target_installed" }); return { receipt: null }; }, install: async () => { globalThis.order.push("install"); return { receipt: {id: "b".repeat(32)}, permissions: {} }; }, completeSetup: async () => { globalThis.order.push("completeSetup"); return {}; } }; }',
       'webview.mjs': 'export const provisionUsbWebView = async () => { globalThis.order.push("webview"); globalThis.during = document.getElementById("activity").textContent; return ${JSON.stringify(webView)}; };',
       'panel-address.mjs': 'export const readSetupUrl = async () => "http://192.168.1.20:8080/setup";',
