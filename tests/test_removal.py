@@ -828,7 +828,17 @@ async def test_a_restore_that_fails_still_removes_the_app(
     fake.drop_after = command
     entry = _entry(hass, server)
 
-    result = await _remove(hass, entry)
+    result = None
+    failure = None
+    try:
+        result = await _remove(hass, entry)
+    except Exception as err:
+        failure = err
+
+    assert failure is None, (
+        f"Best-effort restoration must still finish removal: {failure!r}"
+    )
+    assert result is not None
 
     assert fake.drop_after is None  # the restore command ran and dropped
     assert result.get("errors") is None, (result.get("errors"), fake.read())
