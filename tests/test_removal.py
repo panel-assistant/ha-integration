@@ -1538,3 +1538,77 @@ async def test_repair_keeps_failed_app_removal_retryable(
     assert fake.installed == [PACKAGE_ID]
     assert hass.config_entries.async_get_entry(entry.entry_id) is entry
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+
+
+@pytest.mark.parametrize("consent", ["withdrawn", "same-entry"])
+async def test_withdrawal_during_vendor_restore_preserves_pending_display_restore(
+    hass: HomeAssistant,
+    panel: tuple[FakePanel, TestServer],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    consent: str,
+) -> None:
+    """Vendor completion grants no further changes after entry consent ends."""
+    fake, server = panel
+    entry = _entry(hass, server)
+    display = tmp_path / "display-record"
+    monkeypatch.setattr(display_provisioning, "DISPLAY_RESTORE_RECORD", str(display))
+    display_record = "density=none\nfont_scale=null\n"
+    display.write_text(display_record)
+    (fake.state_path / "density").write_text("216\n")
+    vendor = tmp_path / "vendor-record"
+    monkeypatch.setattr(vendor_provisioning, "META_RESTORE_RECORD", str(vendor))
+    vendor.write_text(
+        "screensaver_components=meta/.Dream\nscreensaver_default_component=null\ncontrolcenter_overlay=allow\n"
+    )
+    control_center = vendor_provisioning.META_CONTROL_CENTER
+    fake.set(installed=[PACKAGE_ID, control_center])
+    (fake.state_path / "setting.screensaver_components").write_text("\n")
+    overlay = fake.state_path / f"appop.{control_center}.SYSTEM_ALERT_WINDOW"
+    overlay.write_text("deny\n")
+    restore = install_adb.async_restore_vendor_setup
+
+    async def restore_then_withdraw(*args: Any) -> Any:
+        outcome = await restore(*args)
+        if consent == "withdrawn":
+            assert await hass.config_entries.async_remove(entry.entry_id)
+        return outcome
+
+    monkeypatch.setattr(
+        install_adb, "async_restore_vendor_setup", restore_then_withdraw
+    )
+    if consent == "withdrawn":
+        with pytest.raises(removal.RemovalError, match="panel_changed"):
+            await removal.async_remove_app(hass, entry)
+    else:
+        await removal.async_remove_app(hass, entry)
+
+    # Both callers completed the real shell vendor restoration before this cut.
+    assert not vendor.exists()
+    assert (fake.state_path / "setting.screensaver_components").read_text() == (
+        "meta/.Dream\n"
+    )
+    assert overlay.read_text() == "allow\n"
+    assert fake.hand_back_requests == 1
+    assert fake.read()["home"] == VENDOR_HOME
+    assert fake.adb_authorized, "removal must preserve the network recovery route"
+    recovery = await fake.probe()
+    assert recovery.serial == "PANEL1"
+    if consent == "withdrawn":
+        assert recovery.state is InstallTargetState.INSTALLED
+        assert hass.config_entries.async_get_entry(entry.entry_id) is None
+        assert PACKAGE_ID in fake.installed
+        assert display.exists(), (
+            "display restore must wait when entry consent ended during vendor restore"
+        )
+        assert display.read_text() == display_record
+        assert (fake.state_path / "density").read_text() == "216\n"
+        assert not any(
+            event.startswith("uninstall ") for event in fake.read()["events"]
+        )
+    else:
+        assert hass.config_entries.async_get_entry(entry.entry_id) is entry
+        assert fake.installed == [control_center]
+        assert not display.exists()
+        assert not (fake.state_path / "density").exists()
+        assert f"uninstall {PACKAGE_ID}" in fake.read()["events"]

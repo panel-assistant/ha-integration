@@ -248,6 +248,7 @@ async def _async_remove_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
             raise RemovalError(REASON_APP_UNREACHABLE) from err
     _require_entry(hass, entry)
     await _async_restore_vendor_setup(found)
+    _require_entry(hass, entry)
     await _async_restore_display_sizing(found)
     _require_entry(hass, entry)
     if found[0].local_shell is not None:
