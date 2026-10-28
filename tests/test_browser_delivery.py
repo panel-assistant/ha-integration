@@ -431,4 +431,6 @@ async def test_signed_catalogue_beyond_fifteen_seconds_is_delivered(
         {"tag": "v1.0.0", "prerelease": False}
     ]
     assert hass.loop.time() - started > 15
-    assert len(client.requests) == 9
+    # The project site's catalogue is asked first, then GitHub's.
+    assert client.requests[0][0] == str(catalog._SITE_RELEASES_URL)
+    assert len(client.requests) == 10
