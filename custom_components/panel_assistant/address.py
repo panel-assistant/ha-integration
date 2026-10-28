@@ -34,9 +34,6 @@ ISSUE_PANEL_ADDRESS_UNREACHABLE: Final = "panel_address_unreachable"
 # The panel is connected from another address, but a health read there did
 # not answer as this panel, so the stored address was left alone.
 ISSUE_PANEL_ADDRESS_UNVERIFIED: Final = "panel_address_unverified"
-ADDRESS_ISSUES: Final = frozenset(
-    {ISSUE_PANEL_ADDRESS_UNREACHABLE, ISSUE_PANEL_ADDRESS_UNVERIFIED}
-)
 
 
 def address_issue_id(entry_id: str) -> str:
