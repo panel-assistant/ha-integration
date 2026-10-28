@@ -1044,6 +1044,60 @@ async def test_device_action_waits_for_owner_confirmation_then_deletes_entry(
     assert notification_id not in notices
 
 
+async def test_removal_notice_survives_reload_and_goes_with_its_entry(
+    hass: HomeAssistant,
+    panel: tuple[FakePanel, TestServer],
+    hass_read_only_user: Any,
+) -> None:
+    """A reload keeps the press's notice; deleting the entry withdraws it."""
+    from homeassistant.components import persistent_notification
+
+    from custom_components.panel_assistant.repairs_removal import (
+        async_request_removal,
+    )
+
+    from .test_native import _setup
+
+    fake, _server = panel
+    fake.did = "d" * 64
+    entry = await _setup(hass, hass_read_only_user.id)
+    await async_request_removal(hass, entry)
+    notification_id = f"{DOMAIN}_remove_from_panel_{entry.entry_id}"
+    notices = persistent_notification._async_get_or_create_notifications(hass)
+    assert notification_id in notices
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert notification_id in notices
+    await hass.config_entries.async_remove(entry.entry_id)
+    await hass.async_block_till_done()
+    assert notification_id not in notices
+
+
+async def test_options_removal_posts_no_press_notice(
+    hass: HomeAssistant,
+    panel: tuple[FakePanel, TestServer],
+    hass_read_only_user: Any,
+) -> None:
+    """The options-flow path records the Repair without the press notice."""
+    from homeassistant.components import persistent_notification
+    from homeassistant.helpers import issue_registry as ir
+
+    from custom_components.panel_assistant.repairs_removal import (
+        async_request_removal,
+        removal_issue_id,
+    )
+
+    from .test_native import _setup
+
+    fake, _server = panel
+    fake.did = "d" * 64
+    entry = await _setup(hass, hass_read_only_user.id)
+    await async_request_removal(hass, entry, notify=False)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, removal_issue_id(entry.entry_id))
+    notices = persistent_notification._async_get_or_create_notifications(hass)
+    assert f"{DOMAIN}_remove_from_panel_{entry.entry_id}" not in notices
+
+
 async def test_stale_address_never_removes_a_different_enrolled_panel(
     hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
 ) -> None:

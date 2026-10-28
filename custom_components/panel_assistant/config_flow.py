@@ -2098,7 +2098,7 @@ class HaPaneldOptionsFlow(OptionsFlow):
         if user_input is not None:
             # Options flows close with their entry; keep the owner's request in
             # Repairs until the scheduled entry deletion has actually completed.
-            await async_request_removal(self.hass, self.config_entry)
+            await async_request_removal(self.hass, self.config_entry, notify=False)
             try:
                 await async_remove_app(self.hass, self.config_entry)
             except RemovalError as err:

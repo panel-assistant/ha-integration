@@ -42,7 +42,9 @@ def async_dismiss_removal_notification(hass: HomeAssistant, entry_id: str) -> No
     persistent_notification.async_dismiss(hass, removal_notification_id(entry_id))
 
 
-async def async_request_removal(hass: HomeAssistant, entry: ConfigEntry) -> None:
+async def async_request_removal(
+    hass: HomeAssistant, entry: ConfigEntry, *, notify: bool = True
+) -> None:
     """Create the confirmation without contacting or changing the panel.
 
     A notification answers the press visibly; the Repair itself is the only
@@ -64,6 +66,8 @@ async def async_request_removal(hass: HomeAssistant, entry: ConfigEntry) -> None
         },
         data={"entry_id": entry.entry_id},
     )
+    if not notify:
+        return
     prefix = f"component.{DOMAIN}.common.remove_from_panel_notification"
     strings = await async_get_translations(
         hass, hass.config.language, "common", [DOMAIN]

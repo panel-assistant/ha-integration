@@ -308,8 +308,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
         if coordinator.connected:
             async_clear_foreign_ha_issue(hass, entry.entry_id)
 
-    async_dismiss_removal_notification(hass, entry.entry_id)
-
     clear_foreign_ha_warning()
     entry.async_on_unload(coordinator.async_add_listener(clear_foreign_ha_warning))
     entry.async_on_unload(lambda: async_clear_foreign_ha_issue(hass, entry.entry_id))
@@ -365,6 +363,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
     """
     await async_delete_entry_issues(hass, entry.entry_id)
     async_clear_foreign_ha_issue(hass, entry.entry_id)
+    async_dismiss_removal_notification(hass, entry.entry_id)
     async_delete_merged_identity_issue(hass, entry)
     async_get_sessions(hass).forget_entry(entry.entry_id)
     # The panel's Sendspin key goes with its entry; a re-added panel gets a new one.
