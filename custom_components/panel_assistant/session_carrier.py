@@ -16,7 +16,6 @@ from typing import Any, Final, Protocol
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
-from . import client as panel_client
 from . import transport_protocol, transport_sessions
 from .blob import BLOB_PATH, async_get_blobs
 from .client import (
@@ -32,7 +31,12 @@ from .client import (
     parse_staged_apk,
     parse_update_start_response,
 )
-from .const import MAX_STATUS_RESPONSE_BYTES
+from .const import (
+    APK_STAGE_TIMEOUT_SECONDS,
+    BACKUP_TIMEOUT_SECONDS,
+    MAX_BACKUP_BYTES,
+    MAX_STATUS_RESPONSE_BYTES,
+)
 from .status import PanelStatus, parse_status_response
 
 APK_TYPE: Final = "application/vnd.android.package-archive"
@@ -121,11 +125,11 @@ class SessionCarrier:
     async def async_backup_panel(self) -> bytes:
         """Have the panel upload its backup, and keep it only if it is the one named."""
         blobs = async_get_blobs(self._hass)
-        token, received = blobs.upload(self._entry_id, panel_client._MAX_BACKUP_BYTES)
+        token, received = blobs.upload(self._entry_id, MAX_BACKUP_BYTES)
         try:
             outcome = await self._request(
                 OP_BACKUP,
-                panel_client._BACKUP_TIMEOUT_SECONDS,
+                BACKUP_TIMEOUT_SECONDS,
                 {
                     "allow_plaintext": "1",
                     "include_companion": "false",
@@ -161,7 +165,7 @@ class SessionCarrier:
         token, reference = blobs.download(self._entry_id, apk, APK_TYPE)
         try:
             outcome = await self._request(
-                OP_STAGE, panel_client._UPLOAD_TIMEOUT_SECONDS, {"blob": reference}
+                OP_STAGE, APK_STAGE_TIMEOUT_SECONDS, {"blob": reference}
             )
         finally:
             blobs.discard(token)
