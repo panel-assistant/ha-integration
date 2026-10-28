@@ -1728,7 +1728,8 @@
           "onboarding": "Continuar la configuración",
           "authorize_adb": "Permitir actualizaciones",
           "updates": "Actualizaciones del panel",
-          "remove_app": "Quitar de este panel"
+          "remove_app": "Quitar de este panel",
+          "panel_logs": "Registros de paneles (todos los paneles)"
         },
         "menu_option_descriptions": {
           "remove_app": "Devuelve la pantalla de inicio al lanzador propio del panel y luego desinstala la app."
@@ -1756,6 +1757,21 @@
       "remove_app": {
         "title": "Quitar Panel Assistant de {panel}",
         "description": "Panel Assistant restablece la pantalla de inicio del panel y las apps y ajustes del fabricante que había cambiado; después se desinstala y elimina este panel de Home Assistant. Se eliminan sus ajustes en el panel.\n\nEn algunos paneles y versiones de firmware, quitarlo no deja forma de volver a los Ajustes de Android ni a la depuración por red, así que la app no podría volver a instalarse sin abrir el panel. Lee [lo que puede provocar quitarlo en este panel]({risks_url}) antes de seleccionar Enviar."
+      },
+      "panel_logs": {
+        "title": "Registros de paneles (todos los paneles)",
+        "description": "Elige un destino para todos los paneles. Estos ajustes también se aplican a los paneles que se añadan más adelante. Los registros del sistema están desactivados de forma predeterminada. Un destino HTTP acepta un nombre de host o una URL HTTP completa.",
+        "data": {
+          "destination": "Destino",
+          "host": "Host o URL HTTP",
+          "port": "Puerto",
+          "app_level": "Nivel de registro de la aplicación",
+          "system_level": "Nivel de registro del sistema",
+          "also_home_assistant": "Escribir también en el registro de Home Assistant"
+        },
+        "data_description": {
+          "also_home_assistant": "Se aplica cuando el destino es UDP, TCP o HTTP."
+        }
       }
     },
     "error": {
@@ -1784,7 +1800,10 @@
       "removal_hand_back_unsupported": "La aplicación Panel Assistant de este panel es demasiado antigua para devolver su pantalla de inicio. No se ha quitado nada. Actualízala primero y después vuelve a intentarlo.",
       "removal_app_unreachable": "Panel Assistant no respondió y sigue siendo la pantalla de inicio del panel, así que quitarlo ahora dejaría el panel sin pantalla de inicio. No se ha quitado nada. Inicia Panel Assistant en el panel y vuelve a intentarlo.",
       "removal_remove_failed": "El panel ya ha recuperado su pantalla de inicio, pero Panel Assistant no se pudo quitar por completo. Vuelve a intentarlo: un nuevo intento termina lo que falta.",
-      "panel_not_connected": "El panel aún no se ha conectado. Completa los pasos en su página de configuración y pulsa Listo de nuevo."
+      "panel_not_connected": "El panel aún no se ha conectado. Completa los pasos en su página de configuración y pulsa Listo de nuevo.",
+      "log_host_required": "Introduce un host de destino o una URL HTTP.",
+      "log_sink_unavailable": "Este destino guardado ya no está disponible. Elige otro destino.",
+      "log_destination_invalid": "Comprueba el host de destino, la URL y el puerto."
     },
     "abort": {
       "removed_entry_deleted": "Se ha quitado Panel Assistant y se ha eliminado el panel de Home Assistant.",

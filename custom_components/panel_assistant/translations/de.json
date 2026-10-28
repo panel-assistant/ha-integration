@@ -1728,7 +1728,8 @@
           "onboarding": "Einrichtung fortsetzen",
           "authorize_adb": "Updates erlauben",
           "updates": "Panel-Updates",
-          "remove_app": "Von diesem Panel entfernen"
+          "remove_app": "Von diesem Panel entfernen",
+          "panel_logs": "Panelprotokolle (alle Panels)"
         },
         "menu_option_descriptions": {
           "remove_app": "Gibt den Startbildschirm an den eigenen Launcher des Panels zurück und deinstalliert dann die App."
@@ -1756,6 +1757,21 @@
       "remove_app": {
         "title": "Panel Assistant von {panel} entfernen",
         "description": "Panel Assistant stellt den Startbildschirm des Panels sowie die Hersteller-Apps und Einstellungen wieder her, die es geändert hat, deinstalliert sich dann selbst und löscht dieses Panel aus Home Assistant. Seine Einstellungen auf dem Panel werden gelöscht.\n\nAuf manchen Panels und Firmware-Versionen gibt es nach dem Entfernen keinen Weg mehr zurück zu den Android-Einstellungen oder zum Debugging über das Netzwerk, sodass die App nicht erneut installiert werden kann, ohne das Panel zu öffnen. Lies, [was das Entfernen bei diesem Panel bewirken kann]({risks_url}), bevor du „OK“ wählst."
+      },
+      "panel_logs": {
+        "title": "Panelprotokolle (alle Panels)",
+        "description": "Wähle ein Ziel für alle Panels. Diese Einstellungen gelten auch für später hinzugefügte Panels. Systemprotokolle sind standardmäßig ausgeschaltet. Ein HTTP-Ziel akzeptiert einen Hostnamen oder eine vollständige HTTP-URL.",
+        "data": {
+          "destination": "Ziel",
+          "host": "Host oder HTTP-URL",
+          "port": "Port",
+          "app_level": "Protokollstufe der App",
+          "system_level": "Systemprotokollstufe",
+          "also_home_assistant": "Auch ins Home Assistant-Protokoll schreiben"
+        },
+        "data_description": {
+          "also_home_assistant": "Gilt für Ziele über UDP, TCP oder HTTP."
+        }
       }
     },
     "error": {
@@ -1784,7 +1800,10 @@
       "removal_hand_back_unsupported": "Die Panel Assistant-App auf diesem Panel ist zu alt, um den Startbildschirm zurückzugeben. Es wurde nichts entfernt. Aktualisiere sie zuerst und versuche es dann erneut.",
       "removal_app_unreachable": "Panel Assistant hat nicht geantwortet und ist noch der Startbildschirm des Panels; es jetzt zu entfernen, würde das Panel ohne Startbildschirm lassen. Es wurde nichts entfernt. Starte Panel Assistant auf dem Panel und versuche es erneut.",
       "removal_remove_failed": "Das Panel hat seinen Startbildschirm bereits zurück, aber Panel Assistant konnte nicht vollständig entfernt werden. Versuche es erneut: Ein neuer Versuch erledigt den Rest.",
-      "panel_not_connected": "Das Panel hat sich noch nicht verbunden. Schließe die Schritte auf seiner Einrichtungsseite ab und wähle dann erneut „Fertig“."
+      "panel_not_connected": "Das Panel hat sich noch nicht verbunden. Schließe die Schritte auf seiner Einrichtungsseite ab und wähle dann erneut „Fertig“.",
+      "log_host_required": "Gib einen Zielhost oder eine HTTP-URL ein.",
+      "log_sink_unavailable": "Dieses gespeicherte Ziel ist nicht mehr verfügbar. Wähle ein anderes Ziel.",
+      "log_destination_invalid": "Prüfe Zielhost, URL und Port."
     },
     "abort": {
       "removed_entry_deleted": "Panel Assistant wurde entfernt und das Panel aus Home Assistant gelöscht.",

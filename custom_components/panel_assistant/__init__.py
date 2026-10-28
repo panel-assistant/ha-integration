@@ -120,6 +120,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     await async_setup_connection_info(hass)
     await async_setup_lifecycle(hass)
     await async_setup_voice_stream(hass)
+    from .panel_logs import async_setup_panel_logs
+
+    await async_setup_panel_logs(hass)
     async_setup_transport(hass)
     async_setup_voice(hass)
     await async_setup_voice_commands(hass)

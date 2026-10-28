@@ -1728,7 +1728,8 @@
           "onboarding": "Continua la configurazione",
           "authorize_adb": "Consenti aggiornamenti",
           "updates": "Aggiornamenti del pannello",
-          "remove_app": "Rimuovi da questo pannello"
+          "remove_app": "Rimuovi da questo pannello",
+          "panel_logs": "Log dei pannelli (tutti i pannelli)"
         },
         "menu_option_descriptions": {
           "remove_app": "Restituisce la schermata iniziale al launcher del pannello, poi disinstalla l'app."
@@ -1756,6 +1757,21 @@
       "remove_app": {
         "title": "Rimuovi Panel Assistant da {panel}",
         "description": "Panel Assistant ripristina la schermata iniziale del pannello e le app e impostazioni del produttore che aveva modificato, poi si disinstalla ed elimina questo pannello da Home Assistant. Le sue impostazioni sul pannello vengono eliminate.\n\nSu alcuni pannelli e versioni firmware, la rimozione non lascia alcun modo di tornare alle Impostazioni di Android o al debug di rete, quindi l'app non potrebbe essere reinstallata senza aprire il pannello. Leggi [cosa può comportare la rimozione per questo pannello]({risks_url}) prima di selezionare Invia."
+      },
+      "panel_logs": {
+        "title": "Log dei pannelli (tutti i pannelli)",
+        "description": "Scegli una destinazione per tutti i pannelli. Queste impostazioni valgono anche per i pannelli aggiunti in seguito. I log di sistema sono disattivati per impostazione predefinita. Una destinazione HTTP accetta un nome host o un URL HTTP completo.",
+        "data": {
+          "destination": "Destinazione",
+          "host": "Host o URL HTTP",
+          "port": "Porta",
+          "app_level": "Livello dei log dell’app",
+          "system_level": "Livello dei log di sistema",
+          "also_home_assistant": "Scrivi anche nel log di Home Assistant"
+        },
+        "data_description": {
+          "also_home_assistant": "Si applica alle destinazioni UDP, TCP o HTTP."
+        }
       }
     },
     "error": {
@@ -1784,7 +1800,10 @@
       "removal_hand_back_unsupported": "L’app Panel Assistant su questo pannello è troppo vecchia per restituire la schermata iniziale. Non è stato rimosso nulla. Aggiornala prima, quindi riprova.",
       "removal_app_unreachable": "Panel Assistant non ha risposto ed è ancora la schermata iniziale del pannello, quindi rimuoverlo ora lascerebbe il pannello senza schermata iniziale. Non è stato rimosso nulla. Avvia Panel Assistant sul pannello, quindi riprova.",
       "removal_remove_failed": "Il pannello ha già riavuto la sua schermata iniziale, ma Panel Assistant non è stato rimosso completamente. Riprova: un nuovo tentativo completa ciò che resta.",
-      "panel_not_connected": "Il pannello non si è ancora connesso. Completa i passaggi nella sua pagina di configurazione, poi premi di nuovo Fatto."
+      "panel_not_connected": "Il pannello non si è ancora connesso. Completa i passaggi nella sua pagina di configurazione, poi premi di nuovo Fatto.",
+      "log_host_required": "Inserisci un host di destinazione o un URL HTTP.",
+      "log_sink_unavailable": "Questa destinazione salvata non è più disponibile. Scegli un’altra destinazione.",
+      "log_destination_invalid": "Controlla host di destinazione, URL e porta."
     },
     "abort": {
       "removed_entry_deleted": "Panel Assistant è stato rimosso e il pannello è stato eliminato da Home Assistant.",

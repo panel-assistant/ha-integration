@@ -1728,7 +1728,8 @@
           "onboarding": "Kontynuuj konfigurację",
           "authorize_adb": "Zezwól na aktualizacje",
           "updates": "Aktualizacje panelu",
-          "remove_app": "Usuń z tego panelu"
+          "remove_app": "Usuń z tego panelu",
+          "panel_logs": "Dzienniki paneli (wszystkie panele)"
         },
         "menu_option_descriptions": {
           "remove_app": "Oddaje ekran główny własnemu launcherowi panelu, a potem odinstalowuje aplikację."
@@ -1756,6 +1757,21 @@
       "remove_app": {
         "title": "Usuń Panel Assistant z panelu {panel}",
         "description": "Panel Assistant przywraca ekran główny panelu oraz zmienione przez siebie aplikacje i ustawienia producenta, a następnie odinstalowuje się i usuwa ten panel z Home Assistant. Jego ustawienia na panelu zostaną skasowane.\n\nNa niektórych panelach i wersjach firmware po usunięciu nie ma już drogi powrotu do Ustawień systemu Android ani do debugowania przez sieć, więc aplikacji nie da się zainstalować ponownie bez otwierania panelu. Zanim wybierzesz Zatwierdź, przeczytaj, [co usunięcie może zrobić z tym panelem]({risks_url})."
+      },
+      "panel_logs": {
+        "title": "Dzienniki paneli (wszystkie panele)",
+        "description": "Wybierz jeden cel dla wszystkich paneli. Te ustawienia dotyczą również paneli dodanych później. Dzienniki systemowe są domyślnie wyłączone. Cel HTTP akceptuje nazwę hosta lub pełny adres URL HTTP.",
+        "data": {
+          "destination": "Cel",
+          "host": "Host lub adres URL HTTP",
+          "port": "Port",
+          "app_level": "Poziom dziennika aplikacji",
+          "system_level": "Poziom dziennika systemowego",
+          "also_home_assistant": "Zapisuj również w dzienniku Home Assistant"
+        },
+        "data_description": {
+          "also_home_assistant": "Dotyczy celów UDP, TCP lub HTTP."
+        }
       }
     },
     "error": {
@@ -1784,7 +1800,10 @@
       "removal_hand_back_unsupported": "Aplikacja Panel Assistant na tym panelu jest zbyt stara, aby przekazać jego ekran główny z powrotem. Niczego nie usunięto. Najpierw ją zaktualizuj, a następnie spróbuj ponownie.",
       "removal_app_unreachable": "Panel Assistant nie odpowiedział i nadal jest ekranem głównym panelu, więc usunięcie go teraz zostawiłoby panel bez ekranu głównego. Nic nie zostało usunięte. Uruchom Panel Assistant na panelu i spróbuj ponownie.",
       "removal_remove_failed": "Panel odzyskał już ekran główny, ale Panel Assistant nie dał się usunąć całkowicie. Spróbuj ponownie: kolejna próba dokończy resztę.",
-      "panel_not_connected": "Panel jeszcze się nie połączył. Dokończ kroki na jego stronie konfiguracji, a następnie ponownie kliknij Gotowe."
+      "panel_not_connected": "Panel jeszcze się nie połączył. Dokończ kroki na jego stronie konfiguracji, a następnie ponownie kliknij Gotowe.",
+      "log_host_required": "Wprowadź host docelowy lub adres URL HTTP.",
+      "log_sink_unavailable": "Ten zapisany cel nie jest już dostępny. Wybierz inny cel.",
+      "log_destination_invalid": "Sprawdź host docelowy, adres URL i port."
     },
     "abort": {
       "removed_entry_deleted": "Panel Assistant został usunięty, a panel skasowany z Home Assistant.",

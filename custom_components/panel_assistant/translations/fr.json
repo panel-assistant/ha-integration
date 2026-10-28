@@ -1728,7 +1728,8 @@
           "onboarding": "Poursuivre la configuration",
           "authorize_adb": "Autoriser les mises à jour",
           "updates": "Mises à jour du panneau",
-          "remove_app": "Retirer de ce panneau"
+          "remove_app": "Retirer de ce panneau",
+          "panel_logs": "Journaux des panneaux (tous les panneaux)"
         },
         "menu_option_descriptions": {
           "remove_app": "Rend l'écran d'accueil au lanceur propre du panneau, puis désinstalle l'application."
@@ -1756,6 +1757,21 @@
       "remove_app": {
         "title": "Retirer Panel Assistant de {panel}",
         "description": "Panel Assistant restaure l'écran d'accueil du panneau ainsi que les applications et réglages du fabricant qu'il a modifiés, puis se désinstalle et supprime ce panneau de Home Assistant. Ses réglages sur le panneau sont supprimés.\n\nSur certains panneaux et versions de firmware, le retirer ne laisse plus aucun moyen de revenir aux Paramètres Android ni au débogage réseau ; l'application ne pourrait alors être réinstallée qu'en ouvrant le panneau. Lisez [ce que le retrait peut faire à ce panneau]({risks_url}) avant de sélectionner Valider."
+      },
+      "panel_logs": {
+        "title": "Journaux des panneaux (tous les panneaux)",
+        "description": "Choisissez une destination pour tous les panneaux. Ces paramètres s’appliquent aussi aux panneaux ajoutés ultérieurement. Les journaux système sont désactivés par défaut. Une destination HTTP accepte un nom d’hôte ou une URL HTTP complète.",
+        "data": {
+          "destination": "Destination",
+          "host": "Hôte ou URL HTTP",
+          "port": "Port",
+          "app_level": "Niveau de journalisation de l’application",
+          "system_level": "Niveau de journalisation du système",
+          "also_home_assistant": "Écrire aussi dans le journal de Home Assistant"
+        },
+        "data_description": {
+          "also_home_assistant": "S’applique aux destinations UDP, TCP ou HTTP."
+        }
       }
     },
     "error": {
@@ -1784,7 +1800,10 @@
       "removal_hand_back_unsupported": "L’application Panel Assistant sur ce panneau est trop ancienne pour restituer son écran d’accueil. Rien n’a été retiré. Mettez-la d’abord à jour, puis réessayez.",
       "removal_app_unreachable": "Panel Assistant n'a pas répondu et c'est toujours l'écran d'accueil du panneau ; le retirer maintenant laisserait le panneau sans écran d'accueil. Rien n'a été retiré. Lancez Panel Assistant sur le panneau, puis réessayez.",
       "removal_remove_failed": "Le panneau a déjà récupéré son écran d'accueil, mais Panel Assistant n'a pas pu être retiré entièrement. Réessayez : une nouvelle tentative termine ce qui reste.",
-      "panel_not_connected": "Le panneau ne s'est pas encore connecté. Terminez les étapes sur sa page de configuration, puis cliquez de nouveau sur Terminé."
+      "panel_not_connected": "Le panneau ne s'est pas encore connecté. Terminez les étapes sur sa page de configuration, puis cliquez de nouveau sur Terminé.",
+      "log_host_required": "Saisissez un hôte de destination ou une URL HTTP.",
+      "log_sink_unavailable": "Cette destination enregistrée n’est plus disponible. Choisissez une autre destination.",
+      "log_destination_invalid": "Vérifiez l’hôte de destination, l’URL et le port."
     },
     "abort": {
       "removed_entry_deleted": "Panel Assistant a été retiré et le panneau supprimé de Home Assistant.",

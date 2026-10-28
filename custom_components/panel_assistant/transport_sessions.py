@@ -26,6 +26,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util import dt as dt_util
 
+from .app_identity import PACKAGE_ID
 from .const import DOMAIN
 from .transport_protocol import (
     CAPABILITY_COMMANDS,
@@ -141,6 +142,10 @@ class PanelSession:
     ui_relays: dict[str, list[Any]] = field(default_factory=dict)
     # The panel's Sendspin client id, when ``voice_stream_session`` was granted.
     voice_stream_client_id: str | None = None
+    # The log grant and saved offer belong to this accepted session only.
+    log_sources: dict[str, int] = field(default_factory=dict)
+    saved_log_sink: dict[str, Any] | None = None
+    app_package: str = PACKAGE_ID
     # Commands sent and still waited for, by command ID.
     pending: dict[str, PendingCommand] = field(default_factory=dict)
     # Commands whose wait ended without a final outcome, oldest first.

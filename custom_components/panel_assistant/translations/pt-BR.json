@@ -1728,7 +1728,8 @@
           "onboarding": "Continuar configuração",
           "authorize_adb": "Permitir atualizações",
           "updates": "Atualizações do painel",
-          "remove_app": "Remover deste painel"
+          "remove_app": "Remover deste painel",
+          "panel_logs": "Logs dos painéis (todos os painéis)"
         },
         "menu_option_descriptions": {
           "remove_app": "Devolve a tela inicial ao inicializador do próprio painel e depois desinstala o aplicativo."
@@ -1756,6 +1757,21 @@
       "remove_app": {
         "title": "Remover Panel Assistant de {panel}",
         "description": "O Panel Assistant restaura a tela inicial do painel e os aplicativos e configurações do fabricante que alterou; depois, ele se desinstala e exclui este painel do Home Assistant. Suas configurações no painel são excluídas.\n\nEm alguns painéis e versões de firmware, a remoção deixa você sem acesso às Configurações do Android ou à depuração pela rede, impedindo a reinstalação do aplicativo sem abrir o painel. Leia [o que a remoção pode causar neste painel]({risks_url}) antes de selecionar Enviar."
+      },
+      "panel_logs": {
+        "title": "Logs dos painéis (todos os painéis)",
+        "description": "Escolha um destino para todos os painéis. Estas configurações também se aplicam aos painéis adicionados posteriormente. Os logs do sistema estão desativados por padrão. Um destino HTTP aceita um nome de host ou uma URL HTTP completa.",
+        "data": {
+          "destination": "Destino",
+          "host": "Host ou URL HTTP",
+          "port": "Porta",
+          "app_level": "Nível de log do aplicativo",
+          "system_level": "Nível de log do sistema",
+          "also_home_assistant": "Gravar também no log do Home Assistant"
+        },
+        "data_description": {
+          "also_home_assistant": "Aplica-se quando o destino é UDP, TCP ou HTTP."
+        }
       }
     },
     "error": {
@@ -1784,7 +1800,10 @@
       "removal_hand_back_unsupported": "O aplicativo Panel Assistant neste painel é antigo demais para devolver a tela inicial. Nada foi removido. Atualize-o primeiro e depois tente novamente.",
       "removal_app_unreachable": "O Panel Assistant não respondeu e ainda é a tela inicial do painel, então removê-lo agora deixaria o painel sem tela inicial. Nada foi removido. Inicie o Panel Assistant no painel e tente novamente.",
       "removal_remove_failed": "O painel já recuperou sua tela inicial, mas não foi possível remover completamente o Panel Assistant. Tente novamente: uma nova tentativa conclui o que falta.",
-      "panel_not_connected": "O painel ainda não se conectou. Conclua as etapas na página de configuração dele e selecione Concluído novamente."
+      "panel_not_connected": "O painel ainda não se conectou. Conclua as etapas na página de configuração dele e selecione Concluído novamente.",
+      "log_host_required": "Insira um host de destino ou uma URL HTTP.",
+      "log_sink_unavailable": "Este destino salvo não está mais disponível. Escolha outro destino.",
+      "log_destination_invalid": "Confira o host de destino, a URL e a porta."
     },
     "abort": {
       "removed_entry_deleted": "O Panel Assistant foi removido e o painel foi excluído do Home Assistant.",

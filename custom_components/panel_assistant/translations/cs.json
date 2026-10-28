@@ -1728,7 +1728,8 @@
           "onboarding": "Pokračovat v nastavení",
           "authorize_adb": "Povolit aktualizace",
           "updates": "Aktualizace panelu",
-          "remove_app": "Odebrat z tohoto panelu"
+          "remove_app": "Odebrat z tohoto panelu",
+          "panel_logs": "Protokoly panelů (všechny panely)"
         },
         "menu_option_descriptions": {
           "remove_app": "Vrátí domovskou obrazovku vlastnímu spouštěči panelu a poté aplikaci odinstaluje."
@@ -1756,6 +1757,21 @@
       "remove_app": {
         "title": "Odebrat Panel Assistant z panelu {panel}",
         "description": "Panel Assistant obnoví domovskou obrazovku panelu a aplikace a nastavení výrobce, které změnil, potom se odinstaluje a odstraní tento panel z Home Assistant. Jeho nastavení na panelu budou smazána.\n\nNa některých panelech a verzích firmwaru po odebrání nezůstane žádná cesta zpět do nastavení systému Android nebo k ladění po síti, takže aplikaci nebude možné znovu nainstalovat bez otevření panelu. Než zvolíte Odeslat, přečtěte si, [jak může odebrání ovlivnit tento panel]({risks_url})."
+      },
+      "panel_logs": {
+        "title": "Protokoly panelů (všechny panely)",
+        "description": "Vyberte jeden cíl pro všechny panely. Nastavení platí i pro později přidané panely. Systémové protokoly jsou ve výchozím nastavení vypnuté. Cíl HTTP přijímá název hostitele nebo úplnou adresu HTTP URL.",
+        "data": {
+          "destination": "Cíl",
+          "host": "Hostitel nebo HTTP URL",
+          "port": "Port",
+          "app_level": "Úroveň protokolu aplikace",
+          "system_level": "Úroveň systémového protokolu",
+          "also_home_assistant": "Zapisovat také do protokolu Home Assistant"
+        },
+        "data_description": {
+          "also_home_assistant": "Platí, pokud je cílem UDP, TCP nebo HTTP."
+        }
       }
     },
     "error": {
@@ -1784,7 +1800,10 @@
       "removal_hand_back_unsupported": "Aplikace Panel Assistant na tomto panelu je příliš stará, aby předala domovskou obrazovku zpět. Nic nebylo odebráno. Nejdřív ji aktualizujte a potom to zkuste znovu.",
       "removal_app_unreachable": "Panel Assistant neodpověděl a stále slouží jako domovská obrazovka panelu, takže jeho odebrání by nyní nechalo panel bez domovské obrazovky. Nic nebylo odebráno. Spusťte na panelu Panel Assistant a pak to zkuste znovu.",
       "removal_remove_failed": "Panel už má svou domovskou obrazovku zpět, ale Panel Assistant se nepodařilo úplně odebrat. Zkuste to znovu: další pokus dokončí zbývající kroky.",
-      "panel_not_connected": "Panel se ještě nepřipojil. Dokončete kroky na jeho stránce nastavení a pak znovu zvolte Hotovo."
+      "panel_not_connected": "Panel se ještě nepřipojil. Dokončete kroky na jeho stránce nastavení a pak znovu zvolte Hotovo.",
+      "log_host_required": "Zadejte cílového hostitele nebo HTTP URL.",
+      "log_sink_unavailable": "Tento uložený cíl již není dostupný. Vyberte jiný cíl.",
+      "log_destination_invalid": "Zkontrolujte cílového hostitele, URL a port."
     },
     "abort": {
       "removed_entry_deleted": "Panel Assistant byl odebrán a panel byl smazán z Home Assistant.",

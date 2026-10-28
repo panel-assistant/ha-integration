@@ -1805,7 +1805,7 @@ class HaPaneldOptionsFlow(OptionsFlow):
         """Offer this panel's setup, updates and available ADB consent."""
         if self.context.get("source") == "onboarding":
             return await self.async_step_onboarding()
-        options = ["updates"]
+        options = ["updates", "panel_logs"]
         if self._current_panel_health() is not None:
             options.append("authorize_adb")
         if CONF_TRANSPORT_USER_ID not in self.config_entry.data:
@@ -1814,6 +1814,114 @@ class HaPaneldOptionsFlow(OptionsFlow):
         # have removed it, and the retry finishes over ADB.
         options.append("remove_app")
         return self.async_show_menu(step_id="init", menu_options=options)
+
+    async def async_step_panel_logs(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Set the one log destination and source policy for every panel."""
+        from .panel_logs import async_get_log_router
+
+        router = async_get_log_router(self.hass)
+        policy = router.policy
+        destination = policy.get("destination") or {}
+        saved = router.saved_sinks() if not destination else {}
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            choice = user_input["destination"]
+            sink = None
+            if choice.startswith("saved:"):
+                sink = saved.get(choice.removeprefix("saved:"))
+                if sink is None:
+                    errors["destination"] = "log_sink_unavailable"
+            elif choice != "none":
+                sink = {"protocol": choice}
+                if choice != "home_assistant":
+                    host = user_input["host"].strip()
+                    if not host:
+                        errors["host"] = "log_host_required"
+                    sink.update(host=host, port=user_input["port"])
+            if not errors:
+                sources = {"app": user_input["app_level"]}
+                if user_input["system_level"]:
+                    sources["system"] = user_input["system_level"]
+                updated_policy: dict[str, Any] = {
+                    "destination": sink,
+                    "sources": sources,
+                }
+                if (
+                    sink is not None
+                    and sink["protocol"] in {"udp", "tcp", "http"}
+                    and user_input.get("also_home_assistant", False)
+                ):
+                    updated_policy["also_home_assistant"] = True
+                try:
+                    await router.async_configure(updated_policy)
+                except vol.Invalid:
+                    errors["base"] = "log_destination_invalid"
+                else:
+                    return self.async_create_entry(data=dict(self.config_entry.options))
+        defaults = {
+            "destination": destination.get("protocol", "none"),
+            "host": destination.get("host", ""),
+            "port": destination.get("port", 514),
+            "app_level": policy.get("sources", {}).get("app", 5),
+            "system_level": policy.get("sources", {}).get("system", 0),
+            "also_home_assistant": policy.get("also_home_assistant", False),
+            **(user_input or {}),
+        }
+        choices: list[SelectOptionDict] = [
+            {"value": "none", "label": "Off"},
+            {"value": "home_assistant", "label": "Home Assistant"},
+            {"value": "udp", "label": "Syslog (UDP)"},
+            {"value": "tcp", "label": "Syslog (TCP)"},
+            {"value": "http", "label": "HTTP"},
+        ]
+        choices.extend(
+            {
+                "value": f"saved:{did}",
+                "label": (
+                    f"Use saved destination: {sink['host']}:{sink['port']}"
+                    f" ({sink['protocol']})"
+                ),
+            }
+            for did, sink in saved.items()
+        )
+        levels = {
+            2: "Verbose",
+            3: "Debug",
+            4: "Info",
+            5: "Warning",
+            6: "Error",
+            7: "Fatal",
+        }
+        return self.async_show_form(
+            step_id="panel_logs",
+            errors=errors,
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        "destination", default=defaults["destination"]
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=choices, mode=SelectSelectorMode.DROPDOWN
+                        )
+                    ),
+                    vol.Optional("host", default=defaults["host"]): str,
+                    vol.Required("port", default=defaults["port"]): vol.All(
+                        vol.Coerce(int), vol.Range(min=1, max=65535)
+                    ),
+                    vol.Required("app_level", default=defaults["app_level"]): vol.In(
+                        levels
+                    ),
+                    vol.Required(
+                        "system_level", default=defaults["system_level"]
+                    ): vol.In({0: "Off", **levels}),
+                    vol.Optional(
+                        "also_home_assistant", default=defaults["also_home_assistant"]
+                    ): BooleanSelector(),
+                }
+            ),
+        )
 
     async def async_step_updates(
         self, user_input: dict[str, Any] | None = None

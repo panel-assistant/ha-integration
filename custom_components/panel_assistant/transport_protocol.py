@@ -64,6 +64,7 @@ CAPABILITY_UNKNOWN_STATE: Final = "unknown_state"
 KNOWN_CAPABILITIES: Final = frozenset(
     {
         CAPABILITY_STATE,
+        "logs",
         CAPABILITY_EVENTS,
         CAPABILITY_COMMANDS,
         CAPABILITY_APPROVAL,
@@ -393,10 +394,24 @@ HELLO_SCHEMA: Final = vol.Schema(
         vol.Optional("did", default=None): _optional(_did),
         vol.Required("app"): vol.Schema(
             {
+                vol.Optional("package"): _plain_string(256),
                 vol.Required("version"): _panel_version,
                 vol.Required("version_code"): _strict_int(0, MAX_ANDROID_INTEGER),
             },
             extra=vol.REMOVE_EXTRA,
+        ),
+        vol.Optional("logs"): vol.Schema(
+            {
+                vol.Optional("saved_sink"): vol.Schema(
+                    {
+                        vol.Required("enabled"): _strict_bool,
+                        vol.Required("system_enabled"): _strict_bool,
+                        vol.Required("host"): _plain_string(2048),
+                        vol.Required("port"): _strict_int(1, 65535),
+                        vol.Required("protocol"): vol.In(("udp", "tcp", "http")),
+                    }
+                ),
+            }
         ),
         vol.Optional("http_port"): _strict_int(1024, 65535),
         vol.Optional("addresses", default=list): _bounded_list(16, _interface_address),
@@ -751,3 +766,57 @@ def _validate_attributes(value: Any) -> dict[str, Any]:
         else:
             raise _reject()
     return result
+
+
+def _log_timestamp(value: Any) -> str:
+    value = _plain_string(40)(value)
+    parsed = dt_util.parse_datetime(value)
+    offset = parsed.utcoffset() if parsed is not None else None
+    if offset is None or offset.total_seconds() != 0:
+        raise vol.Invalid("expected UTC event timestamp")
+    return str(value)
+
+
+def _log_message(value: Any) -> str:
+    if not isinstance(value, str) or len(value.encode("utf-8")) > 8192:
+        raise vol.Invalid("expected bounded log message")
+    return value
+
+
+def _log_batch(value: dict[str, Any]) -> dict[str, Any]:
+    if (
+        sum(
+            len(item[key].encode("utf-8"))
+            for item in value["records"]
+            for key in ("timestamp", "source", "tag", "message")
+        )
+        > 256 * 1024
+    ):
+        raise vol.Invalid("log batch too large")
+    return value
+
+
+REPORT_LOG_SCHEMA: Final = vol.All(
+    vol.Schema(
+        {
+            vol.Required("type"): f"{DOMAIN}/report_log",
+            vol.Required("session"): _session_token,
+            vol.Required("records"): _bounded_list(
+                200,
+                vol.Schema(
+                    {
+                        vol.Required("timestamp"): _log_timestamp,
+                        vol.Required("source"): vol.In(("app", "system")),
+                        vol.Required("priority"): _strict_int(2, 7),
+                        vol.Required("tag"): _plain_string(128),
+                        vol.Required("pid"): _strict_int(0, MAX_ANDROID_INTEGER),
+                        vol.Required("message"): _log_message,
+                    }
+                ),
+            ),
+            vol.Required("dropped"): _strict_int(0, MAX_ANDROID_INTEGER),
+        },
+        extra=vol.REMOVE_EXTRA,
+    ),
+    _log_batch,
+)

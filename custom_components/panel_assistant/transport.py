@@ -8,7 +8,8 @@ is the signal that the panel is gone.
 
 Everything a panel sends is untrusted. Each message is validated and bounded
 (see ``transport_protocol.py``) before anything is stored. Established-session
-handlers perform no I/O. A moved legacy panel must complete bounded health
+handlers schedule bounded log delivery without blocking the socket. A moved
+legacy panel must complete bounded health
 verification before its hello can grant a session.
 
 This integration owns every panel's entities: the panel reports its state
@@ -29,6 +30,7 @@ import asyncio
 import logging
 import secrets
 from collections.abc import Collection, Container
+from contextlib import suppress
 from functools import partial
 from typing import Any, Final
 
@@ -88,6 +90,7 @@ from .transport_protocol import (
     OUTCOME_PENDING_APPROVAL,
     REASON_USER_REMOVED,
     REPORT_EVENT_SCHEMA,
+    REPORT_LOG_SCHEMA,
     REPORT_STATE_SCHEMA,
     RESTART_NOTICE_SCHEMA,
     STATE_KNOWN,
@@ -580,6 +583,23 @@ def _accept_hello(
         result["voice_stream_session"] = voice_stream.grant(
             stream_client_id, entry.entry_id
         )
+    if "logs" in capabilities:
+        from .panel_logs import async_get_log_router, validate_policy
+
+        session.app_package = msg["app"].get("package", session.app_package)
+        session.log_sources = async_get_log_router(hass).sources()
+        result["logs"] = {"sources": dict(session.log_sources)}
+        saved_sink = msg.get("logs", {}).get("saved_sink")
+        if saved_sink and saved_sink["enabled"]:
+            with suppress(vol.Invalid):
+                session.saved_log_sink = validate_policy(
+                    {
+                        "destination": {
+                            key: saved_sink[key] for key in ("protocol", "host", "port")
+                        },
+                        "sources": {},
+                    }
+                )["destination"]
     async_get_sessions(hass).open(session)
     if session.voice_stream_client_id is not None:
         assert voice_stream is not None
@@ -595,6 +615,21 @@ def _send_event(
     connection: ActiveConnection, subscription_id: int, event: dict[str, Any]
 ) -> None:
     connection.send_message(event_message(subscription_id, event))
+
+
+@callback
+@websocket_command(REPORT_LOG_SCHEMA)
+def ws_report_log(
+    hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Admit one log batch on its authenticated current session."""
+    from .panel_logs import async_get_log_router
+
+    session = async_get_sessions(hass).for_request(msg["session"], connection)
+    if session is None:
+        connection.send_error(msg["id"], ERR_SESSION_UNKNOWN, "No such session.")
+        return
+    async_get_log_router(hass).accept(session, msg)
 
 
 @callback
@@ -805,6 +840,7 @@ def async_setup_transport(hass: HomeAssistant) -> None:
     async_get_sessions(hass)
     websocket_api.async_register_command(hass, ws_hello)
     websocket_api.async_register_command(hass, ws_report_state)
+    websocket_api.async_register_command(hass, ws_report_log)
     websocket_api.async_register_command(hass, ws_restart_notice)
     websocket_api.async_register_command(hass, ws_report_event)
     websocket_api.async_register_command(hass, ws_command_result)

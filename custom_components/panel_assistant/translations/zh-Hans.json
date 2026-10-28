@@ -1728,7 +1728,8 @@
           "onboarding": "继续设置",
           "authorize_adb": "允许更新",
           "updates": "面板更新",
-          "remove_app": "从此面板移除"
+          "remove_app": "从此面板移除",
+          "panel_logs": "面板日志（所有面板）"
         },
         "menu_option_descriptions": {
           "remove_app": "把主屏幕交还给面板自带的启动器，然后卸载该应用。"
@@ -1756,6 +1757,21 @@
       "remove_app": {
         "title": "从 {panel} 移除 Panel Assistant",
         "description": "Panel Assistant 会恢复面板的主屏幕以及它更改过的厂商应用和设置，然后卸载自身，并从 Home Assistant 中删除此面板。它在面板上的设置会被删除。\n\n在某些面板和固件版本上，移除后将无法再回到 Android 设置或网络调试，因此不打开面板就无法再次安装该应用。选择“提交”之前，请阅读[移除可能对此面板造成的影响]({risks_url})。"
+      },
+      "panel_logs": {
+        "title": "面板日志（所有面板）",
+        "description": "为所有面板选择一个目标。这些设置也适用于以后添加的面板。系统日志默认关闭。HTTP 目标支持主机名或完整的 HTTP URL。",
+        "data": {
+          "destination": "目标",
+          "host": "主机或 HTTP URL",
+          "port": "端口",
+          "app_level": "应用日志级别",
+          "system_level": "系统日志级别",
+          "also_home_assistant": "同时写入 Home Assistant 日志"
+        },
+        "data_description": {
+          "also_home_assistant": "适用于 UDP、TCP 或 HTTP 目标。"
+        }
       }
     },
     "error": {
@@ -1784,7 +1800,10 @@
       "removal_hand_back_unsupported": "此面板上的 Panel Assistant 应用版本过旧，无法交还主屏幕。未移除任何内容。请先更新应用，然后重试。",
       "removal_app_unreachable": "Panel Assistant 没有响应，而它仍是面板的主屏幕，现在移除会让面板没有主屏幕。未移除任何内容。请在面板上启动 Panel Assistant，然后重试。",
       "removal_remove_failed": "面板已经拿回主屏幕，但 Panel Assistant 未能完全移除。请重试：重试会完成剩余部分。",
-      "panel_not_connected": "面板尚未连接。请在其设置页面完成各个步骤，然后再次点击“完成”。"
+      "panel_not_connected": "面板尚未连接。请在其设置页面完成各个步骤，然后再次点击“完成”。",
+      "log_host_required": "请输入目标主机或 HTTP URL。",
+      "log_sink_unavailable": "此已保存的目标不再可用。请选择其他目标。",
+      "log_destination_invalid": "请检查目标主机、URL 和端口。"
     },
     "abort": {
       "removed_entry_deleted": "已移除 Panel Assistant，并已从 Home Assistant 删除该面板。",

@@ -1728,7 +1728,8 @@
           "onboarding": "Continue setup",
           "authorize_adb": "Allow updates",
           "updates": "Panel updates",
-          "remove_app": "Remove from this panel"
+          "remove_app": "Remove from this panel",
+          "panel_logs": "Panel logs (all panels)"
         },
         "menu_option_descriptions": {
           "remove_app": "Gives the home screen back to the panel's own launcher, then uninstalls the app."
@@ -1756,6 +1757,21 @@
       "remove_app": {
         "title": "Remove Panel Assistant from {panel}",
         "description": "Panel Assistant restores the panel's home screen and the vendor apps and settings it changed, then uninstalls itself and deletes this panel from Home Assistant. Its settings on the panel are deleted.\n\nOn some panels and firmware versions, removing it leaves no way back to Android Settings or network debugging, so the app could not be installed again without opening the panel. Read [what removal can do to this panel]({risks_url}) before you select Submit."
+      },
+      "panel_logs": {
+        "title": "Panel logs (all panels)",
+        "description": "Choose one destination for every panel. These settings also apply to panels added later. System logs are off by default. An HTTP destination accepts a hostname or a full HTTP URL.",
+        "data": {
+          "destination": "Destination",
+          "host": "Host or HTTP URL",
+          "port": "Port",
+          "app_level": "App log level",
+          "system_level": "System log level",
+          "also_home_assistant": "Also write to the Home Assistant log"
+        },
+        "data_description": {
+          "also_home_assistant": "Applies when the destination is UDP, TCP or HTTP."
+        }
       }
     },
     "error": {
@@ -1784,7 +1800,10 @@
       "removal_hand_back_unsupported": "The Panel Assistant app on this panel is too old to hand its home screen back. Nothing was removed. Update it first, then try again.",
       "removal_app_unreachable": "Panel Assistant did not answer, and it is still the panel's home screen, so removing it now would leave the panel with no home screen. Nothing was removed. Start Panel Assistant on the panel, then try again.",
       "removal_remove_failed": "The panel already has its home screen back, but Panel Assistant could not be removed completely. Try again: a retry finishes what is left.",
-      "panel_not_connected": "The panel hasn't connected yet. Finish the steps on its setup page, then select Done again."
+      "panel_not_connected": "The panel hasn't connected yet. Finish the steps on its setup page, then select Done again.",
+      "log_host_required": "Enter a destination host or HTTP URL.",
+      "log_sink_unavailable": "This saved destination is no longer available. Choose another destination.",
+      "log_destination_invalid": "Check the destination host, URL and port."
     },
     "abort": {
       "removed_entry_deleted": "Panel Assistant was removed and the panel was deleted from Home Assistant.",
