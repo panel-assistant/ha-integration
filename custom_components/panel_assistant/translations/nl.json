@@ -1,5 +1,9 @@
 {
   "title": "Panel Assistant",
+  "common": {
+    "remove_from_panel_notification_title": "Remove Panel Assistant from {panel}",
+    "remove_from_panel_notification_message": "To remove Panel Assistant from {panel}, open [Repairs]({repairs_url}) and confirm there. Nothing has changed on the panel yet."
+  },
   "config": {
     "flow_title": "{name}",
     "step": {

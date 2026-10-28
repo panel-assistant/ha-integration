@@ -5,10 +5,12 @@ from __future__ import annotations
 from typing import Any
 
 import voluptuous as vol
+from homeassistant.components import persistent_notification
 from homeassistant.components.repairs import RepairsFlow, RepairsFlowResult
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.translation import async_get_translations
 
 from .const import DOMAIN, help_url
 from .device import panel_display_name
@@ -29,9 +31,24 @@ def removal_issue_id(entry_id: str) -> str:
     return f"{ISSUE_REMOVE_FROM_PANEL}_{entry_id}"
 
 
+def removal_notification_id(entry_id: str) -> str:
+    """Name the notice that points the owner at the removal Repair."""
+    return f"{DOMAIN}_{ISSUE_REMOVE_FROM_PANEL}_{entry_id}"
+
+
 @callback
-def async_request_removal(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Create the confirmation without contacting or changing the panel."""
+def async_dismiss_removal_notification(hass: HomeAssistant, entry_id: str) -> None:
+    """Withdraw the notice once its Repair has ended."""
+    persistent_notification.async_dismiss(hass, removal_notification_id(entry_id))
+
+
+async def async_request_removal(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Create the confirmation without contacting or changing the panel.
+
+    A notification answers the press visibly; the Repair itself is the only
+    route to removal.
+    """
+    panel = panel_display_name(hass, entry)
     ir.async_create_issue(
         hass,
         DOMAIN,
@@ -42,10 +59,26 @@ def async_request_removal(hass: HomeAssistant, entry: ConfigEntry) -> None:
         translation_key=ISSUE_REMOVE_FROM_PANEL,
         learn_more_url=help_url("removal-risks"),
         translation_placeholders={
-            "panel": panel_display_name(hass, entry),
+            "panel": panel,
             "learn_more_url": help_url("removal-risks"),
         },
         data={"entry_id": entry.entry_id},
+    )
+    prefix = f"component.{DOMAIN}.common.remove_from_panel_notification"
+    strings = await async_get_translations(
+        hass, hass.config.language, "common", [DOMAIN]
+    )
+    title = strings.get(f"{prefix}_title", "Remove Panel Assistant from {panel}")
+    message = strings.get(
+        f"{prefix}_message",
+        "To remove Panel Assistant from {panel}, open [Repairs]({repairs_url}) "
+        "and confirm there. Nothing has changed on the panel yet.",
+    )
+    persistent_notification.async_create(
+        hass,
+        message.format(panel=panel, repairs_url="/config/repairs"),
+        title=title.format(panel=panel),
+        notification_id=removal_notification_id(entry.entry_id),
     )
 
 
@@ -84,6 +117,7 @@ class RemoveFromPanelFlow(RepairsFlow):
         entry = self.hass.config_entries.async_get_entry(self._entry_id)
         if entry is None or entry.domain != DOMAIN:
             ir.async_delete_issue(self.hass, DOMAIN, self.issue_id)
+            async_dismiss_removal_notification(self.hass, self._entry_id)
             return self.async_create_entry(data={})
         errors: dict[str, str] = {}
         if user_input is not None:
@@ -99,6 +133,7 @@ class RemoveFromPanelFlow(RepairsFlow):
                 # A restart before then leaves the same Repair available to retry.
                 await self.hass.config_entries.async_remove(entry.entry_id)
                 if self.hass.config_entries.async_get_entry(entry.entry_id) is None:
+                    async_dismiss_removal_notification(self.hass, entry.entry_id)
                     return self.async_create_entry(data={})
                 errors["base"] = "removal_remove_failed"
         coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)

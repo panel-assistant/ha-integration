@@ -63,6 +63,7 @@ from .removed_panels import (
     async_remember_removed_panel,
 )
 from .repairs_microphone import async_delete_microphone_issue
+from .repairs_removal import async_dismiss_removal_notification
 from .repairs_restart import async_setup_restart_check
 from .repairs_upgrade import (
     async_evaluate_app_too_old,
@@ -306,6 +307,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     def clear_foreign_ha_warning() -> None:
         if coordinator.connected:
             async_clear_foreign_ha_issue(hass, entry.entry_id)
+
+    async_dismiss_removal_notification(hass, entry.entry_id)
 
     clear_foreign_ha_warning()
     entry.async_on_unload(coordinator.async_add_listener(clear_foreign_ha_warning))

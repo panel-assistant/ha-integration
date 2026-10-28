@@ -988,10 +988,12 @@ async def test_device_action_waits_for_owner_confirmation_then_deletes_entry(
     hass_read_only_user: Any,
 ) -> None:
     """The device's button opens a Repair; only its Submit changes the panel."""
+    from homeassistant.components import persistent_notification
     from homeassistant.helpers import entity_registry as er
     from homeassistant.helpers import issue_registry as ir
     from homeassistant.setup import async_setup_component
 
+    from custom_components.panel_assistant.device import panel_display_name
     from custom_components.panel_assistant.repairs_removal import removal_issue_id
 
     from .test_native import _setup
@@ -1015,6 +1017,12 @@ async def test_device_action_waits_for_owner_confirmation_then_deletes_entry(
     assert "/go/removal-risks" in issue.learn_more_url
     assert fake.hand_back_requests == 0
     assert fake.installed == [PACKAGE_ID]
+    # Pressing must visibly answer: a notification points at the Repair.
+    notification_id = f"{DOMAIN}_remove_from_panel_{entry.entry_id}"
+    notices = persistent_notification._async_get_or_create_notifications(hass)
+    assert notification_id in notices
+    assert panel_display_name(hass, entry) in notices[notification_id]["message"]
+    assert "/config/repairs" in notices[notification_id]["message"]
 
     admin = await hass_client()
     response = await admin.post(
@@ -1033,6 +1041,7 @@ async def test_device_action_waits_for_owner_confirmation_then_deletes_entry(
     assert fake.read()["home"] == VENDOR_HOME
     assert hass.config_entries.async_get_entry(entry.entry_id) is None
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+    assert notification_id not in notices
 
 
 async def test_stale_address_never_removes_a_different_enrolled_panel(
@@ -1105,7 +1114,7 @@ async def test_deleted_entry_withdraws_an_open_removal_confirmation(
     fake, server = panel
     entry = _entry(hass, server)
     assert await async_setup_component(hass, "repairs", {})
-    async_request_removal(hass, entry)
+    await async_request_removal(hass, entry)
     admin = await hass_client()
     response = await admin.post(
         "/api/repairs/issues/fix",
@@ -1163,7 +1172,7 @@ async def test_uninstall_keeps_repair_until_entry_deletion_has_completed(
     fake, server = panel
     entry = _entry(hass, server)
     assert await async_setup_component(hass, "repairs", {})
-    async_request_removal(hass, entry)
+    await async_request_removal(hass, entry)
     admin = await hass_client()
     issue_id = removal_issue_id(entry.entry_id)
     response = await admin.post(
@@ -1252,7 +1261,7 @@ async def test_repair_keeps_request_when_home_assistant_declines_entry_deletion(
     assert await async_setup_component(hass, DOMAIN, {})
     fake, server = panel
     entry = _entry(hass, server)
-    async_request_removal(hass, entry)
+    await async_request_removal(hass, entry)
     issue_id = removal_issue_id(entry.entry_id)
     admin = await hass_client()
     response = await admin.post(
@@ -1532,7 +1541,7 @@ async def test_repair_keeps_failed_app_removal_retryable(
     fake, server = panel
     fake.set(fail_uninstall=[PACKAGE_ID])
     entry = _entry(hass, server)
-    async_request_removal(hass, entry)
+    await async_request_removal(hass, entry)
     issue_id = removal_issue_id(entry.entry_id)
     admin = await hass_client()
     response = await admin.post(
