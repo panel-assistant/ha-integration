@@ -1678,7 +1678,7 @@
         "step": {
           "confirm": {
             "title": "Rimuovi Panel Assistant da {panel}",
-            "description": "Prima Panel Assistant restituisce la schermata iniziale al launcher del pannello e riattiva le app del produttore che aveva disattivato; solo dopo si disinstalla. Le sue impostazioni sul pannello vengono eliminate.\n\nSu alcuni pannelli e versioni firmware, la rimozione non lascia alcun modo di tornare alle Impostazioni di Android o al debug di rete, quindi l'app non potrebbe essere reinstallata senza aprire il pannello. Leggi [cosa può comportare la rimozione per questo pannello]({risks_url}) prima di selezionare Invia.\n\nDopo la disinstallazione, questo pannello verrà eliminato anche da Home Assistant.\n\n[Ulteriori informazioni]({learn_more_url})"
+            "description": "Panel Assistant ripristina la schermata iniziale del pannello e le app e impostazioni del produttore che aveva modificato, poi si disinstalla ed elimina questo pannello da Home Assistant. Le sue impostazioni sul pannello vengono eliminate.\n\nPer rimuovere:\n1. Leggi [cosa può comportare la rimozione per questo pannello]({risks_url}). Alcuni pannelli perdono l'accesso alle Impostazioni di Android o al debug di rete, il che può impedire di reinstallare l'app senza aprire il pannello.\n2. Seleziona Invia per confermare la rimozione.\n\n[Scopri di più]({learn_more_url})"
           }
         },
         "error": {
@@ -1703,18 +1703,18 @@
         "step": {
           "update_webview": {
             "title": "Aggiorna il motore del browser",
-            "description": "{panel} ha un motore del browser precedente o un aggiornamento incompleto.\n\nSeleziona Invia per richiedere l’aggiornamento compatibile verificato o controllare un aggiornamento in corso. Configurazione e associazione restano disponibili. Se non è disponibile un programma di installazione autorizzato, segui la [guida WebView]({learn_more_url}).\n\n[Altre informazioni]({learn_more_url})"
+            "description": "{panel} ha un motore del browser precedente o un aggiornamento incompleto. Configurazione e associazione restano disponibili.\n\nPer risolvere:\n1. Leggi la [guida WebView]({learn_more_url}) se il pannello non ha un programma di installazione autorizzato.\n2. Seleziona Invia per richiedere l'aggiornamento compatibile verificato del pannello o controllare un aggiornamento già in corso.\n3. Se la verifica non riesce, segui la guida o invia di nuovo per riprovare.\n\n[Scopri di più]({learn_more_url})"
           }
         },
         "error": {
-          "webview_deferred": "L’aggiornamento non è stato verificato. La configurazione resta disponibile. Segui la guida o seleziona Invia per riprovare.",
+          "webview_deferred": "L'aggiornamento non è stato verificato. La configurazione resta disponibile. Segui la guida o seleziona Invia per riprovare.",
           "webview_unavailable": "Home Assistant non ha potuto verificare il risultato. Ricollega il pannello e seleziona Invia per controllare prima di riprovare."
         },
         "abort": {
           "entry_removed": "Questo pannello non è più configurato in Home Assistant.\n\nPer risolvere:\n1. [Apri i dispositivi di Panel Assistant](/config/integrations/integration/panel_assistant) se vuoi aggiungerlo di nuovo.\n2. Altrimenti, chiudi questa finestra.\n\n[Scopri di più]({learn_more_url})"
         },
         "progress": {
-          "updating_webview": "Aggiornamento del motore del browser e verifica del risultato.\n\nSe l’aggiornamento non termina, [apri la guida]({learn_more_url}).\n\n[Altre informazioni]({learn_more_url})"
+          "updating_webview": "Aggiornamento del motore del browser e verifica del risultato.\n\nPer risolvere:\n1. Tieni il pannello acceso; se l'aggiornamento non termina, [apri la guida]({learn_more_url}).\n\n[Scopri di più]({learn_more_url})"
         }
       }
     }
@@ -1755,7 +1755,7 @@
       },
       "remove_app": {
         "title": "Rimuovi Panel Assistant da {panel}",
-        "description": "Prima Panel Assistant restituisce la schermata iniziale al launcher del pannello e riattiva le app del produttore che aveva disattivato; solo dopo si disinstalla. Le sue impostazioni sul pannello vengono eliminate.\n\nSu alcuni pannelli e versioni firmware, la rimozione non lascia alcun modo di tornare alle Impostazioni di Android o al debug di rete, quindi l'app non potrebbe essere reinstallata senza aprire il pannello. Leggi [cosa può comportare la rimozione per questo pannello]({risks_url}) prima di selezionare Invia.\n\nDopo la disinstallazione, questo pannello verrà eliminato anche da Home Assistant."
+        "description": "Panel Assistant ripristina la schermata iniziale del pannello e le app e impostazioni del produttore che aveva modificato, poi si disinstalla ed elimina questo pannello da Home Assistant. Le sue impostazioni sul pannello vengono eliminate.\n\nSu alcuni pannelli e versioni firmware, la rimozione non lascia alcun modo di tornare alle Impostazioni di Android o al debug di rete, quindi l'app non potrebbe essere reinstallata senza aprire il pannello. Leggi [cosa può comportare la rimozione per questo pannello]({risks_url}) prima di selezionare Invia."
       }
     },
     "error": {

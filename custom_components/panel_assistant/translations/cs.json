@@ -1678,7 +1678,7 @@
         "step": {
           "confirm": {
             "title": "Odebrat Panel Assistant z panelu {panel}",
-            "description": "Panel Assistant nejprve vrátí domovskou obrazovku panelu jeho vlastnímu spouštěči a znovu zapne aplikace výrobce, které vypnul; teprve potom se odinstaluje. Jeho nastavení na panelu budou smazána.\n\nNa některých panelech a verzích firmwaru po odebrání nezůstane žádná cesta zpět do nastavení systému Android nebo k ladění po síti, takže aplikaci nebude možné znovu nainstalovat bez otevření panelu. Před výběrem možnosti Odeslat si přečtěte [jak může odebrání ovlivnit tento panel]({risks_url}).\n\nPo odinstalaci bude tento panel také odstraněn z Home Assistant.\n\n[Další informace]({learn_more_url})"
+            "description": "Panel Assistant obnoví domovskou obrazovku panelu a aplikace a nastavení výrobce, které změnil, potom se odinstaluje a odstraní tento panel z Home Assistant. Jeho nastavení na panelu budou smazána.\n\nPostup odebrání:\n1. Přečtěte si, [jak může odebrání ovlivnit tento panel]({risks_url}). Některé panely ztratí přístup k nastavení systému Android nebo k ladění po síti, což může znemožnit opětovnou instalaci aplikace bez otevření panelu.\n2. Zvolte Odeslat pro potvrzení odebrání.\n\n[Další informace]({learn_more_url})"
           }
         },
         "error": {
@@ -1703,18 +1703,18 @@
         "step": {
           "update_webview": {
             "title": "Aktualizovat prohlížeč",
-            "description": "{panel} má starší prohlížeč nebo nedokončenou aktualizaci.\n\nVyberte Odeslat pro vyžádání ověřené kompatibilní aktualizace nebo kontrolu probíhající aktualizace. Nastavení a párování zůstávají dostupné. Pokud není dostupný povolený instalátor, postupujte podle [návodu pro WebView]({learn_more_url}).\n\n[Další informace]({learn_more_url})"
+            "description": "{panel} má starší prohlížeč nebo nedokončenou aktualizaci. Nastavení a párování zůstávají dostupné.\n\nPostup opravy:\n1. Pokud panel nemá povolený instalátor, přečtěte si [návod pro WebView]({learn_more_url}).\n2. Zvolte Odeslat pro vyžádání ověřené kompatibilní aktualizace panelu nebo pro kontrolu již probíhající aktualizace.\n3. Pokud ověření selže, postupujte podle návodu nebo akci zopakujte opětovným odesláním.\n\n[Další informace]({learn_more_url})"
           }
         },
         "error": {
-          "webview_deferred": "Aktualizace nebyla ověřena. Nastavení zůstává dostupné. Postupujte podle návodu nebo vyberte Odeslat pro další pokus.",
-          "webview_unavailable": "Home Assistant nemohl ověřit výsledek. Znovu připojte panel a vyberte Odeslat pro kontrolu před dalším pokusem."
+          "webview_deferred": "Aktualizace nebyla ověřena. Nastavení zůstává dostupné. Postupujte podle návodu nebo zvolte Odeslat pro další pokus.",
+          "webview_unavailable": "Home Assistant nemohl ověřit výsledek. Znovu připojte panel a zvolte Odeslat pro kontrolu před dalším pokusem."
         },
         "abort": {
           "entry_removed": "Tento panel již není nastaven v Home Assistant.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant](/config/integrations/integration/panel_assistant), pokud ho chcete znovu přidat.\n2. Jinak tento dialog zavřete.\n\n[Další informace]({learn_more_url})"
         },
         "progress": {
-          "updating_webview": "Aktualizace prohlížeče a kontrola výsledku.\n\nPokud aktualizaci nelze dokončit, [otevřete návod]({learn_more_url}).\n\n[Další informace]({learn_more_url})"
+          "updating_webview": "Probíhá aktualizace prohlížeče a kontrola výsledku.\n\nPostup opravy:\n1. Nechte panel zapnutý; pokud aktualizaci nelze dokončit, [otevřete návod]({learn_more_url}).\n\n[Další informace]({learn_more_url})"
         }
       }
     }
@@ -1755,7 +1755,7 @@
       },
       "remove_app": {
         "title": "Odebrat Panel Assistant z panelu {panel}",
-        "description": "Panel Assistant nejprve vrátí domovskou obrazovku panelu jeho vlastnímu spouštěči a znovu zapne aplikace výrobce, které vypnul; teprve potom se odinstaluje. Jeho nastavení na panelu budou smazána.\n\nNa některých panelech a verzích firmwaru po odebrání nezůstane žádná cesta zpět do nastavení systému Android nebo k ladění po síti, takže aplikaci nebude možné znovu nainstalovat bez otevření panelu. Před výběrem možnosti Odeslat si přečtěte [jak může odebrání ovlivnit tento panel]({risks_url}).\n\nPo odinstalaci bude tento panel také odstraněn z Home Assistant."
+        "description": "Panel Assistant obnoví domovskou obrazovku panelu a aplikace a nastavení výrobce, které změnil, potom se odinstaluje a odstraní tento panel z Home Assistant. Jeho nastavení na panelu budou smazána.\n\nNa některých panelech a verzích firmwaru po odebrání nezůstane žádná cesta zpět do nastavení systému Android nebo k ladění po síti, takže aplikaci nebude možné znovu nainstalovat bez otevření panelu. Než zvolíte Odeslat, přečtěte si, [jak může odebrání ovlivnit tento panel]({risks_url})."
       }
     },
     "error": {

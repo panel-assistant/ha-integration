@@ -1678,7 +1678,7 @@
         "step": {
           "confirm": {
             "title": "从 {panel} 移除 Panel Assistant",
-            "description": "Panel Assistant 会先把主屏幕交还给面板自带的启动器，并重新启用它停用的厂商应用；之后才会将其卸载。它在面板上的设置会被删除。\n\n在某些面板和固件版本上，移除后将无法再回到 Android 设置或网络调试，因此不打开面板就无法再次安装该应用。选择“提交”之前，请阅读[移除可能对此面板造成的影响]({risks_url})。\n\n卸载应用后，此面板也将从 Home Assistant 中删除。\n\n[了解更多]({learn_more_url})"
+            "description": "Panel Assistant 会恢复面板的主屏幕以及它更改过的厂商应用和设置，然后卸载自身，并从 Home Assistant 中删除此面板。它在面板上的设置会被删除。\n\n移除步骤：\n1. 阅读[移除可能对此面板造成的影响]({risks_url})。某些面板会失去对 Android 设置或网络调试的访问，这可能导致不打开面板就无法重新安装该应用。\n2. 选择“提交”以确认移除。\n\n[了解更多]({learn_more_url})"
           }
         },
         "error": {
@@ -1703,7 +1703,7 @@
         "step": {
           "update_webview": {
             "title": "更新浏览器引擎",
-            "description": "{panel} 的浏览器引擎较旧，或有尚未完成的更新。\n\n选择“提交”以请求经过验证的兼容更新，或检查正在进行的更新。设置和配对仍然可用。如果面板没有获得授权的安装程序，请参阅 [WebView 指南]({learn_more_url})。\n\n[了解更多]({learn_more_url})"
+            "description": "{panel} 的浏览器引擎较旧，或有尚未完成的更新。设置和配对仍然可用。\n\n解决方法：\n1. 如果面板没有获得授权的安装程序，请阅读 [WebView 指南]({learn_more_url})。\n2. 选择“提交”以为面板请求经过验证的兼容更新，或检查正在进行的更新。\n3. 如果验证失败，请按照指南操作，或再次提交以重试。\n\n[了解更多]({learn_more_url})"
           }
         },
         "error": {
@@ -1714,7 +1714,7 @@
           "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})"
         },
         "progress": {
-          "updating_webview": "正在更新浏览器引擎并检查结果。\n\n如果更新无法完成，请[打开指南]({learn_more_url})。\n\n[了解更多]({learn_more_url})"
+          "updating_webview": "正在更新浏览器引擎并检查结果。\n\n解决方法：\n1. 请保持面板通电；如果更新无法完成，请[打开指南]({learn_more_url})。\n\n[了解更多]({learn_more_url})"
         }
       }
     }
@@ -1755,7 +1755,7 @@
       },
       "remove_app": {
         "title": "从 {panel} 移除 Panel Assistant",
-        "description": "Panel Assistant 会先把主屏幕交还给面板自带的启动器，并重新启用它停用的厂商应用；之后才会将其卸载。它在面板上的设置会被删除。\n\n在某些面板和固件版本上，移除后将无法再回到 Android 设置或网络调试，因此不打开面板就无法再次安装该应用。选择“提交”之前，请阅读[移除可能对此面板造成的影响]({risks_url})。\n\n卸载应用后，此面板也将从 Home Assistant 中删除。"
+        "description": "Panel Assistant 会恢复面板的主屏幕以及它更改过的厂商应用和设置，然后卸载自身，并从 Home Assistant 中删除此面板。它在面板上的设置会被删除。\n\n在某些面板和固件版本上，移除后将无法再回到 Android 设置或网络调试，因此不打开面板就无法再次安装该应用。选择“提交”之前，请阅读[移除可能对此面板造成的影响]({risks_url})。"
       }
     },
     "error": {

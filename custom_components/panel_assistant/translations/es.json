@@ -638,7 +638,7 @@
         "name": "Atrás"
       },
       "remove_from_panel": {
-        "name": "Eliminar de este panel"
+        "name": "Quitar de este panel"
       }
     },
     "event": {
@@ -1678,7 +1678,7 @@
         "step": {
           "confirm": {
             "title": "Quitar Panel Assistant de {panel}",
-            "description": "Primero Panel Assistant devuelve la pantalla de inicio al lanzador propio del panel y vuelve a activar las apps del fabricante que había desactivado; solo entonces se desinstala. Se eliminan sus ajustes en el panel.\n\nEn algunos paneles y versiones de firmware, quitarlo no deja forma de volver a los Ajustes de Android ni a la depuración por red, así que la app no podría volver a instalarse sin abrir el panel. Lee [lo que puede provocar quitarlo en este panel]({risks_url}) antes de seleccionar Enviar.\n\nDespués de desinstalar la aplicación, este panel también se eliminará de Home Assistant.\n\n[Más información]({learn_more_url})"
+            "description": "Panel Assistant restablece la pantalla de inicio del panel y las apps y ajustes del fabricante que había cambiado; después se desinstala y elimina este panel de Home Assistant. Se eliminan sus ajustes en el panel.\n\nPara quitarlo:\n1. Lee [lo que puede provocar quitarlo en este panel]({risks_url}). Algunos paneles pierden el acceso a los Ajustes de Android o a la depuración por red, lo que puede impedir volver a instalar la app sin abrir el panel.\n2. Selecciona Enviar para confirmar que quieres quitarlo.\n\n[Más información]({learn_more_url})"
           }
         },
         "error": {
@@ -1703,7 +1703,7 @@
         "step": {
           "update_webview": {
             "title": "Actualizar el motor del navegador",
-            "description": "{panel} tiene un motor de navegador antiguo o una actualización incompleta.\n\nSelecciona Enviar para solicitar la actualización compatible verificada o comprobar una actualización en curso. La configuración y la vinculación siguen disponibles. Si no hay un instalador autorizado, sigue la [guía de WebView]({learn_more_url}).\n\n[Más información]({learn_more_url})"
+            "description": "{panel} tiene un motor de navegador antiguo o una actualización incompleta. La configuración y la vinculación siguen disponibles.\n\nPara solucionarlo:\n1. Lee la [guía de WebView]({learn_more_url}) si el panel no tiene un instalador autorizado.\n2. Selecciona Enviar para solicitar la actualización compatible verificada del panel o comprobar una actualización en curso.\n3. Si la verificación falla, sigue la guía o vuelve a enviar para reintentarlo.\n\n[Más información]({learn_more_url})"
           }
         },
         "error": {
@@ -1714,7 +1714,7 @@
           "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant](/config/integrations/integration/panel_assistant) si quieres volver a añadirlo.\n2. En caso contrario, cierra este diálogo.\n\n[Más información]({learn_more_url})"
         },
         "progress": {
-          "updating_webview": "Actualizando el motor del navegador y comprobando el resultado.\n\nSi la actualización no puede terminar, [abre la guía]({learn_more_url}).\n\n[Más información]({learn_more_url})"
+          "updating_webview": "Actualizando el motor del navegador y comprobando el resultado.\n\nPara solucionarlo:\n1. Mantén el panel encendido; [abre la guía]({learn_more_url}) si la actualización no puede terminar.\n\n[Más información]({learn_more_url})"
         }
       }
     }
@@ -1728,7 +1728,7 @@
           "onboarding": "Continuar la configuración",
           "authorize_adb": "Permitir actualizaciones",
           "updates": "Actualizaciones del panel",
-          "remove_app": "Eliminar de este panel"
+          "remove_app": "Quitar de este panel"
         },
         "menu_option_descriptions": {
           "remove_app": "Devuelve la pantalla de inicio al lanzador propio del panel y luego desinstala la app."
@@ -1755,7 +1755,7 @@
       },
       "remove_app": {
         "title": "Quitar Panel Assistant de {panel}",
-        "description": "Primero Panel Assistant devuelve la pantalla de inicio al lanzador propio del panel y vuelve a activar las apps del fabricante que había desactivado; solo entonces se desinstala. Se eliminan sus ajustes en el panel.\n\nEn algunos paneles y versiones de firmware, quitarlo no deja forma de volver a los Ajustes de Android ni a la depuración por red, así que la app no podría volver a instalarse sin abrir el panel. Lee [lo que puede provocar quitarlo en este panel]({risks_url}) antes de seleccionar Enviar.\n\nDespués de desinstalar la aplicación, este panel también se eliminará de Home Assistant."
+        "description": "Panel Assistant restablece la pantalla de inicio del panel y las apps y ajustes del fabricante que había cambiado; después se desinstala y elimina este panel de Home Assistant. Se eliminan sus ajustes en el panel.\n\nEn algunos paneles y versiones de firmware, quitarlo no deja forma de volver a los Ajustes de Android ni a la depuración por red, así que la app no podría volver a instalarse sin abrir el panel. Lee [lo que puede provocar quitarlo en este panel]({risks_url}) antes de seleccionar Enviar."
       }
     },
     "error": {

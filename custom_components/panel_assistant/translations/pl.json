@@ -1678,7 +1678,7 @@
         "step": {
           "confirm": {
             "title": "Usuń Panel Assistant z panelu {panel}",
-            "description": "Najpierw Panel Assistant oddaje ekran główny własnemu launcherowi panelu i ponownie włącza wyłączone przez siebie aplikacje producenta; dopiero potem jest odinstalowywany. Jego ustawienia na panelu zostaną skasowane.\n\nNa niektórych panelach i wersjach firmware po usunięciu nie ma już drogi powrotu do Ustawień systemu Android ani do debugowania przez sieć, więc aplikacji nie da się zainstalować ponownie bez otwierania panelu. Zanim wybierzesz „Zatwierdź”, przeczytaj, [co usunięcie może zrobić z tym panelem]({risks_url}).\n\nPo odinstalowaniu aplikacji ten panel zostanie również usunięty z Home Assistant.\n\n[Dowiedz się więcej]({learn_more_url})"
+            "description": "Panel Assistant przywraca ekran główny panelu oraz zmienione przez siebie aplikacje i ustawienia producenta, a następnie odinstalowuje się i usuwa ten panel z Home Assistant. Jego ustawienia na panelu zostaną skasowane.\n\nAby usunąć:\n1. Przeczytaj, [co usunięcie może zrobić z tym panelem]({risks_url}). Niektóre panele tracą dostęp do Ustawień systemu Android lub debugowania przez sieć, co może uniemożliwić ponowną instalację aplikacji bez otwierania panelu.\n2. Wybierz Zatwierdź, aby potwierdzić usunięcie.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
         "error": {
@@ -1686,7 +1686,7 @@
           "removal_adb_unreachable": "Home Assistant nie mógł połączyć się z panelem przez Android Debug Bridge (port 5555). Nic nie zostało usunięte. Sprawdź, czy panel jest włączony, a debugowanie przez sieć nadal aktywne, i spróbuj ponownie.",
           "removal_adb_authorization": "Panel nie zaakceptował tej instancji Home Assistant dla Android Debug Bridge. Niczego nie usunięto. Najpierw wybierz „Zezwól na aktualizacje”, a następnie spróbuj ponownie.",
           "removal_panel_changed": "Pod adresem tego panelu odpowiada teraz inne urządzenie. Nic nie zostało usunięte.",
-          "removal_approval_required": "Wzmocnione zabezpieczenia są włączone, więc przekazanie ekranu głównego z powrotem wymaga zgody na samym panelu. Niczego nie zmieniono i Panel Assistant nadal jest zainstalowany. Zatwierdź prośbę na panelu, a następnie ponownie wybierz Zatwierdź.",
+          "removal_approval_required": "Wzmocnione zabezpieczenia są włączone, więc przekazanie ekranu głównego z powrotem wymaga zatwierdzenia na samym panelu. Niczego nie zmieniono i Panel Assistant nadal jest zainstalowany. Zatwierdź prośbę na panelu, a następnie ponownie wybierz Zatwierdź.",
           "removal_no_replacement_home": "Panel nie mógł oddać ekranu głównego innemu launcherowi: nie ma na nim innej aplikacji ekranu głównego, więc Panel Assistant to jedyne, co może wyświetlać. Nic nie zostało usunięte, a panel nadal działa. Zainstaluj launcher lub ponownie włącz launcher producenta i spróbuj ponownie.",
           "removal_ownership_unreadable": "Panel nie mógł odczytać własnego zapisu wyłączonych aplikacji producenta. Nic nie zostało usunięte. Uruchom ponownie Panel Assistant na panelu, a potem spróbuj jeszcze raz.",
           "removal_package_state_unknown": "Panel nie mógł odczytać, które aplikacje są zainstalowane ani która jest jego ekranem głównym. Nic nie zostało usunięte. Spróbuj ponownie za chwilę.",
@@ -1703,18 +1703,18 @@
         "step": {
           "update_webview": {
             "title": "Aktualizuj silnik przeglądarki",
-            "description": "{panel} ma starszy silnik przeglądarki lub niedokończoną aktualizację.\n\nWybierz Wyślij, aby poprosić o zweryfikowaną zgodną aktualizację lub sprawdzić trwającą aktualizację. Konfiguracja i parowanie pozostają dostępne. Jeśli nie ma dozwolonego instalatora, skorzystaj z [poradnika WebView]({learn_more_url}).\n\n[Więcej informacji]({learn_more_url})"
+            "description": "{panel} ma starszy silnik przeglądarki lub niedokończoną aktualizację. Konfiguracja i parowanie pozostają dostępne.\n\nAby rozwiązać problem:\n1. Jeśli panel nie ma dozwolonego instalatora, przeczytaj [poradnik WebView]({learn_more_url}).\n2. Wybierz Zatwierdź, aby poprosić o zweryfikowaną zgodną aktualizację panelu lub sprawdzić trwającą już aktualizację.\n3. Jeśli weryfikacja się nie powiedzie, skorzystaj z poradnika lub ponownie wybierz Zatwierdź, aby spróbować jeszcze raz.\n\n[Dowiedz się więcej]({learn_more_url})"
           }
         },
         "error": {
-          "webview_deferred": "Aktualizacja nie została potwierdzona. Konfiguracja pozostaje dostępna. Skorzystaj z poradnika lub wybierz Wyślij, aby spróbować ponownie.",
-          "webview_unavailable": "Home Assistant nie mógł sprawdzić wyniku. Połącz panel ponownie, a następnie wybierz Wyślij, aby sprawdzić przed ponowną próbą."
+          "webview_deferred": "Aktualizacja nie została zweryfikowana. Konfiguracja pozostaje dostępna. Skorzystaj z poradnika lub wybierz Zatwierdź, aby spróbować ponownie.",
+          "webview_unavailable": "Home Assistant nie mógł zweryfikować wyniku. Połącz panel ponownie, a następnie wybierz Zatwierdź, aby sprawdzić przed ponowną próbą."
         },
         "abort": {
           "entry_removed": "Ten panel nie jest już skonfigurowany w Home Assistant.\n\nAby rozwiązać problem:\n1. [Otwórz urządzenia Panel Assistant](/config/integrations/integration/panel_assistant), jeśli chcesz dodać go ponownie.\n2. W przeciwnym razie zamknij to okno.\n\n[Dowiedz się więcej]({learn_more_url})"
         },
         "progress": {
-          "updating_webview": "Aktualizowanie silnika przeglądarki i sprawdzanie wyniku.\n\nJeśli aktualizacja nie może się zakończyć, [otwórz poradnik]({learn_more_url}).\n\n[Więcej informacji]({learn_more_url})"
+          "updating_webview": "Aktualizowanie silnika przeglądarki i sprawdzanie wyniku.\n\nAby rozwiązać problem:\n1. Nie wyłączaj zasilania panelu; jeśli aktualizacja nie może się zakończyć, [otwórz poradnik]({learn_more_url}).\n\n[Dowiedz się więcej]({learn_more_url})"
         }
       }
     }
@@ -1755,7 +1755,7 @@
       },
       "remove_app": {
         "title": "Usuń Panel Assistant z panelu {panel}",
-        "description": "Najpierw Panel Assistant oddaje ekran główny własnemu launcherowi panelu i ponownie włącza wyłączone przez siebie aplikacje producenta; dopiero potem jest odinstalowywany. Jego ustawienia na panelu zostaną skasowane.\n\nNa niektórych panelach i wersjach firmware po usunięciu nie ma już drogi powrotu do Ustawień systemu Android ani do debugowania przez sieć, więc aplikacji nie da się zainstalować ponownie bez otwierania panelu. Zanim wybierzesz „Zatwierdź”, przeczytaj, [co usunięcie może zrobić z tym panelem]({risks_url}).\n\nPo odinstalowaniu aplikacji ten panel zostanie również usunięty z Home Assistant."
+        "description": "Panel Assistant przywraca ekran główny panelu oraz zmienione przez siebie aplikacje i ustawienia producenta, a następnie odinstalowuje się i usuwa ten panel z Home Assistant. Jego ustawienia na panelu zostaną skasowane.\n\nNa niektórych panelach i wersjach firmware po usunięciu nie ma już drogi powrotu do Ustawień systemu Android ani do debugowania przez sieć, więc aplikacji nie da się zainstalować ponownie bez otwierania panelu. Zanim wybierzesz Zatwierdź, przeczytaj, [co usunięcie może zrobić z tym panelem]({risks_url})."
       }
     },
     "error": {
