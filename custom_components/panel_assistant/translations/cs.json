@@ -147,7 +147,7 @@
       "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "already_configured": "Tento panel je již nastavený.",
       "reinstall_successful": "Aplikace byla znovu nainstalována. Tento panel si zachovává svou historii a nastavení v Home Assistant.",
-      "usb_installed": "Panel Assistant je nainstalován a panel byl přidán do Home Assistant. Dokončete nastavení panelu v okně instalátoru.",
+      "usb_installed": "Panel Assistant is installed and the panel has been added to Home Assistant. Finish setting up the panel in the window you opened for the install.",
       "reinstall_identity_mismatch": "Aplikace je nainstalovaná, ale nepodařilo se ji propojit se zachovaným panelem. Jeho historie a nastavení v Home Assistant byly zachovány. Před dalším pokusem zkontrolujte panel v Home Assistant.",
       "not_panel": "Toto není panel, na který může Panel Assistant instalovat.",
       "invalid_discovery": "Nepodařilo se prokázat, že nalezený panel je tatáž funkční instalace Panel Assistant. Žádný záznam v Home Assistant ani nastavení panelu se nezměnilo.",

@@ -306,6 +306,8 @@ test('the page says the install is finished once the installer hands the panel o
 
   assert.notEqual(f.element('status').textContent, HA_INSTALL_MESSAGES.failed);
   assert.equal(f.element('status').textContent, HA_INSTALL_MESSAGES.installed);
+  // The installer window becomes the panel's own setup page, so the text names no installer.
+  assert.doesNotMatch(f.element('status').textContent, /installer window/);
   assert.equal(f.element('status').hidden, false);
   assert.equal(f.element('start').hidden, true);
   assert.equal(f.element('versions').hidden, true);

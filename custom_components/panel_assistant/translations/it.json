@@ -147,7 +147,7 @@
       "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "already_configured": "Questo pannello è già configurato.",
       "reinstall_successful": "L’app è stata reinstallata. Questo pannello conserva la cronologia e le impostazioni in Home Assistant.",
-      "usb_installed": "Panel Assistant è installato e il pannello è stato aggiunto a Home Assistant. Completa la configurazione del pannello nella finestra dell'installer.",
+      "usb_installed": "Panel Assistant is installed and the panel has been added to Home Assistant. Finish setting up the panel in the window you opened for the install.",
       "reinstall_identity_mismatch": "L’app è installata, ma non è stato possibile collegarla al pannello conservato. La cronologia e le impostazioni in Home Assistant sono state conservate. Controlla il pannello in Home Assistant prima di riprovare.",
       "not_panel": "Non è un pannello su cui Panel Assistant possa eseguire l’installazione.",
       "invalid_discovery": "Il pannello rilevato non ha dimostrato di essere la stessa installazione sana di Panel Assistant. Non sono stati modificati né una voce di Home Assistant né impostazioni del pannello.",

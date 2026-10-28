@@ -147,7 +147,7 @@
       "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "already_configured": "此面板已配置。",
       "reinstall_successful": "应用已重新安装。此面板在 Home Assistant 中的历史记录和设置会保留。",
-      "usb_installed": "Panel Assistant 已安装，面板已添加到 Home Assistant。请在安装程序窗口中完成面板的设置。",
+      "usb_installed": "Panel Assistant is installed and the panel has been added to Home Assistant. Finish setting up the panel in the window you opened for the install.",
       "reinstall_identity_mismatch": "应用已安装，但无法关联到保留的面板。该面板在 Home Assistant 中的历史记录和设置已保留。请先在 Home Assistant 中检查此面板，再重试。",
       "not_panel": "这不是 Panel Assistant 可以在其上进行安装的面板。",
       "invalid_discovery": "发现的面板无法证明它是同一健康的 Panel Assistant 安装。未更改 Home Assistant 条目或面板设置。",

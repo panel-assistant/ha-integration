@@ -9,8 +9,10 @@ panel's HTTP client, so what the panel would receive is what is asserted.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from dataclasses import replace
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -248,6 +250,11 @@ async def test_the_usb_installer_dialog_finishes_when_the_panel_is_added(
     assert body["registration"] == ("already_configured" if added_by_hand else "added")
     finished = await (await endpoint.get(f"{_FLOWS}/{waiting}")).json()
     assert (finished["type"], finished["reason"]) == ("abort", "usb_installed")
+    # The installer window has become the panel's setup page by now.
+    root = Path(__file__).parents[1] / "custom_components" / DOMAIN
+    english = json.loads((root / "translations" / "en.json").read_text())
+    assert english == json.loads((root / "strings.json").read_text())
+    assert "installer window" not in english["config"]["abort"]["usb_installed"]
     # A dialog whose installer was never opened has nothing to finish.
     untouched = await (await endpoint.get(f"{_FLOWS}/{not_pressed}")).json()
     assert (untouched["type"], untouched["step_id"]) == ("form", "install_usb")
