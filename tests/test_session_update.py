@@ -68,6 +68,7 @@ from .test_lan_staged_update import (  # noqa: F401
 )
 from .test_management import MANAGED, STATUS_BODY, _http_blocked
 from .test_transport import DID, HEALTH, HELLO
+from .test_webview import observation
 
 _real_sleep = asyncio.sleep
 _STATUS = {**json.loads(STATUS_BODY), "install_capability": "api"}
@@ -226,6 +227,9 @@ class FakePanel:
             return True
         elif op == "install.apk.discard":
             answer = ("applied", None, {"ok": True})
+        elif op == "webview.observe":
+            # The successor app reports its WebView provider as already current.
+            answer = ("applied", None, observation(eligible=False))
         else:
             answer = ("refused", "unknown_command", None)
         await self._reply(ws, session, event, answer)
@@ -351,7 +355,8 @@ async def test_an_unreachable_panel_updates_over_its_session(
     assert panel.fetched == APK
     assert panel.ops.index("backup") < panel.ops.index("install.apk")
     assert panel.ops.index("install.apk") < panel.ops.index("install.apk.commit")
-    assert panel.ops[-1] == "status"
+    # After the app, the bundled WebView step observes the provider over the session.
+    assert panel.ops[-2:] == ["status", "webview.observe"]
     # The backup the panel uploaded is stored with its receipt.
     archives = [path for path in _backups(hass) if path.suffix == ".zip"]
     assert len(archives) == 1
