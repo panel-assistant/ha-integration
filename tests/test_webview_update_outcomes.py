@@ -272,3 +272,36 @@ async def test_unfinished_webview_names_the_webview_and_the_installed_app(
         "installed" in message
         and "installed" in text["fix_flow"]["step"]["init"]["description"]
     )
+
+
+async def test_recovered_webview_attempt_names_the_webview_after_a_restart(
+    hass: HomeAssistant,
+) -> None:
+    from custom_components.panel_assistant.repairs_failure import (
+        async_restore_update_failure,
+    )
+
+    issue_id = await _poll(hass, observation("deferred"), pending=False)
+    registry = ir.async_get(hass)
+    issue = registry.async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_key == "installer_failure_update_webview"
+    assert "issue=installer_failure_update" in (issue.learn_more_url or "")
+    entry_id = hass.config_entries.async_entries(DOMAIN)[0].entry_id
+    ir.async_delete_issue(hass, DOMAIN, issue_id)
+    # Home Assistant starts again with only the saved report.
+    await async_restore_update_failure(hass, entry_id)
+    restored = registry.async_get_issue(DOMAIN, issue_id)
+    assert restored is not None
+    assert restored.translation_key == "installer_failure_update_webview"
+
+
+async def test_plain_update_failure_keeps_the_update_wording(
+    hass: HomeAssistant,
+) -> None:
+    _, _, entry, issue_id = _native(hass)
+    await async_record_update_failure(
+        hass, entry.entry_id, "Panel", "0.9.10", RuntimeError("delivery failed")
+    )
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    assert issue is not None and issue.translation_key == "installer_failure_update"

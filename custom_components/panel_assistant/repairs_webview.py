@@ -79,7 +79,11 @@ async def async_reconcile_webview_issue(
             entry.entry_id,
             entry.title,
             None,
-            RuntimeError("The app is installed; its WebView update is unfinished"),
+            HomeAssistantError(
+                "The app is installed; its WebView update is unfinished",
+                translation_domain=DOMAIN,
+                translation_key="update_webview_unfinished",
+            ),
             webview_pending=True,
         )
     finally:

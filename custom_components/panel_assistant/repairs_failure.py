@@ -436,6 +436,9 @@ async def async_record_update_failure(
         event["observed_before"] = list(observed_before)
     if webview_pending:
         event["webview_pending"] = True
+    if isinstance(cause := getattr(error, "translation_key", None), str):
+        # A restart restores the same wording from the saved report.
+        event["translation_key"] = cause
     await _failure_store(hass).append(
         issue_id,
         event,
@@ -650,7 +653,7 @@ async def async_restore_update_failure(hass: HomeAssistant, entry_id: str) -> No
             (event for event in reversed(events) if isinstance(event, dict)), {}
         )
         kind = "retry_hold" if latest.get("kind") == "retry_hold" else "update"
-        reason = str(latest.get("reason", ""))
+        reason = str(latest.get("translation_key") or latest.get("reason", ""))
         _issue(hass, issue_id, panel_display_name(hass, entry), kind, reason, entry_id)
 
 
