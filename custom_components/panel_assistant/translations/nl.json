@@ -96,7 +96,8 @@
     },
     "progress": {
       "authorize_adb": "Kijk naar het scherm van het paneel op {address}: vink **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**. Android kan Home Assistant een computer noemen.\n\nDit gaat vanzelf verder zodra het paneel het toestaat.",
-      "installing": "Panel Assistant wordt geïnstalleerd op {address}. Houd dit dialoogvenster open; de bewerking wordt vanzelf afgerond.\n\nAls je het sluit, gaat de installatie door. Voeg hetzelfde adres opnieuw toe om af te ronden."
+      "installing": "Panel Assistant wordt geïnstalleerd op {address}. Houd dit dialoogvenster open; de bewerking wordt vanzelf afgerond.\n\nAls je het sluit, gaat de installatie door. Voeg hetzelfde adres opnieuw toe om af te ronden.",
+      "updating_webview": "Updating the panel's browser engine on {address}…"
     },
     "error": {
       "panel_setup_not_finished": "The panel has not finished its setup yet. Finish the setup page, then select Submit again.",

@@ -96,7 +96,8 @@
     },
     "progress": {
       "authorize_adb": "Sieh auf den Bildschirm des Panels unter {address}: Setze das Häkchen bei **Immer von diesem Computer aus zulassen** und tippe auf **Zulassen**. Android bezeichnet Home Assistant möglicherweise als Computer.\n\nSobald das Panel es zulässt, geht es von selbst weiter.",
-      "installing": "Panel Assistant wird unter {address} installiert. Lass diesen Dialog geöffnet; der Vorgang wird von selbst abgeschlossen.\n\nWenn du ihn schließt, läuft die Installation weiter. Füge dieselbe Adresse erneut hinzu, um den Vorgang abzuschließen."
+      "installing": "Panel Assistant wird unter {address} installiert. Lass diesen Dialog geöffnet; der Vorgang wird von selbst abgeschlossen.\n\nWenn du ihn schließt, läuft die Installation weiter. Füge dieselbe Adresse erneut hinzu, um den Vorgang abzuschließen.",
+      "updating_webview": "Updating the panel's browser engine on {address}…"
     },
     "error": {
       "panel_setup_not_finished": "The panel has not finished its setup yet. Finish the setup page, then select Submit again.",

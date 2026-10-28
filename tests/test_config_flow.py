@@ -8,7 +8,7 @@ from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import aiohttp
 import pytest
@@ -1033,6 +1033,7 @@ def _executor_for() -> SimpleNamespace:
     return SimpleNamespace(
         async_ensure_job=AsyncMock(return_value=None),
         async_wait=AsyncMock(),
+        is_updating_webview=MagicMock(return_value=False),
     )
 
 
@@ -1483,7 +1484,7 @@ async def test_install_progress_removal_detaches_without_cancelling_worker(
     worker_gate = asyncio.Event()
     worker = hass.async_create_task(worker_gate.wait())
 
-    async def _wait(_job_id: str) -> InstallJobReceipt:
+    async def _wait(_job_id: str, **_kwargs: Any) -> InstallJobReceipt:
         await asyncio.shield(worker)
         return receipt
 
@@ -1538,6 +1539,41 @@ async def test_install_progress_removal_detaches_without_cancelling_worker(
     executor.async_ensure_job.assert_awaited_once_with(receipt.job_id)
     assert not worker.cancelled()
     worker_gate.set()
+    await worker
+
+
+async def test_install_progress_says_when_it_updates_the_browser_engine(
+    hass: HomeAssistant,
+) -> None:
+    """The dialog names the browser-engine step while the worker runs it."""
+    receipt = _receipt(InstallPhase.DOWNLOADING)
+    gate = asyncio.Event()
+    worker = hass.async_create_task(gate.wait())
+
+    async def _wait(_job_id: str, *, until_webview: bool = False) -> Any:
+        if not until_webview:
+            await asyncio.shield(worker)
+        return receipt
+
+    executor = _executor_for()
+    executor.async_ensure_job.return_value = worker
+    executor.async_wait.side_effect = _wait
+    executor.is_updating_webview.return_value = True
+    flow = HaPaneldConfigFlow()
+    flow.hass = hass
+    flow.flow_id = "flow-webview"
+    with patch(
+        "custom_components.panel_assistant.config_flow.async_get_install_executor",
+        AsyncMock(return_value=executor),
+    ):
+        first = await flow._async_show_install_progress(receipt)
+        assert first["progress_action"] == "installing"
+        await asyncio.sleep(0)
+        during = await flow.async_step_install_progress()
+
+    assert during["type"] is FlowResultType.SHOW_PROGRESS
+    assert during["progress_action"] == "updating_webview"
+    gate.set()
     await worker
 
 
@@ -1638,7 +1674,7 @@ async def test_existing_job_reattaches_before_any_panel_or_release_contact(
     manager.async_find_active.return_value = receipt
     wait_gate = asyncio.Event()
 
-    async def _wait(_job_id: str) -> InstallJobReceipt:
+    async def _wait(_job_id: str, **_kwargs: Any) -> InstallJobReceipt:
         await wait_gate.wait()
         return receipt
 

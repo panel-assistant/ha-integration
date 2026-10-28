@@ -96,7 +96,8 @@
     },
     "progress": {
       "authorize_adb": "Guarda lo schermo del pannello all'indirizzo {address}: seleziona **Consenti sempre da questo computer**, poi tocca **Consenti**. Android potrebbe descrivere Home Assistant come un computer.\n\nL'operazione prosegue da sola quando il pannello lo consente.",
-      "installing": "Installazione di Panel Assistant all’indirizzo {address}. Tieni aperta questa finestra di dialogo; l’operazione termina da sola.\n\nSe la chiudi, l’installazione continua. Aggiungi di nuovo lo stesso indirizzo per completare l’operazione."
+      "installing": "Installazione di Panel Assistant all’indirizzo {address}. Tieni aperta questa finestra di dialogo; l’operazione termina da sola.\n\nSe la chiudi, l’installazione continua. Aggiungi di nuovo lo stesso indirizzo per completare l’operazione.",
+      "updating_webview": "Updating the panel's browser engine on {address}…"
     },
     "error": {
       "panel_setup_not_finished": "The panel has not finished its setup yet. Finish the setup page, then select Submit again.",

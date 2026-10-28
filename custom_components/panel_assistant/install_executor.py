@@ -257,6 +257,9 @@ class InstallExecutor:
         self._lock = asyncio.Lock()
         self._resume_lock = asyncio.Lock()
         self._tasks: dict[str, asyncio.Task[None]] = {}
+        # Jobs whose worker has reached the browser-engine step, so a waiting
+        # dialog can say so while that step runs.
+        self._webview_steps: dict[str, asyncio.Event] = {}
         self._finalizers: dict[str, _FinalizerLease] = {}
         # A cancelled worker may have been interrupted inside a mutation phase.
         # Never restart it in the same process, whose manager still owns the old
@@ -288,12 +291,38 @@ class InstallExecutor:
             task.add_done_callback(partial(self._worker_done, job_id))
             return task
 
-    async def async_wait(self, job_id: str) -> InstallJobReceipt:
-        """Wait for current progress without giving the caller worker ownership."""
+    async def async_wait(
+        self, job_id: str, *, until_webview: bool = False
+    ) -> InstallJobReceipt:
+        """Wait for current progress without giving the caller worker ownership.
+
+        With ``until_webview`` the wait also ends when the worker starts
+        updating the panel's browser engine, so the dialog can say so.
+        """
         task = await self.async_ensure_job(job_id)
         if task is not None:
-            await asyncio.shield(task)
+            if until_webview:
+                step = self._webview_step(job_id)
+                reached = asyncio.ensure_future(step.wait())
+                try:
+                    await asyncio.wait(
+                        {task, reached}, return_when=asyncio.FIRST_COMPLETED
+                    )
+                finally:
+                    reached.cancel()
+            else:
+                await asyncio.shield(task)
         return await self._manager.async_get(job_id)
+
+    def _webview_step(self, job_id: str) -> asyncio.Event:
+        return self._webview_steps.setdefault(job_id, asyncio.Event())
+
+    def is_updating_webview(self, job_id: str) -> bool:
+        """Whether the job's live worker is in its browser-engine step."""
+        task = self._tasks.get(job_id)
+        return (
+            task is not None and not task.done() and self._webview_step(job_id).is_set()
+        )
 
     async def async_resume_loaded_jobs(self) -> tuple[str, ...]:
         """Resume durable jobs because an existing integration entry loaded us.
@@ -972,6 +1001,7 @@ class InstallExecutor:
                         # convenience that did not.
                         from .webview import async_provision_webview
 
+                        self._webview_step(receipt.job_id).set()
                         await async_provision_webview(
                             panel, f"pa-install-{receipt.job_id}"
                         )

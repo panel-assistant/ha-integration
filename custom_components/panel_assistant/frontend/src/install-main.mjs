@@ -296,6 +296,12 @@ install.addEventListener('click', async () => {
   try { await installAll(); } catch (error) { fail(error); } finally { busy = false; }
 });
 
+// The line shown once the engine step ends: "updated" only for a confirmed
+// install, otherwise "left as it is"; a failure has its own Repair.
+function webViewOutcomeKey(outcome) {
+  return outcome === 'installed' ? 'stepWebViewUpdated' : 'stepWebViewKept';
+}
+
 // The controller runs the whole install, permissions included, under the one
 // consent; this screen only shows its progress and then hands over to the
 // panel's own setup.
@@ -308,8 +314,11 @@ async function installAll() {
   ensureCurrent();
   support('permissions', installed.permissions);
 
-  support('webview', await provisionUsbWebView(sessionAdb, `pa-usb-${installed.receipt.id}`,
-    { ensureCurrent, quarantine }));
+  progress('stepWebView', 95);
+  const webView = await provisionUsbWebView(sessionAdb, `pa-usb-${installed.receipt.id}`,
+    { ensureCurrent, quarantine });
+  support('webview', webView);
+  progress(webViewOutcomeKey(webView), 97);
 
   progress('stepOpening', 100);
   const url = await readSetupUrl(sessionAdb, newNonce);

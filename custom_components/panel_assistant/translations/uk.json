@@ -96,7 +96,8 @@
     },
     "progress": {
       "authorize_adb": "Подивіться на екран панелі за адресою {address}: позначте **Завжди дозволяти з цього комп’ютера**, потім торкніться **Дозволити**. Android може називати Home Assistant комп’ютером.\n\nКоли панель дозволить, процес продовжиться сам.",
-      "installing": "Встановлення Panel Assistant за адресою {address}. Залиште цей діалог відкритим; операція завершиться автоматично.\n\nЯкщо ви закриєте його, встановлення триватиме. Додайте ту саму адресу ще раз, щоб завершити операцію."
+      "installing": "Встановлення Panel Assistant за адресою {address}. Залиште цей діалог відкритим; операція завершиться автоматично.\n\nЯкщо ви закриєте його, встановлення триватиме. Додайте ту саму адресу ще раз, щоб завершити операцію.",
+      "updating_webview": "Updating the panel's browser engine on {address}…"
     },
     "error": {
       "panel_setup_not_finished": "The panel has not finished its setup yet. Finish the setup page, then select Submit again.",

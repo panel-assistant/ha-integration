@@ -96,7 +96,8 @@
     },
     "progress": {
       "authorize_adb": "请查看位于 {address} 的面板屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。\n\n面板允许后，将自动继续。",
-      "installing": "正在 {address} 上安装 Panel Assistant。请保持此对话框打开；操作会自动完成。\n\n如果关闭对话框，安装仍会继续。请再次添加同一地址以完成操作。"
+      "installing": "正在 {address} 上安装 Panel Assistant。请保持此对话框打开；操作会自动完成。\n\n如果关闭对话框，安装仍会继续。请再次添加同一地址以完成操作。",
+      "updating_webview": "Updating the panel's browser engine on {address}…"
     },
     "error": {
       "panel_setup_not_finished": "The panel has not finished its setup yet. Finish the setup page, then select Submit again.",

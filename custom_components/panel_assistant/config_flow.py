@@ -202,6 +202,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     _pending_install_target: PinnedPanelTarget | None = None
     _pending_job_id: str | None = None
     _progress_waiter: asyncio.Task[InstallJobReceipt] | None = None
+    _progress_action = "installing"
     _authorization_task: asyncio.Task[InstallTargetProbe] | None = None
     _authorization_errors: dict[str, str] | None = None
     _install_executor: InstallExecutor | None = None
@@ -1196,8 +1197,9 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             # create an unbounded progress callback loop.
             return self.async_abort(reason="install_worker_stopped")
 
+        self._progress_action = "installing"
         self._progress_waiter = self.hass.async_create_task(
-            executor.async_wait(receipt.job_id),
+            executor.async_wait(receipt.job_id, until_webview=True),
             f"wait for ha-paneld install {receipt.job_id}",
         )
         return self.async_show_progress(
@@ -1214,10 +1216,25 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         if self._pending_job_id is None:
             return self.async_show_progress_done(next_step_id="install_result")
         waiter = self._progress_waiter
+        executor = self._install_executor
+        if (
+            waiter is not None
+            and waiter.done()
+            and executor is not None
+            and self._progress_action == "installing"
+            and executor.is_updating_webview(self._pending_job_id)
+        ):
+            # The worker is updating the panel's browser engine; say so, then
+            # wait for the rest of the job.
+            self._progress_action = "updating_webview"
+            waiter = self._progress_waiter = self.hass.async_create_task(
+                executor.async_wait(self._pending_job_id),
+                f"wait for ha-paneld install {self._pending_job_id}",
+            )
         if waiter is not None and not waiter.done():
             return self.async_show_progress(
                 step_id="install_progress",
-                progress_action="installing",
+                progress_action=self._progress_action,
                 description_placeholders={
                     "address": (
                         self._pending_address.stored_value
