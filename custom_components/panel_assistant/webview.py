@@ -44,11 +44,7 @@ class WebViewStatus:
         return (
             self.supported
             and self.candidate_sha256 is not None
-            and (
-                self.eligible
-                or self.reason == "no_install_route"
-                or self.transaction_state in ATTENTION_STATES
-            )
+            and (self.eligible or self.transaction_state in ATTENTION_STATES)
         )
 
     @property
