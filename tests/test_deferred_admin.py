@@ -30,6 +30,7 @@ from custom_components.panel_assistant.client import (
 )
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.coordinator import HaPaneldDataUpdateCoordinator
+from custom_components.panel_assistant.home_chooser import CHOOSER_DUMP
 from custom_components.panel_assistant.panel_operations import (
     claim_panel_operation,
     release_panel_operation,
@@ -74,7 +75,15 @@ async def panel(
         change_entry=False,
         vendor_passes=0,
         vendor_drop=False,
+        pause_at=None,
+        paused=asyncio.Event(),
+        resume=asyncio.Event(),
     )
+
+    async def pause_at(boundary: str) -> None:
+        if state.pause_at == boundary:
+            state.paused.set()
+            await state.resume.wait()
 
     async def health(_client: HaPaneldClient) -> PanelHealth:
         if (tmp_path / "home_ack").exists():
@@ -127,6 +136,7 @@ async def panel(
 
         async def connect(self, **_kwargs: Any) -> bool:
             state.connections += 1
+            await pause_at("connect")
             return True
 
         async def close(self) -> None:
@@ -139,6 +149,7 @@ async def panel(
                 yield _identity_root_output(match[1], serial=state.serial)
                 return
             if "HAPANELD_PACKAGE_BEGIN" in command:
+                await pause_at("package")
                 yield _single_output(
                     "PACKAGE", match[1], ["package:/data/app/panel/base.apk"], 0
                 )
@@ -147,7 +158,12 @@ async def panel(
                 "HAPANELD_PERMISSIONS_BEGIN" in command
                 or "HAPANELD_NOTIFICATIONS_BEGIN" in command
             ):
-                yield _run_on_stand_in_panel(command, tmp_path)
+                if "HAPANELD_NOTIFICATIONS_BEGIN" in command:
+                    await pause_at("notifications")
+                yield _run_on_stand_in_panel(
+                    command.replace(CHOOSER_DUMP, str(tmp_path / "chooser-dump.xml")),
+                    tmp_path,
+                )
                 return
             if "HAPANELD_VENDOR_BEGIN" in command:
                 state.vendor_passes += 1
@@ -266,9 +282,12 @@ async def test_admin_never_races_another_panel_operation_or_changed_identity(
     assert panel.coordinator.last_update_success
 
 
+@pytest.mark.parametrize("native_home", [False, True], ids=["shell", "native"])
 async def test_completion_pending_home_claims_once_and_handback_survives_ha_reload(
-    panel: Any, hass: HomeAssistant
+    panel: Any, hass: HomeAssistant, native_home: bool
 ) -> None:
+    if native_home:
+        (panel.directory / "native.home").touch()
     previous = "com.vendor.launcher/.Home"
     (panel.directory / "home").write_text(previous + "\n")
     (panel.directory / "incomplete.setup").touch()
@@ -301,6 +320,151 @@ async def test_completion_pending_home_claims_once_and_handback_survives_ha_relo
     assert (panel.directory / "home").read_text().strip() == previous
     assert panel.state.vendor_passes == 0
     assert panel.state.connections == panel.state.closes == connections + 1
+
+
+@pytest.mark.parametrize("boundary", ["connect", "package", "notifications"])
+async def test_delayed_setup_completion_preserves_later_owner_home_handback(
+    panel: Any, hass: HomeAssistant, boundary: str
+) -> None:
+    """Run the coordinator and its shell; Android and Configure are stand-ins."""
+    previous = "com.vendor.launcher/.Home"
+    own = f"{PACKAGE}/.DashboardActivity"
+    (panel.directory / "home").write_text(previous + "\n")
+    panel.state.health = replace(
+        panel.state.health, setup_complete=True, home_pending=True
+    )
+    panel.state.pause_at = boundary
+    refresh = asyncio.create_task(panel.coordinator.async_refresh())
+    try:
+        async with asyncio.timeout(5):
+            await panel.state.paused.wait()
+        # The real coordinator is already acting on completed/pending health.
+        # Simulate native completion followed by successful Configure handback
+        # while its ADB operation is suspended. Native/controller behavior is
+        # covered in the app tests; these writes are not native execution proof.
+        assert panel.state.connections == 1
+        (panel.directory / "home").write_text(own + "\n")
+        (panel.directory / "home_ack").touch()
+        panel.state.health = replace(panel.state.health, home_pending=False)
+        (panel.directory / "home").write_text(previous + "\n")
+    finally:
+        panel.state.resume.set()
+        await refresh
+
+    assert panel.coordinator.last_update_success
+    assert (panel.directory / "home").read_text().strip() == previous
+    assert (panel.directory / "admin").exists()
+    assert panel.state.vendor_passes == 0
+    assert panel.state.connections == panel.state.closes == 1
+    assert not any(
+        line.startswith("cmd package set-home-activity")
+        for line in (panel.directory / "calls").read_text().splitlines()
+    )
+
+    # Polling and HA reload preserve the owner's choice after the delayed work
+    # returns, as well as at the instant it resumes.
+    await panel.coordinator.async_refresh()
+    reloaded = HaPaneldDataUpdateCoordinator(
+        hass, panel.coordinator.client, panel.entry.entry_id
+    )
+    await reloaded.async_refresh()
+    assert reloaded.last_update_success
+    assert (panel.directory / "home").read_text().strip() == previous
+    assert panel.state.vendor_passes == 0
+    assert panel.state.connections == panel.state.closes == 2
+
+
+async def test_owner_handback_after_native_claim_receipt_prevents_shell_reclaim(
+    panel: Any,
+) -> None:
+    """A successful native receipt must not authorize a later shell takeover."""
+    previous = "com.vendor.launcher/.Home"
+    (panel.directory / "home").write_text(previous + "\n")
+    (panel.directory / "native.home").touch()
+    (panel.directory / "prop.ro.product.device").write_text("omni\n")
+    (panel.directory / "handback.after.home.authority").write_text(previous + "\n")
+    panel.state.health = replace(
+        panel.state.health, setup_complete=True, home_pending=True
+    )
+
+    await panel.coordinator.async_refresh()
+
+    assert (panel.directory / "handback.done").exists()
+    assert panel.coordinator.last_update_success
+    assert (panel.directory / "home").read_text().strip() == previous
+    assert panel.state.vendor_passes == 0
+    assert panel.state.connections == panel.state.closes == 1
+    assert not any(
+        line.startswith("cmd package set-home-activity")
+        for line in (panel.directory / "calls").read_text().splitlines()
+    )
+
+
+@pytest.mark.parametrize("receiver", ["legacy.receiver", "receiver.absent"])
+async def test_deferred_setup_never_uses_legacy_home_authority(
+    panel: Any, receiver: str
+) -> None:
+    previous = "com.vendor.launcher/.Home"
+    (panel.directory / "home").write_text(previous + "\n")
+    (panel.directory / receiver).touch()
+    panel.state.health = replace(
+        panel.state.health, setup_complete=True, home_pending=True
+    )
+    await panel.coordinator.async_refresh()
+    assert panel.coordinator.last_update_success
+    assert (panel.directory / "admin").exists()
+    assert (panel.directory / "home").read_text().strip() == previous
+    assert not (panel.directory / "home_ack").exists()
+
+
+async def test_rootless_setup_rechecks_pending_after_shell_offer(panel: Any) -> None:
+    previous = "com.vendor.launcher/.Home"
+    (panel.directory / "home").write_text(previous + "\n")
+    (panel.directory / "handback.after.shell.offer").write_text(previous + "\n")
+    panel.state.health = replace(
+        panel.state.health, setup_complete=True, home_pending=True
+    )
+    await panel.coordinator.async_refresh()
+    assert (panel.directory / "handback.done").exists()
+    assert panel.coordinator.last_update_success
+    assert (panel.directory / "home").read_text().strip() == previous
+    assert not any(
+        line.startswith("cmd package set-home-activity")
+        for line in (panel.directory / "calls").read_text().splitlines()
+    )
+
+
+@pytest.mark.parametrize("handback", [False, True], ids=["still_pending", "revoked"])
+async def test_rootless_setup_chooser_uses_current_pending_intent(
+    panel: Any, handback: bool
+) -> None:
+    previous = "com.vendor.launcher/.Home"
+    own = f"{PACKAGE}/.DashboardActivity"
+    chooser = Path(__file__).parent / "fixtures" / "portal_home_chooser.xml"
+    (panel.directory / "home").write_text(
+        "android/com.android.internal.app.ResolverActivity\n"
+    )
+    (panel.directory / "refuse.home").touch()
+    (panel.directory / "chooser.xml").write_text(chooser.read_text())
+    (panel.directory / "chooser.tap").write_text("817 623\n")
+    (panel.directory / "chooser.home").write_text(own + "\n")
+    if handback:
+        (panel.directory / "handback.during.chooser").write_text(previous + "\n")
+    panel.state.health = replace(
+        panel.state.health, setup_complete=True, home_pending=True
+    )
+    await panel.coordinator.async_refresh()
+    assert panel.coordinator.last_update_success
+    assert (panel.directory / "chooser.shown").exists()
+    assert (panel.directory / "home").read_text().strip() == (
+        previous if handback else own
+    )
+    taps = [
+        line
+        for line in (panel.directory / "calls").read_text().splitlines()
+        if line.startswith("input tap")
+    ]
+    assert taps == ([] if handback else ["input tap 817 623"])
 
 
 async def test_native_completed_home_receives_vendor_pass_without_reclaiming_home(

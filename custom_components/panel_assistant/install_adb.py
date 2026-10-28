@@ -1033,8 +1033,10 @@ async def _async_repair_app_permissions(
     target: AdbInstallTarget,
     package_id: str,
     launch_component: str,
+    *,
+    deferred_setup: bool = False,
 ) -> None:
-    """Share observed grant repair between startup and an already-running update."""
+    """Repair grants, retaining the caller's authority for HOME acquisition."""
     nonce = token_hex(16)
     _parse_package_present(
         await _async_shell(
@@ -1067,7 +1069,9 @@ async def _async_repair_app_permissions(
     grant = _parse_permission_grant(
         await _async_shell(
             device,
-            _permission_grant_command(nonce, package_id, launch_component),
+            _permission_grant_command(
+                nonce, package_id, launch_component, deferred_setup=deferred_setup
+            ),
             # Pressing a HOME chooser's Always waits on the panel's UI dump.
             read_timeout=_INSTALL_READ_TIMEOUT_SECONDS,
         ),
@@ -1081,7 +1085,11 @@ async def _async_repair_app_permissions(
             package_id,
             grant.chooser or "unread",
         )
-    if grant.vendor_setup and grant.chooser != "deferred":
+    if (
+        grant.vendor_setup
+        and grant.chooser != "deferred"
+        and (not deferred_setup or grant.home)
+    ):
         await _async_vendor_setup(device)
     if not grant.granted:
         _LOGGER.warning(

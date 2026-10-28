@@ -47,12 +47,50 @@ from .test_install_adb import (  # noqa: F401 - fixtures resolve by parameter na
 )
 
 _STAND_IN_PANEL = r"""
+handback_after_home_authority() {
+  handback=${1:-handback.after.home.authority}
+  if [ -f "$STATE/$handback" ]; then
+    # Simulated native completion followed by a successful owner handback.
+    touch "$STATE/home_ack" "$STATE/handback.done"
+    cp "$STATE/$handback" "$STATE/home"
+  fi
+}
 am() {
   case "$*" in
+    *"operation claim_pending_home"*)
+      if [ -f "$STATE/incomplete.setup" ] || [ -f "$STATE/home_ack" ] ||
+          [ -f "$STATE/legacy.receiver" ] || [ -f "$STATE/receiver.absent" ]; then
+        echo "Broadcast completed: result=0"
+      elif [ -f "$STATE/native.home" ]; then
+        while [ "$#" -ge 3 ]; do
+          if [ "$1 $2" = "--es home_component" ]; then
+            pkg=${3%%/*}; cls=${3#*/}
+            case "$cls" in "$pkg".*) cls=${cls#"$pkg"} ;; esac
+            echo "$pkg/$cls" > "$STATE/home"
+            touch "$STATE/home_ack"
+            break
+          fi
+          shift
+        done
+        handback_after_home_authority
+        echo 'Broadcast completed: result=1,' \
+          'data="panel-assistant-pending-home-claimed"'
+      else
+        handback_after_home_authority handback.after.shell.offer
+        echo 'Broadcast completed: result=2, data="panel-assistant-pending-home-shell"'
+      fi ;;
+    *"operation pending_home_shell_eligibility"*)
+      if [ -f "$STATE/incomplete.setup" ] || [ -f "$STATE/home_ack" ] ||
+          [ -f "$STATE/native.home" ]; then
+        echo "Broadcast completed: result=0"
+      else
+        echo 'Broadcast completed: result=1, data="panel-assistant-pending-home-shell"'
+      fi ;;
     *"operation setup_eligibility"*)
       if [ -f "$STATE/legacy.receiver" ]; then echo "Broadcast completed: result=1"
       elif [ -f "$STATE/incomplete.setup" ]; then echo "Broadcast completed: result=0"
       else
+        handback_after_home_authority
         echo 'Broadcast completed: result=1, data="panel-assistant-setup-eligible"'
       fi ;;
     *"operation acknowledge_home"*)
@@ -129,7 +167,10 @@ input() {
   fi
 }
 uiautomator() {
-  if [ -f "$STATE/chooser.shown" ]; then cp "$STATE/chooser.xml" "$2"; fi
+  if [ -f "$STATE/chooser.shown" ]; then
+    cp "$STATE/chooser.xml" "$2"
+    handback_after_home_authority handback.during.chooser
+  fi
 }
 pm() {
   if [ "$1" = path ]; then
@@ -540,6 +581,50 @@ async def _launch_on(
     )
     assert outcome is LaunchOutcome.STARTED
     return fake
+
+
+@pytest.mark.parametrize("operation", ["install_launch", "update_repair"])
+async def test_explicit_install_and_update_repair_home_without_pending_setup(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    successor_descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    operation: str,
+) -> None:
+    installed = replace(
+        successor_descriptor,
+        launch_component=LAUNCH_COMPONENTS[successor_descriptor.package_id][-1],
+    )
+    # Setup has previously finished, and a subsequent handback returned HOME.
+    # Explicit supported install/update repair still has broader authority than
+    # the automatic coordinator's completion of a pending first setup.
+    (tmp_path / "home_ack").touch()
+    (tmp_path / "home").write_text("com.vendor.launcher/.Home\n")
+    for _ in range(2):
+        fake = _RoutingFakeDevice(tmp_path)
+        _install_fakes(monkeypatch, [fake])
+        if operation == "install_launch":
+            result = await async_launch_installed_app(
+                target, signer, installed, expected_root_mode=AdbRootMode.ROOTLESS
+            )
+            assert result is LaunchOutcome.STARTED
+        else:
+            await install_adb.async_repair_installed_app_permissions(
+                target, signer, installed, expected_root_mode=AdbRootMode.ROOTLESS
+            )
+        assert _panel_value(tmp_path, "home") == f"{PACKAGE_ID}/.DashboardActivity"
+        assert _panel_value(tmp_path, f"appop.{PACKAGE_ID}.WRITE_SETTINGS") == "allow"
+        assert (
+            _panel_value(tmp_path, f"appop.{PACKAGE_ID}.SYSTEM_ALERT_WINDOW") == "allow"
+        )
+    assert (
+        sum(
+            line.startswith("cmd package set-home-activity")
+            for line in (tmp_path / "calls").read_text().splitlines()
+        )
+        == 1
+    )
 
 
 @pytest.mark.parametrize("identity", list(_CLASS_SETS))

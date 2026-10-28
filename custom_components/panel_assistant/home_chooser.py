@@ -51,8 +51,10 @@ _QUIET: Final = ">/dev/null 2>&1"
 _ALWAYS: Final = 'resource-id="android:id/button_always"'
 
 
-def home_claim_command(launch_component: str) -> str:
-    """Shell text that claims HOME for this build's dashboard and sets hp_chooser."""
+def home_claim_command(
+    launch_component: str, *, claim_allowed: str | None = None
+) -> str:
+    """Claim HOME and set hp_chooser, rechecking optional automatic authority."""
     homes = "|".join(
         f"'{name}'" for name in EQUIVALENT_HOME_COMPONENTS[launch_component]
     )
@@ -61,6 +63,14 @@ def home_claim_command(launch_component: str) -> str:
         f"*'{label}'*" for label in APP_LABELS[launch_component.partition("/")[0]]
     )
     dump = CHOOSER_DUMP
+    tap = (
+        "input tap $(((hp_l+hp_r)/2)) $(((hp_t+hp_b)/2)) "
+        f"{_QUIET}; hp_chooser=tapped; sleep 1"
+    )
+    if claim_allowed is not None:
+        # Chooser discovery waits on Android. Re-read automatic setup intent
+        # immediately before pressing Always, after those waits.
+        tap = f"if {claim_allowed}; then {tap}; else hp_chooser=deferred; fi"
     chooser = "; ".join(
         (
             "hp_chooser=no_button",
@@ -88,8 +98,7 @@ def home_claim_command(launch_component: str) -> str:
             "hp_l=${hp_box%% *}; hp_box=${hp_box#* }; hp_t=${hp_box%% *}; "
             "hp_box=${hp_box#* }; hp_r=${hp_box%% *}; hp_b=${hp_box#* }; "
             'if [ "$hp_r" -gt "$hp_l" ] && [ "$hp_b" -gt "$hp_t" ]; then '
-            "input tap $(((hp_l+hp_r)/2)) $(((hp_t+hp_b)/2)) "
-            f"{_QUIET}; hp_chooser=tapped; sleep 1; fi ;; "
+            f"{tap}; fi ;; "
             "*) hp_chooser=other_app ;; esac; fi",
             # Always opens the dashboard itself. Otherwise the chooser is
             # dismissed, which returns the panel to the app it showed before;
@@ -99,10 +108,12 @@ def home_claim_command(launch_component: str) -> str:
             f"input keyevent 4 {_QUIET} ;; esac; fi",
         )
     )
-    return (
-        f'case "$({HOME_QUERY})" in {homes}) hp_chooser=kept ;; '
-        f"*) cmd package set-home-activity {dashboard} {_QUIET}; "
+    claim = (
+        f"cmd package set-home-activity {dashboard} {_QUIET}; "
         f'case "$({HOME_QUERY})" in {homes}) hp_chooser=set ;; '
         f"android/*) {chooser} ;; "
-        "*) hp_chooser=other_home ;; esac ;; esac"
+        "*) hp_chooser=other_home ;; esac"
     )
+    if claim_allowed is not None:
+        claim = f"if {claim_allowed}; then {claim}; else hp_chooser=deferred; fi"
+    return f'case "$({HOME_QUERY})" in {homes}) hp_chooser=kept ;; *) {claim} ;; esac'
