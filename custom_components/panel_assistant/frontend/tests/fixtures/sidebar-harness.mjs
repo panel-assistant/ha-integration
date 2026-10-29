@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 // innerHTML assignment is recorded so a test can prove panel text never reaches markup.
 export const markup = [];
 class Element {
-  constructor(tag) { this.tagName = tag; this.attributes = new Map(); this.listeners = {}; this.children = []; this.dataset = {}; this.hidden = false; this.textContent = ''; this.value = ''; }
+  constructor(tag) { this.tagName = tag; this.attributes = new Map(); this.listeners = {}; this.children = []; this.dataset = {}; this.hidden = false; this.textContent = ''; this.value = ''; if (tag === 'iframe') this.contentWindow = frameWindow(); }
   set innerHTML(html) { markup.push(html); }
   addEventListener(name, fn) { (this.listeners[name] ??= []).push(fn); }
   setAttribute(name, value) { this.attributes.set(name, String(value)); }
@@ -13,7 +13,19 @@ class Element {
   removeAttribute(name) { this.attributes.delete(name); }
   append(child) { this.children.push(child); }
   replaceChildren() { this.children = []; }
-  fire(name, event = {}) { for (const fn of this.listeners[name] ?? []) fn(event); }
+  cloneNode() {
+    const copy = new Element(this.tagName);
+    copy.attributes = new Map(this.attributes);
+    copy.dataset = { ...this.dataset };
+    copy.hidden = this.hidden;
+    return copy;
+  }
+  replaceWith(element) {
+    const index = this.ownerElements.indexOf(this);
+    this.ownerElements.splice(index, 1, element);
+    element.ownerElements = this.ownerElements;
+  }
+  fire(name, event = {}) { for (const fn of this.listeners[name] ?? []) fn({ currentTarget: this, ...event }); }
 }
 globalThis.HTMLElement = class {
   isConnected = false; events = []; attributes = new Map();
@@ -30,6 +42,7 @@ globalThis.HTMLElement = class {
           for (const [, name, value] of attrs.matchAll(/([a-z-]+)="([^"]*)"/g)) {
             if (name === 'data-message') element.dataset.message = value; else element.setAttribute(name, value);
           }
+          element.ownerElements = elements;
           elements.push(element);
         }
       },
