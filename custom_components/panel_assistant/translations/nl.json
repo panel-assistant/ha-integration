@@ -1818,27 +1818,6 @@
         }
       }
     },
-    "panel_webview": {
-      "title": "Werk de browserengine op {panel} bij.",
-      "fix_flow": {
-        "step": {
-          "update_webview": {
-            "title": "Browserengine bijwerken",
-            "description": "{panel} heeft een oudere browserengine of een onvoltooide update. Instellen en koppelen blijven beschikbaar.\n\nOm dit op te lossen:\n1. Lees de [WebView-handleiding]({learn_more_url}) als het paneel geen toegestaan installatieprogramma heeft.\n2. Kies Verzenden om de gecontroleerde compatibele update voor het paneel aan te vragen, of om een lopende update te controleren.\n3. Als de controle mislukt, volg dan de handleiding of verzend opnieuw om het nog eens te proberen.\n\n[Meer informatie]({learn_more_url})"
-          }
-        },
-        "error": {
-          "webview_deferred": "De update is niet bevestigd. Instellen blijft beschikbaar. Volg de handleiding of kies Verzenden om het opnieuw te proberen.",
-          "webview_unavailable": "Home Assistant kon het resultaat niet controleren. Verbind het paneel opnieuw en kies Verzenden om te controleren voordat je het opnieuw probeert."
-        },
-        "abort": {
-          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten](/config/integrations/integration/panel_assistant) als je het opnieuw wilt toevoegen.\n2. Sluit anders dit dialoogvenster.\n\n[Meer informatie]({learn_more_url})"
-        },
-        "progress": {
-          "updating_webview": "De browserengine wordt bijgewerkt en het resultaat wordt gecontroleerd.\n\nOm dit op te lossen:\n1. Houd het paneel ingeschakeld; [open de handleiding]({learn_more_url}) als de update niet kan worden voltooid.\n\n[Meer informatie]({learn_more_url})"
-        }
-      }
-    },
     "dashboard_unfiltered": {
       "title": "{panel} toont zijn dashboard zonder entiteitfilter",
       "description": "{panel} heeft zijn dashboard met alle entiteiten geopend, omdat het entiteitfilter niet op tijd klaar was. Het blijft het proberen en gaat vanzelf terug naar het gefilterde dashboard.\n\nOm dit op te lossen:\n1. Open de [entiteitinstellingen]({entities_url}) van {panel} om te zien waarop het wacht.\n2. Als het om een beslissing of een nieuwe aanmelding vraagt, volg dan de stappen daar."

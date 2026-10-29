@@ -1818,27 +1818,6 @@
         }
       }
     },
-    "panel_webview": {
-      "title": "Aktualizujte prohlížeč v panelu {panel}.",
-      "fix_flow": {
-        "step": {
-          "update_webview": {
-            "title": "Aktualizovat prohlížeč",
-            "description": "{panel} má starší prohlížeč nebo nedokončenou aktualizaci. Nastavení a párování zůstávají dostupné.\n\nPostup opravy:\n1. Pokud panel nemá povolený instalátor, přečtěte si [návod pro WebView]({learn_more_url}).\n2. Zvolte Odeslat pro vyžádání ověřené kompatibilní aktualizace panelu nebo pro kontrolu již probíhající aktualizace.\n3. Pokud ověření selže, postupujte podle návodu nebo akci zopakujte opětovným odesláním.\n\n[Další informace]({learn_more_url})"
-          }
-        },
-        "error": {
-          "webview_deferred": "Aktualizace nebyla ověřena. Nastavení zůstává dostupné. Postupujte podle návodu nebo zvolte Odeslat pro další pokus.",
-          "webview_unavailable": "Home Assistant nemohl ověřit výsledek. Znovu připojte panel a zvolte Odeslat pro kontrolu před dalším pokusem."
-        },
-        "abort": {
-          "entry_removed": "Tento panel již není nastaven v Home Assistant.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant](/config/integrations/integration/panel_assistant), pokud ho chcete znovu přidat.\n2. Jinak tento dialog zavřete.\n\n[Další informace]({learn_more_url})"
-        },
-        "progress": {
-          "updating_webview": "Probíhá aktualizace prohlížeče a kontrola výsledku.\n\nPostup opravy:\n1. Nechte panel zapnutý; pokud aktualizaci nelze dokončit, [otevřete návod]({learn_more_url}).\n\n[Další informace]({learn_more_url})"
-        }
-      }
-    },
     "dashboard_unfiltered": {
       "title": "{panel} zobrazuje řídicí panel bez filtrování entit",
       "description": "{panel} otevřel řídicí panel se všemi entitami, protože nestihl včas připravit filtr entit. Dál to zkouší a k filtrovanému řídicímu panelu se vrátí sám.\n\nPostup opravy:\n1. Otevřete [nastavení entit]({entities_url}) pro {panel} a podívejte se, na co čeká.\n2. Pokud žádá rozhodnutí nebo nové přihlášení, postupujte podle kroků tam."

@@ -1818,27 +1818,6 @@
         }
       }
     },
-    "panel_webview": {
-      "title": "Browser-Engine auf {panel} aktualisieren.",
-      "fix_flow": {
-        "step": {
-          "update_webview": {
-            "title": "Browser-Engine aktualisieren",
-            "description": "{panel} hat eine ältere Browser-Engine oder ein unvollständiges Update. Einrichtung und Kopplung bleiben verfügbar.\n\nSo behebst du das Problem:\n1. Lies die [WebView-Anleitung]({learn_more_url}), falls das Panel keinen zulässigen Installer hat.\n2. Wähle „OK“, um das geprüfte kompatible Update für das Panel anzufordern oder ein bereits laufendes Update zu prüfen.\n3. Falls die Prüfung fehlschlägt, folge der Anleitung oder wähle erneut „OK“, um es noch einmal zu versuchen.\n\n[Mehr erfahren]({learn_more_url})"
-          }
-        },
-        "error": {
-          "webview_deferred": "Das Update wurde nicht bestätigt. Die Einrichtung bleibt verfügbar. Folge der Anleitung oder wähle „OK“, um es erneut zu versuchen.",
-          "webview_unavailable": "Home Assistant konnte das Ergebnis nicht prüfen. Verbinde das Panel erneut und wähle „OK“, um vor einem erneuten Versuch zu prüfen."
-        },
-        "abort": {
-          "entry_removed": "Dieses Panel ist nicht mehr in Home Assistant eingerichtet.\n\nSo behebst du das Problem:\n1. [Öffne die Panel Assistant-Geräte](/config/integrations/integration/panel_assistant), wenn du es erneut hinzufügen möchtest.\n2. Schließe andernfalls diesen Dialog.\n\n[Mehr erfahren]({learn_more_url})"
-        },
-        "progress": {
-          "updating_webview": "Die Browser-Engine wird aktualisiert und das Ergebnis geprüft.\n\nSo behebst du das Problem:\n1. Lass das Panel eingeschaltet; [öffne die Anleitung]({learn_more_url}), falls das Update nicht abgeschlossen werden kann.\n\n[Mehr erfahren]({learn_more_url})"
-        }
-      }
-    },
     "dashboard_unfiltered": {
       "title": "{panel} zeigt sein Dashboard ohne Entitätsfilter",
       "description": "{panel} hat sein Dashboard mit allen Entitäten geöffnet, weil der Entitätsfilter nicht rechtzeitig fertig wurde. Es versucht es weiter und wechselt von selbst zum gefilterten Dashboard zurück.\n\nSo behebst du das Problem:\n1. Öffne die [Entitätseinstellungen]({entities_url}) für {panel}, um zu sehen, worauf es wartet.\n2. Wenn dort eine Entscheidung oder eine neue Anmeldung verlangt wird, folge den Schritten dort."
