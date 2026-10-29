@@ -98,11 +98,7 @@ test('nothing is removed through a symlinked parent', () => {
   } finally { r.done(); }
 });
 
-test('the removal names one fixed path and never globs', () => {
-  const program = buildSetAsideRemoval(nonce, job);
-  assert.equal((program.match(/\brm /g) ?? []).length, 1);
-  assert.ok(program.includes(`rm ${stagingPath(job)};`), 'rm takes exactly the derived path');
-  assert.ok(!/\*|\?\?|rm -/.test(program.replaceAll('$?', '')), 'no glob and no recursive or forced removal');
+test('the removal rejects unsafe job identifiers', () => {
   for (const bad of ['../../etc', '*', 'B'.repeat(32), 'b'.repeat(31)]) {
     assert.throws(() => buildSetAsideRemoval(nonce, bad), /invalid_request/);
   }

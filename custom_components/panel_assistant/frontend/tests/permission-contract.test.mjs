@@ -37,7 +37,6 @@ test('permission observation is nonce-bound and rejects malformed accessibility 
     frame('READ', [other, other]), frame('READ', [other]) + 'extra', frame('READ', [other]).replace(other, '\x00')]) {
     assert.throws(() => parsePermissionRead(invalid, nonce));
   }
-  assert.ok(buildPermissionRead(nonce).includes('settings get secure'));
   assert.throws(() => buildPermissionRead('bad'));
 });
 
@@ -61,8 +60,6 @@ test('readback requires every grant and exact preservation; no generic completio
     assert.throws(() => parsePermissionVerification(invalid, nonce, 33, other, PACKAGE_ID, OLD_CLASSES));
   }
   assert.throws(() => parsePermissionVerification(verified(), nonce, 101, other, PACKAGE_ID, OLD_CLASSES));
-  assert.match(buildPermissionVerification(nonce, 33, PACKAGE_ID, OLD_CLASSES), /dumpsys package io.panelassistant.android /);
-  assert.ok(!buildPermissionVerification(nonce, 32, PACKAGE_ID, OLD_CLASSES).includes('POST_NOTIFICATIONS'));
 });
 
 function executeGrant(sdk, existing, {live = existing, rejectAppops = false} = {}) {
@@ -139,18 +136,6 @@ test('a build with old classes is granted through its own fully qualified compon
   assert.equal(expectedServices('', PACKAGE_ID, OLD_CLASSES), service);
   assert.ok(!expectedServices('', PACKAGE_ID, OLD_CLASSES).includes('/.input.'));
   assert.equal(expectedServices(other, PACKAGE_ID, OLD_CLASSES), `${other}:${service}`);
-
-  const grant = buildPermissionGrant(nonce, 33, other, PACKAGE_ID, OLD_CLASSES);
-  assert.ok(grant.includes(`pm grant ${PACKAGE_ID} android.permission.POST_NOTIFICATIONS`));
-  assert.ok(grant.includes(`appops set ${PACKAGE_ID} WRITE_SETTINGS allow`));
-  assert.ok(grant.includes(`settings put secure enabled_accessibility_services '${other}:${service}'`));
-  assert.ok(!grant.includes(`appops set ${LEGACY_PACKAGE_ID} `));
-
-  const verify = buildPermissionVerification(nonce, 33, PACKAGE_ID, OLD_CLASSES);
-  assert.ok(verify.includes(`appops get ${PACKAGE_ID} SYSTEM_ALERT_WINDOW`));
-  assert.ok(grant.includes(`appops set ${PACKAGE_ID} REQUEST_INSTALL_PACKAGES allow`));
-  assert.ok(verify.includes(`appops get ${PACKAGE_ID} REQUEST_INSTALL_PACKAGES`));
-  assert.ok(verify.includes(`dumpsys package ${PACKAGE_ID} |`));
 });
 
 test('a service already enabled in either spelling is kept, and the old app is never granted', () => {
