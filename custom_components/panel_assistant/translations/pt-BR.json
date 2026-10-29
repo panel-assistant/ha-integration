@@ -1047,6 +1047,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_update_running": "Uma atualização deste painel ainda está em andamento. Aguarde a conclusão: este reparo se fecha sozinho se a atualização for bem-sucedida.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         }
       }
@@ -1089,6 +1090,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_update_running": "Uma atualização deste painel ainda está em andamento. Aguarde a conclusão: este reparo se fecha sozinho se a atualização for bem-sucedida.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         }
       }
@@ -1131,6 +1133,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_update_running": "Uma atualização deste painel ainda está em andamento. Aguarde a conclusão: este reparo se fecha sozinho se a atualização for bem-sucedida.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         }
       }
@@ -1173,6 +1176,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_update_running": "Uma atualização deste painel ainda está em andamento. Aguarde a conclusão: este reparo se fecha sozinho se a atualização for bem-sucedida.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         }
       }
@@ -1215,6 +1219,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_update_running": "Uma atualização deste painel ainda está em andamento. Aguarde a conclusão: este reparo se fecha sozinho se a atualização for bem-sucedida.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         }
       }
@@ -1257,6 +1262,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_update_running": "Uma atualização deste painel ainda está em andamento. Aguarde a conclusão: este reparo se fecha sozinho se a atualização for bem-sucedida.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         }
       }
@@ -1299,6 +1305,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_update_running": "Uma atualização deste painel ainda está em andamento. Aguarde a conclusão: este reparo se fecha sozinho se a atualização for bem-sucedida.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         }
       }
@@ -1341,6 +1348,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_update_running": "Uma atualização deste painel ainda está em andamento. Aguarde a conclusão: este reparo se fecha sozinho se a atualização for bem-sucedida.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         }
       }
@@ -1383,6 +1391,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_update_running": "Uma atualização deste painel ainda está em andamento. Aguarde a conclusão: este reparo se fecha sozinho se a atualização for bem-sucedida.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         }
       }
@@ -1425,6 +1434,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_update_running": "Uma atualização deste painel ainda está em andamento. Aguarde a conclusão: este reparo se fecha sozinho se a atualização for bem-sucedida.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         }
       }
@@ -1473,6 +1483,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_update_running": "Uma atualização deste painel ainda está em andamento. Aguarde a conclusão: este reparo se fecha sozinho se a atualização for bem-sucedida.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer.",
           "cannot_connect": "Não foi possível se conectar a um endpoint válido de integridade do Panel Assistant.",
           "invalid_install_address": "Digite apenas o nome de host ou o endereço IP do painel.",
@@ -1531,6 +1542,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_update_running": "Uma atualização deste painel ainda está em andamento. Aguarde a conclusão: este reparo se fecha sozinho se a atualização for bem-sucedida.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         },
         "abort": {
@@ -1616,6 +1628,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_update_running": "Uma atualização deste painel ainda está em andamento. Aguarde a conclusão: este reparo se fecha sozinho se a atualização for bem-sucedida.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer.",
           "cannot_connect": "Não foi possível se conectar a um endpoint válido de integridade do Panel Assistant.",
           "invalid_install_address": "Digite apenas o nome de host ou o endereço IP do painel.",

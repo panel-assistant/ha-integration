@@ -9,6 +9,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.components.repairs import RepairsFlow, RepairsFlowResult
+from homeassistant.components.update import DATA_COMPONENT as UPDATE_COMPONENT
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, Platform
 from homeassistant.core import HomeAssistant
@@ -500,6 +501,9 @@ class InstallerFailureFlow(RepairsFlow):
             if entity_id is None:
                 raise RetrySafetyHold("retry_update_unavailable")
             state = self.hass.states.get(entity_id)
+            if state is not None and state.attributes.get("in_progress"):
+                # The update is still running; its own outcome ends this Repair.
+                return "retry_update_running"
             offered = state.attributes.get("latest_version") if state else None
             installed = (
                 state.attributes.get("installed_version", state.state)
@@ -532,7 +536,7 @@ class InstallerFailureFlow(RepairsFlow):
                 and isinstance(installed, str)
             ):
                 if not claim_panel_operation(self.hass, entry_id):
-                    return "retry_failed"
+                    return "retry_update_running"
                 try:
                     entry = self.hass.config_entries.async_get_entry(entry_id)
                     if entry is None or not entry.data.get(CONF_TRANSPORT_USER_ID):
@@ -588,12 +592,23 @@ class InstallerFailureFlow(RepairsFlow):
             service_data = {"entity_id": entity_id}
             if not current_retry and isinstance(previous.get("target_version"), str):
                 service_data["version"] = previous["target_version"]
-            await self.hass.services.async_call(
-                Platform.UPDATE,
-                "install",
-                service_data,
-                blocking=True,
-            )
+            try:
+                await self.hass.services.async_call(
+                    Platform.UPDATE,
+                    "install",
+                    service_data,
+                    blocking=True,
+                )
+            except HomeAssistantError as err:
+                # An update that began after the state was read is refused,
+                # by Home Assistant or by the panel's own operation claim.
+                component = self.hass.data.get(UPDATE_COMPONENT)
+                entity = component.get_entity(entity_id) if component else None
+                if err.translation_key == "update_busy" or (
+                    entity is not None and entity.in_progress
+                ):
+                    return "retry_update_running"
+                raise
             return "_update_completed"
         except RetrySafetyHold as err:
             await async_record_retry_hold(self.hass, self.issue_id, previous, err)

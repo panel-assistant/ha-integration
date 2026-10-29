@@ -1047,6 +1047,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_update_running": "此面板的更新仍在进行中。请等待其完成：如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
       }
@@ -1089,6 +1090,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_update_running": "此面板的更新仍在进行中。请等待其完成：如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
       }
@@ -1131,6 +1133,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_update_running": "此面板的更新仍在进行中。请等待其完成：如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
       }
@@ -1173,6 +1176,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_update_running": "此面板的更新仍在进行中。请等待其完成：如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
       }
@@ -1215,6 +1219,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_update_running": "此面板的更新仍在进行中。请等待其完成：如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
       }
@@ -1257,6 +1262,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_update_running": "此面板的更新仍在进行中。请等待其完成：如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
       }
@@ -1299,6 +1305,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_update_running": "此面板的更新仍在进行中。请等待其完成：如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
       }
@@ -1341,6 +1348,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_update_running": "此面板的更新仍在进行中。请等待其完成：如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
       }
@@ -1383,6 +1391,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_update_running": "此面板的更新仍在进行中。请等待其完成：如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
       }
@@ -1425,6 +1434,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_update_running": "此面板的更新仍在进行中。请等待其完成：如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
       }
@@ -1473,6 +1483,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_update_running": "此面板的更新仍在进行中。请等待其完成：如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。",
           "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
           "invalid_install_address": "请只输入面板的主机名或 IP 地址。",
@@ -1531,6 +1542,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_update_running": "此面板的更新仍在进行中。请等待其完成：如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         },
         "abort": {
@@ -1616,6 +1628,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_update_running": "此面板的更新仍在进行中。请等待其完成：如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。",
           "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
           "invalid_install_address": "请只输入面板的主机名或 IP 地址。",

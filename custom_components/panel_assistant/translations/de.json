@@ -1047,6 +1047,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_update_running": "Ein Update dieses Panels läuft noch. Warte, bis es abgeschlossen ist: Diese Reparatur schließt sich von selbst, wenn das Update gelingt.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         }
       }
@@ -1089,6 +1090,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_update_running": "Ein Update dieses Panels läuft noch. Warte, bis es abgeschlossen ist: Diese Reparatur schließt sich von selbst, wenn das Update gelingt.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         }
       }
@@ -1131,6 +1133,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_update_running": "Ein Update dieses Panels läuft noch. Warte, bis es abgeschlossen ist: Diese Reparatur schließt sich von selbst, wenn das Update gelingt.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         }
       }
@@ -1173,6 +1176,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_update_running": "Ein Update dieses Panels läuft noch. Warte, bis es abgeschlossen ist: Diese Reparatur schließt sich von selbst, wenn das Update gelingt.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         }
       }
@@ -1215,6 +1219,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_update_running": "Ein Update dieses Panels läuft noch. Warte, bis es abgeschlossen ist: Diese Reparatur schließt sich von selbst, wenn das Update gelingt.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         }
       }
@@ -1257,6 +1262,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_update_running": "Ein Update dieses Panels läuft noch. Warte, bis es abgeschlossen ist: Diese Reparatur schließt sich von selbst, wenn das Update gelingt.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         }
       }
@@ -1299,6 +1305,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_update_running": "Ein Update dieses Panels läuft noch. Warte, bis es abgeschlossen ist: Diese Reparatur schließt sich von selbst, wenn das Update gelingt.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         }
       }
@@ -1341,6 +1348,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_update_running": "Ein Update dieses Panels läuft noch. Warte, bis es abgeschlossen ist: Diese Reparatur schließt sich von selbst, wenn das Update gelingt.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         }
       }
@@ -1383,6 +1391,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_update_running": "Ein Update dieses Panels läuft noch. Warte, bis es abgeschlossen ist: Diese Reparatur schließt sich von selbst, wenn das Update gelingt.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         }
       }
@@ -1425,6 +1434,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_update_running": "Ein Update dieses Panels läuft noch. Warte, bis es abgeschlossen ist: Diese Reparatur schließt sich von selbst, wenn das Update gelingt.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         }
       }
@@ -1473,6 +1483,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_update_running": "Ein Update dieses Panels läuft noch. Warte, bis es abgeschlossen ist: Diese Reparatur schließt sich von selbst, wenn das Update gelingt.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt.",
           "cannot_connect": "Es konnte keine Verbindung zu einem gültigen Funktionsstatus-Endpunkt von Panel Assistant hergestellt werden.",
           "invalid_install_address": "Gib nur den Hostnamen oder die IP-Adresse des Panels ein.",
@@ -1531,6 +1542,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_update_running": "Ein Update dieses Panels läuft noch. Warte, bis es abgeschlossen ist: Diese Reparatur schließt sich von selbst, wenn das Update gelingt.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         },
         "abort": {
@@ -1616,6 +1628,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_update_running": "Ein Update dieses Panels läuft noch. Warte, bis es abgeschlossen ist: Diese Reparatur schließt sich von selbst, wenn das Update gelingt.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt.",
           "cannot_connect": "Es konnte keine Verbindung zu einem gültigen Funktionsstatus-Endpunkt von Panel Assistant hergestellt werden.",
           "invalid_install_address": "Gib nur den Hostnamen oder die IP-Adresse des Panels ein.",
