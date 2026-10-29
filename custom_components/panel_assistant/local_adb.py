@@ -24,7 +24,7 @@ from .client import (
     PanelAddress,
     UpdateApprovalRequiredError,
 )
-from .transport_protocol import CAPABILITY_LOCAL_ADB, OUTCOME_APPLIED
+from .transport_protocol import CAPABILITY_LOCAL_ADB, OUTCOME_APPLIED, OUTCOME_REFUSED
 from .transport_sessions import (
     PanelSession,
     async_get_sessions,
@@ -79,6 +79,15 @@ async def _request(
         )
     except HomeAssistantError as err:
         raise _failure() from err
+    if (
+        op == "adb.ready"
+        and args == {"include_build_id": True}
+        and outcome.outcome == OUTCOME_REFUSED
+        and outcome.code == "invalid_value"
+    ):
+        # Older apps reject any ready arguments. Only their explicit read-only
+        # shape refusal permits a same-session retry without optional metadata.
+        return await _request(hass, entry, session, op, {}, wait_seconds)
     if outcome.outcome != OUTCOME_APPLIED or not isinstance(outcome.result, dict):
         raise _failure()
     return outcome.result
@@ -239,7 +248,9 @@ async def async_target(
         return None
     from .local_adb_bootstrap import prepared_asset
 
-    ready = await _request(hass, entry, session, "adb.ready", {}, 10)
+    ready = await _request(
+        hass, entry, session, "adb.ready", {"include_build_id": True}, 10
+    )
     is_ready = _ready(ready)
     legacy = "build_id" not in ready
     prepared = None
@@ -257,7 +268,9 @@ async def async_target(
         if build is None:
             return None
         for _attempt in range(10):
-            ready = await _request(hass, entry, session, "adb.ready", {}, 10)
+            ready = await _request(
+                hass, entry, session, "adb.ready", {"include_build_id": True}, 10
+            )
             if (
                 _ready(ready)
                 and ready.get("build_id", build if legacy else None) == build

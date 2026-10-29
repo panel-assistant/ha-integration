@@ -94,6 +94,7 @@ async def _answer_identity(panel: Any, task: asyncio.Task[Any]) -> None:
         "wrong-build",
         "identity-changed",
         "legacy",
+        "legacy-bootstrap",
     ],
 )
 async def test_recovery_build_controls_selection(
@@ -145,8 +146,15 @@ async def test_recovery_build_controls_selection(
     task = asyncio.create_task(local_adb.async_target(hass, entry, address))
     event = await _event(panel, task)
     assert event["op"] == "adb.ready"
+    assert event["args"] == {"include_build_id": True}
     ready = _ready(BUILD if scenario == "matching" else OLD_BUILD)
-    if scenario == "legacy":
+    if scenario in ("legacy", "legacy-bootstrap"):
+        if scenario == "legacy-bootstrap":
+            ready["ready"] = False
+        await panel.answer(event["command_id"], "refused", code="invalid_value")
+        event = await _event(panel, task)
+        assert event["op"] == "adb.ready"
+        assert event["args"] == {}
         ready.pop("build_id")
     await panel.answer(event["command_id"], "applied", result=ready)
     if scenario != "legacy":
@@ -157,7 +165,17 @@ async def test_recovery_build_controls_selection(
             "applied",
             result={"path": PATH, "sha256": SHA, "build_id": BUILD},
         )
-    if scenario not in ("matching", "legacy"):
+    if scenario == "legacy-bootstrap":
+        event = await _event(panel, task)
+        assert event["op"] == "adb.ready"
+        assert event["args"] == {"include_build_id": True}
+        await panel.answer(event["command_id"], "refused", code="invalid_value")
+        event = await _event(panel, task)
+        assert event["op"] == "adb.ready"
+        assert event["args"] == {}
+        ready["ready"] = True
+        await panel.answer(event["command_id"], "applied", result=ready)
+    if scenario not in ("matching", "legacy", "legacy-bootstrap"):
         event = await _event(panel, task)
         assert event["op"] == "adb.recover"
         await panel.answer(
@@ -182,6 +200,7 @@ async def test_recovery_build_controls_selection(
         for _ in range(10 if scenario == "wrong-build" else 1):
             event = await _event(panel, task)
             assert event["op"] == "adb.ready"
+            assert event["args"] == {"include_build_id": True}
             await panel.answer(
                 event["command_id"],
                 "applied",
@@ -194,7 +213,7 @@ async def test_recovery_build_controls_selection(
     await _answer_identity(panel, task)
     target = await task
     assert target.serial == "SERIAL-1"
-    if scenario == "stale":
+    if scenario in ("stale", "legacy-bootstrap"):
         assert bootstrap.await_count == 1
         assert bootstrap.call_args.args[0].serial == "SERIAL-1"
         assert bootstrap.call_args.args[2:] == (PATH, SHA)
@@ -236,6 +255,7 @@ async def test_invalid_recovery_build_is_refused(
     )
     event = await _event(panel, task)
     assert event["op"] == "adb.ready"
+    assert event["args"] == {"include_build_id": True}
     await panel.answer(
         event["command_id"],
         "applied",
@@ -252,3 +272,41 @@ async def test_invalid_recovery_build_is_refused(
     with pytest.raises(InstallAdbError):
         await task
     bootstrap.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "outcome,code",
+    [
+        ("refused", "expired"),
+        ("refused", "approval_denied"),
+        ("failed", "invalid_value"),
+    ],
+)
+async def test_build_opt_in_does_not_retry_authority_or_execution_failure(
+    hass: HomeAssistant,
+    hass_ws_client: Any,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    outcome: str,
+    code: str,
+) -> None:
+    entry, panel = await _panel(
+        hass, hass_ws_client, hass_read_only_user, hass_read_only_access_token
+    )
+    task = asyncio.create_task(
+        local_adb.async_target(hass, entry, normalize_address("panel.local"))
+    )
+    event = await _event(panel, task)
+    assert event["op"] == "adb.ready"
+    assert event["args"] == {"include_build_id": True}
+    await panel.answer(event["command_id"], outcome, code=code)
+    # A retry would leave the caller waiting for another response. Prove it
+    # actually finished before checking its product-level refusal.
+    await hass.async_block_till_done()
+    try:
+        assert task.done()
+        with pytest.raises(InstallAdbError):
+            await task
+    finally:
+        if not task.done():
+            task.cancel()
