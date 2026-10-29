@@ -10,6 +10,7 @@ from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -33,8 +34,10 @@ from .test_webview import observation, status
 STRINGS = "custom_components/panel_assistant/strings.json"
 
 
-def _native(hass: HomeAssistant) -> tuple[Any, Any, MockConfigEntry, str]:
-    entity, client = _entity(hass)
+def _native(
+    hass: HomeAssistant, *, feed: bool = False
+) -> tuple[Any, Any, MockConfigEntry, str]:
+    entity, client = _entity(hass, feed=feed)
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Panel",
@@ -305,3 +308,47 @@ async def test_plain_update_failure_keeps_the_update_wording(
     )
     issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
     assert issue is not None and issue.translation_key == "installer_failure_update"
+
+
+async def test_webview_step_waits_for_the_restarted_app_to_reconnect(
+    hass: HomeAssistant,
+) -> None:
+    entity, _client, entry, issue_id = _native(hass)
+    answers = iter([None, None])
+    sent: list[str] = []
+
+    async def manage(_hass: Any, _session: Any, operation: str, **_: Any) -> Any:
+        sent.append(operation)
+        if operation == "webview.observe":
+            return observation()
+        return observation("installed", eligible=False)
+
+    await _install(
+        hass, entity, entry, manage, session=lambda: next(answers, _session(entry))
+    )
+    assert sent == ["webview.observe", "webview.install"]
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
+async def test_unfinished_webview_still_restores_the_panel_permissions(
+    hass: HomeAssistant,
+) -> None:
+    entity, _client, entry, _issue_id = _native(hass, feed=True)
+    entry.mock_state(hass, ConfigEntryState.LOADED)
+
+    async def manage(_hass: Any, _session: Any, operation: str, **_: Any) -> Any:
+        if operation == "webview.observe":
+            return observation()
+        return observation("rejected")
+
+    repair = AsyncMock()
+    with (
+        patch(
+            "custom_components.panel_assistant.update.async_repair_update_permissions",
+            repair,
+        ),
+        pytest.raises(HomeAssistantError),
+    ):
+        await _install(hass, entity, entry, manage)
+    await hass.async_block_till_done()
+    repair.assert_awaited_once()

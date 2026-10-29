@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from secrets import token_hex
 
@@ -24,6 +25,9 @@ from .transport_sessions import (
 from .webview import ACTIVE_STATES, WebViewStatus, parse_webview
 
 _LOGGER = logging.getLogger(__name__)
+# How long the first read waits for a restarting app to reconnect, leaving
+# the rest of the step's budget for the HTTP fallback.
+RECONNECT_WAIT = 90.0
 
 # Retained only to retire issues created by older integration versions.
 ISSUE_WEBVIEW = "panel_webview"
@@ -139,6 +143,12 @@ async def async_update_webview(
             # The successor app owns the profile. Its authenticated native read
             # also works on panels whose HTTP listener is unreachable.
             try:
+                # The app just restarted into its new build; give its session
+                # time to come back before falling back to HTTP.
+                with contextlib.suppress(TimeoutError):
+                    async with asyncio.timeout(RECONNECT_WAIT):
+                        while session() is None:  # noqa: ASYNC110 - no event to wait on
+                            await asyncio.sleep(1)
                 status = await observe()
             except (
                 HomeAssistantError,

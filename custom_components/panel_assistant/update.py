@@ -802,6 +802,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             reason = await async_update_webview(
                 self.hass, self._entry_id, allow_legacy=True
             )
+            # The app is on its new build whatever the WebView step says.
+            self._schedule_permission_repair(route, repair_artifact)
             if reason not in (None, "webview_download_deferred"):
                 webview_pending = reason == "webview_deferred"
                 raise _update_error(
@@ -832,41 +834,6 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             )
             raise
         else:
-            owner = self.hass.config_entries.async_get_entry(self._entry_id)
-            if (
-                route != ROUTE_ADB
-                and repair_artifact is not None
-                and owner is not None
-                # Only a loaded entry that still runs this entity's coordinator
-                # may own the task. An unload marks the entry unloading before
-                # it awaits anything and drops its runtime data at the end; a
-                # reload brings another coordinator. This check and the
-                # scheduling below share one event-loop step, so a task created
-                # here is always among those the next unload cancels.
-                and owner.state is ConfigEntryState.LOADED
-                and getattr(getattr(owner, "runtime_data", None), "coordinator", None)
-                is self.coordinator
-            ):
-                # Not awaited: the panel already runs the update, and its ADB
-                # may take minutes to answer again. The entry owns the task,
-                # so unloading or removing the panel ends the repair.
-                owner.async_create_background_task(
-                    self.hass,
-                    async_repair_update_permissions(
-                        self.hass,
-                        self.coordinator,
-                        repair_artifact,
-                        admit_adb_target=partial(
-                            async_admit_adb_target,
-                            self.hass,
-                            self._entry_id,
-                            self.coordinator,
-                            panel_name=self._panel_name,
-                        ),
-                        panel_name=self._panel_name,
-                    ),
-                    f"permission repair after updating {owner.title}",
-                )
             await async_clear_update_failure_if_installed(
                 self.hass,
                 self._entry_id,
@@ -883,6 +850,46 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self._delivery.session = False
             self._progress.end()
             self.async_write_ha_state()
+
+    def _schedule_permission_repair(
+        self, route: str, repair_artifact: ReleaseArtifact | None
+    ) -> None:
+        """Restore the panel's permissions after an app delivery succeeded."""
+        owner = self.hass.config_entries.async_get_entry(self._entry_id)
+        if (
+            route != ROUTE_ADB
+            and repair_artifact is not None
+            and owner is not None
+            # Only a loaded entry that still runs this entity's coordinator
+            # may own the task. An unload marks the entry unloading before
+            # it awaits anything and drops its runtime data at the end; a
+            # reload brings another coordinator. This check and the
+            # scheduling below share one event-loop step, so a task created
+            # here is always among those the next unload cancels.
+            and owner.state is ConfigEntryState.LOADED
+            and getattr(getattr(owner, "runtime_data", None), "coordinator", None)
+            is self.coordinator
+        ):
+            # Not awaited: the panel already runs the update, and its ADB
+            # may take minutes to answer again. The entry owns the task,
+            # so unloading or removing the panel ends the repair.
+            owner.async_create_background_task(
+                self.hass,
+                async_repair_update_permissions(
+                    self.hass,
+                    self.coordinator,
+                    repair_artifact,
+                    admit_adb_target=partial(
+                        async_admit_adb_target,
+                        self.hass,
+                        self._entry_id,
+                        self.coordinator,
+                        panel_name=self._panel_name,
+                    ),
+                    panel_name=self._panel_name,
+                ),
+                f"permission repair after updating {owner.title}",
+            )
 
     def _remember_code(self, code: int, key: tuple[str, str]) -> None:
         """Keep the build number a delivery proved, for the version just read."""
