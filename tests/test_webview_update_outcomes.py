@@ -119,7 +119,8 @@ async def test_submitted_webview_install_keeps_its_repair_through_the_poll(
 
     with pytest.raises(HomeAssistantError):
         await _install(hass, entity, entry, manage)
-    assert (await async_failure_events(hass, issue_id))[-1]["webview_pending"] is True
+    events = await async_failure_events(hass, issue_id)
+    assert events[-1].get("webview_pending") is True
     await async_clear_update_failure_if_installed(
         hass, entry.entry_id, "0.9.10", 102, verified_current_code=102
     )
@@ -254,6 +255,19 @@ async def test_poll_with_no_webview_candidate_clears_an_interrupted_update(
     document.update(reason="no_candidate", candidate=None)
     issue_id = await _poll(hass, document, pending=True)
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
+async def test_poll_unsure_how_a_webview_install_ended_keeps_the_update_report(
+    hass: HomeAssistant,
+) -> None:
+    """A lost answer leaves the WebView outcome unknown, even with no candidate left."""
+    document = observation("submitted_unknown", eligible=False)
+    document.update(reason="no_candidate", candidate=None)
+    issue_id = await _poll(hass, document, pending=True)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+    # The report still names the build the update was sent to install.
+    events = await async_failure_events(hass, issue_id)
+    assert events and events[0].get("target_version") == HEALTH.version
 
 
 async def test_running_webview_install_after_setup_raises_no_repair(
@@ -406,6 +420,29 @@ async def test_app_updated_first_is_offered_the_webview_alone(
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
 
 
+async def test_panel_behind_the_app_release_is_offered_the_app_update(
+    hass: HomeAssistant,
+) -> None:
+    """An offered WebView rides with the app update; it is never offered alone."""
+    entity, _client, entry, _issue_id = _native(hass)
+    current = entity.coordinator.data
+    # The app update route stays; only the WebView offer is added.
+    entity.coordinator.data = replace(
+        current,
+        status=replace(current.status, webview=status(observation()).webview),
+    )
+    assert entity.latest_version == "0.9.10"
+    assert entity.installed_version != entity.latest_version
+
+    async def manage(_hass: Any, _session: Any, operation: str, **_: Any) -> Any:
+        if operation == "webview.observe":
+            return observation()
+        return observation("installed", eligible=False)
+
+    await _install(hass, entity, entry, manage)
+    entity._delivery.async_deliver_build.assert_awaited_once()
+
+
 @pytest.mark.parametrize("kind", ["not_eligible", "no_candidate", "running"])
 async def test_no_webview_offer_without_an_eligible_candidate(
     hass: HomeAssistant, kind: str
@@ -415,7 +452,8 @@ async def test_no_webview_offer_without_an_eligible_candidate(
     if kind == "not_eligible":
         document = observation(eligible=False)
     elif kind == "no_candidate":
-        document.update(eligible=False, candidate=None)
+        # Eligible, but with nothing named to install.
+        document.update(candidate=None)
     _app_current(entity, document)
     assert entity.latest_version == entity.installed_version
     assert entity.state == "off"

@@ -496,11 +496,28 @@ async def test_site_list_failure_is_logged_before_the_github_fallback(
         assert "HTTP 404" in caplog.text
 
 
-async def test_every_release_download_failing_is_a_failed_check(release_key):
+def _unreachable_tags(client, tags):
+    from aiohttp import ClientConnectionError
+    from yarl import URL
+
+    urls = {str(URL(f"{catalog.ANDROID_RELEASES_API}/tags/{tag}")) for tag in tags}
+    get = client.get
+
+    def unreachable(url, **kwargs):
+        if str(url) in urls:
+            raise ClientConnectionError("unreachable")
+        return get(url, **kwargs)
+
+    client.get = unreachable
+
+
+@pytest.mark.parametrize("failure", ["status", "connection"])
+async def test_every_release_download_failing_is_a_failed_check(release_key, failure):
     client = authenticated_session(
         release_key, [("v1.2.0", (5, 5)), ("v1.1.0", (5, 5))]
     )
-    _fail_tags(client, ["v1.2.0", "v1.1.0"])
+    fail = _fail_tags if failure == "status" else _unreachable_tags
+    fail(client, ["v1.2.0", "v1.1.0"])
     with pytest.raises(ReleaseResolutionError):
         await catalog.async_resolve_update_candidates(client)
 
