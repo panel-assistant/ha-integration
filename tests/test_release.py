@@ -486,6 +486,8 @@ async def test_resolves_cross_bound_signed_install_descriptor_without_apk_downlo
     assert _APK_URL not in requested_urls
 
 
+# Source-text reason: this embedded trust root is a published cross-installer
+# compatibility contract, rather than an implementation spelling.
 def test_embedded_public_key_matches_installer_key_fingerprint() -> None:
     """The resolver pins the same RSA public key as scripts/install.sh."""
     public_key = serialization.load_pem_public_key(release._RELEASE_PUBLIC_KEY_PEM)

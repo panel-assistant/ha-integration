@@ -130,7 +130,7 @@ async def test_nonfailure_result_keeps_verifying_the_committed_target(
     await entity.async_install(None, backup=False)
     assert update_clock.seconds >= 2
     record.assert_not_awaited()
-    assert entity.installed_version.partition(" build ")[0] == "0.9.7-rc4"
+    assert entity.installed_version == "0.9.7-rc4 build 772"
 
 
 @pytest.mark.parametrize("reason", ["", "OK", FAILURES[0]])

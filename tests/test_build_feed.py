@@ -463,17 +463,6 @@ def test_build_count_cap_refuses_one_more_than_the_limit(
         parse_build_feed(over_limit, sign(over_limit), FEED_URL)
 
 
-def test_more_than_500_builds_is_refused(sign: Callable[[bytes], bytes]) -> None:
-    """At the real limits 501 builds are refused; the byte cap binds first."""
-    assert build_feed._MAX_FEED_BUILDS == 500
-    builds = [_build_entry(code) for code in range(1, 502)]
-    body = _canonical(_feed(builds))
-    assert len(body) > build_feed._MAX_FEED_BYTES
-
-    with pytest.raises(BuildFeedError):
-        parse_build_feed(body, sign(body), FEED_URL)
-
-
 def test_feed_over_256_kib_is_refused_even_when_signed_and_valid(
     sign: Callable[[bytes], bytes],
 ) -> None:

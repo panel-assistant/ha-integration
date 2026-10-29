@@ -20,7 +20,6 @@ from custom_components.panel_assistant.client import (
 )
 from custom_components.panel_assistant.config_flow import (
     HaPaneldConfigFlow,
-    _install_candidate_placeholders,
 )
 from custom_components.panel_assistant.const import (
     DOMAIN,
@@ -778,10 +777,10 @@ async def test_install_authorization_revalidates_pin_before_loading_key(
         ),
     ],
 )
-def test_install_confirmation_device_facts_are_literal(
-    model: str, display: str
+async def test_install_confirmation_device_facts_are_literal(
+    hass: HomeAssistant, model: str, display: str
 ) -> None:
-    """Escape only presentation, including entities and Markdown metacharacters."""
+    """The confirmation shown to the owner escapes device-provided facts."""
     probe = _probe(
         "install_candidate",
         model=model,
@@ -789,13 +788,39 @@ def test_install_confirmation_device_facts_are_literal(
         primary_abi="arm64-v8a",
         android_sdk=31,
     )
-    assert _install_candidate_placeholders(probe) == {
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+            AsyncMock(side_effect=CannotConnectError),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_probe_install_target",
+            AsyncMock(return_value=probe),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_resolve_install_choice",
+            AsyncMock(return_value=RELEASE),
+        ),
+    ):
+        form = await _start_step(hass, "add_panel")
+        choose = await hass.config_entries.flow.async_configure(
+            form["flow_id"], {CONF_ADDRESS: "panel.local"}
+        )
+        confirm = await _choose_version(hass, choose)
+
+    assert confirm["type"] is FlowResultType.FORM
+    assert confirm["step_id"] == "confirm_install_candidate"
+    assert confirm["description_placeholders"] == {
+        **INSTALL_RECOVERY_PLACEHOLDERS,
+        "address": "panel.local",
         "model": display,
         "serial": "serial&#95;123",
         "abi": "arm64-v8a",
         "sdk": "31",
+        "version": "0.9.7",
+        "tag": "v0.9.7",
+        "sha256": "a" * 64,
     }
-    assert probe.model == model and probe.serial == "serial_123"
 
 
 async def test_install_authorization_credential_storage_error_is_actionable(

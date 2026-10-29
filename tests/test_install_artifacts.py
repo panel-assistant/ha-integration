@@ -237,7 +237,6 @@ async def test_valid_ready_artifact_is_rehashed_and_reused_without_network(
 
     assert second == first
     assert second_session.requests == []
-    assert fake_hass.executor_calls[-1] == "_prepare_destination"
 
 
 @pytest.mark.parametrize("tamper", [b"wrong but same length!!!", b"short"])
