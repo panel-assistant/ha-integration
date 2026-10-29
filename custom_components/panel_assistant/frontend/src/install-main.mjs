@@ -1,6 +1,6 @@
 import { Adb, AdbDaemonTransport } from '@yume-chan/adb';
 import AdbWebCredentialStore from '@yume-chan/adb-credential-web';
-import { AdbDaemonWebUsbDeviceManager } from '@yume-chan/adb-daemon-webusb';
+import { AdbDaemonWebUsbDevice, AdbDaemonWebUsbDeviceManager } from '@yume-chan/adb-daemon-webusb';
 import { boundedUsb } from './usb-bounds.mjs';
 import { inspectSessionTarget } from './session-target.mjs';
 import { openJobStore } from './job-store.mjs';
@@ -155,11 +155,15 @@ function guardedAdb(value) {
 // arrives, so every other pending step then reports session_closed. Keep the
 // first real code: that is the one that explains what happened.
 let firstFailure;
+function failureCode(error) {
+  return error instanceof AdbDaemonWebUsbDevice.DeviceBusyError
+    ? 'usb_busy' : error?.code ?? error?.message;
+}
 function noteFailure(error) {
-  const code = error?.code ?? error?.message;
+  const code = failureCode(error);
   if (!firstFailure && code && code !== 'session_closed') {
     firstFailure = code;
-    support('cause', String(code));
+    support('cause', String(error?.code ?? error?.message ?? error));
     // Which check refused, when the step names it (the permission parsers do).
     if (typeof error.detail === 'string') support('failedCheck', error.detail);
     message('error-text', errorView(code), 'errors');
@@ -168,7 +172,7 @@ function noteFailure(error) {
 }
 function fail(error) {
   support('error', String(error?.code ?? error?.message ?? error));
-  quarantine(errorView(firstFailure ?? error?.code));
+  quarantine(errorView(firstFailure ?? failureCode(error)));
 }
 
 function releaseReady(verified) {

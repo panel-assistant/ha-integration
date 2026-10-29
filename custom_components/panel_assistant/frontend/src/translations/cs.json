@@ -116,6 +116,7 @@
   },
   "errors": {
     "installErrorGeneric": "Něco se pokazilo. Nechte panel připojený a stiskněte Zkusit znovu.",
+    "installErrorUsbBusy": "Připojení USB používá jiná aplikace. Zavřete ostatní aplikace používající připojení USB panelu a poté stiskněte Zkusit znovu.",
     "installErrorBusy": "Panel je zaneprázdněný jinou instalací. Počkejte minutu a pak to zkuste znovu.",
     "installErrorStorage": "Tento prohlížeč nedokázal uložit průběh. Povolte tomuto webu ukládání dat a pak to zkuste znovu.",
     "installErrorTarget": "Byl připojen jiný panel. Připojte stejný panel a zkuste to znovu.",

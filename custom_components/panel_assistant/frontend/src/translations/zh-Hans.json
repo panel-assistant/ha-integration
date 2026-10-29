@@ -116,6 +116,7 @@
   },
   "errors": {
     "installErrorGeneric": "发生了错误。请保持面板连接，然后点击“重试”。",
+    "installErrorUsbBusy": "另一个应用正在使用 USB 连接。请关闭其他使用面板 USB 连接的应用，然后点击“重试”。",
     "installErrorBusy": "面板正在进行另一项安装。请等待一分钟后重试。",
     "installErrorStorage": "此浏览器无法保存进度。请允许此网站存储数据，然后重试。",
     "installErrorTarget": "连接了另一个面板。请连接原来的面板后重试。",

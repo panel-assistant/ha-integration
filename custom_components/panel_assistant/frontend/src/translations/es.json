@@ -116,6 +116,7 @@
   },
   "errors": {
     "installErrorGeneric": "Algo salió mal. Mantén el panel conectado y pulsa Volver a intentar.",
+    "installErrorUsbBusy": "Otra aplicación está usando la conexión USB. Cierra las demás aplicaciones que usen la conexión USB del panel y pulsa Volver a intentar.",
     "installErrorBusy": "El panel está ocupado con otra instalación. Espera un minuto y vuelve a intentarlo.",
     "installErrorStorage": "Este navegador no pudo guardar el progreso. Permite que este sitio almacene datos y vuelve a intentarlo.",
     "installErrorTarget": "Se conectó un panel diferente. Conecta el mismo panel y vuelve a intentarlo.",

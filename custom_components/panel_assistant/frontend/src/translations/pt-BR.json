@@ -116,6 +116,7 @@
   },
   "errors": {
     "installErrorGeneric": "Algo deu errado. Mantenha o painel conectado e pressione Tentar novamente.",
+    "installErrorUsbBusy": "Outro aplicativo está usando a conexão USB. Feche os outros aplicativos que usam a conexão USB do painel e pressione Tentar novamente.",
     "installErrorBusy": "O painel está ocupado com outra instalação. Aguarde um minuto e tente novamente.",
     "installErrorStorage": "Este navegador não conseguiu salvar o progresso. Permita que este site armazene dados e tente novamente.",
     "installErrorTarget": "Outro painel foi conectado. Conecte o mesmo painel e tente novamente.",

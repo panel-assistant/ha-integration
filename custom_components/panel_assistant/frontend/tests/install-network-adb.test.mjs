@@ -49,7 +49,7 @@ function journey({ key, runsTheApp = false, networkAdb = 'turned_on', adopted = 
     const stubs = {
       '@yume-chan/adb': 'export class Adb { constructor() { this.disconnected = new Promise(resolve => { globalThis.unplug = resolve; }); } close() {} getProp(name) { return Promise.resolve(name === "service.adb.tcp.port" ? "0" : ""); } createSocketAndWait(service) { globalThis.order.push(service); return Promise.resolve("restarting in TCP mode port: 5555"); } }; export class AdbTcpIpService { constructor(adb) { this.adb = adb; } async setPort(port) { return this.adb.createSocketAndWait("tcpip:" + port); } }; export const AdbCommand = {Auth: 1}; export const AdbDaemonTransport = { authenticate: async options => { globalThis.authOptions = options; globalThis.order.push("authenticate"); return {}; } };',
       '@yume-chan/adb-credential-web': 'export default class Store {}',
-      '@yume-chan/adb-daemon-webusb': 'export class AdbDaemonWebUsbDeviceManager { requestDevice() { return Promise.resolve({ raw: { close() {} }, serial: "panel", connect: async () => ({}) }); } }',
+      '@yume-chan/adb-daemon-webusb': 'export class AdbDaemonWebUsbDevice { static DeviceBusyError = class extends Error {}; } export class AdbDaemonWebUsbDeviceManager { requestDevice() { return Promise.resolve({ raw: { close() {} }, serial: "panel", connect: async () => ({}) }); } }',
       'usb-bounds.mjs': 'export const boundedUsb = value => value;',
       'session-target.mjs': 'export const inspectSessionTarget = async () => ({ serial: "RAW_SERIAL" });',
       'job-store.mjs': 'export const openJobStore = async () => ({ close() {} });',

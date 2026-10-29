@@ -101,7 +101,7 @@ function renderedJourney(scenario, locale = 'de', realCatalogue = false) {
     const stubs = {
       '@yume-chan/adb': 'export const AdbCommand = {}; export class AdbTcpIpService {}; export class Adb { disconnected = new Promise(() => {}); close() {} }; export const AdbDaemonTransport = { authenticate: async () => { globalThis.calls.authenticate++; return {}; } };',
       '@yume-chan/adb-credential-web': 'export default class Store {}',
-      '@yume-chan/adb-daemon-webusb': 'export class AdbDaemonWebUsbDeviceManager { constructor() {} requestDevice() { globalThis.calls.chooser++; return Promise.resolve({ raw: { close() {} }, serial: "panel", connect: async () => ({}) }); } }',
+      '@yume-chan/adb-daemon-webusb': 'export class AdbDaemonWebUsbDevice { static DeviceBusyError = class extends Error {}; } export class AdbDaemonWebUsbDeviceManager { constructor() {} requestDevice() { globalThis.calls.chooser++; return Promise.resolve({ raw: { close() {} }, serial: "panel", connect: async () => ({}) }); } }',
       'usb-bounds.mjs': 'export const boundedUsb = value => value;',
       'session-target.mjs': 'export const inspectSessionTarget = async () => ({ serial: "RAW_SERIAL" });',
       'job-store.mjs': 'export const openJobStore = async () => ({ close() {} });',
@@ -274,7 +274,7 @@ function cableTimer(leg) {
     const stubs = {
       '@yume-chan/adb': 'export class Adb { disconnected = new Promise(() => {}); close() {} }; export const AdbDaemonTransport = { authenticate: () => { globalThis.calls.authenticate++; return globalThis.authenticated; } };',
       '@yume-chan/adb-credential-web': 'export default class Store {}',
-      '@yume-chan/adb-daemon-webusb': 'export class AdbDaemonWebUsbDeviceManager { requestDevice() { return Promise.resolve({ raw: { close() {} }, serial: "panel", connect: async () => ({}) }); } }',
+      '@yume-chan/adb-daemon-webusb': 'export class AdbDaemonWebUsbDevice { static DeviceBusyError = class extends Error {}; } export class AdbDaemonWebUsbDeviceManager { requestDevice() { return Promise.resolve({ raw: { close() {} }, serial: "panel", connect: async () => ({}) }); } }',
       'usb-bounds.mjs': 'export const boundedUsb = value => value;',
       'session-target.mjs': leg === 'allow' ? 'export const inspectSessionTarget = async () => ({ serial: "panel" });' : 'export const inspectSessionTarget = () => new Promise(() => {});',
       'job-store.mjs': 'export const openJobStore = async () => ({ close() {} });',
