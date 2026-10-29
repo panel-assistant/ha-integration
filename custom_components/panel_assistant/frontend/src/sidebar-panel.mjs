@@ -99,6 +99,12 @@ export class PanelAssistantSidebar extends HTMLElement {
   #hass; #panel; #route; #narrow = false; #connection; #panels = null; #listState = 'loading'; #listGeneration = 0;
   #signature = ''; #selected = null; #deepLink = null; #frameUrl = null; #session = null; #timer = null; #alerts = null;
   #onReady = () => this.#reconnected();
+  #onFrameLoad = event => {
+    const frame = this.shadowRoot.querySelector('#frame');
+    if (event.currentTarget !== frame || !frame.getAttribute('src')) return;
+    const load = ++this.#frameLoads;
+    this.#failUnless(() => this.#frameWords >= load, SILENT_MS);
+  };
   // Relayed subscriptions by the page's command ID; a new generation drops late answers.
   #relays = new Map(); #relayGeneration = 0;
   // Set when the panel's session closed the relayed subscriptions: the page reopens them
@@ -240,12 +246,7 @@ export class PanelAssistantSidebar extends HTMLElement {
     // is not a usable page and stays behind the shared Notice: the frame shows only once its
     // sandboxed document, which the sidebar cannot read, says it is a page (see #onMessage).
     // A loaded document that never says anything fails the open, which the list refresh retries.
-    root.querySelector('#frame').addEventListener('load', () => {
-      const frame = root.querySelector('#frame');
-      if (!frame.getAttribute('src')) return;
-      const load = ++this.#frameLoads;
-      this.#failUnless(() => this.#frameWords >= load, SILENT_MS);
-    });
+    root.querySelector('#frame').addEventListener('load', this.#onFrameLoad);
     const settings = root.querySelector('#settings');
     settings.setAttribute('aria-label', this.#messages.integrationSettings);
     settings.setAttribute('title', this.#messages.integrationSettings);
@@ -590,6 +591,11 @@ export class PanelAssistantSidebar extends HTMLElement {
     this.#frameUrl = null;
     this.#frameLoads = this.#frameWords = 0;
     frame.removeAttribute('src');
+    // WebKit can discard a new navigation while cancelling this frame's pending one.
+    // A fresh browsing context also prevents the previous page from speaking for the next.
+    const next = frame.cloneNode();
+    next.addEventListener('load', this.#onFrameLoad);
+    frame.replaceWith(next);
   }
 
   // The frame's pages run with an opaque origin (the embed view's sandbox header), which no target origin
