@@ -526,12 +526,15 @@ def _removal_issue(hass: HomeAssistant, entry: MockConfigEntry) -> bool:
 async def test_a_reinstall_withdraws_an_unsubmitted_removal_request(
     hass: HomeAssistant, hass_read_only_user: Any, network: Network
 ) -> None:
+    from homeassistant.components import persistent_notification
+
     from custom_components.panel_assistant.repairs_removal import (
         async_request_removal,
+        removal_notification_id,
     )
 
     entry = await _load(hass, network, hass_read_only_user.id)
-    async_request_removal(hass, entry)
+    await async_request_removal(hass, entry)
     assert _removal_issue(hass, entry)
     network.answers[STORED] = _health(NEW)
 
@@ -539,6 +542,8 @@ async def test_a_reinstall_withdraws_an_unsubmitted_removal_request(
 
     assert _adopted(hass, entry)
     assert not _removal_issue(hass, entry)
+    notices = persistent_notification._async_get_or_create_notifications(hass)
+    assert removal_notification_id(entry.entry_id) not in notices
 
 
 async def test_a_removal_request_stays_while_an_operation_holds_the_panel(
@@ -549,7 +554,7 @@ async def test_a_removal_request_stays_while_an_operation_holds_the_panel(
     )
 
     entry = await _load(hass, network, hass_read_only_user.id)
-    async_request_removal(hass, entry)
+    await async_request_removal(hass, entry)
     network.answers[STORED] = _health(NEW)
     assert claim_panel_operation(hass, entry.entry_id)
     try:

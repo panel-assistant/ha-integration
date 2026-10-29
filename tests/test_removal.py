@@ -1693,6 +1693,7 @@ async def test_the_owner_can_withdraw_a_removal_request_and_keep_the_app(
     hass: HomeAssistant, panel: tuple[FakePanel, TestServer], hass_client: Any
 ) -> None:
     """Keep Panel Assistant clears the Repair and touches neither panel nor entry."""
+    from homeassistant.components import persistent_notification
     from homeassistant.helpers import issue_registry as ir
     from homeassistant.setup import async_setup_component
 
@@ -1705,7 +1706,7 @@ async def test_the_owner_can_withdraw_a_removal_request_and_keep_the_app(
     assert await async_setup_component(hass, DOMAIN, {})
     fake, server = panel
     entry = _entry(hass, server)
-    async_request_removal(hass, entry)
+    await async_request_removal(hass, entry)
     issue_id = removal_issue_id(entry.entry_id)
     admin = await hass_client()
     response = await admin.post(
@@ -1722,9 +1723,11 @@ async def test_the_owner_can_withdraw_a_removal_request_and_keep_the_app(
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
     assert hass.config_entries.async_get_entry(entry.entry_id) is entry
     assert fake.installed == [PACKAGE_ID]
+    notices = persistent_notification._async_get_or_create_notifications(hass)
+    assert f"{DOMAIN}_remove_from_panel_{entry.entry_id}" not in notices
     assert fake.hand_back_requests == 0
 
-    async_request_removal(hass, entry)
+    await async_request_removal(hass, entry)
     again = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
     assert again is not None
     assert again.dismissed_version is None
@@ -1746,7 +1749,7 @@ async def test_an_unauthorized_panel_is_asked_to_allow_home_assistant_in_the_rep
     assert await async_setup_component(hass, DOMAIN, {})
     fake, server = panel
     entry = _entry(hass, server)
-    async_request_removal(hass, entry)
+    await async_request_removal(hass, entry)
     admin = await hass_client()
     response = await admin.post(
         "/api/repairs/issues/fix",

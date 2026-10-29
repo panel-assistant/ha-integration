@@ -113,6 +113,7 @@ class RemoveFromPanelFlow(RepairsFlow):
     ) -> RepairsFlowResult:
         """Withdraw the request; the panel and its entry are left untouched."""
         ir.async_delete_issue(self.hass, DOMAIN, self.issue_id)
+        async_dismiss_removal_notification(self.hass, self._entry_id)
         return self.async_create_entry(data={})
 
     async def async_step_confirm(
