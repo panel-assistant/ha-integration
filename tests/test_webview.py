@@ -107,7 +107,6 @@ async def test_polling_recovers_attempts_into_one_combined_repair_without_instal
         await coordinator.async_refresh()
         manage.assert_not_awaited()
     registry = ir.async_get(hass)
-    assert registry.async_get_issue(DOMAIN, f"panel_webview_{entry.entry_id}") is None
     assert (registry.async_get_issue(DOMAIN, issue_id) is not None) == bool(attempted)
     if attempted:
         events = await async_failure_events(hass, issue_id)

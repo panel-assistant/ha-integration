@@ -10,7 +10,6 @@ from secrets import token_hex
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import issue_registry as ir
 
 from .client import CannotConnectError, InvalidResponseError
 from .const import CONF_TRANSPORT_USER_ID, DOMAIN
@@ -29,14 +28,6 @@ _LOGGER = logging.getLogger(__name__)
 # the rest of the step's budget for the HTTP fallback.
 RECONNECT_WAIT = 90.0
 
-# Retained only to retire issues created by older integration versions.
-ISSUE_WEBVIEW = "panel_webview"
-
-
-def webview_issue_id(entry_id: str) -> str:
-    """The retired standalone issue ID, also used during entry cleanup."""
-    return f"{ISSUE_WEBVIEW}_{entry_id}"
-
 
 async def async_reconcile_webview_issue(
     hass: HomeAssistant, entry: ConfigEntry, status: PanelStatus
@@ -54,7 +45,6 @@ async def async_reconcile_webview_issue(
         panel_failure_issue_id,
     )
 
-    ir.async_delete_issue(hass, DOMAIN, webview_issue_id(entry.entry_id))
     observation = status.webview
     if (
         CONF_TRANSPORT_USER_ID not in entry.data

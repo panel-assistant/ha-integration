@@ -1818,27 +1818,6 @@
         }
       }
     },
-    "panel_webview": {
-      "title": "Mettre à jour le moteur du navigateur sur {panel}.",
-      "fix_flow": {
-        "step": {
-          "update_webview": {
-            "title": "Mettre à jour le moteur du navigateur",
-            "description": "{panel} utilise un ancien moteur de navigateur ou a une mise à jour inachevée. La configuration et l’association restent disponibles.\n\nPour corriger le problème :\n1. Lisez le [guide WebView]({learn_more_url}) si le panneau n’a aucun programme d’installation autorisé.\n2. Sélectionnez Valider pour demander la mise à jour compatible vérifiée du panneau, ou vérifier une mise à jour déjà en cours.\n3. Si la vérification échoue, suivez le guide ou validez à nouveau pour réessayer.\n\n[En savoir plus]({learn_more_url})"
-          }
-        },
-        "error": {
-          "webview_deferred": "La mise à jour n’a pas été vérifiée. La configuration reste disponible. Suivez le guide ou sélectionnez Valider pour réessayer.",
-          "webview_unavailable": "Home Assistant n’a pas pu vérifier le résultat. Reconnectez le panneau, puis sélectionnez Valider pour vérifier avant de réessayer."
-        },
-        "abort": {
-          "entry_removed": "Ce panneau n’est plus configuré dans Home Assistant.\n\nPour corriger le problème :\n1. [Ouvrez les appareils Panel Assistant](/config/integrations/integration/panel_assistant) si vous souhaitez l’ajouter à nouveau.\n2. Sinon, fermez cette boîte de dialogue.\n\n[En savoir plus]({learn_more_url})"
-        },
-        "progress": {
-          "updating_webview": "Mise à jour du moteur du navigateur et vérification du résultat.\n\nPour corriger le problème :\n1. Laissez le panneau allumé ; [ouvrez le guide]({learn_more_url}) si la mise à jour ne peut pas se terminer.\n\n[En savoir plus]({learn_more_url})"
-        }
-      }
-    },
     "dashboard_unfiltered": {
       "title": "{panel} affiche son tableau de bord sans filtrage des entités",
       "description": "{panel} a ouvert son tableau de bord avec toutes les entités, car il n’a pas pu préparer son filtre d’entités à temps. Il continue d’essayer et revient seul au tableau de bord filtré.\n\nPour corriger le problème :\n1. Ouvrez les [paramètres des entités]({entities_url}) de {panel} pour voir ce qu’il attend.\n2. S’il demande une décision ou une nouvelle connexion, suivez les étapes indiquées."

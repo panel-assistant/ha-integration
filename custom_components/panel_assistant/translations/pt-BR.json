@@ -1818,27 +1818,6 @@
         }
       }
     },
-    "panel_webview": {
-      "title": "Atualize o mecanismo do navegador de {panel}.",
-      "fix_flow": {
-        "step": {
-          "update_webview": {
-            "title": "Atualizar mecanismo do navegador",
-            "description": "{panel} tem um mecanismo de navegador antigo ou uma atualização incompleta. A configuração e o pareamento continuam disponíveis.\n\nPara corrigir:\n1. Leia o [guia do WebView]({learn_more_url}) se o painel não tiver um instalador permitido.\n2. Selecione Enviar para solicitar a atualização compatível verificada do painel ou verificar uma atualização já em andamento.\n3. Se a verificação falhar, siga o guia ou envie novamente para tentar de novo.\n\n[Saiba mais]({learn_more_url})"
-          }
-        },
-        "error": {
-          "webview_deferred": "A atualização não foi verificada. A configuração continua disponível. Siga o guia ou selecione Enviar para tentar novamente.",
-          "webview_unavailable": "O Home Assistant não conseguiu verificar o resultado. Reconecte o painel e selecione Enviar para verificar antes de tentar novamente."
-        },
-        "abort": {
-          "entry_removed": "Este painel não está mais configurado no Home Assistant.\n\nPara corrigir:\n1. [Abra os dispositivos do Panel Assistant](/config/integrations/integration/panel_assistant) se quiser adicioná-lo novamente.\n2. Caso contrário, feche esta caixa de diálogo.\n\n[Saiba mais]({learn_more_url})"
-        },
-        "progress": {
-          "updating_webview": "Atualizando o mecanismo do navegador e verificando o resultado.\n\nPara corrigir:\n1. Mantenha o painel ligado; [abra o guia]({learn_more_url}) se a atualização não puder ser concluída.\n\n[Saiba mais]({learn_more_url})"
-        }
-      }
-    },
     "dashboard_unfiltered": {
       "title": "{panel} mostra o dashboard sem filtragem de entidades",
       "description": "{panel} abriu o dashboard com todas as entidades porque não conseguiu preparar o filtro de entidades a tempo. Ele continua tentando e volta sozinho ao dashboard filtrado.\n\nPara corrigir:\n1. Abra as [configurações de entidades]({entities_url}) de {panel} para ver o que ele está esperando.\n2. Se pedir uma decisão ou um novo login, siga as etapas indicadas."

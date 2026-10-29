@@ -1818,27 +1818,6 @@
         }
       }
     },
-    "panel_webview": {
-      "title": "更新 {panel} 的浏览器引擎。",
-      "fix_flow": {
-        "step": {
-          "update_webview": {
-            "title": "更新浏览器引擎",
-            "description": "{panel} 的浏览器引擎较旧，或有尚未完成的更新。设置和配对仍然可用。\n\n解决方法：\n1. 如果面板没有获得授权的安装程序，请阅读 [WebView 指南]({learn_more_url})。\n2. 选择“提交”以为面板请求经过验证的兼容更新，或检查正在进行的更新。\n3. 如果验证失败，请按照指南操作，或再次提交以重试。\n\n[了解更多]({learn_more_url})"
-          }
-        },
-        "error": {
-          "webview_deferred": "更新尚未得到验证。设置仍然可用。请参阅指南，或选择“提交”重试。",
-          "webview_unavailable": "Home Assistant 无法验证结果。请重新连接面板，然后选择“提交”，先检查再重试。"
-        },
-        "abort": {
-          "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})"
-        },
-        "progress": {
-          "updating_webview": "正在更新浏览器引擎并检查结果。\n\n解决方法：\n1. 请保持面板通电；如果更新无法完成，请[打开指南]({learn_more_url})。\n\n[了解更多]({learn_more_url})"
-        }
-      }
-    },
     "dashboard_unfiltered": {
       "title": "{panel} 正在显示未经实体筛选的仪表板",
       "description": "{panel} 未能及时准备好实体筛选器，因此以全部实体打开了仪表板。它会继续尝试，并自动回到筛选后的仪表板。\n\n解决方法：\n1. 打开 {panel} 的[实体设置]({entities_url})，查看它在等待什么。\n2. 如果需要做出决定或重新登录，请按照其中的步骤操作。"

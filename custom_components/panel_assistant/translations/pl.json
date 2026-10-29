@@ -1818,27 +1818,6 @@
         }
       }
     },
-    "panel_webview": {
-      "title": "Zaktualizuj silnik przeglądarki na {panel}.",
-      "fix_flow": {
-        "step": {
-          "update_webview": {
-            "title": "Aktualizuj silnik przeglądarki",
-            "description": "{panel} ma starszy silnik przeglądarki lub niedokończoną aktualizację. Konfiguracja i parowanie pozostają dostępne.\n\nAby rozwiązać problem:\n1. Jeśli panel nie ma dozwolonego instalatora, przeczytaj [poradnik WebView]({learn_more_url}).\n2. Wybierz Zatwierdź, aby poprosić o zweryfikowaną zgodną aktualizację panelu lub sprawdzić trwającą już aktualizację.\n3. Jeśli weryfikacja się nie powiedzie, skorzystaj z poradnika lub ponownie wybierz Zatwierdź, aby spróbować jeszcze raz.\n\n[Dowiedz się więcej]({learn_more_url})"
-          }
-        },
-        "error": {
-          "webview_deferred": "Aktualizacja nie została zweryfikowana. Konfiguracja pozostaje dostępna. Skorzystaj z poradnika lub wybierz Zatwierdź, aby spróbować ponownie.",
-          "webview_unavailable": "Home Assistant nie mógł zweryfikować wyniku. Połącz panel ponownie, a następnie wybierz Zatwierdź, aby sprawdzić przed ponowną próbą."
-        },
-        "abort": {
-          "entry_removed": "Ten panel nie jest już skonfigurowany w Home Assistant.\n\nAby rozwiązać problem:\n1. [Otwórz urządzenia Panel Assistant](/config/integrations/integration/panel_assistant), jeśli chcesz dodać go ponownie.\n2. W przeciwnym razie zamknij to okno.\n\n[Dowiedz się więcej]({learn_more_url})"
-        },
-        "progress": {
-          "updating_webview": "Aktualizowanie silnika przeglądarki i sprawdzanie wyniku.\n\nAby rozwiązać problem:\n1. Nie wyłączaj zasilania panelu; jeśli aktualizacja nie może się zakończyć, [otwórz poradnik]({learn_more_url}).\n\n[Dowiedz się więcej]({learn_more_url})"
-        }
-      }
-    },
     "dashboard_unfiltered": {
       "title": "{panel} pokazuje pulpit bez filtrowania encji",
       "description": "{panel} otworzył pulpit ze wszystkimi encjami, ponieważ nie zdążył przygotować filtra encji. Nadal próbuje i sam wróci do przefiltrowanego pulpitu.\n\nAby rozwiązać problem:\n1. Otwórz [ustawienia encji]({entities_url}) dla {panel}, aby zobaczyć, na co czeka.\n2. Jeśli prosi o decyzję lub ponowne zalogowanie, wykonaj podane tam kroki."

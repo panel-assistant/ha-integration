@@ -1818,27 +1818,6 @@
         }
       }
     },
-    "panel_webview": {
-      "title": "Actualizar el motor del navegador de {panel}.",
-      "fix_flow": {
-        "step": {
-          "update_webview": {
-            "title": "Actualizar el motor del navegador",
-            "description": "{panel} tiene un motor de navegador antiguo o una actualización incompleta. La configuración y la vinculación siguen disponibles.\n\nPara solucionarlo:\n1. Lee la [guía de WebView]({learn_more_url}) si el panel no tiene un instalador autorizado.\n2. Selecciona Enviar para solicitar la actualización compatible verificada del panel o comprobar una actualización en curso.\n3. Si la verificación falla, sigue la guía o vuelve a enviar para reintentarlo.\n\n[Más información]({learn_more_url})"
-          }
-        },
-        "error": {
-          "webview_deferred": "No se ha verificado la actualización. La configuración sigue disponible. Sigue la guía o selecciona Enviar para reintentarlo.",
-          "webview_unavailable": "Home Assistant no pudo verificar el resultado. Vuelve a conectar el panel y selecciona Enviar para comprobarlo antes de reintentar."
-        },
-        "abort": {
-          "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant](/config/integrations/integration/panel_assistant) si quieres volver a añadirlo.\n2. En caso contrario, cierra este diálogo.\n\n[Más información]({learn_more_url})"
-        },
-        "progress": {
-          "updating_webview": "Actualizando el motor del navegador y comprobando el resultado.\n\nPara solucionarlo:\n1. Mantén el panel encendido; [abre la guía]({learn_more_url}) si la actualización no puede terminar.\n\n[Más información]({learn_more_url})"
-        }
-      }
-    },
     "dashboard_unfiltered": {
       "title": "{panel} muestra su panel de control sin filtrado de entidades",
       "description": "{panel} abrió su panel de control con todas las entidades porque no pudo terminar a tiempo de preparar su filtro de entidades. Sigue intentándolo y vuelve por sí solo al panel de control filtrado.\n\nPara solucionarlo:\n1. Abre la [configuración de entidades]({entities_url}) de {panel} para ver qué está esperando.\n2. Si pide una decisión o un nuevo inicio de sesión, sigue los pasos que indica."
