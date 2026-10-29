@@ -116,6 +116,7 @@
   },
   "errors": {
     "installErrorGeneric": "Une erreur s’est produite. Gardez le panneau branché et appuyez sur « Réessayer ».",
+    "installErrorUsbBusy": "Une autre application utilise la connexion USB. Fermez les autres applications qui utilisent la connexion USB du panneau, puis appuyez sur « Réessayer ».",
     "installErrorBusy": "Le panneau est occupé par une autre installation. Attendez une minute, puis réessayez.",
     "installErrorStorage": "Ce navigateur n’a pas pu enregistrer sa progression. Autorisez ce site à stocker des données, puis réessayez.",
     "installErrorTarget": "Un autre panneau a été connecté. Branchez le même panneau et réessayez.",

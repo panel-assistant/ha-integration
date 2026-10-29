@@ -130,6 +130,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "Something went wrong. Keep the panel plugged in and press Try again.",
+			installErrorUsbBusy: "Another app is using the USB connection. Close other apps using the panel’s USB connection, then press Try again.",
 			installErrorBusy: "The panel is busy with another install. Wait a minute, then try again.",
 			installErrorStorage: "This browser couldn’t save its progress. Allow this site to store data, then try again.",
 			installErrorTarget: "A different panel was connected. Plug in the same panel and try again.",
@@ -294,6 +295,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "Něco se pokazilo. Nechte panel připojený a stiskněte Zkusit znovu.",
+			installErrorUsbBusy: "Připojení USB používá jiná aplikace. Zavřete ostatní aplikace používající připojení USB panelu a poté stiskněte Zkusit znovu.",
 			installErrorBusy: "Panel je zaneprázdněný jinou instalací. Počkejte minutu a pak to zkuste znovu.",
 			installErrorStorage: "Tento prohlížeč nedokázal uložit průběh. Povolte tomuto webu ukládání dat a pak to zkuste znovu.",
 			installErrorTarget: "Byl připojen jiný panel. Připojte stejný panel a zkuste to znovu.",
@@ -458,6 +460,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "Etwas ist schiefgegangen. Lass das Panel angeschlossen und drücke „Erneut versuchen“.",
+			installErrorUsbBusy: "Eine andere App verwendet die USB-Verbindung. Schließe andere Apps, die die USB-Verbindung des Panels verwenden, und drücke dann „Erneut versuchen“.",
 			installErrorBusy: "Das Panel ist mit einer anderen Installation beschäftigt. Warte eine Minute und versuche es dann erneut.",
 			installErrorStorage: "Dieser Browser konnte den Fortschritt nicht speichern. Erlaube dieser Website, Daten zu speichern, und versuche es erneut.",
 			installErrorTarget: "Ein anderes Panel wurde angeschlossen. Schließe dasselbe Panel an und versuche es erneut.",
@@ -622,6 +625,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "Algo salió mal. Mantén el panel conectado y pulsa Volver a intentar.",
+			installErrorUsbBusy: "Otra aplicación está usando la conexión USB. Cierra las demás aplicaciones que usen la conexión USB del panel y pulsa Volver a intentar.",
 			installErrorBusy: "El panel está ocupado con otra instalación. Espera un minuto y vuelve a intentarlo.",
 			installErrorStorage: "Este navegador no pudo guardar el progreso. Permite que este sitio almacene datos y vuelve a intentarlo.",
 			installErrorTarget: "Se conectó un panel diferente. Conecta el mismo panel y vuelve a intentarlo.",
@@ -786,6 +790,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "Une erreur s’est produite. Gardez le panneau branché et appuyez sur « Réessayer ».",
+			installErrorUsbBusy: "Une autre application utilise la connexion USB. Fermez les autres applications qui utilisent la connexion USB du panneau, puis appuyez sur « Réessayer ».",
 			installErrorBusy: "Le panneau est occupé par une autre installation. Attendez une minute, puis réessayez.",
 			installErrorStorage: "Ce navigateur n’a pas pu enregistrer sa progression. Autorisez ce site à stocker des données, puis réessayez.",
 			installErrorTarget: "Un autre panneau a été connecté. Branchez le même panneau et réessayez.",
@@ -950,6 +955,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "Si è verificato un problema. Lascia il pannello collegato e premi Riprova.",
+			installErrorUsbBusy: "Un’altra app sta usando la connessione USB. Chiudi le altre app che usano la connessione USB del pannello, poi premi Riprova.",
 			installErrorBusy: "Il pannello è impegnato in un’altra installazione. Attendi un minuto, poi riprova.",
 			installErrorStorage: "Questo browser non è riuscito a salvare l’avanzamento. Consenti a questo sito di memorizzare dati, poi riprova.",
 			installErrorTarget: "È stato collegato un pannello diverso. Collega lo stesso pannello e riprova.",
@@ -1114,6 +1120,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "Er ging iets mis. Laat het paneel aangesloten en druk op Opnieuw proberen.",
+			installErrorUsbBusy: "Een andere app gebruikt de USB-verbinding. Sluit andere apps die de USB-verbinding van het paneel gebruiken en druk daarna op Opnieuw proberen.",
 			installErrorBusy: "Het paneel is bezig met een andere installatie. Wacht een minuut en probeer het opnieuw.",
 			installErrorStorage: "Deze browser kon de voortgang niet opslaan. Sta toe dat deze site gegevens opslaat en probeer het opnieuw.",
 			installErrorTarget: "Er is een ander paneel aangesloten. Sluit hetzelfde paneel aan en probeer het opnieuw.",
@@ -1278,6 +1285,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "Coś poszło nie tak. Zostaw panel podłączony i naciśnij Spróbuj ponownie.",
+			installErrorUsbBusy: "Inna aplikacja używa połączenia USB. Zamknij inne aplikacje korzystające z połączenia USB panelu, a następnie naciśnij Spróbuj ponownie.",
 			installErrorBusy: "Panel jest zajęty inną instalacją. Poczekaj minutę, a potem spróbuj ponownie.",
 			installErrorStorage: "Przeglądarka nie mogła zapisać postępu. Zezwól tej stronie na zapisywanie danych, a potem spróbuj ponownie.",
 			installErrorTarget: "Podłączono inny panel. Podłącz ten sam panel co wcześniej i spróbuj ponownie.",
@@ -1442,6 +1450,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "Algo deu errado. Mantenha o painel conectado e pressione Tentar novamente.",
+			installErrorUsbBusy: "Outro aplicativo está usando a conexão USB. Feche os outros aplicativos que usam a conexão USB do painel e pressione Tentar novamente.",
 			installErrorBusy: "O painel está ocupado com outra instalação. Aguarde um minuto e tente novamente.",
 			installErrorStorage: "Este navegador não conseguiu salvar o progresso. Permita que este site armazene dados e tente novamente.",
 			installErrorTarget: "Outro painel foi conectado. Conecte o mesmo painel e tente novamente.",
@@ -1606,6 +1615,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "Щось пішло не так. Залиште панель під’єднаною та натисніть «Спробувати ще раз».",
+			installErrorUsbBusy: "Інша програма використовує USB-з’єднання. Закрийте інші програми, які використовують USB-з’єднання панелі, а потім натисніть «Спробувати ще раз».",
 			installErrorBusy: "На панелі вже триває інше встановлення. Зачекайте хвилину й повторіть спробу.",
 			installErrorStorage: "Браузеру не вдалося зберегти перебіг роботи. Дозвольте цьому сайту зберігати дані й повторіть спробу.",
 			installErrorTarget: "Було під’єднано іншу панель. Під’єднайте ту саму панель і повторіть спробу.",
@@ -1770,6 +1780,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "发生了错误。请保持面板连接，然后点击“重试”。",
+			installErrorUsbBusy: "另一个应用正在使用 USB 连接。请关闭其他使用面板 USB 连接的应用，然后点击“重试”。",
 			installErrorBusy: "面板正在进行另一项安装。请等待一分钟后重试。",
 			installErrorStorage: "此浏览器无法保存进度。请允许此网站存储数据，然后重试。",
 			installErrorTarget: "连接了另一个面板。请连接原来的面板后重试。",

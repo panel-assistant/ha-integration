@@ -116,6 +116,7 @@
   },
   "errors": {
     "installErrorGeneric": "Etwas ist schiefgegangen. Lass das Panel angeschlossen und drücke „Erneut versuchen“.",
+    "installErrorUsbBusy": "Eine andere App verwendet die USB-Verbindung. Schließe andere Apps, die die USB-Verbindung des Panels verwenden, und drücke dann „Erneut versuchen“.",
     "installErrorBusy": "Das Panel ist mit einer anderen Installation beschäftigt. Warte eine Minute und versuche es dann erneut.",
     "installErrorStorage": "Dieser Browser konnte den Fortschritt nicht speichern. Erlaube dieser Website, Daten zu speichern, und versuche es erneut.",
     "installErrorTarget": "Ein anderes Panel wurde angeschlossen. Schließe dasselbe Panel an und versuche es erneut.",

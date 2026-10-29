@@ -116,6 +116,7 @@
   },
   "errors": {
     "installErrorGeneric": "Si è verificato un problema. Lascia il pannello collegato e premi Riprova.",
+    "installErrorUsbBusy": "Un’altra app sta usando la connessione USB. Chiudi le altre app che usano la connessione USB del pannello, poi premi Riprova.",
     "installErrorBusy": "Il pannello è impegnato in un’altra installazione. Attendi un minuto, poi riprova.",
     "installErrorStorage": "Questo browser non è riuscito a salvare l’avanzamento. Consenti a questo sito di memorizzare dati, poi riprova.",
     "installErrorTarget": "È stato collegato un pannello diverso. Collega lo stesso pannello e riprova.",

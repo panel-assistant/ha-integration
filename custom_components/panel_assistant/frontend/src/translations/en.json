@@ -116,6 +116,7 @@
   },
   "errors": {
     "installErrorGeneric": "Something went wrong. Keep the panel plugged in and press Try again.",
+    "installErrorUsbBusy": "Another app is using the USB connection. Close other apps using the panel’s USB connection, then press Try again.",
     "installErrorBusy": "The panel is busy with another install. Wait a minute, then try again.",
     "installErrorStorage": "This browser couldn’t save its progress. Allow this site to store data, then try again.",
     "installErrorTarget": "A different panel was connected. Plug in the same panel and try again.",

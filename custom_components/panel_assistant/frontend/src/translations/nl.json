@@ -116,6 +116,7 @@
   },
   "errors": {
     "installErrorGeneric": "Er ging iets mis. Laat het paneel aangesloten en druk op Opnieuw proberen.",
+    "installErrorUsbBusy": "Een andere app gebruikt de USB-verbinding. Sluit andere apps die de USB-verbinding van het paneel gebruiken en druk daarna op Opnieuw proberen.",
     "installErrorBusy": "Het paneel is bezig met een andere installatie. Wacht een minuut en probeer het opnieuw.",
     "installErrorStorage": "Deze browser kon de voortgang niet opslaan. Sta toe dat deze site gegevens opslaat en probeer het opnieuw.",
     "installErrorTarget": "Er is een ander paneel aangesloten. Sluit hetzelfde paneel aan en probeer het opnieuw.",

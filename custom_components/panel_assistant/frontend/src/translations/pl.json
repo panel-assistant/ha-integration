@@ -116,6 +116,7 @@
   },
   "errors": {
     "installErrorGeneric": "Coś poszło nie tak. Zostaw panel podłączony i naciśnij Spróbuj ponownie.",
+    "installErrorUsbBusy": "Inna aplikacja używa połączenia USB. Zamknij inne aplikacje korzystające z połączenia USB panelu, a następnie naciśnij Spróbuj ponownie.",
     "installErrorBusy": "Panel jest zajęty inną instalacją. Poczekaj minutę, a potem spróbuj ponownie.",
     "installErrorStorage": "Przeglądarka nie mogła zapisać postępu. Zezwól tej stronie na zapisywanie danych, a potem spróbuj ponownie.",
     "installErrorTarget": "Podłączono inny panel. Podłącz ten sam panel co wcześniej i spróbuj ponownie.",
