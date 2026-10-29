@@ -139,12 +139,17 @@ case "${0##*/} $1 $2" in
         :
     elif [ "${c#*/}" = "$release" ] && [ -e "$s/installed/$p" ] \
         && [ ! -e "$s/no_release/$p" ] && [ -e "$s/admin/$p" ]; then
-        echo released > "$s/admin/$p"; echo "release admin $p" >> "$s/events"
+        cat "$s/release_sleeps" 2>/dev/null > "$s/admin/$p" || echo 1 > "$s/admin/$p"
+        echo "release admin $p" >> "$s/events"
     fi ;;
 # Android lets go of a released admin only once it has told the app it is
-# disabled, which takes time: here, until the shell next sleeps.
+# disabled, which takes time: here, after release_sleeps shell sleeps (one).
 "sleep "*)
-    for f in "$s"/admin/*; do [ ! -s "$f" ] || rm "$f"; done ;;
+    for f in "$s"/admin/*; do
+        [ -s "$f" ] || continue
+        n=$(($(cat "$f") - 1))
+        if [ "$n" -le 0 ]; then rm "$f"; else echo "$n" > "$f"; fi
+    done ;;
 "am "*|"dumpsys "*) ;;
 *) exit 1 ;;
 esac
@@ -456,6 +461,20 @@ async def test_an_app_holding_device_admin_gives_it_up_and_is_removed(
     events = fake.read()["events"]
     assert events.count(f"release admin {holder}") == 1
     assert events.index(f"release admin {holder}") < events.index(f"uninstall {holder}")
+
+
+async def test_a_slow_device_admin_release_is_awaited_within_the_budget(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
+) -> None:
+    """Android may take most of the ten-second wait to drop a released admin."""
+    fake, server = panel
+    fake.set(admin=[PACKAGE_ID], release_sleeps=9)
+    entry = _entry(hass, server)
+
+    result = await _remove(hass, entry)
+
+    assert result.get("errors") is None, (result.get("errors"), fake.read())
+    assert fake.installed == []
 
 
 async def test_an_app_that_cannot_give_up_device_admin_is_kept_and_reported(
