@@ -46,7 +46,10 @@ async def _event(panel: Any, task: asyncio.Task[Any]) -> dict[str, Any]:
     done, _ = await asyncio.wait({receiving, task}, return_when=asyncio.FIRST_COMPLETED)
     if task in done and receiving not in done:
         receiving.cancel()
-        await task
+        try:
+            await task
+        except InstallAdbError:
+            pytest.fail("The target refused before the required protocol request")
         pytest.fail("The target returned before the required protocol request")
     return (await receiving)["event"]
 
