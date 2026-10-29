@@ -1064,6 +1064,7 @@
           "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
           "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
           "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_panel_busy": "Ten panel jest nadal zajęty aktualizacją lub innym zadaniem. Poczekaj, aż się zakończy, i spróbuj ponownie. Jeśli aktualizacja się powiedzie, ta naprawa zamknie się sama.",
           "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz naprawę ponownie, jeśli błąd wróci."
         }
       }
@@ -1106,6 +1107,7 @@
           "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
           "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
           "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_panel_busy": "Ten panel jest nadal zajęty aktualizacją lub innym zadaniem. Poczekaj, aż się zakończy, i spróbuj ponownie. Jeśli aktualizacja się powiedzie, ta naprawa zamknie się sama.",
           "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz naprawę ponownie, jeśli błąd wróci."
         }
       }
@@ -1148,6 +1150,7 @@
           "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
           "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
           "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_panel_busy": "Ten panel jest nadal zajęty aktualizacją lub innym zadaniem. Poczekaj, aż się zakończy, i spróbuj ponownie. Jeśli aktualizacja się powiedzie, ta naprawa zamknie się sama.",
           "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz naprawę ponownie, jeśli błąd wróci."
         }
       }
@@ -1190,6 +1193,7 @@
           "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
           "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
           "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_panel_busy": "Ten panel jest nadal zajęty aktualizacją lub innym zadaniem. Poczekaj, aż się zakończy, i spróbuj ponownie. Jeśli aktualizacja się powiedzie, ta naprawa zamknie się sama.",
           "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz naprawę ponownie, jeśli błąd wróci."
         }
       }
@@ -1232,6 +1236,7 @@
           "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
           "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
           "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_panel_busy": "Ten panel jest nadal zajęty aktualizacją lub innym zadaniem. Poczekaj, aż się zakończy, i spróbuj ponownie. Jeśli aktualizacja się powiedzie, ta naprawa zamknie się sama.",
           "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz naprawę ponownie, jeśli błąd wróci."
         }
       }
@@ -1274,6 +1279,7 @@
           "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
           "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
           "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_panel_busy": "Ten panel jest nadal zajęty aktualizacją lub innym zadaniem. Poczekaj, aż się zakończy, i spróbuj ponownie. Jeśli aktualizacja się powiedzie, ta naprawa zamknie się sama.",
           "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz naprawę ponownie, jeśli błąd wróci."
         }
       }
@@ -1316,6 +1322,7 @@
           "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
           "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
           "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_panel_busy": "Ten panel jest nadal zajęty aktualizacją lub innym zadaniem. Poczekaj, aż się zakończy, i spróbuj ponownie. Jeśli aktualizacja się powiedzie, ta naprawa zamknie się sama.",
           "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz naprawę ponownie, jeśli błąd wróci."
         }
       }
@@ -1358,6 +1365,7 @@
           "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
           "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
           "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_panel_busy": "Ten panel jest nadal zajęty aktualizacją lub innym zadaniem. Poczekaj, aż się zakończy, i spróbuj ponownie. Jeśli aktualizacja się powiedzie, ta naprawa zamknie się sama.",
           "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz naprawę ponownie, jeśli błąd wróci."
         }
       }
@@ -1400,6 +1408,7 @@
           "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
           "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
           "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_panel_busy": "Ten panel jest nadal zajęty aktualizacją lub innym zadaniem. Poczekaj, aż się zakończy, i spróbuj ponownie. Jeśli aktualizacja się powiedzie, ta naprawa zamknie się sama.",
           "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz naprawę ponownie, jeśli błąd wróci."
         }
       }
@@ -1442,6 +1451,7 @@
           "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
           "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
           "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_panel_busy": "Ten panel jest nadal zajęty aktualizacją lub innym zadaniem. Poczekaj, aż się zakończy, i spróbuj ponownie. Jeśli aktualizacja się powiedzie, ta naprawa zamknie się sama.",
           "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz naprawę ponownie, jeśli błąd wróci."
         }
       }
@@ -1490,6 +1500,7 @@
           "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
           "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
           "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_panel_busy": "Ten panel jest nadal zajęty aktualizacją lub innym zadaniem. Poczekaj, aż się zakończy, i spróbuj ponownie. Jeśli aktualizacja się powiedzie, ta naprawa zamknie się sama.",
           "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz naprawę ponownie, jeśli błąd wróci.",
           "cannot_connect": "Nie udało się nawiązać połączenia z prawidłowym punktem końcowym stanu działania usługi Panel Assistant.",
           "invalid_install_address": "Wpisz tylko nazwę hosta lub adres IP panelu.",
@@ -1612,6 +1623,7 @@
           "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
           "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
           "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_panel_busy": "Ten panel jest nadal zajęty aktualizacją lub innym zadaniem. Poczekaj, aż się zakończy, i spróbuj ponownie. Jeśli aktualizacja się powiedzie, ta naprawa zamknie się sama.",
           "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz naprawę ponownie, jeśli błąd wróci."
         },
         "abort": {
@@ -1697,6 +1709,7 @@
           "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
           "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
           "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_panel_busy": "Ten panel jest nadal zajęty aktualizacją lub innym zadaniem. Poczekaj, aż się zakończy, i spróbuj ponownie. Jeśli aktualizacja się powiedzie, ta naprawa zamknie się sama.",
           "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz naprawę ponownie, jeśli błąd wróci.",
           "cannot_connect": "Nie udało się nawiązać połączenia z prawidłowym punktem końcowym stanu działania usługi Panel Assistant.",
           "invalid_install_address": "Wpisz tylko nazwę hosta lub adres IP panelu.",

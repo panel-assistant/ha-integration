@@ -1064,6 +1064,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         }
       }
@@ -1106,6 +1107,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         }
       }
@@ -1148,6 +1150,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         }
       }
@@ -1190,6 +1193,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         }
       }
@@ -1232,6 +1236,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         }
       }
@@ -1274,6 +1279,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         }
       }
@@ -1316,6 +1322,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         }
       }
@@ -1358,6 +1365,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         }
       }
@@ -1400,6 +1408,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         }
       }
@@ -1442,6 +1451,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         }
       }
@@ -1490,6 +1500,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt.",
           "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig Panel Assistant-status-eindpunt.",
           "invalid_install_address": "Voer alleen de hostnaam of het IP-adres van het paneel in.",
@@ -1612,6 +1623,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         },
         "abort": {
@@ -1697,6 +1709,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt.",
           "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig Panel Assistant-status-eindpunt.",
           "invalid_install_address": "Voer alleen de hostnaam of het IP-adres van het paneel in.",

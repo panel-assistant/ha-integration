@@ -1064,6 +1064,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         }
       }
@@ -1106,6 +1107,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         }
       }
@@ -1148,6 +1150,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         }
       }
@@ -1190,6 +1193,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         }
       }
@@ -1232,6 +1236,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         }
       }
@@ -1274,6 +1279,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         }
       }
@@ -1316,6 +1322,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         }
       }
@@ -1358,6 +1365,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         }
       }
@@ -1400,6 +1408,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         }
       }
@@ -1442,6 +1451,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         }
       }
@@ -1490,6 +1500,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu.",
           "cannot_connect": "Nelze se připojit k platnému koncovému bodu kontroly funkčnosti Panel Assistant.",
           "invalid_install_address": "Zadejte pouze název hostitele nebo IP adresu panelu.",
@@ -1612,6 +1623,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         },
         "abort": {
@@ -1697,6 +1709,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu.",
           "cannot_connect": "Nelze se připojit k platnému koncovému bodu kontroly funkčnosti Panel Assistant.",
           "invalid_install_address": "Zadejte pouze název hostitele nebo IP adresu panelu.",
