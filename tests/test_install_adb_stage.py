@@ -286,21 +286,50 @@ def test_verified_apk_identity_requires_one_filesystem_link(tmp_path: Path) -> N
     assert caught.value.code is InstallAdbErrorCode.LOCAL_ARTIFACT_INVALID
 
 
-def test_verified_apk_identity_includes_nanosecond_timestamps(tmp_path: Path) -> None:
+async def test_stage_rejects_timestamp_drift_during_verification(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+) -> None:
     apk = tmp_path / "artifact.apk"
     _write_private_apk(apk)
-    status = apk.lstat()
+    initial = apk.stat()
+    original_read = os.read
+    changed = False
 
-    assert install_adb._verified_apk_identity(status, len(APK_BYTES)) == (
-        status.st_dev,
-        status.st_ino,
-        status.st_mode,
-        status.st_uid,
-        status.st_nlink,
-        status.st_size,
-        status.st_mtime_ns,
-        status.st_ctime_ns,
+    def change_timestamp_after_hash(file_descriptor: int, size: int) -> bytes:
+        nonlocal changed
+        data = original_read(file_descriptor, size)
+        if not data and not changed:
+            os.utime(apk, ns=(initial.st_atime_ns, initial.st_mtime_ns + 1))
+            changed = True
+        return data
+
+    monkeypatch.setattr(install_adb.os, "read", change_timestamp_after_hash)
+    fake = FakeDevice(
+        [
+            _preflight_output(NONCES[0]),
+            _single_output("PATH", NONCES[1], ["absent"], 0),
+            _remote_output(NONCES[2]),
+        ]
     )
+    _install_fakes(monkeypatch, [fake])
+    with pytest.raises(InstallAdbError) as caught:
+        await async_stage_apk(
+            target,
+            signer,
+            descriptor,
+            JOB_ID,
+            apk,
+            expected_root_mode=AdbRootMode.ROOTLESS,
+        )
+    assert caught.value.code is InstallAdbErrorCode.LOCAL_ARTIFACT_INVALID
+    assert changed
+    assert apk.stat().st_mtime_ns == initial.st_mtime_ns + 1
+    assert fake.connect_kwargs is None
+    assert fake.pushes == []
 
 
 def test_open_verified_apk_compares_preopen_path_with_open_descriptor(

@@ -106,7 +106,10 @@ def test_capture_refuses_symlink_without_touching_target(tmp_path: Path) -> None
     assert target.read_text() == "preserve me"
 
 
-def test_usb_and_network_install_use_identical_custody_program() -> None:
+def test_usb_install_preserves_original_home_before_install_can_clear_it(
+    tmp_path: Path,
+) -> None:
+    """The USB shell transfers the original HOME after package install resets it."""
     source = (
         Path(__file__).parents[1]
         / "custom_components/panel_assistant/frontend/src/install-contract.mjs"
@@ -123,9 +126,16 @@ def test_usb_and_network_install_use_identical_custody_program() -> None:
             text=True,
         ).stdout
     )
-    assert actual == _install_command(
-        "0" * 32, "/data/local/tmp/ha-paneld-install-" + "1" * 32 + ".apk", 34
+    apk = tmp_path / ("ha-paneld-install-" + "1" * 32 + ".apk")
+    output = _shell(actual.replace("/data/local/tmp", str(tmp_path)), tmp_path)
+    assert "HAPANELD_INSTALL_END:" + "0" * 32 + ":0" in output
+    assert (tmp_path / "captured").is_file()
+    assert (
+        "--es previous_home_component "
+        "com.vendor.launcher/com.vendor.launcher.OriginalHome"
+        in (tmp_path / "captured").read_text()
     )
+    assert not Path(str(apk) + ".previous-home").exists()
 
 
 def test_cancelled_job_discards_only_its_snapshot(tmp_path: Path) -> None:

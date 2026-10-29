@@ -681,7 +681,6 @@ async def test_install_delivers_the_newest_build_in_order(
     assert stored[0].name.startswith("entry-id-")
     assert stored[0].name.endswith("-vc771.zip")
     assert stored[0].read_bytes() == BACKUP
-    assert entity._installed_code == 772
     assert entity.installed_version == "0.9.7-rc4 build 772"
     assert entity.in_progress is False
     client.async_discard_apk.assert_not_awaited()
@@ -698,7 +697,7 @@ async def test_install_a_specific_older_build(
 
     assert delivery.download.await_args.args[1].descriptor.version_code == 770
     client.async_commit_apk.assert_awaited_once_with("tok-1")
-    assert entity._installed_code == 770
+    assert entity.installed_version == "0.9.7-rc4 build 770"
     assert entity.in_progress is False
 
 
@@ -720,7 +719,7 @@ async def test_install_refreshes_the_feed_to_find_a_newly_published_build(
 
     feed.async_refresh.assert_awaited_once()
     assert delivery.download.await_args.args[1].descriptor.version_code == 773
-    assert entity._installed_code == 773
+    assert entity.installed_version == "0.9.7-rc4 build 773"
 
 
 async def test_install_refuses_a_build_still_missing_after_one_refresh(
@@ -1052,7 +1051,6 @@ async def test_wait_refuses_a_restart_into_a_different_build(
 
     _assert_translated(error.value, "update_not_complete")
     client.async_commit_apk.assert_awaited_once_with("tok-1")
-    assert entity._installed_code == 771
     assert entity.in_progress is False
 
 
@@ -1915,7 +1913,7 @@ async def test_a_panel_refusing_a_higher_build_as_a_downgrade_is_crossed_over_ad
     client.async_commit_apk.assert_awaited_once_with("tok-1")
     adb_install.assert_awaited_once()
     assert adb_install.await_args.args[2].version_code == 772
-    assert entity._installed_code == 772
+    assert entity.installed_version == "0.9.7-rc4 build 772"
     assert entity.in_progress is False
 
 

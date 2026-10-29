@@ -20,7 +20,6 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant import (
     _async_reconcile_install_receipt,
-    _async_resume_install_jobs,
     async_reload_entry,
 )
 from custom_components.panel_assistant.app_identity import (
@@ -431,15 +430,23 @@ async def test_setup_contains_unexpected_install_resume_failure(
 async def test_setup_propagates_cancelled_install_resume(
     hass: HomeAssistant,
 ) -> None:
-    """Best-effort containment must not consume task cancellation."""
+    """Cancellation during install resume prevents the entry from loading."""
+    entry = _entry(hass)
     with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=HEALTH),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=STATUS),
+        ),
         patch(
             "custom_components.panel_assistant.async_resume_loaded_install_jobs",
             AsyncMock(side_effect=asyncio.CancelledError),
         ),
-        pytest.raises(asyncio.CancelledError),
     ):
-        await _async_resume_install_jobs(hass)
+        assert not await hass.config_entries.async_setup(entry.entry_id)
 
 
 async def test_setup_propagates_cancelled_install_reconciliation(
