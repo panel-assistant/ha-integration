@@ -2516,7 +2516,7 @@ function ye(e) {
 	let t = Number(I.exec(e)[1]);
 	return t <= ge ? t : null;
 }
-var V = (e) => ye(e) !== null, be = (e) => Array.from(new Uint8Array(e), (e) => e.toString(16).padStart(2, "0")).join(""), xe = (e = crypto) => be(e.getRandomValues(/* @__PURE__ */ new Uint8Array(16))), H = (e, t) => typeof t == "string" && e.exec(t)?.[0] === t, U = (e, t) => typeof e == "object" && !!e && !Array.isArray(e) && Object.keys(e).length === t.length && t.every((t) => Object.hasOwn(e, t)), W = "/api/panel_assistant/usb/release", Se = "/api/panel_assistant/usb/handover", Ce = "/api/panel_assistant/usb/adb_key", we = 35e3, Te = /(?:[0-9]{1,3}\.){3}[0-9]{1,3}/, Ee = /[a-z_]{1,48}/, G = 67108864, De = 18e5, K = [
+var V = (e) => ye(e) !== null, be = (e) => Array.from(new Uint8Array(e), (e) => e.toString(16).padStart(2, "0")).join(""), xe = (e = crypto) => be(e.getRandomValues(/* @__PURE__ */ new Uint8Array(16))), H = (e, t) => typeof t == "string" && e.exec(t)?.[0] === t, U = (e, t) => typeof e == "object" && !!e && !Array.isArray(e) && Object.keys(e).length === t.length && t.every((t) => Object.hasOwn(e, t)), W = "/api/panel_assistant/usb/release", Se = "/api/panel_assistant/usb/handover", Ce = "/api/panel_assistant/usb/adb_key", we = 35e3, Te = /(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[1-9][0-9]{0,4})?/, Ee = /[a-z_]{1,48}/, G = 67108864, De = 18e5, K = [
 	"id",
 	"tag",
 	"checksum",
@@ -2676,7 +2676,7 @@ function ke(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () 
 			"type",
 			"nonce",
 			"address"
-		]) || !H(Te, t.address)) return;
+		]) || !H(Te, t.address) || Number(t.address.split(":")[1] ?? 8888) > 65535) return;
 		C = !0;
 		let n = (e, t = {}) => {
 			try {
