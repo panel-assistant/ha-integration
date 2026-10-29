@@ -118,6 +118,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         self.client = client
         self._entry_id = entry_id
         self.identity_mismatch = False
+        # A Panel Assistant-driven update restarts the app on purpose, so its
+        # failed polls are not reported as errors.
+        self.expected_restart = False
         self._admin_key: tuple[str, str, int | None, str] | None = None
         self._admin_done = False
         self._admin_retry_at = 0.0
@@ -654,6 +657,20 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             async_reconcile_entity_hold_issue(self.hass, entry, status)
             await async_reconcile_webview_issue(self.hass, entry, status)
         return PanelSnapshot(health=health, status=status, status_error=None)
+
+    async def _async_refresh(
+        self,
+        log_failures: bool = True,
+        raise_on_auth_failed: bool = False,
+        scheduled: bool = False,
+        raise_on_entry_error: bool = False,
+    ) -> None:
+        await super()._async_refresh(
+            log_failures and not self.expected_restart,
+            raise_on_auth_failed,
+            scheduled,
+            raise_on_entry_error,
+        )
 
     async def _async_clear_update_failure(
         self,
