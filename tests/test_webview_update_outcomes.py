@@ -235,6 +235,17 @@ async def test_poll_keeps_the_repair_while_the_webview_is_still_offered(
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
 
 
+@pytest.mark.parametrize("pending", [False, True])
+async def test_poll_after_an_unpublished_webview_download_raises_no_repair(
+    hass: HomeAssistant, pending: bool
+) -> None:
+    """The app update is complete; unpublished WebView files are only a WARNING."""
+    document = observation("deferred")
+    document["transaction"]["reason"] = "download_failed"
+    issue_id = await _poll(hass, document, pending=pending)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
 async def test_poll_with_no_webview_candidate_clears_an_interrupted_update(
     hass: HomeAssistant,
 ) -> None:

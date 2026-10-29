@@ -66,6 +66,8 @@ async def async_reconcile_webview_issue(
         )
         or observation.transaction_state in ACTIVE_STATES
         or observation.transaction_state is None
+        # Unpublished WebView files: the app update completed with a WARNING.
+        or observation.download_unpublished
     ):
         return
     if not claim_panel_operation(hass, entry.entry_id):
@@ -202,10 +204,7 @@ async def async_update_webview(
                 ):
                     session()
                     continue
-            if (
-                status.transaction_state == "deferred"
-                and status.transaction_reason == "download_failed"
-            ):
+            if status.download_unpublished:
                 # The WebView files are not published for this panel yet; the
                 # app update itself is complete.
                 _LOGGER.warning(

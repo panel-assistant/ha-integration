@@ -118,7 +118,9 @@ async def test_polling_recovers_attempts_into_one_combined_repair_without_instal
         for receipt in [None, "submitted_unknown", "deferred"]
         for offer in [False, True, "behind"]
     ]
-    + [(None, False, mode) for mode in ["unbound", "legacy", "unpaired"]],
+    + [
+        (None, False, mode) for mode in ["unbound", "legacy", "unpaired", "unpublished"]
+    ],
 )
 async def test_combined_repair_retries_provider_without_reinstalling_current_app(
     hass: HomeAssistant,
@@ -180,6 +182,11 @@ async def test_combined_repair_retries_provider_without_reinstalling_current_app
                 raise InvalidResponseError
             return observation(receipt)
         assert fields["artifact_sha256"] == "c" * 64
+        if compatibility == "unpublished":
+            # The WebView files are not published yet: the app update is done.
+            document = observation("deferred")
+            document["transaction"]["reason"] = "download_failed"
+            return document
         return observation("installed", eligible=False)
 
     service = AsyncMock()

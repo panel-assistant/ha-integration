@@ -540,10 +540,9 @@ class InstallerFailureFlow(RepairsFlow):
                     reason = await async_update_webview(
                         self.hass, entry_id, allow_legacy=True
                     )
-                    if reason == "webview_download_deferred":
-                        # Never a false success: the WebView is still pending.
-                        reason = "webview_deferred"
-                    if reason is not None:
+                    # Unpublished WebView files end the bundle as the install
+                    # does: the app is current, the WebView is offered later.
+                    if reason not in (None, "webview_download_deferred"):
                         raise HomeAssistantError(reason)
                     await async_clear_update_failure_if_installed(
                         self.hass,
