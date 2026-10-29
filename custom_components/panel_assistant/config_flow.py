@@ -1116,14 +1116,19 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 **INSTALL_RECOVERY_PLACEHOLDERS,
             }
         )
+        step_id = (
+            "confirm_install_rc"
+            if self._pending_rc_tag is not None
+            and self._pending_release is not None
+            and "-" in self._pending_release.version
+            else "confirm_install_candidate"
+        )
+        if self._pending_reinstall_entry is not None:
+            # Say which entry the panel rejoins; a fresh address keeps its text.
+            step_id = step_id.replace("confirm_install_", "confirm_reinstall_")
+            placeholders["entry_title"] = self._pending_reinstall_entry.title
         return self.async_show_form(
-            step_id=(
-                "confirm_install_rc"
-                if self._pending_rc_tag is not None
-                and self._pending_release is not None
-                and "-" in self._pending_release.version
-                else "confirm_install_candidate"
-            ),
+            step_id=step_id,
             data_schema=vol.Schema({}),
             description_placeholders=placeholders,
             errors=errors,
@@ -1133,6 +1138,18 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Use the same frozen consent path with an explicitly translated RC warning."""
+        return await self.async_step_confirm_install_candidate(user_input)
+
+    async def async_step_confirm_reinstall_candidate(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """The install offer for a panel that rejoins its existing entry."""
+        return await self.async_step_confirm_install_candidate(user_input)
+
+    async def async_step_confirm_reinstall_rc(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """The release-candidate offer for a panel that rejoins its entry."""
         return await self.async_step_confirm_install_candidate(user_input)
 
     async def async_step_release_preview_only(

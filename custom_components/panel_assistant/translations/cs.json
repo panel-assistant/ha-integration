@@ -85,6 +85,14 @@
         "title": "Nainstalovat Panel Assistant {version}?",
         "description": "Pouze pro testování: Panel Assistant {version} je kandidát na vydání, nikoli stabilní verze, a může obsahovat chyby.\n\nPřipraveno k instalaci na panelu na adrese {address}.\n\nOstatní aplikace se nezmění."
       },
+      "confirm_reinstall_candidate": {
+        "title": "Nainstalovat Panel Assistant {version}?",
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+      },
+      "confirm_reinstall_rc": {
+        "title": "Nainstalovat Panel Assistant {version}?",
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+      },
       "release_preview_only": {
         "title": "Vydání nelze nainstalovat automaticky",
         "description": "Panel {address} je způsobilý k další kontrole a pravost vydání {version} ({tag}, SHA-256 {sha256}) byla ověřena. Toto vydání nemá podepsaný popis instalace, proto Home Assistant nevytvoří přihlašovací údaj ADB, nestáhne APK ani nezmění panel. Volbou Odeslat vyberete jinou verzi."

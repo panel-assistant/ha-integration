@@ -85,6 +85,14 @@
         "title": "Panel Assistant {version} installeren?",
         "description": "Alleen om te testen: Panel Assistant {version} is een release candidate, geen stabiele versie, en kan fouten bevatten.\n\nKlaar om te installeren op het paneel op {address}.\n\nJe andere apps worden niet gewijzigd."
       },
+      "confirm_reinstall_candidate": {
+        "title": "Panel Assistant {version} installeren?",
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+      },
+      "confirm_reinstall_rc": {
+        "title": "Panel Assistant {version} installeren?",
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+      },
       "release_preview_only": {
         "title": "De release kan niet automatisch worden geïnstalleerd",
         "description": "Het paneel {address} komt in aanmerking voor verdere controle, en de release {version} ({tag}, SHA-256 {sha256}) is geverifieerd. Deze release heeft geen ondertekende installatiebeschrijving, dus Home Assistant zal geen ADB-toegangsgegevens aanmaken, de APK niet downloaden en het paneel niet wijzigen. Klik op ‘Verzenden’ om een andere versie te kiezen."

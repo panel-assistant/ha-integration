@@ -85,6 +85,14 @@
         "title": "Zainstalować Panel Assistant {version}?",
         "description": "Tylko do testów: Panel Assistant {version} to kandydat do wydania, a nie wersja stabilna, i może zawierać błędy.\n\nGotowe do instalacji na panelu pod adresem {address}.\n\nPozostałe aplikacje nie zostaną zmienione."
       },
+      "confirm_reinstall_candidate": {
+        "title": "Zainstalować Panel Assistant {version}?",
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+      },
+      "confirm_reinstall_rc": {
+        "title": "Zainstalować Panel Assistant {version}?",
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+      },
       "release_preview_only": {
         "title": "Nie można zainstalować tej wersji automatycznie",
         "description": "Panel {address} kwalifikuje się do dalszej weryfikacji, a wydanie {version} ({tag}, SHA-256 {sha256}) zostało uwierzytelnione. To wydanie nie ma podpisanego deskryptora instalacji, więc Home Assistant nie utworzy poświadczenia ADB, nie pobierze pliku APK ani nie zmieni panelu. Zatwierdź, aby wybrać inną wersję."

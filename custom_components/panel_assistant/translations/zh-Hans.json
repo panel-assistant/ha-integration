@@ -85,6 +85,14 @@
         "title": "安装 Panel Assistant {version}？",
         "description": "仅供测试：Panel Assistant {version} 是候选发布版，并非稳定版，可能存在错误。\n\n已准备好在地址为 {address} 的面板上安装。\n\n不会改动你的其他应用。"
       },
+      "confirm_reinstall_candidate": {
+        "title": "安装 Panel Assistant {version}？",
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+      },
+      "confirm_reinstall_rc": {
+        "title": "安装 Panel Assistant {version}？",
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+      },
       "release_preview_only": {
         "title": "无法自动安装此版本",
         "description": "面板 {address} 符合进一步检查条件，版本 {version}（{tag}，SHA-256 {sha256}）也已通过真实性验证。此版本没有签名的安装描述文件，因此 Home Assistant 不会创建 ADB 凭据、下载 APK 或更改面板。提交即可选择其他版本。"

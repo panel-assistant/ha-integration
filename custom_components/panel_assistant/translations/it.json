@@ -85,6 +85,14 @@
         "title": "Installare Panel Assistant {version}?",
         "description": "Solo per i test: Panel Assistant {version} è una versione candidata al rilascio, non una versione stabile, e potrebbe contenere errori.\n\nPronto per l’installazione sul pannello all’indirizzo {address}.\n\nLe altre app non verranno modificate."
       },
+      "confirm_reinstall_candidate": {
+        "title": "Installare Panel Assistant {version}?",
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+      },
+      "confirm_reinstall_rc": {
+        "title": "Installare Panel Assistant {version}?",
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+      },
       "release_preview_only": {
         "title": "La versione non può essere installata automaticamente",
         "description": "Il pannello {address} può essere sottoposto a ulteriori controlli e la versione {version} ({tag}, SHA-256 {sha256}) è stata autenticata. Questa versione non include un descrittore di installazione firmato, pertanto Home Assistant non creerà credenziali ADB, non scaricherà l'APK e non modificherà il pannello. Invia per scegliere un'altra versione."

@@ -181,6 +181,9 @@ async def test_kept_panel_installs_into_its_original_entry(
             choose = await hass.config_entries.flow.async_configure(card["flow_id"], {})
         assert choose["type"] is FlowResultType.FORM
         confirm = await _choose_version(hass, choose)
+        # The install offer says the panel rejoins its kept entry (F3-26).
+        assert confirm["step_id"] == "confirm_reinstall_candidate"
+        assert confirm["description_placeholders"]["entry_title"] == entry.title
         progress = await hass.config_entries.flow.async_configure(
             confirm["flow_id"], {}
         )

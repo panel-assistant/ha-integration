@@ -85,6 +85,14 @@
         "title": "Установити Panel Assistant {version}?",
         "description": "Лише для тестування: Panel Assistant {version} — це кандидат на випуск, а не стабільна версія, і він може містити помилки.\n\nУсе готово до встановлення на панель за адресою {address}.\n\nІнші ваші застосунки не буде змінено."
       },
+      "confirm_reinstall_candidate": {
+        "title": "Установити Panel Assistant {version}?",
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+      },
+      "confirm_reinstall_rc": {
+        "title": "Установити Panel Assistant {version}?",
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+      },
       "release_preview_only": {
         "title": "Цей випуск неможливо встановити автоматично",
         "description": "Панель {address} відповідає вимогам для подальшої перевірки, а версія {version} ({tag}, SHA-256 {sha256}) була підтверджена як справжня. Ця версія не має підписаного дескриптора інсталяції, тому Home Assistant не створить облікові дані ADB, не завантажить APK та не змінить панель. Натисніть «Надіслати», щоб вибрати іншу версію."
