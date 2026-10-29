@@ -182,6 +182,27 @@ async def test_target_refuses_changed_hardware_without_replacing_original_proof(
     assert (await _prove_target(hass, entry, panel, "SERIAL-1")).serial == "SERIAL-1"
 
 
+async def test_target_refuses_entry_identity_change_while_awaiting_ready(
+    hass: HomeAssistant,
+    local_panel: tuple[Any, Panel],
+) -> None:
+    entry, panel = local_panel
+    # async_target holds the session it started with; the identity probe it sends
+    # after adb.ready must re-check that session against the entry as it is now.
+    task = asyncio.create_task(
+        local_adb.async_target(hass, entry, normalize_address("panel.local"))
+    )
+    ready = (await asyncio.wait_for(_receive(panel.client), 1))["event"]
+    assert ready["op"] == "adb.ready"
+    hass.config_entries.async_update_entry(entry, unique_id="another-device")
+    await panel.answer(
+        ready["command_id"],
+        "applied",
+        result={"ready": True, "managed": True, "recovery_hold": False},
+    )
+    await _refused_without_command(task, panel)
+
+
 @pytest.mark.parametrize(
     "replacement", [False, True], ids=["same-hardware", "replacement-hardware"]
 )
