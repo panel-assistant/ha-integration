@@ -40,7 +40,7 @@ CLEAN = _probe(
 
 
 async def _keep_loaded_panel(hass: HomeAssistant, user_id: str) -> tuple[Any, Any, Any]:
-    """Keep the real entry, device and renamed entity after removing the app."""
+    """Keep the real entry, device and renamed entity after the app went away."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="My panel",
@@ -76,15 +76,8 @@ async def _keep_loaded_panel(hass: HomeAssistant, user_id: str) -> tuple[Any, An
         suggested_object_id="my_panel_wifi",
     )
     er.async_get(hass).async_update_entity(entity.entity_id, name="My Wi-Fi")
-    with patch(
-        "custom_components.panel_assistant.config_flow.async_remove_app", AsyncMock()
-    ):
-        options = await hass.config_entries.options.async_init(entry.entry_id)
-        removal = await hass.config_entries.options.async_configure(
-            options["flow_id"], {"next_step_id": "remove_app"}
-        )
-        kept = await hass.config_entries.options.async_configure(removal["flow_id"], {})
-    assert kept["reason"] == "removed_entry_kept"
+    # Removal from Home Assistant now always deletes the entry, so a kept entry
+    # is one whose app went away outside it (for example Android Settings).
     assert entry.state is config_entries.ConfigEntryState.LOADED
     return entry, device, entity
 

@@ -12,6 +12,7 @@ from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.panel_assistant.client import PanelSetupState
 from custom_components.panel_assistant.config_flow import HaPaneldConfigFlow
+from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.release import ReleaseResolutionError
 
 from .test_config_flow import (
@@ -262,7 +263,7 @@ async def test_network_setup_offers_and_installs_a_feed_build(
 
 
 async def test_found_panel_offers_its_unfinished_setup_before_connecting(hass):
-    """An unfinished setup is offered first; connecting anyway is the explicit skip."""
+    """An unfinished setup is offered first; a new panel cannot skip it."""
     with (
         patch(
             f"{_FLOW}.HaPaneldClient.async_get_health", AsyncMock(return_value=HEALTH)
@@ -277,24 +278,23 @@ async def test_found_panel_offers_its_unfinished_setup_before_connecting(hass):
             form["flow_id"], {CONF_ADDRESS: "panel.local:8889"}
         )
         assert found["step_id"] == "found_unconfigured"
-        assert found["menu_options"] == ["panel_setup", "connect_found", "add_panel"]
-        skipped = await hass.config_entries.flow.async_configure(
-            form["flow_id"], {"next_step_id": "connect_found"}
-        )
-    assert skipped["type"] is FlowResultType.CREATE_ENTRY
+        assert found["menu_options"] == ["panel_setup", "add_panel"]
+    assert not hass.config_entries.async_entries(DOMAIN)
 
 
 async def test_setup_wizard_opens_and_the_flow_connects_when_setup_is_done(hass):
     """Home Assistant opens the wizard and moves on by itself once setup is done."""
     setup = AsyncMock(side_effect=[False, False, True])
+    # The panel's setup state agrees with its completion once the wizard ends;
+    # the entry is created only after that durable completion.
+    state = AsyncMock(
+        side_effect=lambda: PanelSetupState(complete=setup.await_count >= 3)
+    )
     with (
         patch(
             f"{_FLOW}.HaPaneldClient.async_get_health", AsyncMock(return_value=HEALTH)
         ),
-        patch(
-            f"{_FLOW}.HaPaneldClient.async_get_setup_state",
-            AsyncMock(return_value=PanelSetupState(complete=False)),
-        ),
+        patch(f"{_FLOW}.HaPaneldClient.async_get_setup_state", state),
         patch(f"{_FLOW}.HaPaneldClient.async_get_setup_complete", setup),
         patch(f"{_FLOW}._SETUP_POLL_SECONDS", 0),
     ):
@@ -306,7 +306,8 @@ async def test_setup_wizard_opens_and_the_flow_connects_when_setup_is_done(hass)
             form["flow_id"], {"next_step_id": "panel_setup"}
         )
         assert opened["type"] is FlowResultType.EXTERNAL_STEP
-        assert opened["url"] == "http://panel.local:8889/setup"
+        # The wizard opens at the address the installer pinned for this panel.
+        assert opened["url"] == "http://192.168.1.23:8889/setup"
         # The watcher runs in the background; wait for it to see setup done.
         for _ in range(200):
             if hass.config_entries.flow.async_get(form["flow_id"])["step_id"] == (

@@ -1717,6 +1717,10 @@
           "updating_webview": "Actualizando el motor del navegador y comprobando el resultado.\n\nPara solucionarlo:\n1. Mantén el panel encendido; [abre la guía]({learn_more_url}) si la actualización no puede terminar.\n\n[Más información]({learn_more_url})"
         }
       }
+    },
+    "dashboard_unfiltered": {
+      "title": "{panel} muestra su panel de control sin filtrado de entidades",
+      "description": "{panel} abrió su panel de control con todas las entidades porque no pudo terminar a tiempo de preparar su filtro de entidades. Sigue intentándolo y vuelve por sí solo al panel de control filtrado.\n\nPara solucionarlo:\n1. Abre la [configuración de entidades]({entities_url}) de {panel} para ver qué está esperando.\n2. Si pide una decisión o un nuevo inicio de sesión, sigue los pasos que indica."
     }
   },
   "options": {

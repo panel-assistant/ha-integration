@@ -1717,6 +1717,10 @@
           "updating_webview": "Atualizando o mecanismo do navegador e verificando o resultado.\n\nPara corrigir:\n1. Mantenha o painel ligado; [abra o guia]({learn_more_url}) se a atualização não puder ser concluída.\n\n[Saiba mais]({learn_more_url})"
         }
       }
+    },
+    "dashboard_unfiltered": {
+      "title": "{panel} mostra o dashboard sem filtragem de entidades",
+      "description": "{panel} abriu o dashboard com todas as entidades porque não conseguiu preparar o filtro de entidades a tempo. Ele continua tentando e volta sozinho ao dashboard filtrado.\n\nPara corrigir:\n1. Abra as [configurações de entidades]({entities_url}) de {panel} para ver o que ele está esperando.\n2. Se pedir uma decisão ou um novo login, siga as etapas indicadas."
     }
   },
   "options": {

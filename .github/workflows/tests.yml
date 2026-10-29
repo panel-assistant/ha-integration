@@ -128,7 +128,7 @@ jobs:
       - name: Run type checks
         run: mypy custom_components/panel_assistant
       - name: Run tests
-        run: python -m pytest -n auto --shard ${{ matrix.shard }}/2
+        run: python -m pytest -n auto --timeout=300 --shard ${{ matrix.shard }}/2
       - name: Prove restart and replay safety in real Core processes
         if: matrix.shard == 1
         run: >-

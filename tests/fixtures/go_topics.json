@@ -58,6 +58,7 @@
     "installer_failure_adb_authorization": "/home-assistant/repairs/#installer-failure-adb-authorization",
     "adb_update_authorization": "/home-assistant/repairs/#adb-update-authorization",
     "another_home_assistant": "/home-assistant/repairs/#another-home-assistant",
-    "panel_webview": "/home-assistant/repairs/#panel-webview"
+    "panel_webview": "/home-assistant/repairs/#panel-webview",
+    "dashboard_unfiltered": "/home-assistant/repairs/#dashboard-unfiltered"
   }
 }

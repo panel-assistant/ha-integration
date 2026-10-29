@@ -652,6 +652,7 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
         "old_app_needs_090",
         "panel_permissions",
         "panel_proximity_setup",
+        "remove_from_panel",
         "panel_identity_confirmation",
         "panel_identity_mismatch",
         "panel_link_shared",

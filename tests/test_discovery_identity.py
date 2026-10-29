@@ -353,7 +353,11 @@ async def test_known_hostname_panel_is_not_offered_as_unconnected(
 async def test_found_panel_setup_menu_asks_only_for_user_steps(
     hass, monkeypatch, complete, needs_user
 ):
-    """Render proof does not open the wizard; old responses retain their meaning."""
+    """A new panel is offered its wizard until it reports setup complete.
+
+    needs_user no longer lets an incomplete panel skip the wizard: a new panel
+    gets no entry until its own setup has finished.
+    """
     document = {"complete": complete}
     if needs_user is not None:
         document["needs_user"] = needs_user
@@ -375,7 +379,7 @@ async def test_found_panel_setup_menu_asks_only_for_user_steps(
         result = await hass.config_entries.flow.async_configure(
             form["flow_id"], {CONF_ADDRESS: _NEW + ":9999"}
         )
-    needs_wizard = not complete if needs_user is None else needs_user
+    needs_wizard = not complete
     assert result["step_id"] == (
         "found_unconfigured" if needs_wizard else "found_panel"
     )
@@ -529,7 +533,8 @@ async def test_explicit_add_of_live_clone_preserves_original_history(
         else:
             status, body = await _post(
                 endpoint,
-                _Panel(PanelSetupState(complete=False, accepts_handover=True)),
+                # A new panel gets its entry only once its own setup is done.
+                _Panel(PanelSetupState(complete=True, accepts_handover=True)),
                 {"address": _NEW},
             )
             assert status == 200

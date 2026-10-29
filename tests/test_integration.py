@@ -160,7 +160,8 @@ def _assert_healthy_entry_loaded(hass: HomeAssistant, entry: MockConfigEntry) ->
         for item in er.async_get(hass).entities.values()
         if item.config_entry_id == entry.entry_id
     ]
-    assert len(entities) == 3
+    assert len(entities) == 4
+    assert any(item.unique_id.endswith("_remove_from_panel") for item in entities)
     sensor = next(item for item in entities if item.unique_id.endswith("_status"))
     state = hass.states.get(sensor.entity_id)
     assert state is not None
@@ -217,7 +218,8 @@ async def test_setup_entry_diagnostics_unload_reload(hass: HomeAssistant) -> Non
         ]
         devices = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
 
-        assert len(entities) == 3
+        assert len(entities) == 4
+        assert any(item.unique_id.endswith("_remove_from_panel") for item in entities)
         assert len(devices) == 1
         sensor = next(item for item in entities if item.unique_id.endswith("_status"))
         update = next(item for item in entities if item.domain == "update")
@@ -1117,7 +1119,8 @@ async def test_status_failure_does_not_override_health_authority(
         for item in er.async_get(hass).entities.values()
         if item.config_entry_id == entry.entry_id
     ]
-    assert len(entities) == 3
+    assert len(entities) == 4
+    assert any(item.unique_id.endswith("_remove_from_panel") for item in entities)
     sensor = next(item for item in entities if item.unique_id.endswith("_status"))
     state = hass.states.get(sensor.entity_id)
     assert state is not None

@@ -1717,6 +1717,10 @@
           "updating_webview": "Updating the browser engine and checking the result.\n\nTo fix:\n1. Keep the panel powered on; [open the guide]({learn_more_url}) if the update cannot finish.\n\n[Learn more]({learn_more_url})"
         }
       }
+    },
+    "dashboard_unfiltered": {
+      "title": "{panel} shows its dashboard without entity filtering",
+      "description": "{panel} opened its dashboard with all entities because it could not finish preparing its entity filter in time. It keeps trying and returns to the filtered dashboard on its own.\n\nTo fix:\n1. Open [entity settings]({entities_url}) for {panel} to see what it is waiting for.\n2. If it asks for a decision or a new sign-in, follow its steps there."
     }
   },
   "options": {
