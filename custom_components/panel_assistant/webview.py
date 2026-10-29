@@ -51,6 +51,27 @@ class WebViewStatus:
             )
         )
 
+    @property
+    def download_unpublished(self) -> bool:
+        """The panel could not fetch its WebView files: they are not published yet.
+
+        The app update is complete; the WebView is offered again later, so this
+        is a WARNING log line, never a Repair.
+        """
+        return (
+            self.transaction_state == "deferred"
+            and self.transaction_reason == "download_failed"
+        )
+
+    @property
+    def settled(self) -> bool:
+        """No WebView work is running or left for the owner to finish."""
+        return (
+            self.transaction_state not in ACTIVE_STATES
+            and self.transaction_state != "submitted_unknown"
+            and (not self.needs_attention or self.download_unpublished)
+        )
+
     def as_dict(self) -> dict[str, Any]:
         """Return only bounded diagnostic facts."""
         return asdict(self)

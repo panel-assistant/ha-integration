@@ -68,13 +68,13 @@ _MAX_REFUSED_HELLOS = 16
 
 
 def _webview_done(status: PanelStatus) -> bool:
-    """The panel says its WebView is current, with no install left open."""
+    """The panel reports no WebView install running or left to finish.
+
+    A panel with no candidate (or none it can install) never reports `current`,
+    so `current` alone would keep an interrupted update's Repair forever.
+    """
     webview = status.webview
-    return (
-        webview is not None
-        and webview.reason == "current"
-        and webview.transaction_state in (None, "installed")
-    )
+    return webview is not None and webview.settled
 
 
 @dataclass(frozen=True, slots=True)

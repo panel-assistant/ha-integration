@@ -235,6 +235,16 @@ async def test_poll_keeps_the_repair_while_the_webview_is_still_offered(
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
 
 
+async def test_poll_with_no_webview_candidate_clears_an_interrupted_update(
+    hass: HomeAssistant,
+) -> None:
+    """A panel with no WebView to install never reports `current`."""
+    document = observation(eligible=False)
+    document.update(reason="no_candidate", candidate=None)
+    issue_id = await _poll(hass, document, pending=True)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
 async def test_running_webview_install_after_setup_raises_no_repair(
     hass: HomeAssistant,
 ) -> None:
