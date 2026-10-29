@@ -1047,7 +1047,7 @@
           "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
           "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
           "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
-          "retry_update_running": "Todavía se está ejecutando una actualización de este panel. Espera a que termine: esta reparación se cierra sola si la actualización se completa correctamente.",
+          "retry_panel_busy": "Este panel sigue ocupado con una actualización u otra tarea. Espera a que termine y vuelve a intentarlo. Si una actualización se completa correctamente, esta reparación se cierra sola.",
           "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
         }
       }
@@ -1090,7 +1090,7 @@
           "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
           "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
           "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
-          "retry_update_running": "Todavía se está ejecutando una actualización de este panel. Espera a que termine: esta reparación se cierra sola si la actualización se completa correctamente.",
+          "retry_panel_busy": "Este panel sigue ocupado con una actualización u otra tarea. Espera a que termine y vuelve a intentarlo. Si una actualización se completa correctamente, esta reparación se cierra sola.",
           "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
         }
       }
@@ -1133,7 +1133,7 @@
           "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
           "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
           "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
-          "retry_update_running": "Todavía se está ejecutando una actualización de este panel. Espera a que termine: esta reparación se cierra sola si la actualización se completa correctamente.",
+          "retry_panel_busy": "Este panel sigue ocupado con una actualización u otra tarea. Espera a que termine y vuelve a intentarlo. Si una actualización se completa correctamente, esta reparación se cierra sola.",
           "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
         }
       }
@@ -1176,7 +1176,7 @@
           "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
           "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
           "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
-          "retry_update_running": "Todavía se está ejecutando una actualización de este panel. Espera a que termine: esta reparación se cierra sola si la actualización se completa correctamente.",
+          "retry_panel_busy": "Este panel sigue ocupado con una actualización u otra tarea. Espera a que termine y vuelve a intentarlo. Si una actualización se completa correctamente, esta reparación se cierra sola.",
           "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
         }
       }
@@ -1219,7 +1219,7 @@
           "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
           "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
           "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
-          "retry_update_running": "Todavía se está ejecutando una actualización de este panel. Espera a que termine: esta reparación se cierra sola si la actualización se completa correctamente.",
+          "retry_panel_busy": "Este panel sigue ocupado con una actualización u otra tarea. Espera a que termine y vuelve a intentarlo. Si una actualización se completa correctamente, esta reparación se cierra sola.",
           "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
         }
       }
@@ -1262,7 +1262,7 @@
           "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
           "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
           "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
-          "retry_update_running": "Todavía se está ejecutando una actualización de este panel. Espera a que termine: esta reparación se cierra sola si la actualización se completa correctamente.",
+          "retry_panel_busy": "Este panel sigue ocupado con una actualización u otra tarea. Espera a que termine y vuelve a intentarlo. Si una actualización se completa correctamente, esta reparación se cierra sola.",
           "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
         }
       }
@@ -1305,7 +1305,7 @@
           "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
           "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
           "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
-          "retry_update_running": "Todavía se está ejecutando una actualización de este panel. Espera a que termine: esta reparación se cierra sola si la actualización se completa correctamente.",
+          "retry_panel_busy": "Este panel sigue ocupado con una actualización u otra tarea. Espera a que termine y vuelve a intentarlo. Si una actualización se completa correctamente, esta reparación se cierra sola.",
           "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
         }
       }
@@ -1348,7 +1348,7 @@
           "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
           "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
           "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
-          "retry_update_running": "Todavía se está ejecutando una actualización de este panel. Espera a que termine: esta reparación se cierra sola si la actualización se completa correctamente.",
+          "retry_panel_busy": "Este panel sigue ocupado con una actualización u otra tarea. Espera a que termine y vuelve a intentarlo. Si una actualización se completa correctamente, esta reparación se cierra sola.",
           "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
         }
       }
@@ -1391,7 +1391,7 @@
           "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
           "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
           "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
-          "retry_update_running": "Todavía se está ejecutando una actualización de este panel. Espera a que termine: esta reparación se cierra sola si la actualización se completa correctamente.",
+          "retry_panel_busy": "Este panel sigue ocupado con una actualización u otra tarea. Espera a que termine y vuelve a intentarlo. Si una actualización se completa correctamente, esta reparación se cierra sola.",
           "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
         }
       }
@@ -1434,7 +1434,7 @@
           "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
           "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
           "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
-          "retry_update_running": "Todavía se está ejecutando una actualización de este panel. Espera a que termine: esta reparación se cierra sola si la actualización se completa correctamente.",
+          "retry_panel_busy": "Este panel sigue ocupado con una actualización u otra tarea. Espera a que termine y vuelve a intentarlo. Si una actualización se completa correctamente, esta reparación se cierra sola.",
           "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
         }
       }
@@ -1483,7 +1483,7 @@
           "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
           "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
           "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
-          "retry_update_running": "Todavía se está ejecutando una actualización de este panel. Espera a que termine: esta reparación se cierra sola si la actualización se completa correctamente.",
+          "retry_panel_busy": "Este panel sigue ocupado con una actualización u otra tarea. Espera a que termine y vuelve a intentarlo. Si una actualización se completa correctamente, esta reparación se cierra sola.",
           "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error.",
           "cannot_connect": "No se puede conectar a un punto de conexión de estado válido de Panel Assistant.",
           "invalid_install_address": "Introduce solo el nombre de host o la dirección IP del panel.",
@@ -1542,7 +1542,7 @@
           "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
           "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
           "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
-          "retry_update_running": "Todavía se está ejecutando una actualización de este panel. Espera a que termine: esta reparación se cierra sola si la actualización se completa correctamente.",
+          "retry_panel_busy": "Este panel sigue ocupado con una actualización u otra tarea. Espera a que termine y vuelve a intentarlo. Si una actualización se completa correctamente, esta reparación se cierra sola.",
           "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error."
         },
         "abort": {
@@ -1628,7 +1628,7 @@
           "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
           "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
           "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
-          "retry_update_running": "Todavía se está ejecutando una actualización de este panel. Espera a que termine: esta reparación se cierra sola si la actualización se completa correctamente.",
+          "retry_panel_busy": "Este panel sigue ocupado con una actualización u otra tarea. Espera a que termine y vuelve a intentarlo. Si una actualización se completa correctamente, esta reparación se cierra sola.",
           "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error.",
           "cannot_connect": "No se puede conectar a un punto de conexión de estado válido de Panel Assistant.",
           "invalid_install_address": "Introduce solo el nombre de host o la dirección IP del panel.",

@@ -1047,7 +1047,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
-          "retry_update_running": "Un aggiornamento di questo pannello è ancora in corso. Attendi che finisca: questa riparazione si chiude da sola se l'aggiornamento riesce.",
+          "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         }
       }
@@ -1090,7 +1090,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
-          "retry_update_running": "Un aggiornamento di questo pannello è ancora in corso. Attendi che finisca: questa riparazione si chiude da sola se l'aggiornamento riesce.",
+          "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         }
       }
@@ -1133,7 +1133,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
-          "retry_update_running": "Un aggiornamento di questo pannello è ancora in corso. Attendi che finisca: questa riparazione si chiude da sola se l'aggiornamento riesce.",
+          "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         }
       }
@@ -1176,7 +1176,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
-          "retry_update_running": "Un aggiornamento di questo pannello è ancora in corso. Attendi che finisca: questa riparazione si chiude da sola se l'aggiornamento riesce.",
+          "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         }
       }
@@ -1219,7 +1219,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
-          "retry_update_running": "Un aggiornamento di questo pannello è ancora in corso. Attendi che finisca: questa riparazione si chiude da sola se l'aggiornamento riesce.",
+          "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         }
       }
@@ -1262,7 +1262,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
-          "retry_update_running": "Un aggiornamento di questo pannello è ancora in corso. Attendi che finisca: questa riparazione si chiude da sola se l'aggiornamento riesce.",
+          "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         }
       }
@@ -1305,7 +1305,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
-          "retry_update_running": "Un aggiornamento di questo pannello è ancora in corso. Attendi che finisca: questa riparazione si chiude da sola se l'aggiornamento riesce.",
+          "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         }
       }
@@ -1348,7 +1348,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
-          "retry_update_running": "Un aggiornamento di questo pannello è ancora in corso. Attendi che finisca: questa riparazione si chiude da sola se l'aggiornamento riesce.",
+          "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         }
       }
@@ -1391,7 +1391,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
-          "retry_update_running": "Un aggiornamento di questo pannello è ancora in corso. Attendi che finisca: questa riparazione si chiude da sola se l'aggiornamento riesce.",
+          "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         }
       }
@@ -1434,7 +1434,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
-          "retry_update_running": "Un aggiornamento di questo pannello è ancora in corso. Attendi che finisca: questa riparazione si chiude da sola se l'aggiornamento riesce.",
+          "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         }
       }
@@ -1483,7 +1483,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
-          "retry_update_running": "Un aggiornamento di questo pannello è ancora in corso. Attendi che finisca: questa riparazione si chiude da sola se l'aggiornamento riesce.",
+          "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna.",
           "cannot_connect": "Impossibile connettersi a un endpoint valido sullo stato di funzionamento di Panel Assistant.",
           "invalid_install_address": "Inserisci solo il nome host o l’indirizzo IP del pannello.",
@@ -1542,7 +1542,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
-          "retry_update_running": "Un aggiornamento di questo pannello è ancora in corso. Attendi che finisca: questa riparazione si chiude da sola se l'aggiornamento riesce.",
+          "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         },
         "abort": {
@@ -1628,7 +1628,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
-          "retry_update_running": "Un aggiornamento di questo pannello è ancora in corso. Attendi che finisca: questa riparazione si chiude da sola se l'aggiornamento riesce.",
+          "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna.",
           "cannot_connect": "Impossibile connettersi a un endpoint valido sullo stato di funzionamento di Panel Assistant.",
           "invalid_install_address": "Inserisci solo il nome host o l’indirizzo IP del pannello.",

@@ -503,7 +503,7 @@ class InstallerFailureFlow(RepairsFlow):
             state = self.hass.states.get(entity_id)
             if state is not None and state.attributes.get("in_progress"):
                 # The update is still running; its own outcome ends this Repair.
-                return "retry_update_running"
+                return "retry_panel_busy"
             offered = state.attributes.get("latest_version") if state else None
             installed = (
                 state.attributes.get("installed_version", state.state)
@@ -536,7 +536,7 @@ class InstallerFailureFlow(RepairsFlow):
                 and isinstance(installed, str)
             ):
                 if not claim_panel_operation(self.hass, entry_id):
-                    return "retry_update_running"
+                    return "retry_panel_busy"
                 try:
                     entry = self.hass.config_entries.async_get_entry(entry_id)
                     if entry is None or not entry.data.get(CONF_TRANSPORT_USER_ID):
@@ -607,7 +607,7 @@ class InstallerFailureFlow(RepairsFlow):
                 if err.translation_key == "update_busy" or (
                     entity is not None and entity.in_progress
                 ):
-                    return "retry_update_running"
+                    return "retry_panel_busy"
                 raise
             return "_update_completed"
         except RetrySafetyHold as err:

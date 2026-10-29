@@ -1047,7 +1047,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
-          "retry_update_running": "Une mise à jour de ce panneau est toujours en cours. Attendez qu'elle se termine : cette réparation se ferme d'elle-même si la mise à jour réussit.",
+          "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         }
       }
@@ -1090,7 +1090,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
-          "retry_update_running": "Une mise à jour de ce panneau est toujours en cours. Attendez qu'elle se termine : cette réparation se ferme d'elle-même si la mise à jour réussit.",
+          "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         }
       }
@@ -1133,7 +1133,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
-          "retry_update_running": "Une mise à jour de ce panneau est toujours en cours. Attendez qu'elle se termine : cette réparation se ferme d'elle-même si la mise à jour réussit.",
+          "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         }
       }
@@ -1176,7 +1176,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
-          "retry_update_running": "Une mise à jour de ce panneau est toujours en cours. Attendez qu'elle se termine : cette réparation se ferme d'elle-même si la mise à jour réussit.",
+          "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         }
       }
@@ -1219,7 +1219,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
-          "retry_update_running": "Une mise à jour de ce panneau est toujours en cours. Attendez qu'elle se termine : cette réparation se ferme d'elle-même si la mise à jour réussit.",
+          "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         }
       }
@@ -1262,7 +1262,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
-          "retry_update_running": "Une mise à jour de ce panneau est toujours en cours. Attendez qu'elle se termine : cette réparation se ferme d'elle-même si la mise à jour réussit.",
+          "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         }
       }
@@ -1305,7 +1305,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
-          "retry_update_running": "Une mise à jour de ce panneau est toujours en cours. Attendez qu'elle se termine : cette réparation se ferme d'elle-même si la mise à jour réussit.",
+          "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         }
       }
@@ -1348,7 +1348,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
-          "retry_update_running": "Une mise à jour de ce panneau est toujours en cours. Attendez qu'elle se termine : cette réparation se ferme d'elle-même si la mise à jour réussit.",
+          "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         }
       }
@@ -1391,7 +1391,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
-          "retry_update_running": "Une mise à jour de ce panneau est toujours en cours. Attendez qu'elle se termine : cette réparation se ferme d'elle-même si la mise à jour réussit.",
+          "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         }
       }
@@ -1434,7 +1434,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
-          "retry_update_running": "Une mise à jour de ce panneau est toujours en cours. Attendez qu'elle se termine : cette réparation se ferme d'elle-même si la mise à jour réussit.",
+          "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         }
       }
@@ -1483,7 +1483,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
-          "retry_update_running": "Une mise à jour de ce panneau est toujours en cours. Attendez qu'elle se termine : cette réparation se ferme d'elle-même si la mise à jour réussit.",
+          "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient.",
           "cannot_connect": "Impossible de se connecter à un point de terminaison d'état Panel Assistant valide.",
           "invalid_install_address": "Saisissez uniquement le nom d’hôte ou l’adresse IP du panneau.",
@@ -1542,7 +1542,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
-          "retry_update_running": "Une mise à jour de ce panneau est toujours en cours. Attendez qu'elle se termine : cette réparation se ferme d'elle-même si la mise à jour réussit.",
+          "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         },
         "abort": {
@@ -1628,7 +1628,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
-          "retry_update_running": "Une mise à jour de ce panneau est toujours en cours. Attendez qu'elle se termine : cette réparation se ferme d'elle-même si la mise à jour réussit.",
+          "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient.",
           "cannot_connect": "Impossible de se connecter à un point de terminaison d'état Panel Assistant valide.",
           "invalid_install_address": "Saisissez uniquement le nom d’hôte ou l’adresse IP du panneau.",

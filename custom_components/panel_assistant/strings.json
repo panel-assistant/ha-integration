@@ -1047,7 +1047,7 @@
           "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
           "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
           "retry_failed": "The retry failed. The support report has details.",
-          "retry_update_running": "An update of this panel is still running. Wait for it to finish: this Repair closes by itself if the update succeeds.",
+          "retry_panel_busy": "This panel is still busy with an update or another task. Wait for it to finish, then try again. If an update succeeds, this Repair closes by itself.",
           "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
         }
       }
@@ -1090,7 +1090,7 @@
           "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
           "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
           "retry_failed": "The retry failed. The support report has details.",
-          "retry_update_running": "An update of this panel is still running. Wait for it to finish: this Repair closes by itself if the update succeeds.",
+          "retry_panel_busy": "This panel is still busy with an update or another task. Wait for it to finish, then try again. If an update succeeds, this Repair closes by itself.",
           "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
         }
       }
@@ -1133,7 +1133,7 @@
           "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
           "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
           "retry_failed": "The retry failed. The support report has details.",
-          "retry_update_running": "An update of this panel is still running. Wait for it to finish: this Repair closes by itself if the update succeeds.",
+          "retry_panel_busy": "This panel is still busy with an update or another task. Wait for it to finish, then try again. If an update succeeds, this Repair closes by itself.",
           "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
         }
       }
@@ -1176,7 +1176,7 @@
           "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
           "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
           "retry_failed": "The retry failed. The support report has details.",
-          "retry_update_running": "An update of this panel is still running. Wait for it to finish: this Repair closes by itself if the update succeeds.",
+          "retry_panel_busy": "This panel is still busy with an update or another task. Wait for it to finish, then try again. If an update succeeds, this Repair closes by itself.",
           "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
         }
       }
@@ -1219,7 +1219,7 @@
           "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
           "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
           "retry_failed": "The retry failed. The support report has details.",
-          "retry_update_running": "An update of this panel is still running. Wait for it to finish: this Repair closes by itself if the update succeeds.",
+          "retry_panel_busy": "This panel is still busy with an update or another task. Wait for it to finish, then try again. If an update succeeds, this Repair closes by itself.",
           "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
         }
       }
@@ -1262,7 +1262,7 @@
           "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
           "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
           "retry_failed": "The retry failed. The support report has details.",
-          "retry_update_running": "An update of this panel is still running. Wait for it to finish: this Repair closes by itself if the update succeeds.",
+          "retry_panel_busy": "This panel is still busy with an update or another task. Wait for it to finish, then try again. If an update succeeds, this Repair closes by itself.",
           "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
         }
       }
@@ -1305,7 +1305,7 @@
           "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
           "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
           "retry_failed": "The retry failed. The support report has details.",
-          "retry_update_running": "An update of this panel is still running. Wait for it to finish: this Repair closes by itself if the update succeeds.",
+          "retry_panel_busy": "This panel is still busy with an update or another task. Wait for it to finish, then try again. If an update succeeds, this Repair closes by itself.",
           "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
         }
       }
@@ -1348,7 +1348,7 @@
           "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
           "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
           "retry_failed": "The retry failed. The support report has details.",
-          "retry_update_running": "An update of this panel is still running. Wait for it to finish: this Repair closes by itself if the update succeeds.",
+          "retry_panel_busy": "This panel is still busy with an update or another task. Wait for it to finish, then try again. If an update succeeds, this Repair closes by itself.",
           "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
         }
       }
@@ -1391,7 +1391,7 @@
           "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
           "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
           "retry_failed": "The retry failed. The support report has details.",
-          "retry_update_running": "An update of this panel is still running. Wait for it to finish: this Repair closes by itself if the update succeeds.",
+          "retry_panel_busy": "This panel is still busy with an update or another task. Wait for it to finish, then try again. If an update succeeds, this Repair closes by itself.",
           "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
         }
       }
@@ -1434,7 +1434,7 @@
           "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
           "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
           "retry_failed": "The retry failed. The support report has details.",
-          "retry_update_running": "An update of this panel is still running. Wait for it to finish: this Repair closes by itself if the update succeeds.",
+          "retry_panel_busy": "This panel is still busy with an update or another task. Wait for it to finish, then try again. If an update succeeds, this Repair closes by itself.",
           "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
         }
       }
@@ -1483,7 +1483,7 @@
           "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
           "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
           "retry_failed": "The retry failed. The support report has details.",
-          "retry_update_running": "An update of this panel is still running. Wait for it to finish: this Repair closes by itself if the update succeeds.",
+          "retry_panel_busy": "This panel is still busy with an update or another task. Wait for it to finish, then try again. If an update succeeds, this Repair closes by itself.",
           "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns.",
           "cannot_connect": "Unable to connect to a valid Panel Assistant health endpoint.",
           "invalid_install_address": "Enter only the panel hostname or IP address.",
@@ -1542,7 +1542,7 @@
           "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
           "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
           "retry_failed": "The retry failed. The support report has details.",
-          "retry_update_running": "An update of this panel is still running. Wait for it to finish: this Repair closes by itself if the update succeeds.",
+          "retry_panel_busy": "This panel is still busy with an update or another task. Wait for it to finish, then try again. If an update succeeds, this Repair closes by itself.",
           "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns."
         },
         "abort": {
@@ -1628,7 +1628,7 @@
           "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
           "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
           "retry_failed": "The retry failed. The support report has details.",
-          "retry_update_running": "An update of this panel is still running. Wait for it to finish: this Repair closes by itself if the update succeeds.",
+          "retry_panel_busy": "This panel is still busy with an update or another task. Wait for it to finish, then try again. If an update succeeds, this Repair closes by itself.",
           "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns.",
           "cannot_connect": "Unable to connect to a valid Panel Assistant health endpoint.",
           "invalid_install_address": "Enter only the panel hostname or IP address.",

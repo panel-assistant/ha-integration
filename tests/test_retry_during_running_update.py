@@ -12,6 +12,7 @@ import pytest
 from homeassistant.components.update import DATA_COMPONENT
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.entity_platform import EntityPlatform
 from homeassistant.setup import async_setup_component
@@ -159,10 +160,10 @@ async def _try_again(hass_client: Any, hass: HomeAssistant) -> dict[str, Any]:
     return result
 
 
-def _explains_running_update(result: dict[str, Any]) -> None:
+def _explains_busy_panel(result: dict[str, Any]) -> None:
     assert result["type"] == "form"
     assert result["step_id"] == "retry_error"
-    assert result["errors"] == {"base": "retry_update_running"}
+    assert result["errors"] == {"base": "retry_panel_busy"}
 
 
 async def test_try_again_while_update_runs_explains_and_repair_closes_on_success(
@@ -178,8 +179,8 @@ async def test_try_again_while_update_runs_explains_and_repair_closes_on_success
     assert hass.states.get(entity.entity_id).attributes["in_progress"]
     before = await async_failure_events(hass, ISSUE_ID)
 
-    _explains_running_update(await _try_again(hass_client, hass))
-    _explains_running_update(await _try_again(hass_client, hass))
+    _explains_busy_panel(await _try_again(hass_client, hass))
+    _explains_busy_panel(await _try_again(hass_client, hass))
 
     assert client.async_stage_apk.await_count == 1
     assert await async_failure_events(hass, ISSUE_ID) == before
@@ -210,7 +211,7 @@ async def test_install_refused_as_already_running_explains(
     )
     before = await async_failure_events(hass, ISSUE_ID)
 
-    _explains_running_update(await _try_again(hass_client, hass))
+    _explains_busy_panel(await _try_again(hass_client, hass))
 
     assert client.async_stage_apk.await_count == 1
     assert await async_failure_events(hass, ISSUE_ID) == before
@@ -236,7 +237,7 @@ async def test_install_refused_as_panel_busy_explains(
     before = await async_failure_events(hass, ISSUE_ID)
     assert claim_panel_operation(hass, "entry-id")
     try:
-        _explains_running_update(await _try_again(hass_client, hass))
+        _explains_busy_panel(await _try_again(hass_client, hass))
     finally:
         release_panel_operation(hass, "entry-id")
 
@@ -268,9 +269,37 @@ async def test_webview_retry_while_panel_is_held_explains(
     before = await async_failure_events(hass, ISSUE_ID)
     assert claim_panel_operation(hass, "entry-id")
     try:
-        _explains_running_update(await _try_again(hass_client, hass))
+        _explains_busy_panel(await _try_again(hass_client, hass))
     finally:
         release_panel_operation(hass, "entry-id")
 
     client.async_stage_apk.assert_not_awaited()
     assert await async_failure_events(hass, ISSUE_ID) == before
+
+
+async def test_try_again_on_an_idle_panel_still_reports_a_real_failure(
+    hass: HomeAssistant,
+    repairs_ready: None,  # noqa: F811
+    hass_client: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    platforms: list[EntityPlatform],
+) -> None:
+    """Only a busy panel is explained away; a failed install stays a failure."""
+    entity, client, _staging, _release = await _panel(hass, monkeypatch, platforms)
+    client.async_stage_apk = AsyncMock(side_effect=HomeAssistantError("disk full"))
+    await async_record_update_failure(
+        hass, "entry-id", "Kitchen", "0.9.10", RuntimeError("download timed out")
+    )
+    assert not hass.states.get(entity.entity_id).attributes["in_progress"]
+    before = await async_failure_events(hass, ISSUE_ID)
+
+    result = await _try_again(hass_client, hass)
+
+    assert result["type"] == "form"
+    assert result["step_id"] == "retry_error"
+    assert result["errors"] == {"base": "retry_failed"}
+    assert client.async_stage_apk.await_count == 1
+    after = await async_failure_events(hass, ISSUE_ID)
+    assert after[: len(before)] == before
+    assert [event["kind"] for event in after[len(before) :]].count("retry_hold") == 1
+    assert not entity.in_progress
