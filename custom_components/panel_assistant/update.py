@@ -882,7 +882,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 else release.version
                 if release
                 else target_version,
-                build.version_code if feed is not None else None,
+                repair_artifact.descriptor.version_code
+                if repair_artifact and repair_artifact.descriptor
+                else None,
                 verified_success=True,
                 webview_completed=True,
             )
