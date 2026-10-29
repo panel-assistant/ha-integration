@@ -85,6 +85,7 @@ from .discovery import (
     async_zeroconf,
     close_offers,
     closes_when_done,
+    configured_entries_for_host,
     markdown_literal,
 )
 from .foreign_ha import async_connected_to_other_ha, async_raise_foreign_ha_issue
@@ -1497,11 +1498,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         super().async_remove()
 
     def _address_is_configured(self, address: str) -> bool:
-        """Check the existing endpoint identity without contacting the panel."""
-        return any(
-            entry.data.get(CONF_ADDRESS) == address
-            for entry in self.hass.config_entries.async_entries(DOMAIN)
-        )
+        """Check the configured host without contacting the panel."""
+        return bool(configured_entries_for_host(self.hass, address))
 
     async def _async_create_panel_entry(
         self,
