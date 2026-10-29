@@ -24,10 +24,12 @@ from .test_removal import FakePanel, _entry, panel  # noqa: F401
         "exit-error",
         "silent-error",
         "service-error",
+        "stderr-service-error",
         "malformed",
         "legacy-exit-error",
         "legacy-silent-error",
         "legacy-service-error",
+        "legacy-stderr-service-error",
         "none",
     ],
 )
@@ -63,7 +65,7 @@ async def test_repair_requires_verified_package_absence(
                     else "        echo invalid-output\n"
                     if fault == "malformed"
                     else "        echo 'Error: Could not access the Package Manager.'"
-                    + (" >&2" if "exit-error" in fault else "")
+                    + (" >&2" if "exit-error" in fault or "stderr" in fault else "")
                     + "\n"
                 )
                 + f"        exit {exit_code}\n    fi",
