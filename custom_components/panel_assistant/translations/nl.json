@@ -1752,12 +1752,32 @@
               "keep_app": "Keep Panel Assistant"
             }
           },
+          "authorize_adb": {
+            "title": "Allow Home Assistant on {panel}",
+            "description": "Panel Assistant cannot be removed from {panel} until the panel allows Home Assistant's ADB connection.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}), then select Submit to send the approval request.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n3. Wait here; the removal question comes back once the panel allows it.\n\n[Learn more]({learn_more_url})"
+          },
           "confirm": {
             "title": "Panel Assistant van {panel} halen",
             "description": "Panel Assistant restores the panel's home screen and the vendor apps and settings it changed, then uninstalls itself and deletes this panel from Home Assistant. Its settings on the panel are deleted.\n\nTo remove:\n1. Read [what removal can do to this panel]({risks_url}). Some panels lose access to Android Settings or network debugging, which may prevent reinstalling the app without opening the panel.\n2. Select Submit to confirm removal.\n\nIf you no longer want to remove it, close this dialog and choose Keep Panel Assistant instead; that changes nothing on the panel.\n\n[Learn more]({learn_more_url})"
           }
         },
+        "progress": {
+          "authorize_adb": "Android approval on {panel} is still needed.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}) if needed.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n\nThis continues automatically after approval.\n\n[Learn more]({learn_more_url})"
+        },
         "error": {
+          "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig Panel Assistant-status-eindpunt.",
+          "invalid_install_address": "Voer alleen de hostnaam of het IP-adres van het paneel in.",
+          "install_resolution_failed": "Home Assistant kon dit paneeladres niet omzetten. Controleer het adres en de lokale DNS en probeer het daarna nog eens.",
+          "install_resolution_timeout": "De lokale naamomzetting is verlopen voordat het adres van het paneel veilig kon worden vastgelegd. Controleer de lokale DNS en probeer het dan nog eens.",
+          "install_too_many_addresses": "Deze hostnaam leverde te veel adressen op om veilig te kunnen vastleggen. Gebruik een speciale lokale hostnaam of een privé-IP-adres.",
+          "unsafe_install_target": "Installatie is alleen toegestaan op een privé-lokaal IPv4-adres of een uniek lokaal IPv6-adres. Er is geen ADB-verbinding geprobeerd.",
+          "install_target_changed": "De hostnaam verwijst niet meer naar hetzelfde vastgezette paneeladres. Er is geen ADB-sleutel of installatie verzonden. Controleer het adres en begin opnieuw.",
+          "adb_unreachable": "Het paneel reageerde wel, maar er kwam geen reactie op de Android Debug Bridge-poort (5555). Schakel op het paneel Android Debug Bridge in en sta dit toe via het netwerk, en probeer het dan nog eens. Als je het paneel kunt aansluiten op de computer waarop je nu surft, installeer dan via USB.",
+          "adb_still_unauthorized": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd. Bevestig de ADB-melding op het paneel en probeer het dan nog eens.",
+          "adb_credential_error": "Home Assistant kon de inloggegevens van ADB niet veilig laden of opslaan. Er is geen poging gedaan om het paneel te wijzigen. Controleer de opslag en logbestanden van Home Assistant voordat je het opnieuw probeert.",
+          "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket Panel Assistant, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de stappen op {recovery_address}. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
+          "unknown": "Onverwachte fout",
+          "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert.",
           "removal_busy": "Een andere bewerking wijzigt dit paneel al. Er is niets weggehaald; probeer het opnieuw als die klaar is.",
           "removal_adb_unreachable": "Home Assistant kon het paneel niet bereiken via de Android Debug Bridge (poort 5555). Er is niets weggehaald. Controleer of het paneel aan staat en foutopsporing via het netwerk nog is ingeschakeld, en probeer het opnieuw.",
           "removal_adb_authorization": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd voor de Android Debug Bridge. Er is niets weggehaald. Kies eerst ‘Updates toestaan’ en probeer het daarna opnieuw.",
@@ -1871,6 +1891,7 @@
       "removal_busy": "Een andere bewerking wijzigt dit paneel al. Er is niets weggehaald; probeer het opnieuw als die klaar is.",
       "removal_adb_unreachable": "Home Assistant kon het paneel niet bereiken via de Android Debug Bridge (poort 5555). Er is niets weggehaald. Controleer of het paneel aan staat en foutopsporing via het netwerk nog is ingeschakeld, en probeer het opnieuw.",
       "removal_adb_authorization": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd voor de Android Debug Bridge. Er is niets weggehaald. Kies eerst ‘Updates toestaan’ en probeer het daarna opnieuw.",
+      "removal_adb_authorization_unavailable": "The panel has not accepted this Home Assistant instance for the Android Debug Bridge. Nothing was removed. Check that the panel is on and answering, then try again.",
       "removal_panel_changed": "Op het adres van dit paneel antwoordt nu een ander apparaat. Er is niets weggehaald.",
       "removal_approval_required": "Verhoogde beveiliging is ingeschakeld. Daarom moet het teruggeven van het startscherm op het paneel zelf worden goedgekeurd. Er is niets gewijzigd en Panel Assistant is nog steeds geïnstalleerd. Keur het verzoek op het paneel goed en verzend het formulier daarna opnieuw.",
       "removal_no_replacement_home": "Het paneel kon zijn startscherm niet aan een andere launcher geven: er staat geen andere startscherm-app op, dus Panel Assistant is het enige wat het kan tonen. Er is niets weggehaald en het paneel werkt nog. Installeer een launcher of zet die van de fabrikant weer aan, en probeer het opnieuw.",

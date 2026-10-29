@@ -123,7 +123,12 @@ from .release import (
     ReleaseResolutionError,
 )
 from .release_catalog import async_list_install_choices, async_resolve_install_choice
-from .removal import RemovalError, async_read_firmware, async_remove_app
+from .removal import (
+    REASON_ADB_AUTHORIZATION,
+    RemovalError,
+    async_read_firmware,
+    async_remove_app,
+)
 from .repairs_failure import async_clear_adb_authorization
 from .repairs_removal import async_request_removal
 from .repairs_update_route import help_parameters
@@ -2081,6 +2086,12 @@ class HaPaneldOptionsFlow(OptionsFlow):
                 await async_remove_app(self.hass, self.config_entry)
             except RemovalError as err:
                 errors["base"] = f"removal_{err.reason}"
+                if (
+                    err.reason == REASON_ADB_AUTHORIZATION
+                    and self._current_panel_health() is None
+                ):
+                    # Allow updates is offered only while the panel answers.
+                    errors["base"] = "removal_adb_authorization_unavailable"
             else:
                 # Forget the panel once this flow, which belongs to it, has closed.
                 self.hass.async_create_task(

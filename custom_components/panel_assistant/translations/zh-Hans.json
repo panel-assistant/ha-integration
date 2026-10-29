@@ -1752,12 +1752,32 @@
               "keep_app": "Keep Panel Assistant"
             }
           },
+          "authorize_adb": {
+            "title": "Allow Home Assistant on {panel}",
+            "description": "Panel Assistant cannot be removed from {panel} until the panel allows Home Assistant's ADB connection.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}), then select Submit to send the approval request.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n3. Wait here; the removal question comes back once the panel allows it.\n\n[Learn more]({learn_more_url})"
+          },
           "confirm": {
             "title": "从 {panel} 移除 Panel Assistant",
             "description": "Panel Assistant restores the panel's home screen and the vendor apps and settings it changed, then uninstalls itself and deletes this panel from Home Assistant. Its settings on the panel are deleted.\n\nTo remove:\n1. Read [what removal can do to this panel]({risks_url}). Some panels lose access to Android Settings or network debugging, which may prevent reinstalling the app without opening the panel.\n2. Select Submit to confirm removal.\n\nIf you no longer want to remove it, close this dialog and choose Keep Panel Assistant instead; that changes nothing on the panel.\n\n[Learn more]({learn_more_url})"
           }
         },
+        "progress": {
+          "authorize_adb": "Android approval on {panel} is still needed.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}) if needed.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n\nThis continues automatically after approval.\n\n[Learn more]({learn_more_url})"
+        },
         "error": {
+          "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
+          "invalid_install_address": "请只输入面板的主机名或 IP 地址。",
+          "install_resolution_failed": "Home Assistant 无法解析此面板地址。请检查地址和本地 DNS，然后重试。",
+          "install_resolution_timeout": "在能够安全固定面板地址之前，本地名称解析已超时。请检查本地 DNS，然后重试。",
+          "install_too_many_addresses": "此主机名解析出的地址过多，无法安全固定。请使用专用的本地主机名或私有 IP 地址。",
+          "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
+          "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥，也未执行安装。请检查地址并重新开始。",
+          "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到您正在使用的这台计算机上，也可以改用 USB 安装。",
+          "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
+          "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
+          "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照 {recovery_address} 中的步骤操作。在备份经过验证之前，请勿卸载或重置应用。",
+          "unknown": "出现意外错误",
+          "panel_identity_changed": "该地址上响应的已不再是此已配置的面板。请检查面板及其地址后重试。",
           "removal_busy": "另一项操作正在更改此面板。未移除任何内容；请在该操作完成后重试。",
           "removal_adb_unreachable": "Home Assistant 无法通过 Android Debug Bridge（端口 5555）连接到面板。未移除任何内容。请确认面板已开启且网络调试仍处于启用状态，然后重试。",
           "removal_adb_authorization": "面板尚未接受此 Home Assistant 实例的 Android Debug Bridge 连接。未移除任何内容。请先选择“允许更新”，然后重试。",
@@ -1871,6 +1891,7 @@
       "removal_busy": "另一项操作正在更改此面板。未移除任何内容；请在该操作完成后重试。",
       "removal_adb_unreachable": "Home Assistant 无法通过 Android Debug Bridge（端口 5555）连接到面板。未移除任何内容。请确认面板已开启且网络调试仍处于启用状态，然后重试。",
       "removal_adb_authorization": "面板尚未接受此 Home Assistant 实例的 Android Debug Bridge 连接。未移除任何内容。请先选择“允许更新”，然后重试。",
+      "removal_adb_authorization_unavailable": "The panel has not accepted this Home Assistant instance for the Android Debug Bridge. Nothing was removed. Check that the panel is on and answering, then try again.",
       "removal_panel_changed": "此面板的地址现在由另一台设备响应。未移除任何内容。",
       "removal_approval_required": "已开启强化安全模式，因此交还主屏幕必须在面板上批准。未做任何更改，Panel Assistant 仍已安装。请在面板上批准请求，然后再次提交。",
       "removal_no_replacement_home": "面板无法把主屏幕交给其他启动器：面板上没有其他主屏幕应用，因此只能显示 Panel Assistant。未移除任何内容，面板仍可正常使用。请安装一个启动器或重新启用厂商启动器，然后重试。",

@@ -1752,12 +1752,32 @@
               "keep_app": "Keep Panel Assistant"
             }
           },
+          "authorize_adb": {
+            "title": "Allow Home Assistant on {panel}",
+            "description": "Panel Assistant cannot be removed from {panel} until the panel allows Home Assistant's ADB connection.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}), then select Submit to send the approval request.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n3. Wait here; the removal question comes back once the panel allows it.\n\n[Learn more]({learn_more_url})"
+          },
           "confirm": {
             "title": "Прибрати Panel Assistant з {panel}",
             "description": "Panel Assistant restores the panel's home screen and the vendor apps and settings it changed, then uninstalls itself and deletes this panel from Home Assistant. Its settings on the panel are deleted.\n\nTo remove:\n1. Read [what removal can do to this panel]({risks_url}). Some panels lose access to Android Settings or network debugging, which may prevent reinstalling the app without opening the panel.\n2. Select Submit to confirm removal.\n\nIf you no longer want to remove it, close this dialog and choose Keep Panel Assistant instead; that changes nothing on the panel.\n\n[Learn more]({learn_more_url})"
           }
         },
+        "progress": {
+          "authorize_adb": "Android approval on {panel} is still needed.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}) if needed.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n\nThis continues automatically after approval.\n\n[Learn more]({learn_more_url})"
+        },
         "error": {
+          "cannot_connect": "Не вдалося встановити з'єднання з дійсною кінцевою точкою перевірки працездатності Panel Assistant.",
+          "invalid_install_address": "Введіть лише ім’я хоста або IP-адресу панелі.",
+          "install_resolution_failed": "Home Assistant не зміг визначити адресу цієї панелі. Перевірте адресу та локальний DNS, а потім спробуйте ще раз.",
+          "install_resolution_timeout": "Час очікування під час локального розпізнавання імен закінчився до того, як адресу панелі вдалося надійно зафіксувати. Перевірте локальний DNS, а потім спробуйте ще раз.",
+          "install_too_many_addresses": "Ця назва хоста розпізнається як занадто багато адрес, щоб її можна було надійно прив’язати. Використовуйте виділену локальну назву хоста або приватну адресу IP.",
+          "unsafe_install_target": "Встановлення дозволено лише на приватну локальну адресу IPv4 або унікальну локальну адресу IPv6. Спроби підключення через ADB не здійснювалися.",
+          "install_target_changed": "Ім'я хоста більше не розпізнається як та сама закріплена адреса панелі. Ключ ADB не надсилався, і встановлення не здійснювалося. Перевірте адресу та почніть спочатку.",
+          "adb_unreachable": "Панель відповіла, але на порту Android Debug Bridge (5555) відповіді не надійшло. У налаштуваннях панелі увімкніть Android Debug Bridge та дозвольте його використання через мережу, а потім спробуйте ще раз. Якщо є можливість підключити панель до комп’ютера, з якого ви здійснюєте перегляд, виконайте встановлення через USB.",
+          "adb_still_unauthorized": "Панель ще не прийняла цей екземпляр Home Assistant. Схваліть запит ADB на панелі, а потім спробуйте ще раз.",
+          "adb_credential_error": "Home Assistant не зміг безпечно завантажити або зберегти облікові дані ADB. Спроби змінити панель не здійснювалися. Перед повторною спробою перевірте сховище Home Assistant та журнали.",
+          "retained_or_ambiguous": "Панель може містити збережений запис пакета Panel Assistant, або не вдалося довести відсутність цього пакета. Зміни в панель не внесено. Якщо з’єднання було нестабільним, повторіть спробу один раз; інакше дотримуйтесь кроків за адресою {recovery_address}. Не видаляйте і не скидайте застосунок без перевіреної резервної копії.",
+          "unknown": "Несподівана помилка",
+          "panel_identity_changed": "Ця адреса більше не відповідає налаштованій панелі. Перевірте панель і адресу перед повторною спробою.",
           "removal_busy": "Інша операція вже змінює цю панель. Нічого не прибрано; спробуйте ще раз, коли вона завершиться.",
           "removal_adb_unreachable": "Home Assistant не зміг зв'язатися з панеллю через Android Debug Bridge (порт 5555). Нічого не прибрано. Перевірте, що панель увімкнена, а мережеве налагодження досі активне, і спробуйте ще раз.",
           "removal_adb_authorization": "Панель не прийняла цей екземпляр Home Assistant для Android Debug Bridge. Нічого не прибрано. Спочатку виберіть «Дозволити оновлення», а потім спробуйте знову.",
@@ -1871,6 +1891,7 @@
       "removal_busy": "Інша операція вже змінює цю панель. Нічого не прибрано; спробуйте ще раз, коли вона завершиться.",
       "removal_adb_unreachable": "Home Assistant не зміг зв'язатися з панеллю через Android Debug Bridge (порт 5555). Нічого не прибрано. Перевірте, що панель увімкнена, а мережеве налагодження досі активне, і спробуйте ще раз.",
       "removal_adb_authorization": "Панель не прийняла цей екземпляр Home Assistant для Android Debug Bridge. Нічого не прибрано. Спочатку виберіть «Дозволити оновлення», а потім спробуйте знову.",
+      "removal_adb_authorization_unavailable": "The panel has not accepted this Home Assistant instance for the Android Debug Bridge. Nothing was removed. Check that the panel is on and answering, then try again.",
       "removal_panel_changed": "За адресою цієї панелі тепер відповідає інший пристрій. Нічого не прибрано.",
       "removal_approval_required": "Посилений захист увімкнено, тому повернення головного екрана потрібно схвалити на самій панелі. Нічого не було змінено, і Panel Assistant досі встановлено. Схваліть запит на панелі, а потім надішліть форму ще раз.",
       "removal_no_replacement_home": "Панель не змогла передати головний екран іншому лаунчеру: на ній немає іншого застосунку головного екрана, тож Panel Assistant — єдине, що вона може показати. Нічого не прибрано, і панель досі працює. Встановіть лаунчер або знову ввімкніть лаунчер виробника, потім спробуйте ще раз.",

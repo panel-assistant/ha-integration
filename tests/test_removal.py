@@ -724,7 +724,8 @@ async def test_an_unauthorized_panel_is_sent_to_authorize_adb_first(
 
     result = await _remove(hass, entry)
 
-    assert result.get("errors") == {"base": "removal_adb_authorization"}
+    # With no answering panel Configure has no Allow updates step to name.
+    assert result.get("errors") == {"base": "removal_adb_authorization_unavailable"}
     assert fake.installed == [PACKAGE_ID]
     assert fake.hand_back_requests == 0
 
@@ -735,7 +736,7 @@ async def test_an_unauthorized_panel_is_sent_to_authorize_adb_first(
         (
             "_async_connect",
             InstallAdbErrorCode.AUTHORIZATION_REQUIRED,
-            "removal_adb_authorization",
+            "removal_adb_authorization_unavailable",
         ),
         (
             "_parse_identity_root",
@@ -1664,3 +1665,40 @@ async def test_the_owner_can_withdraw_a_removal_request_and_keep_the_app(
     again = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
     assert again is not None
     assert again.dismissed_version is None
+
+
+async def test_an_unauthorized_panel_is_asked_to_allow_home_assistant_in_the_repair(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer], hass_client: Any
+) -> None:
+    """The Repair offers its own Allow step instead of naming one it lacks."""
+    from homeassistant.setup import async_setup_component
+
+    from custom_components.panel_assistant.removal import REASON_ADB_AUTHORIZATION
+    from custom_components.panel_assistant.repairs_removal import (
+        async_request_removal,
+        removal_issue_id,
+    )
+
+    assert await async_setup_component(hass, "repairs", {})
+    assert await async_setup_component(hass, DOMAIN, {})
+    fake, server = panel
+    entry = _entry(hass, server)
+    async_request_removal(hass, entry)
+    admin = await hass_client()
+    response = await admin.post(
+        "/api/repairs/issues/fix",
+        json={"handler": DOMAIN, "issue_id": removal_issue_id(entry.entry_id)},
+    )
+    form = await _choose_removal(admin, await response.json())
+    with patch(
+        "custom_components.panel_assistant.repairs_removal.async_remove_app",
+        AsyncMock(side_effect=removal.RemovalError(REASON_ADB_AUTHORIZATION)),
+    ):
+        response = await admin.post(
+            f"/api/repairs/issues/fix/{form['flow_id']}", json={}
+        )
+    result = await response.json()
+
+    assert result["type"] == "form", result
+    assert result["step_id"] == "authorize_adb"
+    assert fake.installed == [PACKAGE_ID]

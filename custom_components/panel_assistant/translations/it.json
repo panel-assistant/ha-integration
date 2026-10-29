@@ -1752,12 +1752,32 @@
               "keep_app": "Keep Panel Assistant"
             }
           },
+          "authorize_adb": {
+            "title": "Allow Home Assistant on {panel}",
+            "description": "Panel Assistant cannot be removed from {panel} until the panel allows Home Assistant's ADB connection.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}), then select Submit to send the approval request.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n3. Wait here; the removal question comes back once the panel allows it.\n\n[Learn more]({learn_more_url})"
+          },
           "confirm": {
             "title": "Rimuovi Panel Assistant da {panel}",
             "description": "Panel Assistant restores the panel's home screen and the vendor apps and settings it changed, then uninstalls itself and deletes this panel from Home Assistant. Its settings on the panel are deleted.\n\nTo remove:\n1. Read [what removal can do to this panel]({risks_url}). Some panels lose access to Android Settings or network debugging, which may prevent reinstalling the app without opening the panel.\n2. Select Submit to confirm removal.\n\nIf you no longer want to remove it, close this dialog and choose Keep Panel Assistant instead; that changes nothing on the panel.\n\n[Learn more]({learn_more_url})"
           }
         },
+        "progress": {
+          "authorize_adb": "Android approval on {panel} is still needed.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}) if needed.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n\nThis continues automatically after approval.\n\n[Learn more]({learn_more_url})"
+        },
         "error": {
+          "cannot_connect": "Impossibile connettersi a un endpoint valido sullo stato di funzionamento di Panel Assistant.",
+          "invalid_install_address": "Inserisci solo il nome host o l’indirizzo IP del pannello.",
+          "install_resolution_failed": "Home Assistant non è riuscito a risolvere l'indirizzo di questo pannello. Controlla l'indirizzo e il DNS locale, quindi riprova.",
+          "install_resolution_timeout": "La risoluzione locale del nome non è stata completata in tempo per fissare in modo sicuro l'indirizzo del pannello. Controlla il DNS locale, quindi riprova.",
+          "install_too_many_addresses": "Questo nome host è stato risolto in troppi indirizzi per poterlo fissare in modo sicuro. Usa un nome host locale dedicato o un indirizzo IP privato.",
+          "unsafe_install_target": "L'installazione è consentita solo su un indirizzo IPv4 locale privato o su un indirizzo IPv6 univoco locale. Non è stata tentata alcuna connessione ADB.",
+          "install_target_changed": "Il nome host non si risolve più nello stesso indirizzo del pannello fissato in precedenza. Non è stata inviata alcuna chiave ADB e non è stata avviata alcuna installazione. Controlla l'indirizzo e ricomincia.",
+          "adb_unreachable": "Il pannello ha risposto, ma nulla ha risposto sulla sua porta Android Debug Bridge (5555). Sul pannello attiva Android Debug Bridge e consentilo via rete, poi riprova. Se puoi collegare il pannello al computer da cui stai navigando, installa invece tramite USB.",
+          "adb_still_unauthorized": "Il pannello non ha ancora accettato questa istanza di Home Assistant. Approva la richiesta ADB sul pannello, quindi riprova.",
+          "adb_credential_error": "Home Assistant non è riuscito a caricare o conservare in modo sicuro le proprie credenziali ADB. Non è stata tentata alcuna modifica del pannello. Controlla lo spazio di archiviazione e i registri di Home Assistant prima di riprovare.",
+          "retained_or_ambiguous": "Il pannello potrebbe contenere un record conservato del pacchetto Panel Assistant oppure non è stato possibile dimostrare che il pacchetto sia assente. Il pannello non è stato modificato. Riprova una volta se la connessione era instabile; in caso contrario, segui i passaggi all'indirizzo {recovery_address}. Non disinstallare o reimpostare l'app senza un backup verificato.",
+          "unknown": "Errore imprevisto",
+          "panel_identity_changed": "L’indirizzo non risponde più come questo pannello configurato. Controlla il pannello e il suo indirizzo prima di riprovare.",
           "removal_busy": "Un'altra operazione sta già modificando questo pannello. Non è stato rimosso nulla; riprova quando sarà terminata.",
           "removal_adb_unreachable": "Home Assistant non è riuscito a raggiungere il pannello tramite Android Debug Bridge (porta 5555). Non è stato rimosso nulla. Verifica che il pannello sia acceso e che il debug di rete sia ancora attivo, quindi riprova.",
           "removal_adb_authorization": "Il pannello non ha accettato questa istanza di Home Assistant per Android Debug Bridge. Non è stato rimosso nulla. Scegli prima «Consenti aggiornamenti», quindi riprova.",
@@ -1871,6 +1891,7 @@
       "removal_busy": "Un'altra operazione sta già modificando questo pannello. Non è stato rimosso nulla; riprova quando sarà terminata.",
       "removal_adb_unreachable": "Home Assistant non è riuscito a raggiungere il pannello tramite Android Debug Bridge (porta 5555). Non è stato rimosso nulla. Verifica che il pannello sia acceso e che il debug di rete sia ancora attivo, quindi riprova.",
       "removal_adb_authorization": "Il pannello non ha accettato questa istanza di Home Assistant per Android Debug Bridge. Non è stato rimosso nulla. Scegli prima «Consenti aggiornamenti», quindi riprova.",
+      "removal_adb_authorization_unavailable": "The panel has not accepted this Home Assistant instance for the Android Debug Bridge. Nothing was removed. Check that the panel is on and answering, then try again.",
       "removal_panel_changed": "All'indirizzo di questo pannello ora risponde un altro dispositivo. Non è stato rimosso nulla.",
       "removal_approval_required": "La sicurezza rafforzata è attiva, quindi la restituzione della schermata iniziale deve essere approvata sul pannello stesso. Non è stato modificato nulla e Panel Assistant è ancora installato. Approva la richiesta sul pannello, quindi invia di nuovo il modulo.",
       "removal_no_replacement_home": "Il pannello non è riuscito a cedere la schermata iniziale a un altro launcher: non c'è nessun'altra app di schermata iniziale, quindi Panel Assistant è l'unica cosa che può mostrare. Non è stato rimosso nulla e il pannello funziona ancora. Installa un launcher o riattiva quello del produttore, quindi riprova.",

@@ -1752,12 +1752,32 @@
               "keep_app": "Keep Panel Assistant"
             }
           },
+          "authorize_adb": {
+            "title": "Allow Home Assistant on {panel}",
+            "description": "Panel Assistant cannot be removed from {panel} until the panel allows Home Assistant's ADB connection.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}), then select Submit to send the approval request.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n3. Wait here; the removal question comes back once the panel allows it.\n\n[Learn more]({learn_more_url})"
+          },
           "confirm": {
             "title": "Odebrat Panel Assistant z panelu {panel}",
             "description": "Panel Assistant restores the panel's home screen and the vendor apps and settings it changed, then uninstalls itself and deletes this panel from Home Assistant. Its settings on the panel are deleted.\n\nTo remove:\n1. Read [what removal can do to this panel]({risks_url}). Some panels lose access to Android Settings or network debugging, which may prevent reinstalling the app without opening the panel.\n2. Select Submit to confirm removal.\n\nIf you no longer want to remove it, close this dialog and choose Keep Panel Assistant instead; that changes nothing on the panel.\n\n[Learn more]({learn_more_url})"
           }
         },
+        "progress": {
+          "authorize_adb": "Android approval on {panel} is still needed.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}) if needed.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n\nThis continues automatically after approval.\n\n[Learn more]({learn_more_url})"
+        },
         "error": {
+          "cannot_connect": "Nelze se připojit k platnému koncovému bodu Panel Assistant pro kontrolu stavu.",
+          "invalid_install_address": "Zadejte pouze název hostitele nebo IP adresu panelu.",
+          "install_resolution_failed": "Home Assistant nedokázal přeložit tuto adresu panelu. Zkontrolujte adresu a místní DNS a pak to zkuste znovu.",
+          "install_resolution_timeout": "Překlad místního názvu překročil časový limit dříve, než bylo možné bezpečně zafixovat adresu panelu. Zkontrolujte místní DNS a pak to zkuste znovu.",
+          "install_too_many_addresses": "Tento název hostitele se přeložil na příliš mnoho adres, takže adresu nelze bezpečně zafixovat. Použijte vyhrazený místní název hostitele nebo soukromou IP adresu.",
+          "unsafe_install_target": "Instalace je povolena pouze na soukromou místní adresu IPv4 nebo jedinečnou místní adresu IPv6. Nebyl proveden žádný pokus o připojení přes ADB.",
+          "install_target_changed": "Název hostitele se už nepřekládá na stejnou zafixovanou adresu panelu. Nebyl odeslán žádný klíč ADB ani instalace. Zkontrolujte adresu a začněte znovu.",
+          "adb_unreachable": "Panel odpověděl, ale na jeho portu Android Debug Bridge (5555) nic neodpovědělo. Na panelu zapněte Android Debug Bridge a povolte jej po síti, pak to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém právě používáte prohlížeč, nainstalujte aplikaci raději přes USB.",
+          "adb_still_unauthorized": "Panel zatím nepřijal tuto instanci Home Assistant. Potvrďte na panelu žádost o přístup přes ADB a pak to zkuste znovu.",
+          "adb_credential_error": "Home Assistant nemohl bezpečně načíst nebo trvale uložit svůj přístupový údaj ADB. Nebyl proveden žádný pokus o změnu panelu. Před dalším pokusem zkontrolujte úložiště a protokoly Home Assistant.",
+          "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam o balíčku Panel Assistant nebo se nepodařilo prokázat, že nezůstal žádný stav tohoto balíčku. Na panelu nebyla provedena žádná změna. Pokud bylo připojení nestabilní, zkuste to jednou znovu; jinak postupujte podle kroků na adrese {recovery_address}. Bez ověřené zálohy aplikaci neodinstalovávejte ani ji neresetujte.",
+          "unknown": "Neočekávaná chyba",
+          "panel_identity_changed": "Na této adrese už neodpovídá nastavený panel. Před dalším pokusem zkontrolujte panel a jeho adresu.",
           "removal_busy": "Tento panel už mění jiná operace. Nic nebylo odebráno; zkuste to znovu, až tato operace skončí.",
           "removal_adb_unreachable": "Home Assistant se nedokázal spojit s panelem přes Android Debug Bridge (port 5555). Nic nebylo odebráno. Zkontrolujte, že je panel zapnutý a ladění po síti je stále povolené, a pak to zkuste znovu.",
           "removal_adb_authorization": "Panel nepřijal tuto instanci Home Assistant pro Android Debug Bridge. Nic nebylo odebráno. Nejdřív vyberte „Povolit aktualizace“ a potom to zkuste znovu.",
@@ -1871,6 +1891,7 @@
       "removal_busy": "Tento panel už mění jiná operace. Nic nebylo odebráno; zkuste to znovu, až tato operace skončí.",
       "removal_adb_unreachable": "Home Assistant se nedokázal spojit s panelem přes Android Debug Bridge (port 5555). Nic nebylo odebráno. Zkontrolujte, že je panel zapnutý a ladění po síti je stále povolené, a pak to zkuste znovu.",
       "removal_adb_authorization": "Panel nepřijal tuto instanci Home Assistant pro Android Debug Bridge. Nic nebylo odebráno. Nejdřív vyberte „Povolit aktualizace“ a potom to zkuste znovu.",
+      "removal_adb_authorization_unavailable": "The panel has not accepted this Home Assistant instance for the Android Debug Bridge. Nothing was removed. Check that the panel is on and answering, then try again.",
       "removal_panel_changed": "Na adrese tohoto panelu nyní odpovídá jiné zařízení. Nic nebylo odebráno.",
       "removal_approval_required": "Je zapnuté posílené zabezpečení, takže předání domovské obrazovky zpět musí být schváleno na samotném panelu. Nic se nezměnilo a Panel Assistant je stále nainstalovaný. Schvalte požadavek na panelu a potom znovu odešlete formulář.",
       "removal_no_replacement_home": "Panel nemohl předat svou domovskou obrazovku jinému spouštěči: nemá jinou aplikaci domovské obrazovky, takže může zobrazit pouze Panel Assistant. Nic nebylo odebráno a panel stále funguje. Nainstalujte spouštěč nebo znovu zapněte ten od výrobce a pak to zkuste znovu.",

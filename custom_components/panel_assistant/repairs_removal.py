@@ -12,7 +12,12 @@ from homeassistant.helpers import issue_registry as ir
 
 from .const import DOMAIN, help_url
 from .device import panel_display_name
-from .removal import RemovalError, async_read_firmware, async_remove_app
+from .removal import (
+    REASON_ADB_AUTHORIZATION,
+    RemovalError,
+    async_read_firmware,
+    async_remove_app,
+)
 from .repairs_update_route import help_parameters
 from .status import PanelStatus
 
@@ -48,7 +53,10 @@ class RemoveFromPanelFlow(RepairsFlow):
     """Keep an interrupted removal retryable until neither app remains."""
 
     def __init__(self, entry_id: str) -> None:
+        from .config_flow import AdbAuthorization
+
         self._entry_id = entry_id
+        self._adb_authorization = AdbAuthorization()
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -82,6 +90,9 @@ class RemoveFromPanelFlow(RepairsFlow):
             try:
                 await async_remove_app(self.hass, entry)
             except RemovalError as err:
+                if err.reason == REASON_ADB_AUTHORIZATION:
+                    # Ask the panel to allow Home Assistant here, then come back.
+                    return await self.async_step_authorize_adb()
                 errors["base"] = f"removal_{err.reason}"
             else:
                 # Keep the persistent request until entry removal has completed.
@@ -108,3 +119,35 @@ class RemoveFromPanelFlow(RepairsFlow):
             },
             errors=errors,
         )
+
+    async def async_step_authorize_adb(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        """Let the panel allow Home Assistant, then return to the removal."""
+        return await self._async_authorize_adb(user_input, done=False)
+
+    async def async_step_authorize_adb_done(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        """Show the wait's outcome, ignoring progress input."""
+        return await self._async_authorize_adb(None, done=True)
+
+    async def _async_authorize_adb(
+        self, user_input: dict[str, Any] | None, *, done: bool
+    ) -> RepairsFlowResult:
+        from .config_flow import async_authorize_adb_form
+
+        entry = self.hass.config_entries.async_get_entry(self._entry_id)
+        if entry is None or entry.domain != DOMAIN:
+            return await self.async_step_confirm()
+        form = await async_authorize_adb_form(
+            self,
+            entry,
+            panel_display_name(self.hass, entry),
+            user_input,
+            self._adb_authorization,
+            done=done,
+        )
+        if form is not None:
+            return form
+        return await self.async_step_confirm()

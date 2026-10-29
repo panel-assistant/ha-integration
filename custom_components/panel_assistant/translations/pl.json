@@ -1752,12 +1752,32 @@
               "keep_app": "Keep Panel Assistant"
             }
           },
+          "authorize_adb": {
+            "title": "Allow Home Assistant on {panel}",
+            "description": "Panel Assistant cannot be removed from {panel} until the panel allows Home Assistant's ADB connection.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}), then select Submit to send the approval request.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n3. Wait here; the removal question comes back once the panel allows it.\n\n[Learn more]({learn_more_url})"
+          },
           "confirm": {
             "title": "Usuń Panel Assistant z panelu {panel}",
             "description": "Panel Assistant restores the panel's home screen and the vendor apps and settings it changed, then uninstalls itself and deletes this panel from Home Assistant. Its settings on the panel are deleted.\n\nTo remove:\n1. Read [what removal can do to this panel]({risks_url}). Some panels lose access to Android Settings or network debugging, which may prevent reinstalling the app without opening the panel.\n2. Select Submit to confirm removal.\n\nIf you no longer want to remove it, close this dialog and choose Keep Panel Assistant instead; that changes nothing on the panel.\n\n[Learn more]({learn_more_url})"
           }
         },
+        "progress": {
+          "authorize_adb": "Android approval on {panel} is still needed.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}) if needed.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n\nThis continues automatically after approval.\n\n[Learn more]({learn_more_url})"
+        },
         "error": {
+          "cannot_connect": "Nie udało się nawiązać połączenia z prawidłowym punktem końcowym stanu działania usługi Panel Assistant.",
+          "invalid_install_address": "Wpisz tylko nazwę hosta lub adres IP panelu.",
+          "install_resolution_failed": "Home Assistant nie może rozpoznać adresu tego panelu. Sprawdź adres i lokalny DNS, a następnie spróbuj ponownie.",
+          "install_resolution_timeout": "Upłynął limit czasu lokalnego rozpoznawania nazwy, zanim adres panelu mógł zostać bezpiecznie ustalony. Sprawdź lokalny DNS, a następnie spróbuj ponownie.",
+          "install_too_many_addresses": "Ta nazwa hosta została rozpoznana jako zbyt wiele adresów, aby można było bezpiecznie ją przypiąć. Użyj dedykowanej lokalnej nazwy hosta lub prywatnego adresu IP.",
+          "unsafe_install_target": "Instalacja jest dozwolona wyłącznie pod prywatnym lokalnym adresem IPv4 lub unikalnym lokalnym adresem IPv6. Nie podjęto żadnej próby nawiązania połączenia typu ADB.",
+          "install_target_changed": "Nazwa hosta nie wskazuje już tego samego przypiętego adresu panelu. Nie wysłano klucza ADB ani instalacji. Sprawdź adres i zacznij od nowa.",
+          "adb_unreachable": "Panel odpowiedział, ale nic nie odpowiedziało na jego porcie Android Debug Bridge (5555). Na panelu włącz Android Debug Bridge i zezwól na jego działanie przez sieć, a następnie spróbuj ponownie. Jeśli możesz podłączyć panel do komputera, na którym przeglądasz tę stronę, zainstaluj zamiast tego przez USB.",
+          "adb_still_unauthorized": "Panel nie zaakceptował jeszcze tej instancji Home Assistant. Zatwierdź monit ADB na panelu, a następnie spróbuj ponownie.",
+          "adb_credential_error": "Home Assistant nie mógł bezpiecznie wczytać ani zapisać swoich danych uwierzytelniających ADB. Nie podjęto próby zmiany panelu. Przed ponowną próbą sprawdź pamięć i logi Home Assistant.",
+          "retained_or_ambiguous": "Panel może zawierać zachowany rekord pakietu Panel Assistant albo nie udało się dowieść, że pakietu nie ma. Nie wprowadzono żadnych zmian w panelu. Spróbuj ponownie tylko raz, jeśli połączenie było niestabilne; w przeciwnym razie postępuj zgodnie z krokami opisanymi pod adresem {recovery_address}. Nie odinstalowuj ani nie resetuj aplikacji bez zweryfikowanej kopii zapasowej.",
+          "unknown": "Nieoczekiwany błąd",
+          "panel_identity_changed": "Ten adres nie odpowiada już jako skonfigurowany panel. Sprawdź panel i adres przed ponowną próbą.",
           "removal_busy": "Inna operacja już zmienia ten panel. Nic nie zostało usunięte; spróbuj ponownie, gdy się zakończy.",
           "removal_adb_unreachable": "Home Assistant nie mógł połączyć się z panelem przez Android Debug Bridge (port 5555). Nic nie zostało usunięte. Sprawdź, czy panel jest włączony, a debugowanie przez sieć nadal aktywne, i spróbuj ponownie.",
           "removal_adb_authorization": "Panel nie zaakceptował tej instancji Home Assistant dla Android Debug Bridge. Niczego nie usunięto. Najpierw wybierz „Zezwól na aktualizacje”, a następnie spróbuj ponownie.",
@@ -1871,6 +1891,7 @@
       "removal_busy": "Inna operacja już zmienia ten panel. Nic nie zostało usunięte; spróbuj ponownie, gdy się zakończy.",
       "removal_adb_unreachable": "Home Assistant nie mógł połączyć się z panelem przez Android Debug Bridge (port 5555). Nic nie zostało usunięte. Sprawdź, czy panel jest włączony, a debugowanie przez sieć nadal aktywne, i spróbuj ponownie.",
       "removal_adb_authorization": "Panel nie zaakceptował tej instancji Home Assistant dla Android Debug Bridge. Niczego nie usunięto. Najpierw wybierz „Zezwól na aktualizacje”, a następnie spróbuj ponownie.",
+      "removal_adb_authorization_unavailable": "The panel has not accepted this Home Assistant instance for the Android Debug Bridge. Nothing was removed. Check that the panel is on and answering, then try again.",
       "removal_panel_changed": "Pod adresem tego panelu odpowiada teraz inne urządzenie. Nic nie zostało usunięte.",
       "removal_approval_required": "Wzmocnione zabezpieczenia są włączone, więc przekazanie ekranu głównego z powrotem wymaga zgody na samym panelu. Niczego nie zmieniono i Panel Assistant nadal jest zainstalowany. Zatwierdź prośbę na panelu, a następnie ponownie wybierz Zatwierdź.",
       "removal_no_replacement_home": "Panel nie mógł oddać ekranu głównego innemu launcherowi: nie ma na nim innej aplikacji ekranu głównego, więc Panel Assistant to jedyne, co może wyświetlać. Nic nie zostało usunięte, a panel nadal działa. Zainstaluj launcher lub ponownie włącz launcher producenta i spróbuj ponownie.",
