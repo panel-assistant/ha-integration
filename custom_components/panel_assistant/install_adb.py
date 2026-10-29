@@ -1483,10 +1483,10 @@ _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
         "|android/*|com.android.settings/*) ;; ?*/?*) "
         f"am force-stop {LEGACY_PACKAGE_ID}; {_uninstall(LEGACY_PACKAGE_ID)}; "
         f"rm -f {_LEGACY_COPY}; "
-        f'case "$(pm list packages -u {LEGACY_PACKAGE_ID} 2>/dev/null)" in '
-        f"*package:{LEGACY_PACKAGE_ID}*) ;; *) "
+        f'packages="$(pm list packages -u {LEGACY_PACKAGE_ID} 2>&1)"; '
+        'if [ "$?" = 0 ]; then case "$packages" in "") '
         f"am force-stop {PACKAGE_ID}; {_uninstall(PACKAGE_ID)} ;; "
-        "esac ;; esac",
+        "esac; fi ;; esac",
     ),
     # The vendor's launcher takes HOME from the panel's shell when the app
     # cannot hand it back (vendor_provisioning names the panels).
@@ -1500,11 +1500,16 @@ def _move_command(nonce: str, step: MoveStep) -> str:
         (
             f"echo HAPANELD_MOVE_BEGIN:{nonce}",
             *(f"{action} {quiet}" for action in _MOVE_ACTIONS[step]),
-            # No pipe into grep: toybox grep on some panels reports an error
-            # on an empty pipe, which would corrupt the frame.
+            # An empty `pm path` also means PM failed. Require a successful
+            # enumeration and its exact filtered result before accepting absence.
+            # Capture stderr too: some Android versions print service errors
+            # while returning success.
             *(
-                f'case "$(pm path {package} 2>/dev/null)" in '
-                f"package:*) echo installed:{package} ;; esac"
+                f'packages="$(pm list packages {package} 2>&1)"; '
+                'if [ "$?" != 0 ]; then echo observation-failed; '
+                f'else case "$packages" in "package:{package}") '
+                f'echo installed:{package} ;; "") ;; '
+                "*) echo observation-failed ;; esac; fi"
                 for package in (LEGACY_PACKAGE_ID, PACKAGE_ID)
             ),
             f'echo "home:$({_HOME_QUERY})"',
