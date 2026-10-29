@@ -1,5 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { LAUNCH_COMPONENTS, LEGACY_PACKAGE_ID, PACKAGE_ID,
   accessibilityComponentFor, isLaunchComponent } from '../src/app-identity.mjs';
 import { PreflightError, RESIDUE_PROBES, buildPreflight, classifyTarget,
@@ -45,11 +49,7 @@ test('the one app id names its own components, old classes and moved ones', () =
   assert.throws(() => accessibilityComponentFor('io.panelassistant.android/.MainActivity'), RangeError);
 });
 
-test("launch starts the descriptor's own package by its own component", () => {
-  for (const component of LAUNCH_COMPONENTS[PACKAGE_ID]) {
-    assert.ok(buildLaunch(nonce, PACKAGE_ID, component, 33).includes(
-      `am start -W -n ${component} -p io.panelassistant.android`));
-  }
+test("launch refuses foreign packages and the old app", () => {
   assert.throws(() => buildLaunch(nonce, 'io.example.other', MOVED, 33), InstallContractError);
   // The old app is never started, by its own launcher or the new one.
   assert.throws(() => buildLaunch(nonce, LEGACY_PACKAGE_ID, OLD_APP_LAUNCH, 33), InstallContractError);
@@ -57,23 +57,45 @@ test("launch starts the descriptor's own package by its own component", () => {
 });
 
 test('no panel program is built for the old app', () => {
-  assert.ok(buildInstalledObservation(nonce, PACKAGE_ID).includes(`pm path ${PACKAGE_ID})`));
   assert.throws(() => buildInstalledObservation(nonce, LEGACY_PACKAGE_ID),
     error => error instanceof InstalledObservationError && error.code === 'invalid_request');
-  assert.ok(buildVendorDisplaySettlement(nonce, PACKAGE_ID).includes(PACKAGE_ID));
   assert.throws(() => buildVendorDisplaySettlement(nonce, LEGACY_PACKAGE_ID), /vendor_setup_unreadable/);
-  for (const component of LAUNCH_COMPONENTS[PACKAGE_ID]) assert.match(buildHomeClaim(component), /set-home-activity/);
   assert.throws(() => buildHomeClaim(OLD_APP_LAUNCH), RangeError);
 });
 
-test('the preflight still reads the old app and its data, as well as this one', () => {
-  const program = buildPreflight(nonce);
-  assert.deepEqual([...new Set(RESIDUE_PROBES.map(({ packageId }) => packageId))], PROBED);
+test('the executed preflight refuses either app, retained package, and every data location', t => {
+  const root = mkdtempSync(join(tmpdir(), 'identity-preflight-'));
+  t.after(() => rmSync(root, {recursive: true, force: true}));
+  const bases = ['/data/user/0', '/data/data', '/data/user_de/0'];
+  for (const base of bases) mkdirSync(join(root, base), {recursive: true});
+  const run = ({installed = '', retained = ''} = {}) => {
+    const result = spawnSync('/bin/sh', ['-c', `
+getprop() { case "$1" in ro.product.model) echo 'Test panel';; ro.serialno) echo serial;; ro.product.cpu.abi) echo arm64-v8a;; ro.build.version.sdk) echo 34;; ro.secure) echo 1;; ro.debuggable) echo 0;; esac; }
+id() { echo 2000; }
+command() { return 1; }
+pm() {
+  if [ "$1 $2" = 'path android' ]; then echo package:/system/framework/framework-res.apk;
+  elif [ "$1" = path ]; then [ "$2" = '${installed}' ] && echo "package:/data/app/$2/base.apk";
+  elif [ "$1 $2 $3" = 'list packages -u' ]; then [ "$4" != '${retained}' ] || echo "package:$4";
+  else return 1; fi
+}
+${buildPreflight(nonce).replaceAll('/data/', `${root}/data/`)}`], {encoding: 'utf8', timeout: 2000});
+    assert.equal(result.status, 0);
+    // Capture the caller's result so a refusal mutant fails an assertion, rather
+    // than escaping as a parser or shell exception.
+    try { return parsePreflight(result.stdout, nonce, {...DESCRIPTOR, packageId: PACKAGE_ID}); }
+    catch (error) { return {code: error.code}; }
+  };
+  assert.equal(run().installationAdmission, 'clean_preflight');
   for (const packageId of PROBED) {
-    assert.ok(program.includes(`pm path ${packageId};`), packageId);
-    assert.ok(program.includes(`pm list packages -u ${packageId};`), packageId);
-    for (const base of ['/data/user/0', '/data/data', '/data/user_de/0']) {
-      assert.ok(program.includes(`[ -e ${base}/${packageId} ]`), `${base}/${packageId}`);
+    assert.deepEqual(run({installed: packageId}),
+      {code: packageId === PACKAGE_ID ? 'target_installed' : 'target_not_clean'});
+    assert.deepEqual(run({retained: packageId}), {code: 'target_not_clean'});
+    for (const base of bases) {
+      const residue = join(root, base, packageId);
+      mkdirSync(residue);
+      assert.deepEqual(run(), {code: 'target_not_clean'}, `${base}/${packageId}`);
+      rmSync(residue, {recursive: true});
     }
   }
 });

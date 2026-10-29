@@ -1,5 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { buildAppReady, parseAppReady } from '../src/install-contract.mjs';
 import { createUsbTransactionPorts } from '../src/usb-transaction-ports.mjs';
 import { PACKAGE_ID } from '../src/app-identity.mjs';
@@ -7,12 +11,38 @@ import { PACKAGE_ID } from '../src/app-identity.mjs';
 const nonce = 'f'.repeat(32);
 const frame = status => `HAPANELD_READY_BEGIN:${nonce}\nHAPANELD_READY_END:${nonce}:${status}\n`;
 
-test('the wait is a bounded, read-only loop on the app port', () => {
-  const program = buildAppReady(nonce);
-  assert.match(program, /while \[ \$i -lt 30 \]/, 'at most 30 checks');
-  assert.match(program, /sleep 2/, 'two seconds apart, about a minute in all');
-  assert.match(program, /grep -q ':8888 '/);
-  assert.ok(!/am |pm |kill|rm |settings /.test(program), 'waiting never starts, stops or changes anything');
+test('the app wait accepts either socket tool, retries only its port, and stops after one minute', t => {
+  const root = mkdtempSync(join(tmpdir(), 'app-ready-'));
+  t.after(() => rmSync(root, {recursive: true, force: true}));
+  let scenario = 0;
+  for (const [tool, port, readyAt, expected, attempts] of [
+    ['ss', 8888, 1, true, 1],
+    ['netstat', 8888, 3, true, 3],
+    ['ss', 18888, 1, false, 30],
+    ['netstat', 8889, 1, false, 30],
+    ['ss', 8888, 31, false, 30],
+  ]) {
+    // Execute the same shell program used by the USB ports. Only the panel's
+    // socket tools and clock are replaced; the loop, matching and framing run.
+    const state = join(root, String(scenario++));
+    const result = spawnSync('/bin/sh', ['-c', `
+exec 3>&2
+attempt() { n=$(cat "${state}-$1" 2>/dev/null || echo 0); n=$((n+1)); echo "$n" > "${state}-$1"; }
+ss() { echo ss >&3; attempt ss; ${tool === 'ss' ? `if [ "$n" -ge ${readyAt} ]; then echo 'LISTEN 0 128 0.0.0.0:${port} 0.0.0.0:*'; fi` : ':'}; }
+netstat() { echo netstat >&3; attempt netstat; ${tool === 'netstat' ? `if [ "$n" -ge ${readyAt} ]; then echo 'tcp 0 0 0.0.0.0:${port} 0.0.0.0:* LISTEN'; fi` : ':'}; }
+sleep() { echo "sleep $*" >&2; }
+am() { echo mutation >&2; }; pm() { echo mutation >&2; }; kill() { echo mutation >&2; }
+rm() { echo mutation >&2; }; settings() { echo mutation >&2; }
+${buildAppReady(nonce)}`], {encoding: 'utf8', timeout: 2000});
+    const label = `${tool}:${port}, ready at ${readyAt}`;
+    assert.equal(result.status, 0, label);
+    assert.equal(parseAppReady(result.stdout, nonce), expected, label);
+    const calls = result.stderr.trim().split('\n').filter(Boolean);
+    assert.equal(calls.filter(call => call === tool).length, attempts, label);
+    assert.deepEqual(calls.filter(call => call.startsWith('sleep ')),
+      Array(expected ? attempts - 1 : attempts).fill('sleep 2'), label);
+    assert.ok(!calls.includes('mutation'), 'waiting never changes the panel');
+  }
   assert.throws(() => buildAppReady('bad'));
 });
 

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {spawnSync} from 'node:child_process';
 import {LAUNCH_COMPONENTS, PACKAGE_ID,
   accessibilityComponentFor, homeComponentFor} from '../../src/app-identity.mjs';
 
@@ -18,6 +19,23 @@ export function permissionPanel({badTarget = false, badApk = false, badRead = fa
   const release = {kind: 'authenticated-apk-bytes', descriptor: artifact};
   const receipt = {phase: 'healthy', target, artifact};
   const commands = [];
+  const shellCalls = [];
+  // Execute the panel program at the ADB boundary. FD 3 records calls even
+  // when the production program suppresses a grant's stdout and stderr.
+  const execute = program => {
+    const result = spawnSync('/bin/sh', ['-c', `
+pm() { echo "pm $*" >&3; }
+am() { echo "am $*" >&3; if [ "$1" = broadcast ]; then echo 'Broadcast completed: result=1, data="panel-assistant-setup-eligible"'; else echo 'Status: ok'; fi; }
+settings() { echo "settings $*" >&3; if [ "$1" = get ]; then echo 'com.other/.Reader'; fi; }
+appops() { echo "appops $*" >&3; ${failGrant ? 'return 1' : ':'}; }
+cmd() { echo "cmd $*" >&3; echo '${homeComponentFor(launchComponent)}'; }
+input() { echo "input $*" >&3; return 1; }; uiautomator() { return 1; }
+rm() { return 1; }; sleep() { return 1; }
+${program}`], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe', 'pipe'], timeout: 2000});
+    assert.equal(result.status, 0, result.stderr);
+    shellCalls.push(...result.output[3].trim().split('\n').filter(Boolean));
+    return result.stdout;
+  };
   const adb = {async createSocket(command) {
     commands.push(command);
     const n = command.match(/BEGIN:([a-f0-9]{32})/)[1];
@@ -37,13 +55,13 @@ export function permissionPanel({badTarget = false, badApk = false, badRead = fa
         `HAPANELD_INSTALLED_SHA_BEGIN:${n}`, `${badApk ? 'b'.repeat(64) : artifact.apkSha256}  ${path}`,
         `HAPANELD_INSTALLED_SHA_END:${n}:0`, `HAPANELD_INSTALLED_END:${n}`, ''].join('\n');
     } else if (command.includes('HAPANELD_LAUNCH_BEGIN:')) {
-      body = `HAPANELD_LAUNCH_BEGIN:${n}\nStatus: ok\nHAPANELD_LAUNCH_END:${n}:0\n`;
+      body = execute(command.slice('shell:'.length));
     } else if (command.includes('HAPANELD_VENDOR_BEGIN:')) {
       body = `HAPANELD_VENDOR_BEGIN:${n}\ndevice:other\nHAPANELD_VENDOR_END:${n}:0\n`;
     } else if (command.includes('HAPANELD_PERMISSIONS_READ_BEGIN:')) {
       body = `HAPANELD_PERMISSIONS_READ_BEGIN:${n}\n${badRead ? "cannot read settings" : 'com.other/.Reader'}\nHAPANELD_PERMISSIONS_READ_END:${n}:0\n`;
     } else if (command.includes('HAPANELD_PERMISSIONS_GRANT_BEGIN:')) {
-      body = `HAPANELD_PERMISSIONS_GRANT_BEGIN:${n}\nhome_chooser:kept\nHAPANELD_PERMISSIONS_GRANT_END:${n}:${failGrant ? 1 : 0}\n`;
+      body = execute(command.slice('shell:'.length));
     } else {
       assert.ok(command.includes('HAPANELD_PERMISSIONS_VERIFY_BEGIN:'));
       body = [`HAPANELD_PERMISSIONS_VERIFY_BEGIN:${n}`, ...verifyLines([`com.other/.Reader:${accessibilityComponentFor(launchComponent)}`, '1',
@@ -58,5 +76,5 @@ export function permissionPanel({badTarget = false, badApk = false, badRead = fa
     }}), close: async () => {}};
   }};
   const usbDevice = {vendorId: 1, productId: 2, serialNumber: 'usb'};
-  return {adb, usbDevice, target, release, receipt, commands};
+  return {adb, usbDevice, target, release, receipt, commands, shellCalls};
 }
