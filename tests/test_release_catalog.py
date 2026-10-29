@@ -1,6 +1,7 @@
 """Discovery includes only complete, supported release choices."""
 
 import json
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -53,13 +54,26 @@ def session(latest, recent):
     )
 
 
-async def test_recent_stable_and_exact_rc_candidates_are_discovered():
+@pytest.fixture
+def discovery_authentication(monkeypatch):
+    """Isolate discovery from signatures, covered by the signed fixtures below."""
+
+    async def authenticate(session, tag, *, release_body=None):
+        return SimpleNamespace(artifact=SimpleNamespace(tag=tag, version=tag[1:]))
+
+    monkeypatch.setattr(catalog, "_async_release_choice", authenticate)
+
+
+async def test_recent_stable_and_exact_rc_candidates_are_discovered(
+    discovery_authentication,
+):
     rc = document("v1.3.0-rc2", prerelease=True)
     client = session(document(), [rc, document("v1.0.0"), rc])
-    assert await catalog.async_list_install_releases(client) == [
-        {"tag": "v1.2.3", "prerelease": False},
-        {"tag": "v1.3.0-rc2", "prerelease": True},
-        {"tag": "v1.0.0", "prerelease": False},
+    choices = await catalog.async_resolve_update_candidates(client)
+    assert [choice.artifact.tag for choice in choices] == [
+        "v1.3.0-rc2",
+        "v1.2.3",
+        "v1.0.0",
     ]
     assert [url for url, _ in client.requests] == [
         str(catalog._SITE_RELEASES_URL),
@@ -72,35 +86,37 @@ async def test_recent_stable_and_exact_rc_candidates_are_discovered():
         assert options["timeout"].total == 10
 
 
-async def test_total_choice_limit_includes_latest_stable():
+async def test_total_choice_limit_includes_latest_stable(discovery_authentication):
     recent = [document(f"v1.3.0-rc{n}", prerelease=True) for n in range(30, 0, -1)]
-    choices = await catalog.async_list_install_releases(session(document(), recent))
+    choices = await catalog.async_resolve_update_candidates(session(document(), recent))
     assert len(choices) == 30
-    assert choices[0] == {"tag": "v1.2.3", "prerelease": False}
-    assert choices[-1] == {"tag": "v1.3.0-rc2", "prerelease": True}
+    assert {choice.artifact.tag for choice in choices} == {
+        "v1.2.3",
+        *(f"v1.3.0-rc{n}" for n in range(30, 1, -1)),
+    }
 
 
 @pytest.mark.parametrize("missing", range(5))
-async def test_every_install_asset_is_required(missing):
+async def test_every_install_asset_is_required(missing, discovery_authentication):
     latest = document()
     latest["assets"].pop(missing)
     rc = document("v1.3.0-rc2", prerelease=True)
-    assert await catalog.async_list_install_releases(session(latest, [rc])) == [
-        {"tag": "v1.3.0-rc2", "prerelease": True}
-    ]
+    choices = await catalog.async_resolve_update_candidates(session(latest, [rc]))
+    assert [choice.artifact.tag for choice in choices] == ["v1.3.0-rc2"]
 
 
-async def test_latest_cannot_substitute_rc_and_bad_rows_are_ignored():
+async def test_latest_cannot_substitute_rc_and_bad_rows_are_ignored(
+    discovery_authentication,
+):
     rc = document("v1.3.0-rc2", prerelease=True)
-    assert await catalog.async_list_install_releases(session(rc, [None, rc])) == [
-        {"tag": "v1.3.0-rc2", "prerelease": True}
-    ]
+    choices = await catalog.async_resolve_update_candidates(session(rc, [None, rc]))
+    assert [choice.artifact.tag for choice in choices] == ["v1.3.0-rc2"]
 
 
 @pytest.mark.parametrize(
     "change", ["missing", "url", "duplicate", "draft", "flag", "tag"]
 )
-async def test_bad_choices_are_omitted(change):
+async def test_bad_choices_are_omitted(change, discovery_authentication):
     candidate = document("v1.3.0-rc2", prerelease=True)
     if change == "missing":
         candidate["assets"] = candidate["assets"][:3]
@@ -116,13 +132,16 @@ async def test_bad_choices_are_omitted(change):
         candidate["tag_name"] = "v1.3.0-beta1"
     latest = document()
     latest["assets"] = []
-    assert await catalog.async_list_install_releases(session(latest, [candidate])) == []
+    assert (
+        await catalog.async_resolve_update_candidates(session(latest, [candidate]))
+        == []
+    )
 
 
 @pytest.mark.parametrize("recent", [{}, [None] * 31])
 async def test_invalid_catalog_shape_or_count_fails(recent):
     with pytest.raises(ReleaseResolutionError):
-        await catalog.async_list_install_releases(session(document(), recent))
+        await catalog.async_resolve_update_candidates(session(document(), recent))
 
 
 @pytest.mark.parametrize(
@@ -142,7 +161,7 @@ async def test_bounded_and_unambiguous_response(body, status):
         status, body, catalog._RECENT_RELEASES_URL
     )
     with pytest.raises(ReleaseResolutionError):
-        await catalog.async_list_install_releases(client)
+        await catalog.async_resolve_update_candidates(client)
 
 
 def authenticated_session(signing_key, rows):

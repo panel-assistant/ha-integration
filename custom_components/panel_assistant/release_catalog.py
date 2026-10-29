@@ -188,14 +188,6 @@ def _release_choices(
     return choices
 
 
-async def async_list_install_releases(
-    session: ClientSession,
-) -> list[dict[str, str | bool]]:
-    """List complete install choices without authenticating their assets."""
-    latest, recent, _ = await _async_release_documents(session)
-    return [choice for choice, _ in _release_choices(latest, recent)]
-
-
 async def _async_release_choice(
     session: ClientSession, tag: str, *, release_body: bytes | None = None
 ) -> InstallReleaseBundle:
