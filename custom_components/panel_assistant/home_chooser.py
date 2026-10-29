@@ -52,7 +52,10 @@ _ALWAYS: Final = 'resource-id="android:id/button_always"'
 
 
 def home_claim_command(
-    launch_component: str, *, claim_allowed: str | None = None
+    launch_component: str,
+    *,
+    claim_allowed: str | None = None,
+    claim_stdin: int | None = None,
 ) -> str:
     """Claim HOME and set hp_chooser, rechecking optional automatic authority."""
     homes = "|".join(
@@ -62,10 +65,14 @@ def home_claim_command(
     labels = "|".join(
         f"*'{label}'*" for label in APP_LABELS[launch_component.partition("/")[0]]
     )
+    # mksh closes shell-only descriptors when starting an external command.
+    # Explicit stdin redirection retains the lock in each HOME command child.
+    stdin = f" <&{claim_stdin}" if claim_stdin is not None else ""
+    home_query = HOME_QUERY.replace("cmd ", f"cmd{stdin} ", 1)
     dump = CHOOSER_DUMP
     tap = (
-        "input tap $(((hp_l+hp_r)/2)) $(((hp_t+hp_b)/2)) "
-        f"{_QUIET}; hp_chooser=tapped; sleep 1"
+        "input tap $(((hp_l+hp_r)/2)) $(((hp_t+hp_b)/2))"
+        f"{stdin} {_QUIET}; hp_chooser=tapped; sleep 1"
     )
     if claim_allowed is not None:
         # Chooser discovery waits on Android. Re-read automatic setup intent
@@ -74,7 +81,7 @@ def home_claim_command(
     chooser = "; ".join(
         (
             "hp_chooser=no_button",
-            f"input keyevent 3 {_QUIET}",
+            f"input keyevent 3{stdin} {_QUIET}",
             "hp_ui=",
             "hp_try=0",
             'while [ "$hp_try" -lt 3 ]; do hp_try=$((hp_try+1)); sleep 1; '
@@ -105,15 +112,18 @@ def home_claim_command(
             # starting the app stays the caller's choice (an update never does).
             'if [ "$hp_chooser" != tapped ]; then '
             'case "$hp_ui" in *\'resource-id="android:id/button_\'*) '
-            f"input keyevent 4 {_QUIET} ;; esac; fi",
+            f"input keyevent 4{stdin} {_QUIET} ;; esac; fi",
         )
     )
+    # Android's package shell command receives stdin across Binder. A deferred
+    # caller supplies its lock descriptor so remote completion retains custody
+    # even if the local cmd process exits before the service finishes.
     claim = (
-        f"cmd package set-home-activity {dashboard} {_QUIET}; "
-        f'case "$({HOME_QUERY})" in {homes}) hp_chooser=set ;; '
+        f"cmd package set-home-activity {dashboard}{stdin} {_QUIET}; "
+        f'case "$({home_query})" in {homes}) hp_chooser=set ;; '
         f"android/*) {chooser} ;; "
         "*) hp_chooser=other_home ;; esac"
     )
     if claim_allowed is not None:
         claim = f"if {claim_allowed}; then {claim}; else hp_chooser=deferred; fi"
-    return f'case "$({HOME_QUERY})" in {homes}) hp_chooser=kept ;; *) {claim} ;; esac'
+    return f'case "$({home_query})" in {homes}) hp_chooser=kept ;; *) {claim} ;; esac'

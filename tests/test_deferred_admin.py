@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import fcntl
 import os
 import re
+import subprocess
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -160,7 +162,8 @@ async def panel(
             ):
                 if "HAPANELD_NOTIFICATIONS_BEGIN" in command:
                     await pause_at("notifications")
-                yield _run_on_stand_in_panel(
+                yield await asyncio.to_thread(
+                    _run_on_stand_in_panel,
                     command.replace(CHOOSER_DUMP, str(tmp_path / "chooser-dump.xml")),
                     tmp_path,
                 )
@@ -465,6 +468,185 @@ async def test_rootless_setup_chooser_uses_current_pending_intent(
         if line.startswith("input tap")
     ]
     assert taps == ([] if handback else ["input tap 817 623"])
+
+
+@pytest.mark.parametrize("boundary", ["after.shell.offer", "during.chooser"])
+async def test_rootless_setup_rechecks_native_recovery_before_mutation(
+    panel: Any, boundary: str
+) -> None:
+    """A recovered native route withdraws shell authority while still pending."""
+    previous = "com.vendor.launcher/.Home"
+    own = f"{PACKAGE}/.DashboardActivity"
+    if boundary == "during.chooser":
+        previous = "android/com.android.internal.app.ResolverActivity"
+        chooser = Path(__file__).parent / "fixtures" / "portal_home_chooser.xml"
+        (panel.directory / "refuse.home").touch()
+        (panel.directory / "chooser.xml").write_text(chooser.read_text())
+        (panel.directory / "chooser.tap").write_text("817 623\n")
+        (panel.directory / "chooser.home").write_text(own + "\n")
+    (panel.directory / "home").write_text(previous + "\n")
+    (panel.directory / f"native.recover.{boundary}").touch()
+    panel.state.health = replace(
+        panel.state.health, setup_complete=True, home_pending=True
+    )
+
+    await panel.coordinator.async_refresh()
+
+    assert panel.coordinator.last_update_success
+    assert (panel.directory / "native.home").exists()
+    assert (panel.directory / "home").read_text().strip() == previous
+    assert not (panel.directory / "home_ack").exists()
+    mutations = [
+        line
+        for line in (panel.directory / "calls").read_text().splitlines()
+        if line.startswith(("cmd package set-home-activity", "input tap"))
+    ]
+    # The refused direct attempt precedes recovery during chooser observation.
+    assert mutations == (
+        [f"cmd package set-home-activity {PACKAGE}/{PACKAGE}.DashboardActivity"]
+        if boundary == "during.chooser"
+        else []
+    )
+    assert panel.state.connections == panel.state.closes == 1
+
+    panel.state.now += 301
+    await panel.coordinator.async_refresh()
+    assert panel.coordinator.last_update_success
+    assert (panel.directory / "home").read_text().strip() == own
+    assert (panel.directory / "home_ack").exists()
+    assert panel.state.connections == panel.state.closes == 2
+
+
+def _try_handback_on_kernel_peer(directory: Path, component: str) -> bool:
+    """A separate OS peer for the native protocol; actual JNI has app tests.
+
+    The kernel exclusion is real. Android HOME and Configure remain stand-ins,
+    so this is PA caller proof, not an installed native handback claim.
+    """
+    result = subprocess.run(
+        [
+            "/bin/sh",
+            "-c",
+            'exec 8< "$STATE/home-lock" || exit 74; '
+            "flock -xn 8 || exit 75; "
+            'printf "%s\\n" "$1" > "$STATE/home"',
+            "handback-peer",
+            component,
+        ],
+        env={"PATH": os.environ["PATH"], "STATE": str(directory)},
+        capture_output=True,
+        timeout=5,
+    )
+    assert result.returncode in (0, 75), result.stderr
+    return result.returncode == 0
+
+
+@pytest.mark.parametrize("boundary", ["set-home", "chooser-tap"])
+async def test_rootless_final_mutation_excludes_handback_until_shell_finishes(
+    panel: Any, hass: HomeAssistant, boundary: str
+) -> None:
+    """Real coordinator/shell/flock; recovered native and HOME are OS peers."""
+    previous = "com.vendor.launcher/.Home"
+    own = f"{PACKAGE}/.DashboardActivity"
+    (panel.directory / "home").write_text(previous + "\n")
+    if boundary == "chooser-tap":
+        chooser = Path(__file__).parent / "fixtures" / "portal_home_chooser.xml"
+        (panel.directory / "home").write_text(
+            "android/com.android.internal.app.ResolverActivity\n"
+        )
+        (panel.directory / "refuse.home").touch()
+        (panel.directory / "chooser.xml").write_text(chooser.read_text())
+        (panel.directory / "chooser.tap").write_text("817 623\n")
+        (panel.directory / "chooser.home").write_text(own + "\n")
+    (panel.directory / f"pause.{boundary}").touch()
+    panel.state.health = replace(
+        panel.state.health, setup_complete=True, home_pending=True
+    )
+    refresh = asyncio.create_task(panel.coordinator.async_refresh())
+    try:
+        async with asyncio.timeout(20):
+            # This barrier is published by an OS shell, not an asyncio task.
+            while not (panel.directory / f"paused.{boundary}").exists():  # noqa: ASYNC110
+                await asyncio.sleep(0.01)
+        # Capability recovers after the real final eligibility check. Native
+        # setup acknowledges its claim, then Configure durably clears intent.
+        (panel.directory / "native.home").touch()
+        (panel.directory / "home").write_text(own + "\n")
+        (panel.directory / "home_ack").touch()
+        panel.state.health = replace(panel.state.health, home_pending=False)
+        assert not await asyncio.to_thread(
+            _try_handback_on_kernel_peer, panel.directory, previous
+        ), "handback reported success while an admitted shell can still mutate"
+        assert (panel.directory / "home").read_text().strip() == own
+        # cmd passes stdin into Android's Binder shellCommand transaction. Its
+        # descriptor must refer to the lock inode, not merely the parent shell.
+        identity = (panel.directory / "home-lock").stat()
+        assert (panel.directory / "home.stdin").read_text().strip() == (
+            f"{identity.st_dev}:{identity.st_ino}"
+        )
+    finally:
+        (panel.directory / f"resume.{boundary}").touch()
+        await refresh
+
+    assert panel.coordinator.last_update_success
+    assert panel.state.connections == panel.state.closes == 1
+    assert await asyncio.to_thread(
+        _try_handback_on_kernel_peer, panel.directory, previous
+    ), "owner retry must succeed after the old shell exits"
+    assert (panel.directory / "home").read_text().strip() == previous
+    await panel.coordinator.async_refresh()
+    reloaded = HaPaneldDataUpdateCoordinator(
+        hass, panel.coordinator.client, panel.entry.entry_id
+    )
+    await reloaded.async_refresh()
+    assert reloaded.last_update_success
+    assert (panel.directory / "home").read_text().strip() == previous
+    assert panel.state.connections == panel.state.closes
+
+
+@pytest.mark.parametrize(
+    "unavailable",
+    ["busy", "flock.unavailable", "lock.identity.mismatch", "legacy.lock.receiver"],
+)
+async def test_rootless_setup_defers_without_shared_exclusion_and_recovers(
+    panel: Any, unavailable: str
+) -> None:
+    previous = "com.vendor.launcher/.Home"
+    (panel.directory / "home").write_text(previous + "\n")
+    panel.state.health = replace(
+        panel.state.health, setup_complete=True, home_pending=True
+    )
+    lock_directory = panel.directory / "home-lock"
+    lock_directory.mkdir()
+    descriptor = os.open(lock_directory, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        if unavailable == "busy":
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        else:
+            (panel.directory / unavailable).touch()
+        await panel.coordinator.async_refresh()
+        assert panel.coordinator.last_update_success
+        assert (panel.directory / "home").read_text().strip() == previous
+        assert not (panel.directory / "home_ack").exists()
+        assert (panel.directory / "admin").exists()
+        assert panel.state.connections == panel.state.closes == 1
+        assert not any(
+            line.startswith(("cmd package set-home-activity", "input tap"))
+            for line in (panel.directory / "calls").read_text().splitlines()
+        )
+    finally:
+        os.close(descriptor)
+        if unavailable != "busy":
+            (panel.directory / unavailable).unlink()
+
+    panel.state.now += 301
+    await panel.coordinator.async_refresh()
+    assert panel.coordinator.last_update_success
+    assert (panel.directory / "home").read_text().strip() == (
+        f"{PACKAGE}/.DashboardActivity"
+    )
+    assert (panel.directory / "home_ack").exists()
+    assert panel.state.connections == panel.state.closes == 2
 
 
 async def test_native_completed_home_receives_vendor_pass_without_reclaiming_home(

@@ -47,6 +47,16 @@ from .test_install_adb import (  # noqa: F401 - fixtures resolve by parameter na
 )
 
 _STAND_IN_PANEL = r"""
+home_write_barrier() {
+  if [ -f "$STATE/pause.$1" ]; then
+    touch "$STATE/paused.$1"
+    while [ ! -f "$STATE/resume.$1" ]; do command sleep 0.01; done
+  fi
+}
+flock() {
+  [ ! -f "$STATE/flock.unavailable" ] || return 127
+  command flock "$@"
+}
 handback_after_home_authority() {
   handback=${1:-handback.after.home.authority}
   if [ -f "$STATE/$handback" ]; then
@@ -77,7 +87,26 @@ am() {
           'data="panel-assistant-pending-home-claimed"'
       else
         handback_after_home_authority handback.after.shell.offer
+        if [ -f "$STATE/native.recover.after.shell.offer" ]; then
+          touch "$STATE/native.home"
+        fi
         echo 'Broadcast completed: result=2, data="panel-assistant-pending-home-shell"'
+      fi ;;
+    *"operation pending_home_shell_lock_eligibility"*)
+      identity=
+      while [ "$#" -ge 3 ]; do
+        if [ "$1 $2" = "--es home_lock_identity" ]; then identity=$3; break; fi
+        shift
+      done
+      if [ -f "$STATE/incomplete.setup" ] || [ -f "$STATE/home_ack" ] ||
+          [ -f "$STATE/native.home" ] ||
+          [ -f "$STATE/legacy.lock.receiver" ] ||
+          [ -f "$STATE/lock.identity.mismatch" ] ||
+          [ "$identity" != "$(stat -Lc '%d:%i' "$STATE/home-lock")" ]; then
+        echo "Broadcast completed: result=0"
+      else
+        echo 'Broadcast completed: result=1,' \
+          'data="panel-assistant-pending-home-shell-locked"'
       fi ;;
     *"operation pending_home_shell_eligibility"*)
       if [ -f "$STATE/incomplete.setup" ] || [ -f "$STATE/home_ack" ] ||
@@ -144,6 +173,8 @@ cmd() {
     if [ -f "$STATE/home" ]; then cat "$STATE/home"
     else echo android/com.android.internal.app.ResolverActivity; fi
   elif [ "$1 $2" = "package set-home-activity" ]; then
+    stat -Lc '%d:%i' /proc/self/fd/0 > "$STATE/home.stdin"
+    home_write_barrier set-home
     echo "cmd $*" >> "$STATE/calls"
     # Android keeps the component and prints its short form back.
     pkg=${3%%/*}; cls=${3#*/}
@@ -163,6 +194,7 @@ input() {
     touch "$STATE/chooser.shown"
   elif [ "$1" = tap ] && [ -f "$STATE/chooser.shown" ] &&
       [ "$2 $3" = "$(cat "$STATE/chooser.tap")" ]; then
+    home_write_barrier chooser-tap
     cp "$STATE/chooser.home" "$STATE/home"
   fi
 }
@@ -170,6 +202,9 @@ uiautomator() {
   if [ -f "$STATE/chooser.shown" ]; then
     cp "$STATE/chooser.xml" "$2"
     handback_after_home_authority handback.during.chooser
+    if [ -f "$STATE/native.recover.during.chooser" ]; then
+      touch "$STATE/native.home"
+    fi
   fi
 }
 pm() {
@@ -243,10 +278,18 @@ dumpsys() {
 
 
 def _run_on_stand_in_panel(command: str, state: Path) -> bytes:
+    # Preserve the generated locking program and real host flock. Only Android's
+    # immutable directory and command side effects belong to this fixture.
+    (state / "home-lock").mkdir(exist_ok=True)
+    command = command.replace(
+        getattr(adb_protocol, "_HOME_LOCK_DIRECTORY", "/system"),
+        shlex.quote(str(state / "home-lock")),
+    )
     return subprocess.run(
         ["/bin/sh", "-c", _STAND_IN_PANEL + command],
         capture_output=True,
         check=True,
+        timeout=30,
         env={"PATH": os.environ["PATH"], "STATE": str(state)},
     ).stdout
 

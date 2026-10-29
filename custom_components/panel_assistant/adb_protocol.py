@@ -67,6 +67,11 @@ ADB_PORT = 5555
 _ADB_BANNER = "ha-paneld-home-assistant"
 
 
+# An immutable directory shared with the app's native HOME handback lock.
+# Opening read-only avoids creating or replacing a shell-writable lock inode.
+_HOME_LOCK_DIRECTORY = "/system"
+
+
 _PACKAGE_MANAGER_LIVENESS_PACKAGE = "android"
 
 
@@ -689,11 +694,33 @@ def _setup_home_claim_command(
         shell = (
             'Broadcast completed: result=2, data="panel-assistant-pending-home-shell"'
         )
-        eligible = shell.replace("result=2", "result=1")
+        eligible = (
+            "Broadcast completed: result=1, "
+            'data="panel-assistant-pending-home-shell-locked"'
+        )
         shell_allowed = (
             f"hp_pending=$(am broadcast --include-stopped-packages -n {receiver} "
-            "--es operation pending_home_shell_eligibility 2>/dev/null) && "
+            "--es operation pending_home_shell_lock_eligibility "
+            '--es home_lock_identity "$hp_lock_identity" 2>/dev/null) && '
             f"printf '%s\\n' \"$hp_pending\" | grep -Fxq '{eligible}'"
+        )
+        # The native receiver validates the same canonical immutable directory
+        # and compares the opened inode identity. Keep this descriptor through
+        # final eligibility, every HOME actuator, chooser wait and acknowledgement.
+        # Failure to open, lock or validate leaves automatic setup pending.
+        locked_claim = (
+            "hp_chooser=$({ hp_chooser=deferred; "
+            "if flock -xn 0 <&9 && [ -d /proc/self/fd/9 ]; then "
+            "hp_lock_identity=$(stat -Lc '%d:%i' /proc/self/fd/0 <&9) && "
+            "if printf '%s\\n' \"$hp_lock_identity\" | "
+            "grep -Eq '^[0-9]+:[0-9]+$'; then "
+            + home_claim_command(
+                launch_component, claim_allowed=shell_allowed, claim_stdin=9
+            )
+            + f"; am broadcast --include-stopped-packages -n {receiver} "
+            "--es operation acknowledge_home >/dev/null 2>&1; fi; fi; "
+            "printf '%s\\n' \"$hp_chooser\"; } "
+            f"9<{_HOME_LOCK_DIRECTORY} 2>/dev/null) || hp_chooser=deferred"
         )
         return (
             f"hp_setup=$(am broadcast --include-stopped-packages -n {receiver} "
@@ -704,9 +731,8 @@ def _setup_home_claim_command(
             f"if printf '%s\\n' \"$hp_setup\" | grep -Fxq '{claimed}'; "
             "then hp_chooser=set; "
             f"elif printf '%s\\n' \"$hp_setup\" | grep -Fxq '{shell}'; then "
-            + home_claim_command(launch_component, claim_allowed=shell_allowed)
-            + f"; am broadcast --include-stopped-packages -n {receiver} "
-            "--es operation acknowledge_home >/dev/null 2>&1; fi; fi"
+            + locked_claim
+            + "; fi; fi"
         )
     eligible = 'Broadcast completed: result=1, data="panel-assistant-setup-eligible"'
     return (
@@ -749,8 +775,8 @@ def _permission_grant_command(
     Device admin is deferred until health proves setup has completed. HOME and
     vendor ownership wait for the app's durable setup eligibility response.
     Automatic setup completion also requires live pending intent: native root
-    performs the conditional claim, while shell-only panels recheck that intent
-    before their HOME command and any delayed chooser tap.
+    performs the conditional claim, while shell-only panels hold the shared
+    handback lock and recheck intent before HOME and any delayed chooser tap.
 
     The build's dashboard is made the panel's HOME whenever HOME resolves to
     anything else: Android forgets a preferred HOME when the set of packages
