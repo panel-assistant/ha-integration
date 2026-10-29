@@ -111,8 +111,10 @@ class RemoveFromPanelFlow(RepairsFlow):
     async def async_step_keep_app(
         self, user_input: dict[str, Any] | None = None
     ) -> RepairsFlowResult:
-        """Withdraw the request; the panel and its entry are left untouched."""
-        ir.async_delete_issue(self.hass, DOMAIN, self.issue_id)
+        """Withdraw the request; the panel and its entry are left untouched.
+
+        Finishing the flow is what deletes the Repair itself.
+        """
         async_dismiss_removal_notification(self.hass, self._entry_id)
         return self.async_create_entry(data={})
 
