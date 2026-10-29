@@ -1052,6 +1052,7 @@ async def test_wait_refuses_a_restart_into_a_different_build(
     _assert_translated(error.value, "update_not_complete")
     client.async_commit_apk.assert_awaited_once_with("tok-1")
     assert entity.in_progress is False
+    assert entity.installed_version == "0.9.7-rc4 build 771"
 
 
 async def test_manual_update_also_rereads_the_feed(hass: HomeAssistant) -> None:
