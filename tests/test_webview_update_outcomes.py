@@ -373,3 +373,69 @@ async def test_unfinished_webview_still_restores_the_panel_permissions(
         await _install(hass, entity, entry, manage)
     await hass.async_block_till_done()
     repair.assert_awaited_once()
+
+
+def _app_current(entity: Any, document: dict[str, Any] | None) -> None:
+    """The panel already runs the offered app; its WebView may still be offered."""
+    current = entity.coordinator.data
+    entity.coordinator.data = replace(
+        current,
+        health=replace(current.health, version="0.9.10", version_code=102),
+        status=status(document) if document is not None else current.status,
+    )
+
+
+async def test_app_updated_first_is_offered_the_webview_alone(
+    hass: HomeAssistant,
+) -> None:
+    entity, _client, entry, issue_id = _native(hass)
+    _app_current(entity, observation())
+    assert entity.latest_version == f"{entity.installed_version} + WebView"
+    assert entity.state == "on"
+    sent: list[tuple[str, Any]] = []
+
+    async def manage(_hass: Any, _session: Any, operation: str, **fields: Any) -> Any:
+        sent.append((operation, fields.get("artifact_sha256")))
+        if operation == "webview.observe":
+            return observation()
+        return observation("installed", eligible=False)
+
+    await _install(hass, entity, entry, manage)
+    assert sent == [("webview.observe", None), ("webview.install", "c" * 64)]
+    entity._delivery.async_deliver_build.assert_not_awaited()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
+@pytest.mark.parametrize("kind", ["not_eligible", "no_candidate", "running"])
+async def test_no_webview_offer_without_an_eligible_candidate(
+    hass: HomeAssistant, kind: str
+) -> None:
+    entity, _client, _entry, _issue_id = _native(hass)
+    document = observation("downloading" if kind == "running" else None)
+    if kind == "not_eligible":
+        document = observation(eligible=False)
+    elif kind == "no_candidate":
+        document.update(eligible=False, candidate=None)
+    _app_current(entity, document)
+    assert entity.latest_version == entity.installed_version
+    assert entity.state == "off"
+
+
+async def test_failed_webview_only_update_raises_the_webview_repair(
+    hass: HomeAssistant,
+) -> None:
+    entity, _client, entry, issue_id = _native(hass)
+    _app_current(entity, observation())
+
+    async def manage(_hass: Any, _session: Any, operation: str, **_: Any) -> Any:
+        if operation == "webview.observe":
+            return observation()
+        return observation("rejected")
+
+    with pytest.raises(HomeAssistantError) as raised:
+        await _install(hass, entity, entry, manage)
+    assert raised.value.translation_key == "update_webview_unfinished"
+    entity._delivery.async_deliver_build.assert_not_awaited()
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_key == "installer_failure_update_webview"

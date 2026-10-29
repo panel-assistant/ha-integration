@@ -32,7 +32,7 @@ from .build_feed import (
     parse_build_request,
 )
 from .client import HaPaneldError, UpdateRejectedError, _version_key
-from .const import DOMAIN, update_unique_id
+from .const import CONF_TRANSPORT_USER_ID, DOMAIN, update_unique_id
 from .coordinator import (
     HaPaneldDataUpdateCoordinator,
     PanelCoordinatorEntity,
@@ -90,6 +90,8 @@ _AWAITING_CONFIRMATION_SUMMARY = "Tap Install on the panel to finish the update.
 AWAITING_CONFIRMATION_ATTRIBUTE = "awaiting_confirmation"
 
 _LOGGER = logging.getLogger(__name__)
+# Marks an offer that installs only the WebView on a panel whose app is current.
+WEBVIEW_ONLY_SUFFIX = " + WebView"
 
 
 async def async_setup_entry(
@@ -609,6 +611,37 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         """Report the installed version when no newer admitted target exists."""
         if (attempt := self._progress.attempt) is not None:
             return attempt.latest
+        latest = self._app_latest_version()
+        if latest is not None and self._webview_only_offer(latest):
+            return f"{latest}{WEBVIEW_ONLY_SUFFIX}"
+        return latest
+
+    def _webview_only_offer(self, app_latest: str | None) -> bool:
+        """The app is current, but the panel offers a WebView it has not installed.
+
+        Covers an owner who updated the app before Panel Assistant itself, so
+        no app update will carry the WebView. Only the owner's Install starts it.
+        """
+        entry = self.hass.config_entries.async_get_entry(self._entry_id)
+        snapshot: PanelSnapshot | None = self.coordinator.data
+        observation = (
+            snapshot.status.webview
+            if snapshot is not None and snapshot.status is not None
+            else None
+        )
+        return (
+            entry is not None
+            and bool(entry.data.get(CONF_TRANSPORT_USER_ID))
+            and app_latest == self._running_version()
+            and observation is not None
+            and observation.supported
+            and observation.eligible
+            and observation.candidate_sha256 is not None
+            and observation.transaction_state is None
+        )
+
+    def _app_latest_version(self) -> str | None:
+        """The newest admitted app, or the installed one."""
         if not self._has_install_route():
             return self.installed_version
         artifact = self._offer.host_release()
@@ -629,6 +662,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         A signed feed build offer compares in the feed's own order instead,
         versionCode first.
         """
+        if latest_version.endswith(WEBVIEW_ONLY_SUFFIX):
+            return latest_version.removesuffix(WEBVIEW_ONLY_SUFFIX) == installed_version
         release = self._offer.host_release()
         latest_name = latest_version.partition(" build ")[0]
         installed_name = installed_version.partition(" build ")[0]
@@ -685,6 +720,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 "This panel still runs the old app: install Panel Assistant 0.9.0 "
                 "first, as its Repair explains",
             )
+        if self._webview_only_offer(self._app_latest_version()):
+            await self._async_install_webview_only()
+            return
         try:
             route, adb_target, adb_credential = await self._async_install_route()
         except HomeAssistantError as route_error:
@@ -850,6 +888,38 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self._delivery.session = False
             self._progress.end()
             self.async_write_ha_state()
+
+    async def _async_install_webview_only(self) -> None:
+        """Install only the offered WebView on a panel whose app is current."""
+        installed = self._running_version()
+        reason = await async_update_webview(
+            self.hass, self._entry_id, allow_legacy=True
+        )
+        if reason in (None, "webview_download_deferred"):
+            if installed is not None:
+                await async_clear_update_failure_if_installed(
+                    self.hass,
+                    self._entry_id,
+                    installed.partition(" build ")[0],
+                    parse_build_request(installed),
+                    verified_success=True,
+                    webview_completed=True,
+                )
+            await self.coordinator.async_request_refresh()
+            return
+        error = _update_error(
+            "update_webview_unfinished",
+            f"The app is installed; its WebView update is unfinished: {reason}",
+        )
+        await async_record_update_failure(
+            self.hass,
+            self._entry_id,
+            self._panel_name(),
+            installed,
+            error,
+            webview_pending=reason == "webview_deferred",
+        )
+        raise error
 
     def _schedule_permission_repair(
         self, route: str, repair_artifact: ReleaseArtifact | None
