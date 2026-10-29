@@ -62,6 +62,32 @@ test('readback requires every grant and exact preservation; no generic completio
   assert.throws(() => parsePermissionVerification(verified(), nonce, 101, other, PACKAGE_ID, OLD_CLASSES));
 });
 
+// A panel whose package manager knows only `installed`: Android below 13 has
+// no notification permission, so its dump carries no such line.
+function executeVerification(sdk, installed = PACKAGE_ID) {
+  const program = `settings() { case "$3" in enabled_accessibility_services) echo '${other}:${ACCESSIBILITY_SERVICE}' ;; *) echo 1 ;; esac; }
+appops() { if [ "$2" = '${installed}' ]; then echo "$3: allow"; else echo 'No operations.'; fi; }
+dumpsys() { [ "$2" = '${installed}' ] || { echo "Unable to find package: $2"; return 0; }
+  ${sdk >= 33 ? "echo '      android.permission.POST_NOTIFICATIONS: granted=true, flags=[ USER_SET]'" : ':'}
+  for p in CAMERA RECORD_AUDIO WRITE_SECURE_SETTINGS; do echo "      android.permission.$p: granted=true"; done; }
+pm() { printf 'feature:android.hardware.camera.any\\nfeature:android.hardware.microphone\\n'; }
+cmd() { echo '${homeComponentFor(OLD_CLASSES)}'; }
+getprop() { echo generic; }
+${buildPermissionVerification(nonce, sdk, PACKAGE_ID, OLD_CLASSES)}`;
+  return spawnSync('/bin/sh', ['-c', program], {encoding: 'utf8'}).stdout;
+}
+
+test("the executed verification reads this app's own grants, notifications only from Android 13", () => {
+  for (const sdk of [32, 33]) {
+    assert.deepEqual(parsePermissionVerification(executeVerification(sdk), nonce, sdk, other, PACKAGE_ID, OLD_CLASSES),
+      {permissionsVerified: true, notificationsRequired: sdk >= 33, camera: 'granted', microphone: 'granted',
+        secureSettings: 'granted', home: true, device: 'generic'}, `sdk ${sdk}`);
+    // Another app's grants never count as this one's.
+    assert.throws(() => parsePermissionVerification(executeVerification(sdk, 'com.example.other'),
+      nonce, sdk, other, PACKAGE_ID, OLD_CLASSES), /permissions_unverified/);
+  }
+});
+
 function executeGrant(sdk, existing, {live = existing, rejectAppops = false} = {}) {
   const program = `settings() { if [ "$1" = get ]; then printf '%s\\n' '${live}'; else echo "settings $*" >&2; fi; }
 pm() { echo "pm $*" >&2; echo "pm $*" >> "$HP_CALLS"; }

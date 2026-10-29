@@ -1,17 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { LAUNCH_COMPONENTS, LEGACY_PACKAGE_ID, PACKAGE_ID,
-  accessibilityComponentFor, isLaunchComponent } from '../src/app-identity.mjs';
+  accessibilityComponentFor, homeComponentFor, isLaunchComponent } from '../src/app-identity.mjs';
 import { PreflightError, RESIDUE_PROBES, buildPreflight, classifyTarget,
   parsePreflight } from '../src/preflight.mjs';
 import { DelegatedProofError, parseDelegatedProof } from '../src/delegated-proof.mjs';
 import { InstallContractError, buildLaunch } from '../src/install-contract.mjs';
-import { InstalledObservationError, buildInstalledObservation } from '../src/installed-observation.mjs';
-import { buildVendorDisplaySettlement } from '../src/vendor-provisioning.mjs';
+import { InstalledObservationError, buildInstalledObservation, parseInstalledObservation } from '../src/installed-observation.mjs';
+import { buildVendorDisplaySettlement, parseVendorDisplaySettlement } from '../src/vendor-provisioning.mjs';
 import { buildHomeClaim } from '../src/home-chooser.mjs';
 import { createUsbTransactionPorts } from '../src/usb-transaction-ports.mjs';
 import { createInstallController } from '../src/install-controller.mjs';
@@ -61,6 +61,53 @@ test('no panel program is built for the old app', () => {
     error => error instanceof InstalledObservationError && error.code === 'invalid_request');
   assert.throws(() => buildVendorDisplaySettlement(nonce, LEGACY_PACKAGE_ID), /vendor_setup_unreadable/);
   assert.throws(() => buildHomeClaim(OLD_APP_LAUNCH), RangeError);
+});
+
+// The same programs run for this app against a panel that answers only for it.
+const runPanel = program => spawnSync('/bin/sh', ['-c', program], { encoding: 'utf8', timeout: 5000 });
+
+test('the installed observation reads this app', () => {
+  // The host has no /data/app to redirect from, so the size read answers in place.
+  const result = runPanel(`pm() { [ "$1 $2" = 'path ${PACKAGE_ID}' ] && echo 'package:/data/app/x/base.apk'; }
+stat() { echo 81a4; }; sha256sum() { echo "${'a'.repeat(64)}  $1"; }
+${buildInstalledObservation(nonce, PACKAGE_ID).replace('wc -c < "$hapaneld_apk"', 'echo 1234')}`);
+  assert.equal(parseInstalledObservation(result.stdout, nonce, { apkSize: 1234, apkSha256: 'a'.repeat(64) }), true);
+});
+
+test('vendor display settlement proceeds only while this app holds HOME', t => {
+  const dir = mkdtempSync(join(tmpdir(), 'identity-settle-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const settle = home => runPanel(`
+pm() { echo package:cloud.shelly.stargate; }
+cmd() { echo '${home}/.MainActivity'; }
+timeout() { shift; "$@"; }
+am() { rm -f "${dir}/paused"; echo 'Status: ok'; }
+input() { touch "${dir}/paused"; }
+pidof() { echo 42; }
+wm() { echo 'Physical density: 216'; }
+settings() { echo 1; }
+dumpsys() { echo '  ACTIVITY cloud.shelly.stargate/.activities.MainActivity 1 pid=42'
+  if [ -e "${dir}/paused" ]; then echo '    mResumed=false mStopped=true mFinished=false'
+  else echo '    mResumed=true mStopped=false mFinished=false'; fi
+  echo '    mCurrentConfig={1.0 ?mcc 216dpi }'; }
+${buildVendorDisplaySettlement(nonce, PACKAGE_ID)}`).stdout;
+  assert.equal(parseVendorDisplaySettlement(settle(PACKAGE_ID), nonce), 'settled');
+  assert.throws(() => parseVendorDisplaySettlement(settle(LEGACY_PACKAGE_ID), nonce), /vendor_setup_unreadable/);
+});
+
+test("the HOME claim sets this app's dashboard as HOME", t => {
+  const dir = mkdtempSync(join(tmpdir(), 'identity-home-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  for (const component of LAUNCH_COMPONENTS[PACKAGE_ID]) {
+    rmSync(join(dir, 'home'), { force: true });
+    const result = runPanel(`
+cmd() { if [ "$2" = set-home-activity ]; then echo "$3" > "${dir}/home"; else cat "${dir}/home" 2>/dev/null || echo android/com.android.internal.app.ResolverActivity; fi; }
+input() { :; }; uiautomator() { return 1; }; sleep() { :; }
+${buildHomeClaim(component)}
+echo "$hp_chooser"`);
+    assert.equal(result.stdout, 'set\n', component);
+    assert.equal(readFileSync(join(dir, 'home'), 'utf8'), `${homeComponentFor(component)}\n`);
+  }
 });
 
 test('the executed preflight refuses either app, retained package, and every data location', t => {

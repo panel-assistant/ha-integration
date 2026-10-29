@@ -5,6 +5,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { readBounded } from '../src/bounded-stream.mjs';
 import { installProgress } from '../src/install-view.mjs';
+import { ENGLISH_MESSAGES } from '../src/frontend-localization.mjs';
 import { WIZARD_CSS, BRAND_HTML } from '../src/wizard-look.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -71,6 +72,15 @@ test('progress only ever moves forward and never names an internal phase', () =>
 
 // Source-text reason: the shipped HTML defines the installer's initial action and
 // disclosure controls before its script loads; this checks that static contract.
+test('nothing the person reads mentions internals, JSON or terminal vocabulary', () => {
+  const shown = [...Object.values(ENGLISH_MESSAGES.errors), ...Object.values(ENGLISH_MESSAGES.installer),
+    ...Object.values(ENGLISH_MESSAGES.haInstall)].join('\n');
+  for (const word of ['JSON', 'receipt', 'descriptor', 'sha256', 'SHA-256', 'phase', 'adb', 'ADB',
+    'shell', 'reconcile', 'quarantine', 'MQTT', 'signature', 'checksum']) {
+    assert.ok(!shown.includes(word), `user-facing text mentions ${word}`);
+  }
+});
+
 test('the page offers one primary action per step and no consent checkboxes', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.ok(!/type="checkbox"/.test(html), 'consent is the Install press, not a checkbox');
