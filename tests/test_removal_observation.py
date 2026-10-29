@@ -19,7 +19,17 @@ from .test_removal import FakePanel, _entry, panel  # noqa: F401
 
 
 @pytest.mark.parametrize(
-    "fault", ["exit-error", "service-error", "malformed", "legacy-exit-error", "none"]
+    "fault",
+    [
+        "exit-error",
+        "silent-error",
+        "service-error",
+        "malformed",
+        "legacy-exit-error",
+        "legacy-silent-error",
+        "legacy-service-error",
+        "none",
+    ],
 )
 async def test_repair_requires_verified_package_absence(
     hass: HomeAssistant,
@@ -33,7 +43,7 @@ async def test_repair_requires_verified_package_absence(
     fake, server = panel
     if fault != "none":
         failed_package = (
-            LEGACY_PACKAGE_ID if fault == "legacy-exit-error" else PACKAGE_ID
+            LEGACY_PACKAGE_ID if fault.startswith("legacy-") else PACKAGE_ID
         )
         fake.set(
             installed=[PACKAGE_ID, failed_package], fail_uninstall=[failed_package]
@@ -41,19 +51,22 @@ async def test_repair_requires_verified_package_absence(
         program = fake.directory / "fake_panel"
         code = program.read_text()
         # The same real shell now sees PM become unavailable after mutation.
+        exit_code = 20 if "exit-error" in fault or "silent" in fault else 0
         for command in ('"pm path "*)', '"pm list "*)'):
             code = code.replace(
                 command,
                 command
                 + '\n    if [ -e "$s/pm_broken" ]; then\n'
                 + (
-                    "        echo invalid-output\n"
+                    ""
+                    if "silent" in fault
+                    else "        echo invalid-output\n"
                     if fault == "malformed"
                     else "        echo 'Error: Could not access the Package Manager.'"
                     + (" >&2" if "exit-error" in fault else "")
                     + "\n"
                 )
-                + f"        exit {20 if 'exit-error' in fault else 0}\n    fi",
+                + f"        exit {exit_code}\n    fi",
             )
         code = code.replace(
             'rm "$s/fail_uninstall/$p";',
@@ -82,7 +95,7 @@ async def test_repair_requires_verified_package_absence(
     else:
         assert result["type"] == "form"
         assert PACKAGE_ID in fake.installed
-        if fault == "legacy-exit-error":
+        if fault.startswith("legacy-"):
             assert LEGACY_PACKAGE_ID in fake.installed
             assert PACKAGE_ID not in fake.read()["stopped"]
         assert hass.config_entries.async_get_entry(entry.entry_id) is entry
