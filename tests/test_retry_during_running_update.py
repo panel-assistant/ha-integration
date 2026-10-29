@@ -174,6 +174,10 @@ async def test_try_again_while_update_runs_explains_and_repair_closes_on_success
     platforms: list[EntityPlatform],
 ) -> None:
     entity, client, staging, release = await _panel(hass, monkeypatch, platforms)
+    # A Repair left by an earlier failed attempt; a running update raises none.
+    await async_record_update_failure(
+        hass, "entry-id", "Kitchen", "0.9.10", RuntimeError("download timed out")
+    )
     install = await _start_install(hass, entity, staging)
     assert ir.async_get(hass).async_get_issue(DOMAIN, ISSUE_ID) is not None
     assert hass.states.get(entity.entity_id).attributes["in_progress"]
@@ -202,6 +206,10 @@ async def test_install_refused_as_already_running_explains(
 ) -> None:
     """The state read before Try again lags an install that has just begun."""
     entity, client, staging, release = await _panel(hass, monkeypatch, platforms)
+    # A Repair left by an earlier failed attempt; a running update raises none.
+    await async_record_update_failure(
+        hass, "entry-id", "Kitchen", "0.9.10", RuntimeError("download timed out")
+    )
     install = await _start_install(hass, entity, staging)
     stale = hass.states.get(entity.entity_id)
     hass.states.async_set(
