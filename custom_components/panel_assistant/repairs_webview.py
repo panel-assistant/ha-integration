@@ -146,7 +146,7 @@ async def async_update_webview(
     # or one already running or unsure when the step looked.
     pending = False
     try:
-        async with asyncio.timeout(120):
+        async with asyncio.timeout(120) as contact_deadline:
             # The successor app owns the profile. Its authenticated native read
             # also works on panels whose HTTP listener is unreachable.
             try:
@@ -204,10 +204,14 @@ async def async_update_webview(
                     )
                 )
                 session()
+            # A received active transaction is progress, however long its
+            # download or install takes. Only lost observation is bounded.
+            contact_deadline.reschedule(asyncio.get_running_loop().time() + 120)
             while status.transaction_state in ACTIVE_STATES:
                 await asyncio.sleep(1)
                 try:
                     status = await observe()
+                    contact_deadline.reschedule(asyncio.get_running_loop().time() + 120)
                 except (
                     HomeAssistantError,
                     CannotConnectError,
