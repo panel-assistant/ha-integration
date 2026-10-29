@@ -2837,6 +2837,7 @@ var Le = class extends HTMLElement {
         <fieldset id="release" aria-describedby="catalog-status"><legend id="release-label" data-message="release"></legend><select id="release-choices" aria-labelledby="release-label"></select></fieldset></details>
         <p id="catalog-status" role="status" aria-live="polite"></p>
         <button id="retry" class="pbtn wiz-secondary" data-message="retry"></button>
+        <p id="selected-release" role="status" aria-live="polite"><span id="selected-release-label"></span>: <strong id="selected-release-version"></strong></p>
         <button id="start" class="pbtn primary wiz-primary" data-message="start"></button>
         <p id="status" role="status" aria-live="polite"></p>
         <button id="cancel" class="pbtn wiz-secondary" data-message="cancel"></button>
@@ -2896,12 +2897,12 @@ var Le = class extends HTMLElement {
 				r[e + 1].textContent = `${t.name ?? t.tag.replace(/^v/, "")}${n ? ` (${n})` : ""}`;
 			}
 		}
-		let i = this.#e?.user?.is_admin === !0, s = typeof this.#n?.config?.installer_url == "string" && this.#n.config.installer_url.length > 0, c = this.shadowRoot.querySelector("#release-choices").value, l = c === "" ? this.#c[0] : this.#c.find((e) => e.tag === c), u = this.#a === "installed";
-		this.shadowRoot.querySelector("#start").hidden = u, this.shadowRoot.querySelector("#versions").hidden = u, this.shadowRoot.querySelector("#start").disabled = !i || !s || !!this.#r || !l, this.shadowRoot.querySelector("#cancel").disabled = !this.#r, this.shadowRoot.querySelector("#release").disabled = !!this.#r || this.#s !== "ready";
-		let d = this.shadowRoot.querySelector("#catalog-status");
-		d.textContent = i && s && this.#s !== "ready" ? this.#t[this.#s] : "", d.hidden = !d.textContent, this.shadowRoot.querySelector("#retry").hidden = !i || !s || !["catalogError", "empty"].includes(this.#s), this.shadowRoot.querySelector("#cancel").hidden = !this.#r;
-		let f = i ? s ? this.#a : "unavailable" : "admin", m = this.shadowRoot.querySelector("#status");
-		m.textContent = Object.hasOwn(this.#t, f) ? this.#t[f] : this.#t.failed, m.hidden = !m.textContent;
+		let i = this.#e?.user?.is_admin === !0, s = typeof this.#n?.config?.installer_url == "string" && this.#n.config.installer_url.length > 0, c = this.shadowRoot.querySelector("#release-choices").value, l = c === "" ? this.#c[0] : this.#c.find((e) => e.tag === c), u = this.#a === "installed", d = e.querySelector("#selected-release");
+		d.hidden = u || !i || !s || !l, e.querySelector("#selected-release-label").textContent = c === "" ? this.#t.choose : this.#t.release, e.querySelector("#selected-release-version").textContent = l ? l.name ?? l.tag.replace(/^v/, "") : "", this.shadowRoot.querySelector("#start").hidden = u, this.shadowRoot.querySelector("#versions").hidden = u, this.shadowRoot.querySelector("#start").disabled = !i || !s || !!this.#r || !l, this.shadowRoot.querySelector("#cancel").disabled = !this.#r, this.shadowRoot.querySelector("#release").disabled = !!this.#r || this.#s !== "ready";
+		let f = this.shadowRoot.querySelector("#catalog-status");
+		f.textContent = i && s && this.#s !== "ready" ? this.#t[this.#s] : "", f.hidden = !f.textContent, this.shadowRoot.querySelector("#retry").hidden = !i || !s || !["catalogError", "empty"].includes(this.#s), this.shadowRoot.querySelector("#cancel").hidden = !this.#r;
+		let m = i ? s ? this.#a : "unavailable" : "admin", h = this.shadowRoot.querySelector("#status");
+		h.textContent = Object.hasOwn(this.#t, m) ? this.#t[m] : this.#t.failed, h.hidden = !h.textContent;
 	}
 	#d() {
 		if (this.#r || this.#e?.user?.is_admin !== !0) return;
