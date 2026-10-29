@@ -7,6 +7,12 @@ from unittest.mock import AsyncMock
 import pytest
 from pytest_homeassistant_custom_component.common import get_test_config_dir
 
+# Pin the Home Assistant test client whatever order pytest loads its plugins in:
+# pytest-aiohttp's own fixture freezes the router, so views set up later fail.
+from pytest_homeassistant_custom_component.plugins import (  # noqa: F401
+    aiohttp_client,
+)
+
 from custom_components.panel_assistant import (
     browser_panel,
     config_flow,
