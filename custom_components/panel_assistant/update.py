@@ -720,7 +720,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 "This panel still runs the old app: install Panel Assistant 0.9.0 "
                 "first, as its Repair explains",
             )
-        if self._webview_only_offer(self._app_latest_version()):
+        if version in (None, self.latest_version) and self._webview_only_offer(
+            self._app_latest_version()
+        ):
             await self._async_install_webview_only()
             return
         try:

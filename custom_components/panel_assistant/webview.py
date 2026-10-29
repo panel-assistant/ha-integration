@@ -51,8 +51,8 @@ class WebViewStatus:
     def download_unpublished(self) -> bool:
         """The panel could not fetch its WebView files: they are not published yet.
 
-        The app update is complete; the WebView is offered again later, so this
-        is a WARNING log line, never a Repair.
+        The app update is complete and only the WebView is missing, so this is
+        a WARNING log line, never a Repair.
         """
         return (
             self.transaction_state == "deferred"

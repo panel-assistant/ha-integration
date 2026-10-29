@@ -208,8 +208,8 @@ async def async_update_webview(
                 # The WebView files are not published for this panel yet; the
                 # app update itself is complete.
                 _LOGGER.warning(
-                    "%s could not download its WebView update %s; it is offered "
-                    "again once the files are available",
+                    "%s could not download its WebView update %s because the "
+                    "files are not published yet; the WebView was not installed",
                     entry.title,
                     status.candidate_sha256,
                 )

@@ -439,3 +439,32 @@ async def test_failed_webview_only_update_raises_the_webview_repair(
     issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
     assert issue is not None
     assert issue.translation_key == "installer_failure_update_webview"
+
+
+async def test_webview_offer_does_not_answer_a_request_for_another_build(
+    hass: HomeAssistant,
+) -> None:
+    """A specific other build goes through the feed, which refuses an unknown one."""
+    entity, _client, entry, _issue_id = _native(hass, feed=True)
+    _app_current(entity, observation())
+    assert entity.latest_version.endswith(" + WebView")
+    sent: list[str] = []
+
+    async def manage(_hass: Any, _session: Any, operation: str, **_: Any) -> Any:
+        sent.append(operation)
+        if operation == "webview.observe":
+            return observation()
+        return observation("installed", eligible=False)
+
+    with (
+        patch(
+            "custom_components.panel_assistant.repairs_webview.async_get_sessions"
+        ) as sessions,
+        patch("custom_components.panel_assistant.repairs_webview.async_manage", manage),
+        pytest.raises(HomeAssistantError) as raised,
+    ):
+        sessions.return_value.get.return_value = _session(entry)
+        await entity.async_install("0.9.11 build 999", backup=False)
+    assert raised.value.translation_key == "update_unavailable"
+    assert sent == []
+    entity._delivery.async_deliver_build.assert_not_awaited()
