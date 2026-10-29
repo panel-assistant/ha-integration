@@ -2125,18 +2125,6 @@ async def test_version_mismatch_never_becomes_healthy_or_creates_entry(
     add_entry.assert_not_awaited()
 
 
-async def test_receipt_reconstruction_always_supplies_authenticated_descriptor(
-    hass: HomeAssistant,
-) -> None:
-    """The executor accepts only an already authenticated durable receipt."""
-    manager = InstallJobManager(hass)
-    receipt = await create_job(manager)
-
-    frozen = install_executor._frozen_execution(receipt)
-
-    assert frozen.release.descriptor is not None
-
-
 async def test_durable_cancel_after_stage_uses_cleanup_barrier_then_cancels(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:

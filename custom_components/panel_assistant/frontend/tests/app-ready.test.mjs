@@ -1,5 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { buildAppReady, parseAppReady } from '../src/install-contract.mjs';
 import { createUsbTransactionPorts } from '../src/usb-transaction-ports.mjs';
 import { PACKAGE_ID } from '../src/app-identity.mjs';
@@ -8,16 +12,67 @@ const nonce = 'f'.repeat(32);
 const frame = (status, port = null) =>
   `HAPANELD_READY_BEGIN:${nonce}\n${port === null ? '' : `${port}\n`}HAPANELD_READY_END:${nonce}:${status}\n`;
 
-test('the wait is a bounded, read-only loop on the app port', () => {
-  const program = buildAppReady(nonce, PACKAGE_ID);
-  assert.match(program, /while \[ \$i -lt 30 \]/, 'at most 30 checks');
-  assert.match(program, /sleep 2/, 'two seconds apart, about a minute in all');
-  assert.match(program, /grep -q ':8888 '/, 'any listener on 8888 only where the socket table is unreadable');
-  assert.match(program, /\/proc\/net\/tcp/, "otherwise the app's own listening socket");
-  assert.ok(program.includes(`/data/data/${PACKAGE_ID}`), "found by the app's user id");
-  assert.ok(!/am |pm |kill|rm |settings /.test(program), 'waiting never starts, stops or changes anything');
+test('the app wait accepts either socket tool, retries only its port, and stops after one minute', t => {
+  const root = mkdtempSync(join(tmpdir(), 'app-ready-'));
+  t.after(() => rmSync(root, {recursive: true, force: true}));
+  let scenario = 0;
+  for (const [tool, port, readyAt, expected, attempts] of [
+    ['ss', 8888, 1, true, 1],
+    ['netstat', 8888, 3, true, 3],
+    ['ss', 18888, 1, false, 30],
+    ['netstat', 8889, 1, false, 30],
+    ['ss', 8888, 31, false, 30],
+  ]) {
+    // Execute the same shell program used by the USB ports. Only the panel's
+    // socket tools and clock are replaced; the loop, matching and framing run.
+    const state = join(root, String(scenario++));
+    const result = spawnSync('/bin/sh', ['-c', `
+exec 3>&2
+attempt() { n=$(cat "${state}-$1" 2>/dev/null || echo 0); n=$((n+1)); echo "$n" > "${state}-$1"; }
+ss() { echo ss >&3; attempt ss; ${tool === 'ss' ? `if [ "$n" -ge ${readyAt} ]; then echo 'LISTEN 0 128 0.0.0.0:${port} 0.0.0.0:*'; fi` : ':'}; }
+netstat() { echo netstat >&3; attempt netstat; ${tool === 'netstat' ? `if [ "$n" -ge ${readyAt} ]; then echo 'tcp 0 0 0.0.0.0:${port} 0.0.0.0:* LISTEN'; fi` : ':'}; }
+sleep() { echo "sleep $*" >&2; }
+am() { echo mutation >&2; }; pm() { echo mutation >&2; }; kill() { echo mutation >&2; }
+rm() { echo mutation >&2; }; settings() { echo mutation >&2; }
+${buildAppReady(nonce, PACKAGE_ID)}`], {encoding: 'utf8', timeout: 2000});
+    const label = `${tool}:${port}, ready at ${readyAt}`;
+    assert.equal(result.status, 0, label);
+    assert.equal(parseAppReady(result.stdout, nonce), expected ? 8888 : null, label);
+    const calls = result.stderr.trim().split('\n').filter(Boolean);
+    assert.equal(calls.filter(call => call === tool).length, attempts, label);
+    assert.deepEqual(calls.filter(call => call.startsWith('sleep ')),
+      Array(expected ? attempts - 1 : attempts).fill('sleep 2'), label);
+    assert.ok(!calls.includes('mutation'), 'waiting never changes the panel');
+  }
   assert.throws(() => buildAppReady('bad', PACKAGE_ID));
   assert.throws(() => buildAppReady(nonce, 'x; reboot'), 'never takes shell text');
+});
+
+test("where the socket table is readable, the app's own listener names the port, 8888 first", t => {
+  const root = mkdtempSync(join(tmpdir(), 'app-ready-uid-'));
+  t.after(() => rmSync(root, {recursive: true, force: true}));
+  const row = (port, uid, state = '0A') =>
+    `0: 00000000:${port.toString(16).toUpperCase().padStart(4, '0')} 00000000:0000 ${state} 0 0 0 ${uid} 0`;
+  for (const [rows, expected] of [
+    [[row(8888, 10123)], 8888],
+    [[row(8889, 10123)], 8889],
+    [[row(9000, 10123), row(8888, 10123)], 8888],
+    [[row(8888, 10999)], null],
+    [[row(8888, 10123, '01')], null],
+  ]) {
+    // The app's user id and the kernel socket table are the only stand-ins.
+    const table = join(root, 'tcp');
+    writeFileSync(table, `sl local rem st tx rx tr tm uid timeout\n${rows.join('\n')}\n`);
+    const result = spawnSync('/bin/sh', ['-c', `
+stat() { echo 10123; }
+cat() { command cat ${table}; }
+ss() { echo 'LISTEN 0 128 0.0.0.0:8888 0.0.0.0:*'; }
+netstat() { :; }
+sleep() { :; }
+${buildAppReady(nonce, PACKAGE_ID)}`], {encoding: 'utf8', timeout: 2000});
+    assert.equal(result.status, 0);
+    assert.equal(parseAppReady(result.stdout, nonce), expected, rows.join(' | '));
+  }
 });
 
 test('listening and not-yet-listening are both answers, anything else is malformed', () => {

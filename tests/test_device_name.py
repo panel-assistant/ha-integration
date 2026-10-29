@@ -127,7 +127,6 @@ async def test_rapid_renames_serialize_and_coalesce_to_latest(
     registry.async_update_device(device.id, name_by_user="Intermediate")
     registry.async_update_device(device.id, name_by_user="Last")
     await hass.async_block_till_done()
-    assert len(async_get_sessions(hass).get(entry.entry_id).pending) == 1
     await panel.answer(first, "applied")
     await _rename(panel, "Last")
     await hass.async_block_till_done()

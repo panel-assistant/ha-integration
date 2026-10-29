@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { buildAddressProbe, parsePanelAddress, readSetupUrl, setupUrl } from '../src/panel-address.mjs';
 
 const nonce = 'a'.repeat(32);
@@ -35,18 +36,20 @@ test('output without this exact nonce is ignored', () => {
   assert.equal(parsePanelAddress('x'.repeat(9000), nonce), null);
 });
 
-test('the probe is a fixed program and refuses an unexpected nonce', () => {
-  assert.match(buildAddressProbe(nonce), /^echo HAPANELD_ADDR_BEGIN:a{32}; ip -4 -o addr show scope global/);
+test('the probe refuses an unexpected nonce and no address offers no setup URL', () => {
   assert.throws(() => buildAddressProbe('; rm -rf /'), /invalid_nonce/);
   assert.equal(setupUrl(null), null);
 });
 
-test('the setup address is read from a live shell session', async () => {
-  const output = new TextEncoder().encode(framed([inet(3, 'wlan0', '192.168.1.40/24')]));
+test('the setup address is read by executing the live shell probe', async () => {
   const adb = { async createSocket(service) {
-    assert.match(service, /^shell:echo HAPANELD_ADDR_BEGIN:a{32}; /);
+    assert.ok(service.startsWith('shell:'), 'the existing shell service runs the probe');
+    const result = spawnSync('/bin/sh', ['-c', `
+ip() { [ "$*" = "-4 -o addr show scope global" ] || return 1; printf '%s\\n' '${inet(3, 'wlan0', '192.168.1.40/24')}'; }
+${service.slice('shell:'.length)}`], {encoding: 'utf8', timeout: 2000});
+    assert.equal(result.status, 0);
     return { writable: new WritableStream(), close: async () => {},
-      readable: new ReadableStream({ start(c) { c.enqueue(output); c.close(); } }) };
+      readable: new ReadableStream({ start(c) { c.enqueue(new TextEncoder().encode(result.stdout)); c.close(); } }) };
   } };
   assert.equal(await readSetupUrl(adb, () => nonce), 'http://192.168.1.40:8888/setup');
 });

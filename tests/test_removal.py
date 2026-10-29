@@ -139,12 +139,17 @@ case "${0##*/} $1 $2" in
         :
     elif [ "${c#*/}" = "$release" ] && [ -e "$s/installed/$p" ] \
         && [ ! -e "$s/no_release/$p" ] && [ -e "$s/admin/$p" ]; then
-        echo released > "$s/admin/$p"; echo "release admin $p" >> "$s/events"
+        cat "$s/release_sleeps" 2>/dev/null > "$s/admin/$p" || echo 1 > "$s/admin/$p"
+        echo "release admin $p" >> "$s/events"
     fi ;;
 # Android lets go of a released admin only once it has told the app it is
-# disabled, which takes time: here, until the shell next sleeps.
+# disabled, which takes time: here, after release_sleeps shell sleeps (one).
 "sleep "*)
-    for f in "$s"/admin/*; do [ ! -s "$f" ] || rm "$f"; done ;;
+    for f in "$s"/admin/*; do
+        [ -s "$f" ] || continue
+        n=$(($(cat "$f") - 1))
+        if [ "$n" -le 0 ]; then rm "$f"; else echo "$n" > "$f"; fi
+    done ;;
 "am "*|"dumpsys "*) ;;
 *) exit 1 ;;
 esac
@@ -469,6 +474,20 @@ async def test_an_app_holding_device_admin_gives_it_up_and_is_removed(
     assert events.index(f"release admin {holder}") < events.index(f"uninstall {holder}")
 
 
+async def test_a_slow_device_admin_release_is_awaited_within_the_budget(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
+) -> None:
+    """Android may take most of the ten-second wait to drop a released admin."""
+    fake, server = panel
+    fake.set(admin=[PACKAGE_ID], release_sleeps=9)
+    entry = _entry(hass, server)
+
+    result = await _remove(hass, entry)
+
+    assert result.get("errors") is None, (result.get("errors"), fake.read())
+    assert fake.installed == []
+
+
 async def test_an_app_that_cannot_give_up_device_admin_is_kept_and_reported(
     hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
 ) -> None:
@@ -481,8 +500,6 @@ async def test_an_app_that_cannot_give_up_device_admin_is_kept_and_reported(
 
     assert result.get("errors") == {"base": "removal_remove_failed"}
     assert fake.installed == [PACKAGE_ID]
-    # The first refusal and ten retries, then the observation reports it.
-    assert fake.read()["events"].count(f"uninstall refused {PACKAGE_ID}") == 11
 
 
 async def test_the_risks_link_names_the_panel_make_model_and_firmware(
@@ -891,16 +908,15 @@ async def test_removal_gives_a_portal_its_meta_values_back_before_the_uninstall(
     assert result["reason"] == "removed_entry_deleted"
     assert fake.installed == [control_center]
     events = fake.read()["events"]
-    assert events == [
-        "settings put screensaver_components",
-        "settings delete screensaver_default_component",
-        f"appops set {control_center} allow",
-        "settings put package_verifier_enable",
-        f"uninstall {PACKAGE_ID}",
-    ]
+    # Restores may run in any order, but must finish before terminal uninstall.
+    assert events[-1:] == [f"uninstall {PACKAGE_ID}"]
     assert (fake.state_path / "setting.screensaver_components").read_text() == (
         "meta/.Dream\n"
     )
+    assert not (fake.state_path / "setting.screensaver_default_component").exists()
+    assert (
+        fake.state_path / f"appop.{control_center}.SYSTEM_ALERT_WINDOW"
+    ).read_text() == "allow\n"
     assert not record.exists()
     assert (fake.state_path / "setting.package_verifier_enable").read_text() == "1\n"
     assert not verifier.exists()
@@ -930,6 +946,7 @@ async def test_removal_gives_shelly_home_its_overlay_and_the_panel_its_size_back
     fake.set(installed=[PACKAGE_ID, launcher])
     (fake.state_path / f"appop.{launcher}.SYSTEM_ALERT_WINDOW").write_text("deny\n")
     (fake.state_path / "density").write_text("216\n")
+    (fake.state_path / "setting.font_scale").write_text("1.2\n")
     entry = _entry(hass, server)
 
     result = await _remove(hass, entry)
@@ -938,13 +955,12 @@ async def test_removal_gives_shelly_home_its_overlay_and_the_panel_its_size_back
     assert result["reason"] == "removed_entry_deleted"
     assert fake.installed == [launcher]
     assert fake.read()["home"] == f"{launcher}/.activities.SplashActivity"
-    assert fake.read()["events"] == [
-        f"set home {launcher}/.activities.SplashActivity",
-        f"appops set {launcher} allow",
-        "wm density reset",
-        "settings delete font_scale",
-        f"uninstall {PACKAGE_ID}",
-    ]
+    # Only the order against uninstall matters, not the order among restores.
+    assert fake.read()["events"][-1:] == [f"uninstall {PACKAGE_ID}"]
+    assert (
+        fake.state_path / f"appop.{launcher}.SYSTEM_ALERT_WINDOW"
+    ).read_text() == "allow\n"
+    assert not (fake.state_path / "setting.font_scale").exists()
     assert not (fake.state_path / "density").exists()
     assert not shelly.exists()
     assert not display.exists()

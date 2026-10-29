@@ -1,5 +1,9 @@
 import test from 'node:test';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, writeFileSync, readFileSync, chmodSync, statSync, lstatSync, symlinkSync, mkdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import assert from 'node:assert/strict';
 import { createUsbTransactionPorts } from '../src/usb-transaction-ports.mjs';
 import { LEGACY_PACKAGE_ID, PACKAGE_ID } from '../src/app-identity.mjs';
@@ -12,12 +16,35 @@ const PROBED = [LEGACY_PACKAGE_ID, PACKAGE_ID];
 const nonce = 'c'.repeat(32);
 const job = 'd'.repeat(32);
 
-test('preparation sets exactly 0644 on this job\'s own regular file and nothing else', () => {
-  const program = buildStagedPreparation(nonce, job);
-  const path = stagingPath(job);
-  assert.ok(program.includes(`if [ -f ${path} ] && [ ! -L ${path} ]; then chmod 0644 ${path}; fi`));
-  assert.equal((program.match(/chmod/g) ?? []).length, 1, 'one chmod, on one fixed path');
-  assert.ok(!/rm |mv |cp |>/.test(program), 'preparation never moves, copies or writes content');
+test('preparation sets 0644 on only this job’s regular file and preserves its bytes', t => {
+  const root = mkdtempSync(join(tmpdir(), 'staged-preparation-'));
+  t.after(() => rmSync(root, {recursive: true, force: true}));
+  const own = join(root, 'own.apk'), neighbour = join(root, 'neighbour.apk');
+  writeFileSync(own, 'uploaded bytes');
+  chmodSync(own, 0o666);
+  writeFileSync(neighbour, 'unrelated bytes', {mode: 0o600});
+  const run = () => {
+    // Only the device path is mapped; the real file checks and chmod execute.
+    const result = spawnSync('/bin/sh', ['-c', buildStagedPreparation(nonce, job)
+      .replaceAll(stagingPath(job), own)], {encoding: 'utf8', timeout: 2000});
+    assert.equal(result.status, 0);
+    assert.equal(parseStagedPreparation(result.stdout, nonce), true);
+  };
+  run();
+  assert.equal(statSync(own).mode & 0o777, 0o644);
+  assert.equal(readFileSync(own, 'utf8'), 'uploaded bytes');
+  assert.equal(statSync(neighbour).mode & 0o777, 0o600);
+  assert.equal(readFileSync(neighbour, 'utf8'), 'unrelated bytes');
+  rmSync(own);
+  symlinkSync(neighbour, own);
+  run();
+  assert.ok(lstatSync(own).isSymbolicLink());
+  assert.equal(statSync(neighbour).mode & 0o777, 0o600, 'a symlink target is never chmodded');
+  assert.equal(readFileSync(neighbour, 'utf8'), 'unrelated bytes');
+  rmSync(own);
+  mkdirSync(own, {mode: 0o700});
+  run();
+  assert.equal(statSync(own).mode & 0o777, 0o700, 'a directory is never chmodded');
   assert.throws(() => buildStagedPreparation(nonce, '../../etc'), /invalid_request/);
 });
 
@@ -76,7 +103,11 @@ test('both staged-file checks prepare the file before reading its mode', async (
   }
 });
 
-test('a lost upload\'s staged copy is matched to its release prefix and cleaned up by that digest', async () => {
+test('a lost upload\'s staged copy is matched to its release prefix and cleaned up by that digest', async t => {
+  const root = mkdtempSync(join(tmpdir(), 'prefix-cleanup-'));
+  t.after(() => rmSync(root, {recursive: true, force: true}));
+  mkdirSync(join(root, 'data/local/tmp'), {recursive: true});
+  const localPath = join(root, stagingPath(job));
   const apk = new Blob([new TextEncoder().encode('abcd')]);
   const target = {model: 'Test panel', serial: 'serial', primaryAbi: 'arm64-v8a', androidSdk: 34,
     rootMode: 'rootless', usbVendorId: 1, usbProductId: 2, usbSerial: 'usb'};
@@ -113,7 +144,22 @@ test('a lost upload\'s staged copy is matched to its release prefix and cleaned 
           ...section('SHA', [`${digest}  ${stagingPath(job)}`])];
       } else if (step === 'CLEANUP') {
         cleanups.push(command);
-        return shell(`HAPANELD_CLEANUP_BEGIN:${n}\nHAPANELD_CLEANUP_END:${n}:0\n`);
+        const run = bytes => {
+          writeFileSync(localPath, bytes, {mode: 0o644});
+          return spawnSync('/bin/sh', ['-c', `stat() { if [ "$2" = %u ]; then echo 2000; else command stat "$@"; fi; }
+${command.slice('shell:'.length).replaceAll('/data/', `${root}/data/`).replaceAll('[ ! -L /data ]', `[ ! -L ${root}/data ]`)}`],
+            {encoding: 'utf8', timeout: 2000});
+        };
+        for (const changed of ['x'.repeat(held.length), held + 'x']) {
+          const refused = run(changed);
+          assert.equal(refused.status, 0);
+          assert.ok(existsSync(localPath), 'cleanup must keep a file changed since its observation');
+          assert.equal(readFileSync(localPath, 'utf8'), changed);
+        }
+        const removed = run(held);
+        assert.equal(removed.status, 0);
+        assert.equal(existsSync(localPath), false, 'cleanup removes only its observed bytes');
+        return shell(removed.stdout);
       } else throw new Error(`unexpected ${step}`);
       return shell([`HAPANELD_${step}_BEGIN:${n}`, ...lines, `HAPANELD_${step}_END:${n}`, ''].join('\n'));
     }};
@@ -128,8 +174,6 @@ test('a lost upload\'s staged copy is matched to its release prefix and cleaned 
     assert.equal(inspected.staged, copied.length === 4, `${copied}: a whole copy is staged, a partial one is not`);
     await ports.cleanup({id: job, phase: 'cleanup_pending', target}, release);
     assert.equal(cleanups.length, 1);
-    assert.ok(cleanups[0].includes(`'${digest}  ${stagingPath(job)}'`), `${copied}: cleanup rechecks the observed digest`);
-    assert.ok(cleanups[0].includes(`= ${copied.length} ]`), `${copied}: and the observed size`);
   }
 });
 
@@ -137,6 +181,7 @@ const shell = body => ({readable: new ReadableStream({start(controller) {
   controller.enqueue(new TextEncoder().encode(body)); controller.close();
 }}), close: async () => {}});
 
+// Source-text reason: USB-powered panels must never be told to cut installation power.
 test('no message ever tells a person to unplug a panel that may be powered by that cable', () => {
   const shown = [...Object.values(ENGLISH_MESSAGES.errors), ...Object.values(ENGLISH_MESSAGES.installer)].join('\n');
   assert.ok(!/unplug/i.test(shown), 'unplugging a USB-powered panel cuts its power mid-install');

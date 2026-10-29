@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import hashlib
-from dataclasses import asdict
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.storage import Store
 from yarl import URL
 
 from custom_components.panel_assistant import (
@@ -36,12 +36,19 @@ from custom_components.panel_assistant.feed_coordinator import (
 from custom_components.panel_assistant.install_artifacts import ArtifactCustodyError
 from custom_components.panel_assistant.install_plan import (
     InstallPlanError,
-    _build_artifact,
+    build_install_plan,
 )
 from custom_components.panel_assistant.release import (
     ReleaseResolutionError,
     artifact_identity_matches,
 )
+from tests.test_install_jobs import (
+    Clock,
+    emulate_home_assistant_store_file,
+)
+from tests.test_install_plan import CREDENTIAL_ID, pinned_target, probe
+
+__all__ = ["emulate_home_assistant_store_file"]
 
 FEED_URL = URL("https://builds.example/maintainer.json")
 SHA = hashlib.sha256(b"772").hexdigest()
@@ -126,7 +133,7 @@ def test_identity_rule_binds_each_kind_of_artifact() -> None:
 # --- one list, one resolver ------------------------------------------------------
 
 
-async def test_both_paths_list_newest_compatible_versions_first(
+async def test_both_paths_offer_only_the_newest_compatible_choice_per_channel(
     hass: HomeAssistant,
 ) -> None:
     _install_feed(hass, _build(772), _build(771, hashlib.sha256(b"771").hexdigest()))
@@ -251,31 +258,61 @@ async def test_browser_bundle_carries_the_exact_signed_feed(
 
 def test_install_plan_refuses_a_feed_build_when_another_was_chosen() -> None:
     release = feed_release_artifact(_build())
-    artifact = _build_artifact(release, "build-772-successor")
-    assert artifact.release_tag == "build-772-successor"
-    assert artifact.version_code == 772
-    # With no choice the recommended signed build is admitted (first install).
-    assert _build_artifact(release, None).release_tag == "build-772-successor"
+    for selected in (None, "build-772-successor"):
+        plan = build_install_plan(
+            pinned_target(), probe(), release, CREDENTIAL_ID, expected_rc_tag=selected
+        )
+        assert plan.artifact.release_tag == "build-772-successor"
+        assert plan.artifact.version_code == 772
+        assert plan.artifact.package_id == PACKAGE_ID
     for expected in ("build-771-successor", "build-772", "v0.9.7-rc3"):
         with pytest.raises(InstallPlanError):
-            _build_artifact(release, expected)
+            build_install_plan(
+                pinned_target(),
+                probe(),
+                release,
+                CREDENTIAL_ID,
+                expected_rc_tag=expected,
+            )
 
 
-def test_successor_choice_keeps_its_identity_through_plan_and_receipt() -> None:
-    artifact = _build_artifact(feed_release_artifact(_build()), "build-772-successor")
-    assert artifact.package_id == PACKAGE_ID
-    assert install_jobs._parse_artifact(asdict(artifact)) == artifact
-    with pytest.raises(install_jobs.InstallJobStoreError):
-        install_jobs._parse_artifact(asdict(artifact) | {"release_tag": "build-772"})
-
-
-def test_a_feed_build_survives_the_durable_receipt() -> None:
-    artifact = _build_artifact(feed_release_artifact(_build()), "build-772-successor")
-    parsed = install_jobs._parse_artifact(asdict(artifact))
-    assert parsed == artifact
-    tampered = asdict(artifact) | {"version_code": 771}
-    with pytest.raises(install_jobs.InstallJobStoreError):
-        install_jobs._parse_artifact(tampered)
+@pytest.mark.parametrize("tamper", [None, "release_tag", "version_code"])
+async def test_a_feed_build_survives_the_durable_receipt(
+    hass: HomeAssistant, tamper: str | None
+) -> None:
+    plan = build_install_plan(
+        pinned_target(),
+        probe(),
+        feed_release_artifact(_build()),
+        CREDENTIAL_ID,
+        expected_rc_tag="build-772-successor",
+    )
+    receipt, created = await install_jobs.InstallJobManager(
+        hass, now=Clock()
+    ).async_create_or_join(
+        plan.target, plan.artifact, plan.plan_sha256, plan.adb_credential_id
+    )
+    assert created
+    if tamper is not None:
+        store = Store(
+            hass, 1, f"{DOMAIN}.install_jobs", private=True, atomic_writes=True
+        )
+        document = await store.async_load()
+        document["jobs"][0]["artifact"][tamper] = (
+            "build-772" if tamper == "release_tag" else 771
+        )
+        await store.async_save(document)
+    restarted = install_jobs.InstallJobManager(hass, now=Clock())
+    if tamper is not None:
+        with pytest.raises(install_jobs.InstallJobStoreError):
+            await restarted.async_get(receipt.job_id)
+    else:
+        restored = await restarted.async_get(receipt.job_id)
+        assert restored == receipt
+        assert restored.artifact == plan.artifact
+        assert restored.artifact.release_tag == "build-772-successor"
+        assert restored.artifact.apk_sha256 == SHA
+        assert restored.artifact.package_id == PACKAGE_ID
 
 
 def test_custody_fetches_only_content_addressed_apks_from_the_feed_host(
@@ -299,7 +336,13 @@ def test_custody_fetches_only_content_addressed_apks_from_the_feed_host(
 
 
 def test_executor_rebuilds_a_feed_url_and_never_guesses_one() -> None:
-    artifact = _build_artifact(feed_release_artifact(_build()), "build-772-successor")
+    artifact = build_install_plan(
+        pinned_target(),
+        probe(),
+        feed_release_artifact(_build()),
+        CREDENTIAL_ID,
+        expected_rc_tag="build-772-successor",
+    ).artifact
     receipt = SimpleNamespace(artifact=artifact)
     assert install_executor._apk_url(receipt, FEED_URL) == (  # type: ignore[arg-type]
         f"https://builds.example/apks/{SHA}.apk"

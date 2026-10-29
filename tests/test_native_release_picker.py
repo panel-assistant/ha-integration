@@ -75,8 +75,8 @@ async def test_real_catalog_populates_selector_and_caches(
         if pa_version == "1.0.0":
             # One recommended release is nothing to choose: straight to the question.
             assert form["step_id"] == "confirm_install_candidate"
-            assert flow._pending_release.tag == "v1.2.3"
-            assert flow._pending_rc_tag is None
+            assert form["description_placeholders"]["tag"] == "v1.2.3"
+            assert form["description_placeholders"]["version"] == "1.2.3"
             return
         again = await flow.async_step_choose_version()
     assert "release_candidate" not in address_form["data_schema"].schema
@@ -254,9 +254,8 @@ async def test_network_setup_offers_and_installs_a_feed_build(
         # The feed build is the one recommended choice, so no version step shows.
         result = await flow.async_step_add_panel({CONF_ADDRESS: "panel.local"})
     assert result["step_id"] == "confirm_install_candidate"
-    assert flow._pending_release is not None
-    assert flow._pending_release.tag == "build-772-successor"
-    assert flow._pending_rc_tag is None
+    assert result["description_placeholders"]["tag"] == "build-772-successor"
+    assert result["description_placeholders"]["version"] == "0.9.7-rc4"
     mocks["credential"].assert_not_awaited()
     manager.async_create_or_join.assert_not_awaited()
 

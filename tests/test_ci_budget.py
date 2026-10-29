@@ -74,6 +74,8 @@ def test_absence_of_data_is_not_a_pass() -> None:
     assert rows == [("no-data", "Python tests", None, 150)]
 
 
+# Source-text reason: these YAML files and the budget JSON are the artifacts
+# consumed by GitHub Actions; their trigger/concurrency expressions are the contract.
 def test_budget_file_covers_every_workflow_that_runs_on_push() -> None:
     """A new push-triggered workflow must arrive with a budget, not without one."""
     import yaml

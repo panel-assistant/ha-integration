@@ -135,6 +135,7 @@ async def test_forwarder_delivers_current_format_to_local_receiver(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     received: asyncio.Future[bytes] = hass.loop.create_future()
+    content_types: list[str] = []
 
     def accept(data: bytes) -> None:
         if not received.done():
@@ -150,7 +151,7 @@ async def test_forwarder_delivers_current_format_to_local_receiver(
         await writer.wait_closed()
 
     async def http(req: web.Request) -> web.Response:
-        assert req.content_type == "application/x-ndjson"
+        content_types.append(req.content_type)
         accept(await req.read())
         return web.Response()
 
@@ -207,6 +208,7 @@ async def test_forwarder_delivers_current_format_to_local_receiver(
         written = [r for r in caplog.records if r.name.endswith(f".panel.{DID}")]
         assert len(written) == int(also_home_assistant)
         if protocol == "http":
+            assert content_types == ["application/x-ndjson"]
             assert json.loads(payload) == {
                 "timestamp": RECORD["timestamp"],
                 "host": DID,

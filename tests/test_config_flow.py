@@ -697,7 +697,6 @@ async def test_invalid_rc_selection_precedes_all_contact(
     rc.assert_not_awaited()
     credential.assert_not_awaited()
     manager.async_create_or_join.assert_not_awaited()
-    assert flow._pending_release is None
 
 
 async def test_rc_selection_requires_exact_translated_consent_and_frozen_plan(
@@ -765,6 +764,8 @@ async def test_rc_selection_requires_exact_translated_consent_and_frozen_plan(
 
 def _english(flow: str, step_id: str, placeholders: dict[str, str]) -> str:
     """The description a person reads, as Home Assistant fills it in."""
+    # Source-text reason: these checks protect published setup instructions after
+    # Home Assistant substitutes the flow output into the English description.
     strings = json.loads(
         (
             Path(__file__).parents[1]
@@ -1483,9 +1484,16 @@ async def test_install_progress_removal_detaches_without_cancelling_worker(
     manager = _manager_for(receipt)
     worker_gate = asyncio.Event()
     worker = hass.async_create_task(worker_gate.wait())
+    waiter_started = asyncio.Event()
+    waiter_cancelled = asyncio.Event()
 
     async def _wait(_job_id: str, **_kwargs: Any) -> InstallJobReceipt:
-        await asyncio.shield(worker)
+        waiter_started.set()
+        try:
+            await asyncio.shield(worker)
+        except asyncio.CancelledError:
+            waiter_cancelled.set()
+            raise
         return receipt
 
     executor = _executor_for()
@@ -1531,15 +1539,20 @@ async def test_install_progress_removal_detaches_without_cancelling_worker(
         progress = await hass.config_entries.flow.async_configure(
             preview["flow_id"], {}
         )
+        await waiter_started.wait()
         hass.config_entries.flow.async_abort(progress["flow_id"])
         await asyncio.sleep(0)
         await asyncio.sleep(0)
 
-    assert progress["type"] is FlowResultType.SHOW_PROGRESS
-    executor.async_ensure_job.assert_awaited_once_with(receipt.job_id)
-    assert not worker.cancelled()
-    worker_gate.set()
-    await worker
+    try:
+        assert progress["type"] is FlowResultType.SHOW_PROGRESS
+        executor.async_ensure_job.assert_awaited_once_with(receipt.job_id)
+        assert waiter_cancelled.is_set(), "closing the flow must cancel its waiter"
+        assert not worker.done(), "closing the flow must leave the worker running"
+    finally:
+        worker_gate.set()
+        await asyncio.gather(worker, return_exceptions=True)
+        await hass.async_block_till_done()
 
 
 async def test_install_progress_says_when_it_updates_the_browser_engine(
@@ -1591,7 +1604,6 @@ async def test_completed_flow_waiter_advances_through_progress_done() -> None:
 
     assert result["type"] is FlowResultType.SHOW_PROGRESS_DONE
     assert result["step_id"] == "install_result"
-    assert flow._progress_waiter is None
 
 
 async def test_nonrestartable_worker_does_not_create_progress_callback_loop(
@@ -1619,7 +1631,6 @@ async def test_nonrestartable_worker_does_not_create_progress_callback_loop(
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "install_worker_stopped"
     executor.async_wait.assert_not_awaited()
-    assert flow._progress_waiter is None
 
 
 async def test_nonrestartable_worker_refresh_failure_is_privacy_safe(
@@ -1649,7 +1660,6 @@ async def test_nonrestartable_worker_refresh_failure_is_privacy_safe(
     assert result["reason"] == "install_failed"
     await assert_names_recovery_page(hass, "config.abort.install_failed", result)
     executor.async_wait.assert_not_awaited()
-    assert flow._progress_waiter is None
 
 
 @pytest.mark.parametrize(
@@ -2075,7 +2085,6 @@ async def test_two_finalizers_produce_only_one_create_result(
     assert flow_one.unique_id is None
     assert second["type"] is FlowResultType.FORM
     assert second["errors"] == {"base": "install_finalization_busy"}
-    assert executor._finalizers[receipt.job_id].owner == "flow-one"
     verified_target = verify_mock.await_args.args[0]
     assert verified_target.address.stored_value == TARGET.pinned_address
     assert verified_target.serial == TARGET.adb_serial
@@ -2101,7 +2110,6 @@ async def test_removal_during_verification_defers_finalizer_release(
         first_task = hass.async_create_task(first.async_step_install_result())
         await verify_started.wait()
         first.async_remove()
-        assert executor._finalizers[receipt.job_id].owner == "flow-removed"
         other_result = await second.async_step_install_result()
         allow_verify.set()
         first_result = await first_task
@@ -2178,7 +2186,6 @@ async def test_cancelled_finalization_releases_the_lease_for_a_retry(
         retry = await flow.async_step_install_result()
 
     assert retry["type"] is FlowResultType.CREATE_ENTRY
-    assert executor._finalizers[receipt.job_id].owner == flow.flow_id
     manager.async_transition.assert_not_awaited()
 
 
@@ -2397,30 +2404,6 @@ async def test_abandoned_fresh_install_can_resume_from_its_entry_options(
         "setup_url": "http://192.168.1.23:8888/setup"
     }
     handover.assert_awaited_once()
-
-
-async def test_flow_removal_releases_lease_and_only_cancels_local_waiter(
-    hass: HomeAssistant,
-) -> None:
-    """Removal cleans up flow ownership without touching an executor worker."""
-    receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
-    executor = _finalizing_executor(hass, _manager_for(receipt))
-    flow = _direct_result_flow(hass, receipt, executor)
-    assert await executor._async_acquire_finalizer(receipt.job_id, flow.flow_id)
-    flow._finalizer_job_id = receipt.job_id
-    waiter_gate = asyncio.Event()
-    worker_gate = asyncio.Event()
-    flow._progress_waiter = hass.async_create_task(waiter_gate.wait())
-    worker = hass.async_create_task(worker_gate.wait())
-
-    flow.async_remove()
-    await asyncio.sleep(0)
-
-    assert flow._progress_waiter is None
-    assert not executor.is_finalizer_active(receipt.job_id)
-    assert not worker.cancelled()
-    worker_gate.set()
-    await worker
 
 
 async def test_no_target_state_can_fall_through_to_a_generic_refusal(

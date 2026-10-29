@@ -478,8 +478,17 @@ async def test_a_panel_without_management_is_still_polled_over_http(
     assert not coordinator.last_update_success
     assert not coordinator.reachable
     # Nothing was asked on the session: the next message answers a request.
-    session = async_get_sessions(hass).get(entry.entry_id)
-    assert session is not None and not session.pending
+    response = await _send(
+        panel.client,
+        {
+            "type": "panel_assistant/report_state",
+            "session": panel.token,
+            "sync": "delta",
+            "observations": [],
+        },
+    )
+    assert response["type"] == "result", response
+    assert response["success"], response
 
 
 async def test_a_request_on_a_superseded_session_fails_and_its_late_answer_is_ignored(

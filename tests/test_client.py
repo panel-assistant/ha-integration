@@ -368,13 +368,20 @@ async def test_client_maps_network_failure() -> None:
         await client.async_get_health()
 
 
-async def test_client_rejects_oversized_response() -> None:
-    """The client refuses responses beyond the Android readiness bound."""
-    client = HaPaneldClient(  # type: ignore[arg-type]
-        _session(body=b"x" * 513), normalize_address("panel.local")
-    )
+async def test_client_rejects_oversized_response_without_reading_the_rest() -> None:
+    """A streamed health response stops at the cap, before parsing or draining it."""
+    padding = " x=" + "y" * (MAX_HEALTH_RESPONSE_BYTES - len(LONGEST_HEALTH) - 3)
+    at_bound = (LONGEST_HEALTH[:-1] + padding + "\n").encode()
+    assert len(at_bound) == MAX_HEALTH_RESPONSE_BYTES
+    accepted = await _client(_session(body=at_bound)).async_get_health()
+    assert accepted.panel_id == "p" * 63
+
+    response = FakeResponse(body=[at_bound, b"y", b"unread remainder"])
+    client = _client(FakeSession(response))
     with pytest.raises(InvalidResponseError):
         await client.async_get_health()
+
+    assert response.content.yielded_chunks == 2
 
 
 @pytest.mark.parametrize(
@@ -844,23 +851,29 @@ async def test_client_rejects_invalid_status_utf8() -> None:
         await client.async_get_status()
 
 
-async def test_client_rejects_oversized_valid_status_document() -> None:
-    """A valid additive document beyond 64 KiB is rejected by the body guard."""
+async def test_client_rejects_oversized_valid_status_document_without_draining() -> (
+    None
+):
+    """An additive JSON document stops at the body cap instead of being drained."""
     assert MAX_STATUS_RESPONSE_BYTES == 64 * 1024
-    body = json.dumps(
-        {
-            "warnings": [],
-            "capabilities": [],
-            "future": "x" * MAX_STATUS_RESPONSE_BYTES,
-        }
-    ).encode()
-    assert len(body) > MAX_STATUS_RESPONSE_BYTES
-    client = HaPaneldClient(  # type: ignore[arg-type]
-        _session(body=body), normalize_address("panel.local")
+    prefix = b'{"warnings":[],"capabilities":[],"future":"'
+    suffix = b'"}'
+    at_bound = (
+        prefix + b"x" * (MAX_STATUS_RESPONSE_BYTES - len(prefix + suffix)) + suffix
     )
+    assert len(at_bound) == MAX_STATUS_RESPONSE_BYTES
+    accepted = await _client(_session(body=at_bound)).async_get_status()
+    assert accepted.warning_count == 0
+    assert accepted.capability_count == 0
 
+    # Adding JSON whitespace preserves validity, so refusal cannot be attributed
+    # to a malformed response. The third chunk must never be requested.
+    response = FakeResponse(body=[at_bound, b" ", b"unread remainder"])
+    client = _client(FakeSession(response))
     with pytest.raises(InvalidResponseError):
         await client.async_get_status()
+
+    assert response.content.yielded_chunks == 2
 
 
 # --- maintainer build feed: diagnostics, backup, staged upload ---------------

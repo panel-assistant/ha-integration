@@ -4,19 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ## 1.0.0-rc2
 
+This release is mostly about updates and removal; I have listed what you will notice rather than every commit. Pairs with the 1.0.0-rc2 panel app, which is published first; each panel is offered it as an update. Most of what is new here needs that app on the panel. One thing to know before you install: on a rooted panel, the 1.0.0-rc2 panel app switches network ADB off once it is connected to this release, because Panel Assistant now sends its maintenance commands over the panel's own connection.
+
 ### New
 
-- Installation can update a supported panel's WebView to its newest known-good build. If the update cannot finish, pairing can continue and a Repair offers an explicit retry. Already installed panels receive the same Repair. Updates never run on a schedule, downgrade the provider or replace a Play-managed WebView.
+- **WebView updates during install and update.** On a supported panel, installing the panel app, over the network or with the USB installer, also has the panel download and install a compatible, verified WebView, and so does a panel app update you start in Home Assistant. If the WebView cannot finish, setup and pairing carry on, and the panel's update Repair retries the WebView without reinstalling the app. It never runs on a schedule, downgrades the provider or replaces a Play-managed WebView.
+- **Panel logs in one place.** Configure on any panel now offers Panel logs (all panels): pick one destination for every panel, including ones you add later, either the Home Assistant log, a syslog server over UDP or TCP, or an HTTP endpoint, and set the app and system log levels. Nothing is sent until you choose a destination, and system logs stay off unless you turn them on.
+- **A Remove from this panel button.** Each panel's device has one. Pressing it changes nothing on its own: it adds a Repair, under Settings, that links to what removal can do to that panel, and Panel Assistant is removed only when you submit it.
+
+### Changed
+
+- **Removing Panel Assistant from a panel also deletes it from Home Assistant.** Whether you start from the button or from Configure, removal gives back the panel's home screen and the vendor apps and settings Panel Assistant changed, uninstalls the app and then deletes the panel's entry; the option to keep its entities is gone. A removal that stops part way stays in Repairs, and submitting it again finishes what is left.
+- **Rooted panels are looked after over their own connection.** Updates, repairs and removal on a rooted panel no longer need network ADB; installing the app, and panels without root, still use it.
+- **A new panel finishes its own setup before it is added.** After an install, the panel keeps its own launcher while you go through its setup, and Panel Assistant adds it, makes the panel app the home screen and gives it device admin only once that setup is finished. The option to connect without finishing setup is gone.
+- **The version list for installs and updates now comes from the project website, with GitHub as the fallback.** Panel Assistant still verifies the build before installing it.
+- **Panel Assistant follows a panel whose web page moves.** With the 1.0.0-rc2 panel app, which moves its local page off port 8888 when another app already uses it, Panel Assistant uses the port the panel reports.
 
 ### Fixed
 
-- A speaker disabled in Home Assistant during a voice reply gets its previous volume back when re-enabled, while keeping any volume you set yourself.
-- A Repair now says when a panel is showing its dashboard without entity filtering because the panel could not finish preparing its entity filter in time. It clears itself once the panel filters again. Pairs with the 1.0.0-rc2 panel app, which no longer leaves a panel on its "Learning" screen indefinitely.
-- Removing the Home Assistant entry while vendor settings are being restored stops the following display-sizing restore and keeps the panel app installed.
-
-### Development
-
-- Split the Python test suite across two runners per Home Assistant version and speed up voice grammar collision checks.
+- **A panel signed in as a local-only user is given only local addresses.** A panel whose Home Assistant user can only log in from the local network is no longer given your external or Home Assistant Cloud address, so it cannot fall back to a route Home Assistant refuses.
+- **A panel no longer waits on its "Learning" screen indefinitely.** With the 1.0.0-rc2 panel app, a panel that cannot finish preparing its entity filter in time shows its dashboard unfiltered, and a Repair says so. It clears itself once the panel filters again.
+- **Speaker volume comes back after a voice reply.** A speaker disabled in Home Assistant during a voice reply gets its previous volume back when re-enabled, while keeping any volume you set yourself.
+- **Slow diagnostics no longer fail a health check.** A healthy panel whose optional diagnostics answer slowly is no longer reported as failing its health check.
+- **A failed update's Repair keeps what you need.** Its support report now includes the panel's recent warning and error log lines, an out-of-date health reading no longer clears it, and a Repair for an update that was interrupted part way comes back after Home Assistant restarts.
+- **Try again explains a panel that is still busy.** Pressing Try again on a failed update's Repair while that panel is still updating, or busy with another task, now says so and records nothing instead of saving a new failure; the Repair closes by itself once the update succeeds.
 
 ## 1.0.0-rc1 - 2026-10-25
 
