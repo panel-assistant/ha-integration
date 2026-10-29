@@ -523,13 +523,23 @@ async def test_a_request_on_a_superseded_session_fails_and_its_late_answer_is_ig
     assert coordinator.data is previous
 
 
-@pytest.mark.parametrize("webview", ["installed", "submitted_unknown"])
+@pytest.mark.parametrize(
+    ("webview", "reason", "settled"),
+    [
+        ("installed", "current", True),
+        # The panel reports the candidate current, so the uncertain send landed.
+        ("submitted_unknown", "current", True),
+        ("submitted_unknown", None, False),
+    ],
+)
 async def test_a_session_snapshot_ends_an_update_repair_once_its_webview_settles(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
     hass_read_only_user: Any,
     hass_read_only_access_token: str,
     webview: str,
+    reason: str | None,
+    settled: bool,
 ) -> None:
     """A managed panel never reaches the HTTP status read, so its snapshot clears."""
     entry = await _load(hass, hass_read_only_user.id)
@@ -552,7 +562,7 @@ async def test_a_session_snapshot_ends_an_update_repair_once_its_webview_settles
                 "schema": 1,
                 "supported": True,
                 "eligible": False,
-                "reason": "current",
+                "reason": reason,
                 "candidate": {"sha256": "c" * 64},
                 "transaction": {"state": webview, "request_id": "r", "reason": None},
             },
@@ -570,4 +580,4 @@ async def test_a_session_snapshot_ends_an_update_repair_once_its_webview_settles
 
     assert coordinator.last_update_success
     issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
-    assert (issue is None) is (webview == "installed")
+    assert (issue is None) is settled
