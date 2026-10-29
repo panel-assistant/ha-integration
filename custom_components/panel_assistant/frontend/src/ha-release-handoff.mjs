@@ -10,7 +10,7 @@ const API = '/api/panel_assistant/usb/release';
 const HANDOVER_API = '/api/panel_assistant/usb/handover';
 const ADB_KEY_API = '/api/panel_assistant/usb/adb_key';
 const HANDOVER_MS = 35000;
-const IPV4 = /(?:[0-9]{1,3}\.){3}[0-9]{1,3}/;
+const IPV4 = /(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[1-9][0-9]{0,4})?/;
 const OUTCOME = /[a-z_]{1,48}/;
 const MAX_APK = 64 * 1024 * 1024;
 // A reloaded installer window (a back button, a refresh) asks again with the
@@ -193,7 +193,8 @@ export function startReleaseHandoff(hass, installerUrl, {
   // Only for the window that verified the bundle this one is still serving.
   async function handOver(data) {
     if (handingOver || !finished || !delivered || child.closed ||
-      !exactKeys(data, ['type', 'nonce', 'address']) || !fullMatch(IPV4, data.address)) return;
+      !exactKeys(data, ['type', 'nonce', 'address']) || !fullMatch(IPV4, data.address) ||
+      Number(data.address.split(':')[1] ?? 8888) > 65535) return;
     handingOver = true;
     const reply = (type, extra = {}) => {
       try { if (!child.closed) child.postMessage({ type, nonce, ...extra }, targetOrigin); } catch { /* window gone */ }

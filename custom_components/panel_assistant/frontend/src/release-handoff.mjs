@@ -223,7 +223,10 @@ export function requestPanelAssistantKey({ windowObject = window, options, timeo
 // acceptance must succeed even when the best-effort handover fails.
 export async function handOverThenOpen(url, { handover, support, beforeOpen = () => {}, open }) {
   if (url) {
-    const outcome = await Promise.resolve().then(() => handover(new URL(url).hostname))
+    const outcome = await Promise.resolve().then(() => {
+      const endpoint = new URL(url);
+      return handover(endpoint.port === '8888' ? endpoint.hostname : endpoint.host);
+    })
       .catch(() => 'failed');
     support('Setup handover', outcome);
   }
