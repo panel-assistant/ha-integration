@@ -139,7 +139,9 @@ async def async_update_webview(
         session()
         return observed
 
-    submitted = False
+    # Set once the panel holds WebView work: an install this step submitted,
+    # or one already running or unsure when the step looked.
+    pending = False
     try:
         async with asyncio.timeout(120):
             # The successor app owns the profile. Its authenticated native read
@@ -165,15 +167,15 @@ async def async_update_webview(
                 if fresh.webview is None:
                     # Older apps omit the additive contract entirely.
                     return None
-                if (
-                    not fresh.webview.needs_attention
-                    and fresh.webview.transaction_state
-                    not in ACTIVE_STATES | {"submitted_unknown"}
-                ):
+                pending = fresh.webview.transaction_state in ACTIVE_STATES | {
+                    "submitted_unknown"
+                }
+                if not fresh.webview.needs_attention and not pending:
                     return None
                 raise
+            pending = status.transaction_state in ACTIVE_STATES | {"submitted_unknown"}
             if (
-                status.transaction_state not in ACTIVE_STATES | {"submitted_unknown"}
+                not pending
                 and status.supported
                 and status.eligible
                 and status.candidate_sha256
@@ -181,7 +183,7 @@ async def async_update_webview(
                 current = session()
                 if current is None:
                     raise ConnectionError("panel_reconnecting")
-                submitted = True
+                pending = True
                 status = parse_webview(
                     await async_manage(
                         hass,
@@ -223,9 +225,7 @@ async def async_update_webview(
     except Exception as err:
         # An accepted request may have lost its answer. The durable panel record
         # owns the outcome; an explicit retry starts with observation, never POST.
-        # Before any submission, or once this panel left the entry, nothing is
-        # pending that the entry still owns.
+        # With no WebView work on the panel, or once this panel left the entry,
+        # nothing is pending that the entry still owns.
         retired = isinstance(err, ValueError) and str(err) == "panel_unavailable"
-        return (
-            "webview_deferred" if submitted and not retired else "webview_unavailable"
-        )
+        return "webview_deferred" if pending and not retired else "webview_unavailable"

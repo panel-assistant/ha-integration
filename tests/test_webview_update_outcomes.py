@@ -127,6 +127,41 @@ async def test_submitted_webview_install_keeps_its_repair_through_the_poll(
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
 
 
+@pytest.mark.parametrize("route", ["native", "http", "submitted"])
+async def test_webview_install_still_running_keeps_its_repair_through_the_poll(
+    hass: HomeAssistant, route: str
+) -> None:
+    """WebView work still running when the step timed out remains pending.
+
+    The panel was already installing (natively or seen over HTTP), or took the
+    install this step submitted.
+    """
+    entity, client, entry, issue_id = _native(hass)
+    reads = 0
+
+    async def manage(_hass: Any, _session: Any, operation: str, **_: Any) -> Any:
+        nonlocal reads
+        if operation == "webview.install":
+            return observation("downloading")
+        assert operation == "webview.observe"
+        reads += 1
+        if route == "http":
+            raise ConnectionError("native read lost")
+        if reads == 1:
+            return observation(None if route == "submitted" else "downloading")
+        raise TimeoutError
+
+    client.async_get_status.return_value = status(observation("installing"))
+    with pytest.raises(HomeAssistantError):
+        await _install(hass, entity, entry, manage)
+    events = await async_failure_events(hass, issue_id)
+    assert events[-1].get("webview_pending") is True
+    await async_clear_update_failure_if_installed(
+        hass, entry.entry_id, "0.9.10", 102, verified_current_code=102
+    )
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+
+
 @pytest.mark.parametrize("fails", [False, True])
 async def test_running_update_shows_no_failure_repair(
     hass: HomeAssistant, fails: bool
