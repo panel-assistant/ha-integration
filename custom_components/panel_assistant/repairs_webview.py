@@ -62,7 +62,10 @@ async def async_reconcile_webview_issue(
         # A running install is not a failure; only an ended one needs the owner.
         or not (
             observation.needs_attention
-            or observation.transaction_state == "submitted_unknown"
+            or (
+                observation.transaction_state == "submitted_unknown"
+                and not observation.settled
+            )
         )
         or observation.transaction_state in ACTIVE_STATES
         or observation.transaction_state is None
@@ -175,7 +178,14 @@ async def async_update_webview(
                 raise
             pending = status.transaction_state in ACTIVE_STATES | {"submitted_unknown"}
             if (
-                not pending
+                status.reason == "current"
+                and status.supported
+                and status.candidate_sha256
+                and status.transaction_state not in ACTIVE_STATES
+            ):
+                return None
+            if (
+                status.transaction_state not in ACTIVE_STATES
                 and status.supported
                 and status.eligible
                 and status.candidate_sha256
@@ -224,7 +234,7 @@ async def async_update_webview(
             )
     except Exception as err:
         # An accepted request may have lost its answer. The durable panel record
-        # owns the outcome; an explicit retry starts with observation, never POST.
+        # owns the outcome; a later explicit retry observes before resubmitting.
         # With no WebView work on the panel, or once this panel left the entry,
         # nothing is pending that the entry still owns.
         retired = isinstance(err, ValueError) and str(err) == "panel_unavailable"

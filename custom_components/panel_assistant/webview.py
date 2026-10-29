@@ -39,6 +39,7 @@ class WebViewStatus:
             "installed",
             "deferred",
             "rejected",
+            "submitted_unknown",
         ):
             return False
         return (
@@ -64,7 +65,10 @@ class WebViewStatus:
         """No WebView work is running or left for the owner to finish."""
         return (
             self.transaction_state not in ACTIVE_STATES
-            and self.transaction_state != "submitted_unknown"
+            and (
+                self.transaction_state != "submitted_unknown"
+                or (self.reason == "current" and self.candidate_sha256 is not None)
+            )
             and (not self.needs_attention or self.download_unpublished)
         )
 

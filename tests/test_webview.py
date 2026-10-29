@@ -70,9 +70,9 @@ async def test_resumed_installer_never_replays_a_provider_transaction(
     client.async_install_webview.assert_not_awaited()
 
 
-@pytest.mark.parametrize("attempted", [False, True])
+@pytest.mark.parametrize("attempted", [False, True, "submitted_unknown"])
 async def test_polling_recovers_attempts_into_one_combined_repair_without_installing(
-    hass: HomeAssistant, attempted: bool
+    hass: HomeAssistant, attempted: bool | str
 ) -> None:
     entry, coordinator = _panel(hass)
     hass.config_entries.async_update_entry(
@@ -87,7 +87,15 @@ async def test_polling_recovers_attempts_into_one_combined_repair_without_instal
             coordinator.client,
             "async_get_status",
             AsyncMock(
-                return_value=status(observation("deferred" if attempted else None))
+                return_value=status(
+                    observation(
+                        attempted
+                        if isinstance(attempted, str)
+                        else "deferred"
+                        if attempted
+                        else None
+                    )
+                )
             ),
         ),
         patch(
@@ -100,7 +108,7 @@ async def test_polling_recovers_attempts_into_one_combined_repair_without_instal
         manage.assert_not_awaited()
     registry = ir.async_get(hass)
     assert registry.async_get_issue(DOMAIN, f"panel_webview_{entry.entry_id}") is None
-    assert (registry.async_get_issue(DOMAIN, issue_id) is not None) == attempted
+    assert (registry.async_get_issue(DOMAIN, issue_id) is not None) == bool(attempted)
     if attempted:
         events = await async_failure_events(hass, issue_id)
         assert len(events) == 1 and events[0]["webview_pending"]
@@ -235,22 +243,14 @@ async def test_combined_repair_retries_provider_without_reinstalling_current_app
         []
         if newer_offer == "behind" or compatibility in {"unbound", "unpaired"}
         else ["webview.observe"]
-        + (
-            []
-            if receipt == "submitted_unknown" or compatibility == "legacy"
-            else ["webview.install"]
-        )
+        + ([] if compatibility == "legacy" else ["webview.install"])
     )
     assert (ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None) == (
-        receipt == "submitted_unknown"
-        or newer_offer == "behind"
-        or compatibility == "unbound"
+        newer_offer == "behind" or compatibility == "unbound"
     )
     assert done["type"] == (
         "form"
-        if receipt == "submitted_unknown"
-        or newer_offer == "behind"
-        or compatibility == "unbound"
+        if newer_offer == "behind" or compatibility == "unbound"
         else "create_entry"
     )
 
