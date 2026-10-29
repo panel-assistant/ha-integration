@@ -49,7 +49,7 @@ VOICE_SCHEMAS = {
 }
 
 _HA_VECTOR_REVISION = "502dc6575cdd214a3cc0890ea3594e60758c8b97"
-_ANDROID_PRODUCER_REVISION = "324c65188036f45370c9e3368957ea9ab9c6e365"
+_ANDROID_PRODUCER_REVISION = "40e71cb7e29bd74c67b3ce1f5a1a46ae0b9b7e74"
 
 
 def test_shared_vectors_name_the_ha_source_revision_vendored_by_android() -> None:
@@ -70,6 +70,17 @@ def test_reply_vectors_carry_the_actual_parser_inputs() -> None:
 def test_android_producer_fixture_names_its_exact_source_revision() -> None:
     """The consumer pin names the committed Android source that produced it."""
     assert ANDROID_PRODUCER["sourceRevision"] == _ANDROID_PRODUCER_REVISION
+    # Wire-format reason: pin the committed export byte-for-byte without making
+    # offline public CI depend on an Android checkout or network access. Live
+    # integration-ref parity is the admission CLI in test_android_producer_hello.
+    assert (
+        hashlib.sha256(
+            (
+                Path(__file__).parent / "fixtures" / "android_producer_v1.json"
+            ).read_bytes()
+        ).hexdigest()
+        == "391d7549784e7fdd9fb87454964d1a72606f11ba2962e0819837801f9f2da81f"
+    )
 
 
 def test_android_install_descriptors_pass_the_independent_release_parser() -> None:
