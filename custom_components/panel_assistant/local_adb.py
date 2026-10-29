@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import binascii
+import re
 from collections.abc import AsyncIterator
 from dataclasses import replace
 from secrets import token_hex
@@ -162,10 +163,18 @@ class LocalAdbDevice(AdbDeviceAsync):
 
 def _ready(result: dict[str, Any]) -> bool:
     required = {"ready", "managed", "recovery_hold"}
-    if set(result) not in (required, required | {"security_unverified"}) or any(
-        type(value) is not bool for value in result.values()
-    ):
+    optional = {"security_unverified", "build_id"}
+    if not required <= result.keys() or result.keys() - required - optional:
         raise _failure()
+    if any(type(result[key]) is not bool for key in result if key != "build_id"):
+        raise _failure()
+    if "build_id" in result:
+        build = result["build_id"]
+        if not (
+            (isinstance(build, str) and re.fullmatch(r"[0-9a-f]{64}", build))
+            or (build is None and result["ready"] is False)
+        ):
+            raise _failure()
     return result["ready"] is True
 
 
@@ -174,7 +183,8 @@ async def _bootstrap(
     entry: ConfigEntry,
     session: PanelSession,
     address: PanelAddress,
-) -> bool:
+    prepared: tuple[str, str, str] | None = None,
+) -> str | None:
     """Keep the original admitted network route until independent recovery works."""
     from .adb_credentials import AdbCredentialError, async_get_durable_adb_credential
     from .install_network import (
@@ -188,30 +198,34 @@ async def _bootstrap(
     coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
     snapshot = getattr(coordinator, "data", None)
     if snapshot is None or getattr(coordinator, "identity_mismatch", False):
-        return False
+        return None
     try:
         credential = await async_get_durable_adb_credential(hass)
         pinned = await async_pin_entry_target(
             hass, address, snapshot.health, entry.unique_id
         )
         if pinned is None:
-            return False
+            return None
         probe = await async_probe_install_target(pinned.pinned, credential.signer)
         target = probe.adb_target(pinned.pinned)
         if target is None or probe.state is not InstallTargetState.INSTALLED:
-            return False
-        result = await _request(hass, entry, session, "adb.prepare", {}, 30)
-        path, sha, _build = prepared_asset(result)
+            return None
+        require_recovery_identity(hass, entry, target)
+        if prepared is None:
+            result = await _request(hass, entry, session, "adb.prepare", {}, 30)
+            prepared = prepared_asset(result)
+        path, sha, build = prepared
         await async_revalidate_install_target(hass, pinned)
-        return await async_bootstrap(
+        launched = await async_bootstrap(
             target,
             credential.signer,
             path,
             sha,
             before_mutation=lambda: session_for(hass, entry) is session,
         )
+        return build if launched else None
     except AdbCredentialError, InstallNetworkError:
-        return False
+        return None
 
 
 async def async_target(
@@ -223,13 +237,31 @@ async def async_target(
     session = session_for(hass, entry)
     if session is None:
         return None
+    from .local_adb_bootstrap import prepared_asset
+
     ready = await _request(hass, entry, session, "adb.ready", {}, 10)
-    if not _ready(ready):
-        if not await _bootstrap(hass, entry, session, address):
+    is_ready = _ready(ready)
+    legacy = "build_id" not in ready
+    prepared = None
+    if is_ready and not legacy:
+        prepared = prepared_asset(
+            await _request(hass, entry, session, "adb.prepare", {}, 30)
+        )
+        if ready["build_id"] != prepared[2]:
+            # Explicitly reopen the original route before replacing its recovery
+            # owner. The root bootstrap still pins and revalidates this panel.
+            await async_recover(hass, entry)
+            is_ready = False
+    if not is_ready:
+        build = await _bootstrap(hass, entry, session, address, prepared)
+        if build is None:
             return None
         for _attempt in range(10):
             ready = await _request(hass, entry, session, "adb.ready", {}, 10)
-            if _ready(ready):
+            if (
+                _ready(ready)
+                and ready.get("build_id", build if legacy else None) == build
+            ):
                 break
             await asyncio.sleep(0.2)
         else:
