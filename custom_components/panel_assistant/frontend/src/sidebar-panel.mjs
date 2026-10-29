@@ -98,6 +98,8 @@ export class PanelAssistantSidebar extends HTMLElement {
   get #messages() { return frontendMessages('sidebar', this.#hass?.language); }
   #hass; #panel; #route; #narrow = false; #connection; #panels = null; #listState = 'loading'; #listGeneration = 0;
   #signature = ''; #selected = null; #deepLink = null; #frameUrl = null; #session = null; #timer = null; #alerts = null;
+  // A panel that never serves a page must not erase the tab carried by the picker.
+  #servedPage;
   #onReady = () => this.#reconnected();
   #onFrameLoad = event => {
     const frame = this.shadowRoot.querySelector('#frame');
@@ -263,7 +265,7 @@ export class PanelAssistantSidebar extends HTMLElement {
       if (!path || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
       // Give Back a top-level return entry: WebKit can discard the iframe's history on unmount.
-      const page = this.#session?.page;
+      const page = this.#servedPage;
       history.pushState(history.state, '', `/panel-assistant/${this.#selected}${page ? '/' + page : ''}`);
       navigate(path);
     });
@@ -279,7 +281,7 @@ export class PanelAssistantSidebar extends HTMLElement {
     }
     root.querySelector('#panels').addEventListener('change', event => {
       const entryId = event.target.value;
-      const page = this.#session?.page;
+      const page = this.#servedPage;
       this.#deepLink = page ? { entryId, suffix: page } : null;
       this.#choose(entryId);
     });
@@ -530,7 +532,7 @@ export class PanelAssistantSidebar extends HTMLElement {
     } else if (event.kind === 'page') {
       // The embed view sees navigation inside the opaque frame; the sidebar cannot read its URL.
       if (event.page === '' || ROUTE_PAGES.has(event.page)) {
-        session.page = event.page;
+        this.#servedPage = session.page = event.page;
         // Reuse the normal deep-link route on reload without adding a history entry per tab.
         history.replaceState(history.state, '', `/panel-assistant/${session.entryId}${event.page ? '/' + event.page : ''}`);
       }
