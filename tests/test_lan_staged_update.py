@@ -847,8 +847,8 @@ async def test_a_refused_release_listing_names_githubs_answer(
     await release_check.async_refresh()
 
     assert not release_check.last_update_success
-    assert "could not be authenticated: HTTP 403" in str(release_check.last_exception)
-    assert "could not be authenticated: HTTP 403" in caplog.text
+    assert "GitHub failed (HTTP 403)" in str(release_check.last_exception)
+    assert "GitHub failed (HTTP 403)" in caplog.text
 
 
 async def test_a_panel_older_than_lan_updates_is_never_offered_what_it_cannot_take(
