@@ -34,6 +34,8 @@ def async_reconcile_entity_hold_issue(
     hass: HomeAssistant, entry: ConfigEntry, status: PanelStatus
 ) -> None:
     """Raise the issue while the dashboard runs unfiltered; clear it after."""
+    if hass.config_entries.async_get_entry(entry.entry_id) is not entry:
+        return
     issue_id = dashboard_unfiltered_issue_id(entry.entry_id)
     if not dashboard_released_unfiltered(status):
         ir.async_delete_issue(hass, DOMAIN, issue_id)
