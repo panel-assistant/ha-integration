@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 import pytest
@@ -46,6 +47,7 @@ async def test_site_snapshot_offers_authenticated_update_without_github_api(
     trust: None,
     key: Any,
     latest: bool,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     github, _ = selection._public_pool(
         key, monkeypatch, [("1.2.0", 950, (6, 6)), ("1.1.0", 900, (5, 5))]
@@ -56,6 +58,7 @@ async def test_site_snapshot_offers_authenticated_update_without_github_api(
     assert entity.state == "on"
     assert github.requests[0] == str(SITE_URL)
     assert not _api_requests(github)
+    assert not [r for r in caplog.records if str(SITE_URL) in r.getMessage()]
     # The selected row traversed the existing signed descriptor/protocol checks.
     assert any(url.endswith("v1.1.0-install.json.sig") for url in github.requests)
     assert any(url.endswith("v1.1.0-protocol.json.sig") for url in github.requests)
@@ -71,13 +74,14 @@ async def test_unreadable_site_snapshot_falls_back_and_offers_update(
     trust: None,
     key: Any,
     failure: str,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     github, _ = selection._public_pool(key, monkeypatch, [("1.1.0", 900, (5, 5))])
     body = _snapshot(github)
     if failure == "invalid-json":
-        body = b"not json"
+        body = b"<html>not json</html>"
     elif failure == "schema":
-        body = body.replace(b'"schema": 1', b'"schema": true')
+        body = body.replace(b'"schema": 1', b'"schema": 2')
     elif failure == "null-row":
         body = b'{"schema":1,"latest":null,"releases":[null]}'
     elif failure == "too-many":
@@ -98,6 +102,19 @@ async def test_unreadable_site_snapshot_falls_back_and_offers_update(
         str(catalog._LATEST_RELEASE_URL),
         str(catalog._RECENT_RELEASES_URL),
     ]
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    message = warnings[0].getMessage()
+    assert str(SITE_URL) in message
+    assert "using GitHub" in message
+    reason = {
+        "404": "HTTP 404",
+        "timeout": "TimeoutError",
+        "invalid-json": "JSON",
+        "schema": "schema",
+    }.get(failure)
+    if reason is not None:
+        assert reason in message
 
 
 async def test_old_readable_snapshot_never_downgrades_or_uses_api(
@@ -187,3 +204,55 @@ async def test_explicit_selection_authenticates_snapshot_row_without_api(
     with pytest.raises(ReleaseResolutionError):
         await catalog.async_resolve_install_bundle_choice(hass, "v1.9.0")
     assert not _api_requests(github)
+
+
+async def test_both_sources_fail_warning_retains_site_reason(
+    hass, monkeypatch, trust, key, caplog
+):
+    github, _ = selection._public_pool(key, monkeypatch, [("1.1.0", 900, (5, 5))])
+    github._responses[str(SITE_URL)] = FakeResponse(404, b"", SITE_URL)
+    github._responses[str(catalog._LATEST_RELEASE_URL)] = FakeResponse(
+        403, b"", catalog._LATEST_RELEASE_URL
+    )
+    await selection._panel(hass, monkeypatch, github, with_feed=False)
+    failures = [
+        r.getMessage()
+        for r in caplog.records
+        if r.levelno == logging.WARNING
+        and "recent releases could not be authenticated" in r.getMessage()
+    ]
+    assert len(failures) == 1
+    assert str(SITE_URL) in failures[0]
+    assert "HTTP 404" in failures[0]
+    assert "HTTP 403" in failures[0]
+
+
+async def test_explicit_selection_warns_when_site_is_unreadable(
+    hass, monkeypatch, trust, key, caplog
+):
+    github, _ = selection._public_pool(key, monkeypatch, [("1.1.0", 900, (5, 5))])
+    github._responses[str(SITE_URL)] = FakeResponse(404, b"", SITE_URL)
+    monkeypatch.setattr(catalog, "async_get_clientsession", lambda _: github)
+    bundle = await catalog.async_resolve_install_bundle_choice(hass, "v1.1.0")
+    assert bundle.artifact.tag == "v1.1.0"
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    assert str(SITE_URL) in warnings[0].getMessage()
+    assert "HTTP 404" in warnings[0].getMessage()
+    assert "using GitHub" in warnings[0].getMessage()
+
+
+async def test_explicit_selection_both_sources_fail_retains_site_reason(
+    hass, monkeypatch, trust, key, caplog
+):
+    github, _ = selection._public_pool(key, monkeypatch, [("1.1.0", 900, (5, 5))])
+    github._responses[str(SITE_URL)] = FakeResponse(404, b"", SITE_URL)
+    tag_url = URL(f"{catalog.ANDROID_RELEASES_API}/tags/v1.1.0")
+    github._responses[str(tag_url)] = FakeResponse(403, b"", tag_url)
+    monkeypatch.setattr(catalog, "async_get_clientsession", lambda _: github)
+    with pytest.raises(ReleaseResolutionError) as failure:
+        await catalog.async_resolve_install_bundle_choice(hass, "v1.1.0")
+    assert str(SITE_URL) in str(failure.value)
+    assert "HTTP 404" in str(failure.value)
+    assert "HTTP 403" in str(failure.value)
+    assert len([r for r in caplog.records if r.levelno == logging.WARNING]) == 1

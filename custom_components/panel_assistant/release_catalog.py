@@ -53,7 +53,7 @@ def _decode(body: bytes) -> Any:
             **strict_json_hooks(ReleaseResolutionError),
         )
     except (UnicodeError, ValueError, RecursionError) as err:
-        raise ReleaseResolutionError from err
+        raise ReleaseResolutionError("Invalid JSON release list") from err
 
 
 def _choice(document: Any, *, prerelease: bool) -> dict[str, str | bool] | None:
@@ -117,7 +117,7 @@ async def _async_site_release_documents(
         or (catalog["latest"] is not None and not _catalog_release(catalog["latest"]))
         or not all(_catalog_release(row) for row in catalog["releases"])
     ):
-        raise ReleaseResolutionError
+        raise ReleaseResolutionError("Invalid release list schema or shape")
     return catalog["latest"], catalog["releases"]
 
 
@@ -129,10 +129,11 @@ async def _async_release_documents(
         latest, recent = await _async_site_release_documents(session)
         return latest, recent, True
     except ReleaseResolutionError as err:
-        _LOGGER.debug(
+        site_failure = str(err) or type(err.__cause__ or err).__name__
+        _LOGGER.warning(
             "Release list %s unavailable (%s); using GitHub",
             _SITE_RELEASES_URL,
-            err or type(err).__name__,
+            site_failure,
         )
     try:
         async with asyncio.timeout(20):
@@ -154,14 +155,17 @@ async def _async_release_documents(
                     headers=_API_HEADERS,
                 )
             )
-    except TimeoutError as err:
-        raise ReleaseResolutionError from err
-    if (
-        not isinstance(latest, dict)
-        or not isinstance(recent, list)
-        or len(recent) > _MAX_RECENT_RELEASES
-    ):
-        raise ReleaseResolutionError
+        if (
+            not isinstance(latest, dict)
+            or not isinstance(recent, list)
+            or len(recent) > _MAX_RECENT_RELEASES
+        ):
+            raise ReleaseResolutionError("Invalid GitHub release list shape")
+    except (ReleaseResolutionError, TimeoutError) as err:
+        raise ReleaseResolutionError(
+            f"Release list {_SITE_RELEASES_URL} unavailable ({site_failure}); "
+            f"GitHub failed ({str(err) or type(err.__cause__ or err).__name__})"
+        ) from err
     return latest, recent, False
 
 
@@ -402,10 +406,16 @@ async def async_resolve_install_bundle_choice(
     session = async_get_clientsession(hass)
     if tag is not None:
         release_body = None
+        site_failure = None
         try:
             latest, recent = await _async_site_release_documents(session)
-        except ReleaseResolutionError:
-            pass
+        except ReleaseResolutionError as err:
+            site_failure = str(err) or type(err.__cause__ or err).__name__
+            _LOGGER.warning(
+                "Release list %s unavailable (%s); using GitHub",
+                _SITE_RELEASES_URL,
+                site_failure,
+            )
         else:
             document = next(
                 (
@@ -418,7 +428,17 @@ async def async_resolve_install_bundle_choice(
             if document is None:
                 raise ReleaseResolutionError
             release_body = json.dumps(document).encode()
-        bundle = await _async_release_choice(session, tag, release_body=release_body)
+        try:
+            bundle = await _async_release_choice(
+                session, tag, release_body=release_body
+            )
+        except ReleaseResolutionError as err:
+            if site_failure is None:
+                raise
+            raise ReleaseResolutionError(
+                f"Release list {_SITE_RELEASES_URL} unavailable ({site_failure}); "
+                f"GitHub failed ({str(err) or type(err.__cause__ or err).__name__})"
+            ) from err
         if not _allowed(bundle.artifact, allow_prerelease=True):
             raise ReleaseResolutionError
         return bundle
