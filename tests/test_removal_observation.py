@@ -15,7 +15,7 @@ from custom_components.panel_assistant.repairs_removal import (
     removal_issue_id,
 )
 
-from .test_removal import FakePanel, _entry, panel  # noqa: F401
+from .test_removal import FakePanel, _choose_removal, _entry, panel  # noqa: F401
 
 
 @pytest.mark.parametrize(
@@ -76,14 +76,14 @@ async def test_repair_requires_verified_package_absence(
         )
         program.write_text(code)
     entry = _entry(hass, server)
-    async_request_removal(hass, entry)
+    await async_request_removal(hass, entry)
     issue_id = removal_issue_id(entry.entry_id)
     admin = await hass_client()
     response = await admin.post(
         "/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue_id}
     )
     assert response.status == 200
-    form = await response.json()
+    form = await _choose_removal(admin, await response.json())
     response = await admin.post(f"/api/repairs/issues/fix/{form['flow_id']}", json={})
     assert response.status == 200
     result = await response.json()
