@@ -326,6 +326,24 @@ def ignored_card_data(hass: HomeAssistant, unique_id: str) -> dict[str, str]:
     return {}
 
 
+@callback
+def configured_entries_for_host(hass: HomeAssistant, address: str) -> list[ConfigEntry]:
+    """Find entries for this host irrespective of the panel's listener port."""
+    host = normalize_address(address).host
+    configured = []
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        stored = entry.data.get(CONF_ADDRESS)
+        if not isinstance(stored, str):
+            continue
+        try:
+            matches = normalize_address(stored).host == host
+        except InvalidAddressError:
+            continue
+        if matches:
+            configured.append(entry)
+    return configured
+
+
 async def async_check_migration_target(
     hass: HomeAssistant,
     candidate: dict[str, Any],
@@ -333,8 +351,7 @@ async def async_check_migration_target(
     """Probe one candidate: a target when ADB answers or its source is panel-only."""
     configured = {
         entry.entry_id
-        for entry in hass.config_entries.async_entries(DOMAIN)
-        if entry.data.get(CONF_ADDRESS) == candidate["address"]
+        for entry in configured_entries_for_host(hass, candidate["address"])
     }
     if configured or any(
         is_installation(entry) for entry in hass.config_entries.async_entries(DOMAIN)
@@ -377,9 +394,8 @@ async def async_check_migration_target(
             return None
     adb_open = await _async_adb_answers(candidate["host"])
     if any(
-        entry.data.get(CONF_ADDRESS) == candidate["address"]
-        and entry.entry_id not in configured
-        for entry in hass.config_entries.async_entries(DOMAIN)
+        entry.entry_id not in configured
+        for entry in configured_entries_for_host(hass, candidate["address"])
     ):
         return None
     if not (adb_open or candidate["panel_only"]):
