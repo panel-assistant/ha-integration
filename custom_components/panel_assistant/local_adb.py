@@ -321,12 +321,18 @@ def installation_finished(hass: HomeAssistant, entry_id: str) -> None:
 
 
 def recovery_wait(hass: HomeAssistant, entry: ConfigEntry) -> float:
-    """Allow the independent lease to expire only for a proven local owner."""
+    """Allow the independent lease to expire for a managed local channel."""
     session = async_get_sessions(hass).latest(entry.entry_id)
     if (
         session is None
         or session.did != entry.unique_id
-        or session.local_adb_identity is None
+        or (
+            session.local_adb_identity is None
+            and (
+                not session_manages(session)
+                or CAPABILITY_LOCAL_ADB not in session.capabilities
+            )
+        )
     ):
         return 0
     return LOCAL_ADB_RECOVERY_SECONDS + LOCAL_ADB_RECOVERY_OVERHEAD_SECONDS
