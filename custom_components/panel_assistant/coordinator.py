@@ -62,6 +62,9 @@ from .transport_sessions import (
 from .update_policy import prereleases_allowed
 
 _LOGGER = logging.getLogger(__name__)
+# Longer than an on-panel approval lives (600 s), so prompts never stack.
+_ADMIN_APPROVAL_BACKOFF = 3600.0
+_ADMIN_APPROVAL_BACKOFF_MAX = 86400.0
 # Refused senders are hints, not sessions. Repeated hellos replace only their
 # own hint, and a bound account cannot grow an unreachable entry's memory forever.
 _MAX_REFUSED_HELLOS = 16
@@ -124,6 +127,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         self._admin_key: tuple[str, str, int | None, str] | None = None
         self._admin_done = False
         self._admin_retry_at = 0.0
+        self._admin_backoff = 0.0
         # True until the first poll answers otherwise, as `last_update_success` starts.
         self.reachable = True
         # Where the panel last said it was in an accepted session:
@@ -361,6 +365,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             self._admin_key = key
             self._admin_done = False
             self._admin_retry_at = 0.0
+            self._admin_backoff = 0.0
         if (
             (self._admin_done and not health.home_pending)
             or monotonic() < self._admin_retry_at
@@ -374,8 +379,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             ):
                 manager = await async_get_install_job_manager(self.hass)
                 self._admin_retry_at = monotonic() + 300
+                # A background pass never waits on an on-panel approval.
                 target = await local_adb.async_target(
-                    self.hass, entry, self.client.address
+                    self.hass, entry, self.client.address, approval=False
                 )
                 signer = None
                 if target is None:
@@ -487,10 +493,18 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             *adb._ADB_EXCEPTIONS,
             OSError,
             TimeoutError,
-        ):
+        ) as err:
             # Admin readback alone cannot finish a pass whose vendor I/O failed.
             self._admin_done = False
             _LOGGER.debug("Deferred panel device admin could not be activated")
+            if local_adb.approval_pending(err):
+                # Hardened mode: each shell needs someone at the panel. Ask
+                # again only after a doubling back-off, past the prompt's life.
+                self._admin_backoff = min(
+                    max(_ADMIN_APPROVAL_BACKOFF, self._admin_backoff * 2),
+                    _ADMIN_APPROVAL_BACKOFF_MAX,
+                )
+                self._admin_retry_at = monotonic() + self._admin_backoff
         finally:
             try:
                 await adb._async_close(device)
