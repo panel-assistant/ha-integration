@@ -24,7 +24,12 @@ from .client import (
     PanelAddress,
     UpdateApprovalRequiredError,
 )
-from .transport_protocol import CAPABILITY_LOCAL_ADB, OUTCOME_APPLIED, OUTCOME_REFUSED
+from .transport_protocol import (
+    CAPABILITY_LOCAL_ADB,
+    ERR_APPROVAL_PENDING,
+    OUTCOME_APPLIED,
+    OUTCOME_REFUSED,
+)
 from .transport_sessions import (
     PanelSession,
     async_get_sessions,
@@ -36,6 +41,15 @@ LOCAL_ADB_APPROVAL_SECONDS = 600.0
 LOCAL_ADB_RECOVERY_SECONDS = 300
 LOCAL_ADB_RECOVERY_OVERHEAD_SECONDS = 15
 LOCAL_ADB_RECOVERY_RETRY_SECONDS = 15
+
+
+def approval_pending(err: BaseException) -> bool:
+    """Whether a local request failed because the panel asked for approval."""
+    cause = err.__cause__
+    return (
+        isinstance(cause, HomeAssistantError)
+        and cause.translation_key == ERR_APPROVAL_PENDING
+    )
 
 
 def _failure() -> adb.InstallAdbError:
@@ -63,6 +77,7 @@ async def _request(
     op: str,
     args: dict[str, Any],
     wait_seconds: float,
+    approval: bool = True,
 ) -> dict[str, Any]:
     if session_for(hass, entry) is not session:
         raise _failure()
@@ -76,6 +91,7 @@ async def _request(
             approval_seconds=LOCAL_ADB_APPROVAL_SECONDS
             if op in ("adb.shell", "adb.recover")
             else 0,
+            wait_for_approval=approval,
         )
     except HomeAssistantError as err:
         raise _failure() from err
@@ -100,8 +116,13 @@ async def async_shell(
     timeout_ms: int,
     *,
     session: PanelSession | None = None,
+    approval: bool = True,
 ) -> bytes:
-    """Execute once; an incomplete or ambiguous result is never retried."""
+    """Execute once; an incomplete or ambiguous result is never retried.
+
+    Without ``approval``, a panel that asks for on-screen approval fails the
+    request at once instead of waiting for someone to answer it.
+    """
     session = session or session_for(hass, entry)
     if (
         session is None
@@ -118,6 +139,7 @@ async def async_shell(
         "adb.shell",
         {"command": command, "timeout_ms": timeout_ms},
         timeout_ms / 1000 + 10,
+        approval,
     )
     if (
         set(result) != {"stdout_b64", "exit_code", "timed_out", "truncated"}
@@ -142,9 +164,14 @@ class LocalAdbDevice(AdbDeviceAsync):
     """The shell interface existing command parsers use, with no TCP fallback."""
 
     def __init__(
-        self, hass: HomeAssistant, entry: ConfigEntry, session: PanelSession
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        session: PanelSession,
+        approval: bool = True,
     ) -> None:
         self.hass, self.entry, self.session = hass, entry, session
+        self.approval = approval
 
     async def streaming_shell(
         self,
@@ -159,6 +186,7 @@ class LocalAdbDevice(AdbDeviceAsync):
             command,
             min(180000, max(1, int(read_timeout_s * 1000))),
             session=self.session,
+            approval=self.approval,
         )
         yield body.decode() if decode else body
 
@@ -241,8 +269,13 @@ async def async_target(
     hass: HomeAssistant,
     entry: ConfigEntry,
     address: PanelAddress,
+    *,
+    approval: bool = True,
 ) -> adb.AdbInstallTarget | None:
-    """Prove actual readiness and physical identity before selecting local I/O."""
+    """Prove actual readiness and physical identity before selecting local I/O.
+
+    ``approval`` applies to every shell the returned target carries.
+    """
     session = session_for(hass, entry)
     if session is None:
         return None
@@ -261,7 +294,7 @@ async def async_target(
         if ready["build_id"] != prepared[2]:
             # Explicitly reopen the original route before replacing its recovery
             # owner. The root bootstrap still pins and revalidates this panel.
-            await async_recover(hass, entry)
+            await async_recover(hass, entry, approval=approval)
             is_ready = False
     if not is_ready:
         build = await _bootstrap(hass, entry, session, address, prepared)
@@ -279,7 +312,7 @@ async def async_target(
             await asyncio.sleep(0.2)
         else:
             raise _failure()
-    device = LocalAdbDevice(hass, entry, session)
+    device = LocalAdbDevice(hass, entry, session, approval)
     nonce = token_hex(16)
     try:
         observed = adb._parse_identity(
@@ -289,6 +322,7 @@ async def async_target(
                 "; ".join(adb._framed_value_commands("ID", nonce)),
                 10000,
                 session=session,
+                approval=approval,
             ),
             nonce,
             "ID",
@@ -303,7 +337,12 @@ async def async_target(
         nonce = token_hex(16)
         adb._parse_identity_root(
             await async_shell(
-                hass, entry, adb._identity_root_command(nonce), 10000, session=session
+                hass,
+                entry,
+                adb._identity_root_command(nonce),
+                10000,
+                session=session,
+                approval=approval,
             ),
             nonce,
             target,
@@ -320,12 +359,14 @@ async def async_target(
     return replace(target, local_shell=device)
 
 
-async def async_recover(hass: HomeAssistant, entry: ConfigEntry) -> None:
+async def async_recover(
+    hass: HomeAssistant, entry: ConfigEntry, *, approval: bool = True
+) -> None:
     """Request independent network recovery; callers still prove its identity."""
     session = session_for(hass, entry)
     if session is None:
         raise _failure()
-    result = await _request(hass, entry, session, "adb.recover", {}, 30)
+    result = await _request(hass, entry, session, "adb.recover", {}, 30, approval)
     if set(result) != {"enabled"} or result["enabled"] is not True:
         raise _failure()
 

@@ -564,6 +564,7 @@ async def async_manage_outcome(
     wait_seconds: float,
     *,
     approval_seconds: float = 0,
+    wait_for_approval: bool = True,
     **fields: Any,
 ) -> CommandOutcome:
     """Ask one management request and return its final outcome, whatever it is.
@@ -586,6 +587,7 @@ async def async_manage_outcome(
         wait_seconds,
         kind="manage",
         approval_seconds=approval_seconds,
+        wait_for_approval=wait_for_approval,
     )
 
 
@@ -600,6 +602,7 @@ async def async_deliver(
     command_id: str | None = None,
     deadline_ms: int = COMMAND_DEADLINE_MS,
     approval_seconds: float = 0,
+    wait_for_approval: bool = True,
     on_settled: Callable[[], None] | None = None,
 ) -> CommandOutcome:
     """Send one event on a session once and wait for its final outcome.
@@ -633,7 +636,9 @@ async def async_deliver(
     future = command.future
     try:
         async with asyncio.timeout(wait_seconds) as scope:
-            if approval_seconds:
+            if not wait_for_approval:
+                command.on_interim = lambda: scope.reschedule(hass.loop.time())
+            elif approval_seconds:
                 command.on_interim = lambda: scope.reschedule(
                     hass.loop.time() + approval_seconds + wait_seconds
                 )
