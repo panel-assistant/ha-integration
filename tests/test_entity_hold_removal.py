@@ -12,6 +12,8 @@ from custom_components.panel_assistant.repairs_failure import (
     _failure_store,
     async_record_update_failure,
 )
+from custom_components.panel_assistant.repairs_permission import permission_issue_id
+from custom_components.panel_assistant.repairs_proximity import proximity_issue_id
 
 from .test_availability import _load_offline
 from .test_management import _http_blocked
@@ -81,5 +83,66 @@ async def test_native_refresh_finishing_after_removal_leaves_no_repair(
             assert hass.config_entries.async_get_entry(entry.entry_id) is None
             assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
             assert panel.ops.count("snapshot") == snapshots_before + 1
+        finally:
+            await panel.close()
+
+
+async def test_native_refresh_after_removal_leaves_no_permission_or_proximity_repair(
+    hass: HomeAssistant,
+    hass_ws_client: Any,
+    hass_client: Any,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+) -> None:
+    with _http_blocked():
+        entry = await _load_offline(hass, hass_read_only_user.id, DID)
+        coordinator = entry.runtime_data.coordinator
+        panel = FakePanel(
+            hass, hass_ws_client, hass_client, hass_read_only_access_token
+        )
+        await panel.connect()
+        try:
+            await coordinator.async_refresh()
+            await hass.async_block_till_done()
+            await async_record_update_failure(
+                hass, entry.entry_id, entry.title, "770", RuntimeError("interrupted")
+            )
+            panel.status["permissions"] = {"camera": "missing"}
+            panel.status["proximity"] = {"state": "calibration_required"}
+            store = _failure_store(hass)
+            saving = asyncio.Event()
+            release_save = asyncio.Event()
+            original_save = store.store.async_save
+
+            async def save(data: Any) -> None:
+                saving.set()
+                await release_save.wait()
+                await original_save(data)
+
+            issue_ids = (
+                permission_issue_id(entry.entry_id),
+                proximity_issue_id(entry.entry_id),
+            )
+            with patch.object(store.store, "async_save", save):
+                poll = asyncio.create_task(coordinator.async_refresh())
+                await asyncio.wait_for(saving.wait(), 5)
+                remove = asyncio.create_task(
+                    hass.config_entries.async_remove(entry.entry_id)
+                )
+                try:
+                    async with asyncio.timeout(5):
+                        # HA exposes no awaitable entry-removal notification.
+                        while hass.config_entries.async_get_entry(  # noqa: ASYNC110
+                            entry.entry_id
+                        ):
+                            await asyncio.sleep(0)
+                finally:
+                    release_save.set()
+                    await asyncio.wait_for(asyncio.gather(poll, remove), 5)
+                await hass.async_block_till_done()
+
+            assert hass.config_entries.async_get_entry(entry.entry_id) is None
+            for issue_id in issue_ids:
+                assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
         finally:
             await panel.close()

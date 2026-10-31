@@ -525,6 +525,12 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         await self._async_clear_update_failure(
             health, webview_completed=_webview_done(status)
         )
+        # An entry removed during the awaits above has no owner left to clear
+        # a Repair raised from this observation.
+        if self._entry() is not entry:
+            raise UpdateFailed(
+                translation_domain=DOMAIN, translation_key="health_address_retired"
+            )
         if entry is not None:
             async_reconcile_permission_issue(self.hass, entry, status)
             async_reconcile_proximity_issue(self.hass, entry, status)
