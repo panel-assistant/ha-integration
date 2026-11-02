@@ -1863,8 +1863,9 @@ async def test_a_missing_original_launcher_is_named_with_its_fix(
             continue
         assert "no other home-screen app" not in shown
         assert "Reinstall" in shown
-        assert (f"Reinstall {NOVA} on" in shown) is named
-        assert ("Reinstall that launcher" in shown) is not named
+        assert "no longer installed or is turned off" in shown
+        assert (f"Reinstall {NOVA} or turn it back on" in shown) is named
+        assert ("Reinstall that launcher or turn it back on" in shown) is not named
     # A refusal is never overridden through the vendor's launcher.
     assert fake.installed == sorted([PACKAGE_ID, vendor_provisioning.SHELLY_LAUNCHER])
     assert fake.read()["home"] == APP_HOME
