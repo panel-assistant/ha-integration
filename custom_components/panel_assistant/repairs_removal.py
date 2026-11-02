@@ -127,6 +127,7 @@ class RemoveFromPanelFlow(RepairsFlow):
             async_dismiss_removal_notification(self.hass, self._entry_id)
             return self.async_create_entry(data={})
         errors: dict[str, str] = {}
+        placeholders: dict[str, str] = {}
         if user_input is not None:
             try:
                 await async_remove_app(self.hass, entry)
@@ -135,6 +136,7 @@ class RemoveFromPanelFlow(RepairsFlow):
                     # Ask the panel to allow Home Assistant here, then come back.
                     return await self.async_step_authorize_adb()
                 errors["base"] = f"removal_{err.reason}"
+                placeholders = err.placeholders
             else:
                 # Keep the persistent request until entry removal has completed.
                 # A restart before then leaves the same Repair available to retry.
@@ -158,6 +160,7 @@ class RemoveFromPanelFlow(RepairsFlow):
                 "panel": panel_display_name(self.hass, entry),
                 "risks_url": help_url("removal-risks", **parameters),
                 "learn_more_url": help_url("removal-risks", **parameters),
+                **placeholders,
             },
             errors=errors,
         )

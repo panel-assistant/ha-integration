@@ -2093,6 +2093,7 @@ class HaPaneldOptionsFlow(OptionsFlow):
     ) -> ConfigFlowResult:
         """Remove the app on the one Submit under the risks link."""
         errors: dict[str, str] = {}
+        placeholders: dict[str, str] = {}
         if user_input is not None:
             # Options flows close with their entry; keep the owner's request in
             # Repairs until the scheduled entry deletion has actually completed.
@@ -2101,6 +2102,7 @@ class HaPaneldOptionsFlow(OptionsFlow):
                 await async_remove_app(self.hass, self.config_entry)
             except RemovalError as err:
                 errors["base"] = f"removal_{err.reason}"
+                placeholders = err.placeholders
                 if (
                     err.reason == REASON_ADB_AUTHORIZATION
                     and self._current_panel_health() is None
@@ -2131,6 +2133,7 @@ class HaPaneldOptionsFlow(OptionsFlow):
             description_placeholders={
                 "panel": panel_display_name(self.hass, self.config_entry),
                 "risks_url": self._removal_risks_url,
+                **placeholders,
             },
             errors=errors,
         )

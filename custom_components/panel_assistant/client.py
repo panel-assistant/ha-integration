@@ -130,12 +130,14 @@ class HandBackRefusedError(UpdateRejectedError):
     ``code`` is the panel's own refusal (``no-replacement-home``,
     ``ownership-unreadable``, ``package-state-unknown``), ``not-handed`` for a
     success that did not confirm another launcher took HOME, or ``unsupported``
-    for an app too old to hand it back.
+    for an app too old to hand it back. ``launcher`` is the package of the
+    recorded original home screen an ``original-home-missing`` refusal names.
     """
 
-    def __init__(self, code: str) -> None:
+    def __init__(self, code: str, launcher: str | None = None) -> None:
         super().__init__(code)
         self.code = code
+        self.launcher = launcher
 
 
 def is_valid_discovery_id(value: str) -> bool:
@@ -887,8 +889,14 @@ class HaPaneldClient:
         if status in (404, 405):
             raise HandBackRefusedError("unsupported")
         if status == 409:
-            code = _load_json_object(body).get("error")
-            raise HandBackRefusedError(code if isinstance(code, str) else "refused")
+            refusal = _load_json_object(body)
+            code = refusal.get("error")
+            original = refusal.get("original_home")
+            launcher = original.split("/")[0] if isinstance(original, str) else ""
+            raise HandBackRefusedError(
+                code if isinstance(code, str) else "refused",
+                launcher if _PACKAGE_NAME_PATTERN.fullmatch(launcher) else None,
+            )
         if status != 200:
             raise UpdateRejectedError if 400 <= status < 500 else CannotConnectError
         handed_to = _load_json_object(body).get("home_handed_to")
