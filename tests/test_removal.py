@@ -189,6 +189,8 @@ class FakePanel:
         #: How the app answers hand-back-home: "hand", "approval", a 409
         #: code, "unconfirmed" (200 without a launcher) or an HTTP status.
         self.hand_back: str | int = "hand"
+        #: The recorded original home screen a 409 names, when set.
+        self.original_home: Any = None
         self.hand_back_requests = 0
         #: Raise after the shell ran, as a dropped connection would.
         self.drop_after: str | None = None
@@ -298,7 +300,10 @@ class FakePanel:
             )
         if isinstance(mode, int):
             return web.Response(status=mode)
-        return web.json_response({"ok": False, "error": mode}, status=409)
+        refusal: dict[str, Any] = {"ok": False, "error": mode}
+        if self.original_home is not None:
+            refusal["original_home"] = self.original_home
+        return web.json_response(refusal, status=409)
 
 
 @pytest.fixture
@@ -1784,3 +1789,84 @@ async def test_an_unauthorized_panel_is_asked_to_allow_home_assistant_in_the_rep
     assert result["type"] == "form", result
     assert result["step_id"] == "authorize_adb"
     assert fake.installed == [PACKAGE_ID]
+
+
+NOVA = "com.teslacoilsw.launcher"
+
+
+async def _shown(hass: HomeAssistant, path: str, result: dict[str, Any]) -> str:
+    """The base error as the owner reads it: English text, placeholders filled."""
+    from homeassistant.helpers.translation import async_get_translations
+
+    category, _, rest = path.partition(".")
+    text = (await async_get_translations(hass, "en", category, {DOMAIN}))[
+        f"component.{DOMAIN}.{category}.{rest}.{result['errors']['base']}"
+    ]
+    return str(text).format(**(result.get("description_placeholders") or {}))
+
+
+@pytest.mark.parametrize(
+    ("answer", "original_home", "named"),
+    [
+        ("original-home-missing", f"{NOVA}/.Launcher", True),
+        ("original-home-missing", None, False),
+        ("original-home-missing", "not a component", False),
+        ("original-home-missing", 7, False),
+        ("no-replacement-home", None, False),
+    ],
+)
+async def test_a_missing_original_launcher_is_named_with_its_fix(
+    hass: HomeAssistant,
+    panel: tuple[FakePanel, TestServer],
+    hass_client: Any,
+    answer: str,
+    original_home: Any,
+    named: bool,
+) -> None:
+    """Options and the Repair name the recorded launcher and say to reinstall
+    it; an older app's no-replacement-home keeps its own message."""
+    from homeassistant.setup import async_setup_component
+
+    from custom_components.panel_assistant.repairs_removal import (
+        async_request_removal,
+        removal_issue_id,
+    )
+
+    assert await async_setup_component(hass, "repairs", {})
+    assert await async_setup_component(hass, DOMAIN, {})
+    fake, server = panel
+    fake.hand_back = answer
+    fake.original_home = original_home
+    # A Shelly launcher is one Panel Assistant could make HOME itself, which
+    # it must not do for these refusals.
+    fake.set(installed=[PACKAGE_ID, vendor_provisioning.SHELLY_LAUNCHER])
+    entry = _entry(hass, server)
+
+    options = await _shown(hass, "options.error", await _remove(hass, entry))
+    await async_request_removal(hass, entry)
+    admin = await hass_client()
+    response = await admin.post(
+        "/api/repairs/issues/fix",
+        json={"handler": DOMAIN, "issue_id": removal_issue_id(entry.entry_id)},
+    )
+    form = await _choose_removal(admin, await response.json())
+    response = await admin.post(f"/api/repairs/issues/fix/{form['flow_id']}", json={})
+    repair = await _shown(
+        hass, "issues.remove_from_panel.fix_flow.error", await response.json()
+    )
+
+    for shown in (options, repair):
+        assert "Nothing was removed" in shown
+        if answer == "no-replacement-home":
+            assert "no other home-screen app" in shown
+            assert "Reinstall" not in shown
+            continue
+        assert "no other home-screen app" not in shown
+        assert "Reinstall" in shown
+        assert "no longer installed or is turned off" in shown
+        assert (f"Reinstall {NOVA} or turn it back on" in shown) is named
+        assert ("Reinstall that launcher or turn it back on" in shown) is not named
+    # A refusal is never overridden through the vendor's launcher.
+    assert fake.installed == sorted([PACKAGE_ID, vendor_provisioning.SHELLY_LAUNCHER])
+    assert fake.read()["home"] == APP_HOME
+    assert fake.read()["events"] == []
