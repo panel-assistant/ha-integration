@@ -179,6 +179,7 @@ _STABLE_CHOICE = "stable"
 _SETUP_POLL_SECONDS = 3
 # Long enough to walk to the panel and answer Android's Allow prompt.
 _ADB_APPROVAL_SECONDS = 120.0
+_ADB_ALLOW_POLL_SECONDS = 3.0
 _HOST_PROBE_SECONDS = 3
 _SETUP_WATCH_SECONDS = 60 * 60
 
@@ -1737,10 +1738,48 @@ def _install_terminal_abort_reason(receipt: InstallJobReceipt) -> str:
 async def async_wait_for_adb_allow(
     address: PanelAddress, signer: PythonRSASigner
 ) -> InstallTargetProbe:
-    """Hold one key offer, then check that a fresh connection is trusted."""
-    offered = await async_probe_install_target(
-        address, signer, authorize=True, approval_seconds=_ADB_APPROVAL_SECONDS
-    )
+    """Hold one key offer until a fresh connection is trusted.
+
+    Android may deliver a remembered Allow to another transport, leaving the
+    offering connection unopened after the owner allowed. While the offer is
+    pending, fresh connections that never offer the key are probed too, and
+    the first one the panel trusts ends the offer early.
+    """
+
+    async def watch_fresh_connections() -> InstallTargetProbe:
+        try:
+            while True:
+                await asyncio.sleep(_ADB_ALLOW_POLL_SECONDS)
+                fresh = await async_probe_install_target(address, signer)
+                if fresh.state not in (
+                    InstallTargetState.ADB_UNAUTHORIZED,
+                    InstallTargetState.ADB_UNREACHABLE,
+                ):
+                    return fresh
+        finally:
+            # A trusted connection or a failure ends the offer; a cancellation
+            # means the offer already ended.
+            task = asyncio.current_task()
+            if task is not None and not task.cancelling():
+                ends_offer.reschedule(asyncio.get_running_loop().time())
+
+    watcher: asyncio.Task[InstallTargetProbe] | None = None
+    try:
+        # The offer stays awaited here, so closing the dialog cancels it at once.
+        async with asyncio.timeout(None) as ends_offer:
+            watcher = asyncio.create_task(watch_fresh_connections())
+            offered = await async_probe_install_target(
+                address, signer, authorize=True, approval_seconds=_ADB_APPROVAL_SECONDS
+            )
+    except TimeoutError:
+        if watcher is None or not watcher.done():
+            raise
+        return watcher.result()
+    finally:
+        if watcher is not None and not watcher.done():
+            watcher.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await watcher
     if offered.state in (
         InstallTargetState.ADB_UNAUTHORIZED,
         InstallTargetState.ADB_UNREACHABLE,

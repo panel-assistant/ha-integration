@@ -14,6 +14,7 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.panel_assistant import config_flow
 from custom_components.panel_assistant.client import PanelAddress, PanelHealth
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.install_network import PinnedPanelTarget
@@ -34,6 +35,12 @@ class AskingPanel:
         self.taps: asyncio.Queue[bool] = asyncio.Queue()
         self.offers: list[float] = []
         self.cancelled = False
+        # Android can deliver the Allow to another transport: the offering
+        # connection then never opens, but a fresh one is trusted.
+        self.offer_opens = True
+        self.fresh_probes = 0
+        self.probed_fresh = asyncio.Event()
+        self.trusted_after_fresh: int | None = None
 
     async def probe(
         self,
@@ -46,9 +53,20 @@ class AskingPanel:
         if self.trusted:
             return InstallTargetProbe(state=InstallTargetState.INSTALLED)
         if not authorize:
+            self.fresh_probes += 1
+            if self.fresh_probes >= 3:
+                self.probed_fresh.set()
+            if (
+                self.trusted_after_fresh is not None
+                and self.fresh_probes >= self.trusted_after_fresh
+            ):
+                self.trusted = True
+                return InstallTargetProbe(state=InstallTargetState.INSTALLED)
             return InstallTargetProbe(state=InstallTargetState.ADB_UNAUTHORIZED)
         self.offers.append(approval_seconds)
         try:
+            if not self.offer_opens:
+                await asyncio.Event().wait()
             allowed = await self.taps.get()
         except asyncio.CancelledError:
             self.cancelled = True
@@ -257,3 +275,38 @@ async def test_existing_panel_closing_the_dialog_cancels_the_offer(
     assert caller.panel.cancelled
     caller.reload.assert_not_awaited()
     caller.install.assert_not_awaited()
+
+
+@pytest.mark.parametrize("outcome", ["allowed_elsewhere", "never_allowed"])
+async def test_existing_panel_allow_delivered_elsewhere_finishes_on_first_press(
+    hass: HomeAssistant, caller: Any, outcome: str
+) -> None:
+    """A remembered Allow ends the wait even if the offering connection never opens."""
+    if outcome == "allowed_elsewhere":
+        caller.panel.offer_opens = False
+        # Trusted from the third fresh connection: a few polls after the start.
+        caller.panel.trusted_after_fresh = 3
+    with patch.object(config_flow, "_ADB_ALLOW_POLL_SECONDS", 0.01, create=True):
+        waiting = await caller.configure({})
+        assert waiting["type"] == "progress"
+        if outcome == "never_allowed":
+            await asyncio.wait_for(caller.panel.probed_fresh.wait(), 5)
+            # The offer reaches its approval bound unanswered.
+            caller.panel.taps.put_nowait(False)
+        await asyncio.wait_for(hass.async_block_till_done(), 5)
+    result = await caller.configure({})
+    assert len(caller.panel.offers) == 1
+    assert caller.panel.offers[0] >= 60
+    assert caller.panel.fresh_probes >= 3
+    caller.install.assert_not_awaited()
+    if outcome == "allowed_elsewhere":
+        assert caller.panel.cancelled
+        assert result["type"] == (
+            "menu" if caller.route == "failure_repair" else "create_entry"
+        )
+        caller.reload.assert_awaited_once_with(caller.entry.entry_id)
+    else:
+        assert result["type"] == "form"
+        assert result["errors"] == {"base": "adb_still_unauthorized"}
+        caller.reload.assert_not_awaited()
+        assert ir.async_get(hass).async_get_issue(DOMAIN, caller.issue_id) is not None
