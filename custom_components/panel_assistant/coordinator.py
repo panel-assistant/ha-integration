@@ -68,6 +68,9 @@ _ADMIN_APPROVAL_BACKOFF_MAX = 86400.0
 # Refused senders are hints, not sessions. Repeated hellos replace only their
 # own hint, and a bound account cannot grow an unreachable entry's memory forever.
 _MAX_REFUSED_HELLOS = 16
+# A reported port the stored endpoint does not use is tried once per session,
+# then this often: a forwarded port keeps answering while those never do.
+_PORT_PROBE_INTERVAL = 3600.0
 
 
 def _webview_done(status: PanelStatus) -> bool:
@@ -143,6 +146,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         from .vendor_recovery import VendorRecovery
 
         self._vendor_recovery = VendorRecovery(self)
+        self._port_probe: tuple[PanelSession, float] | None = None
 
     @property
     def connected(self) -> bool:
@@ -260,8 +264,15 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             session is not None
             and session.http_port is not None
             and session.http_port != self.client.address.port
+            and (
+                self._port_probe is None
+                or self._port_probe[0] is not session
+                or monotonic() >= self._port_probe[1]
+            )
         ):
-            await self._async_recover_address()
+            self._port_probe = (session, monotonic() + _PORT_PROBE_INTERVAL)
+            # Only the stored address failing as well needs the owner.
+            await self._async_recover_address(report=False)
         if session_manages(session):
             assert session is not None
             entry = self._entry()
@@ -768,7 +779,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             webview_completed=webview_completed,
         )
 
-    async def _async_recover_address(self) -> PanelHealth | None:
+    async def _async_recover_address(
+        self, *, report: bool = True
+    ) -> PanelHealth | None:
         """Try the address a connected panel is talking from, when it has one.
 
         A panel refused a session for its protocol, reinstalled under a new
@@ -815,7 +828,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             ):
                 break
         else:
-            if session is not None:
+            if session is not None and report:
                 self._report(entry, ISSUE_PANEL_ADDRESS_UNVERIFIED, candidates[0].host)
             return None
         # A superseded session or edited entry cannot move an endpoint after I/O.
