@@ -228,9 +228,12 @@ class _FailureStore:
         issue_id: str,
         event: dict[str, Any],
         after_save: Callable[[], None] | None = None,
+        when: Callable[[], bool] | None = None,
     ) -> None:
         async with self.lock:
             records = await self.load()
+            if when is not None and not when():
+                return
             previous = records.get(issue_id, {})
             events = previous.get("events", [])
             if not isinstance(events, list):
@@ -454,6 +457,8 @@ async def async_record_update_failure(
             if getattr(error, "translation_key", None) == "adb_authorization_required"
             else None,
         ),
+        # An entry removed during the awaits above keeps neither report nor Repair.
+        lambda: hass.config_entries.async_get_entry(entry_id) is entry,
     )
 
 
