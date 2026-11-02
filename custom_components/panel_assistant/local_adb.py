@@ -410,7 +410,7 @@ async def async_hand_back_home(hass: HomeAssistant, entry: ConfigEntry) -> None:
         outcome = await async_manage_outcome(
             hass,
             session,
-            "hand-back-home",
+            "hand_back_home",
             30,
             args={},
             approval_seconds=LOCAL_ADB_APPROVAL_SECONDS,
@@ -421,8 +421,9 @@ async def async_hand_back_home(hass: HomeAssistant, entry: ConfigEntry) -> None:
         raise HaPaneldError from err
     result = outcome.result if isinstance(outcome.result, dict) else {}
     if outcome.outcome != OUTCOME_APPLIED:
-        code = result.get("error")
-        raise HandBackRefusedError(code if isinstance(code, str) else "refused")
+        raise HandBackRefusedError.from_refusal(
+            result.get("error"), result.get("original_home")
+        )
     handed = result.get("home_handed_to")
     if not isinstance(handed, str) or _PACKAGE_NAME_PATTERN.fullmatch(handed) is None:
         raise HandBackRefusedError("not-handed")
