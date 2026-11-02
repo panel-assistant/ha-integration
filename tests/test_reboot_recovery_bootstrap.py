@@ -30,7 +30,7 @@ from custom_components.panel_assistant.adb_credentials import AdbCredential
 from custom_components.panel_assistant.client import HaPaneldClient
 from custom_components.panel_assistant.transport_sessions import async_get_sessions
 
-from .install_adb_fakes import _identity_root_output, _identity_sections
+from .install_adb_fakes import _identity_root_output, _identity_sections, _section
 from .test_availability import _load
 from .test_management import MANAGED, STATUS_BODY, _connect
 from .test_transport import DID, HEALTH, WsClientFactory, _receive
@@ -59,7 +59,7 @@ def _shell_result(body: bytes) -> dict[str, Any]:
     }
 
 
-def _answer_shell(command: str) -> bytes:
+def _answer_shell(command: str, route: str = "adbd") -> bytes:
     nonce = re.search(r"HAPANELD_(\w+?)_BEGIN:([a-f0-9]{32})", command)
     assert nonce is not None
     prefix, value = nonce[1], nonce[2]
@@ -75,8 +75,26 @@ def _answer_shell(command: str) -> bytes:
             + "\n"
         ).encode()
     if prefix == "POSTURE":
-        # Root adbd: the network route has root although the app has no su.
-        return _identity_root_output(value, uid="0")
+        # The ADB route's own posture: root adbd (uid 0), a shell with a
+        # working su, or neither. The app itself has no su.
+        return _identity_root_output(
+            value,
+            uid="0" if route == "adbd" else "2000",
+            su_lines=["present" if route == "su" else "absent"],
+        )
+    if prefix == "DELEGATE":
+        return (
+            "\n".join(
+                [
+                    f"HAPANELD_DELEGATE_BEGIN:{value}",
+                    f"HAPANELD_SU_BEGIN:{value}",
+                    *_section("SU", "UID", value, ["0"], 0),
+                    f"HAPANELD_SU_END:{value}",
+                    f"HAPANELD_DELEGATE_END:{value}:0",
+                ]
+            )
+            + "\n"
+        ).encode()
     if prefix == "BOOTSTRAP":
         return (
             f"HAPANELD_BOOTSTRAP_BEGIN:{value}\nlaunched\n"
@@ -92,8 +110,9 @@ def _answer_shell(command: str) -> bytes:
 class _Panel:
     """One booted panel: its daemon state, its network ADB and its sessions."""
 
-    def __init__(self, daemon_running: bool) -> None:
+    def __init__(self, daemon_running: bool, route: str = "adbd") -> None:
         self.daemon_running = daemon_running
+        self.route = route
         self.requests: list[str] = []
         self.bootstraps: list[str] = []
         self.network_hosts: list[str] = []
@@ -118,7 +137,9 @@ class _Panel:
             elif op == "adb.prepare":
                 result = PREPARED
             elif op == "adb.shell":
-                result = _shell_result(_answer_shell(event["args"]["command"]))
+                result = _shell_result(
+                    _answer_shell(event["args"]["command"], self.route)
+                )
             else:
                 await panel.answer(event, "refused", code="unknown_command")
                 continue
@@ -131,9 +152,10 @@ class _Panel:
             async def streaming_shell(
                 self, command: str, **_kwargs: Any
             ) -> AsyncIterator[bytes]:
-                body = _answer_shell(command)
+                body = _answer_shell(command, state.route)
                 if b"BOOTSTRAP_BEGIN" in body:
                     assert SHA in command
+                    assert command.startswith("su 0 ") is (state.route == "su")
                     state.bootstraps.append(host)
                     if state.failed_launches:
                         state.failed_launches -= 1
@@ -207,6 +229,7 @@ async def _rebooted_panel(
     monkeypatch: pytest.MonkeyPatch,
     *,
     daemon_after_boot: bool,
+    route: str = "adbd",
 ) -> tuple[Any, _Panel, list[float], list[asyncio.Task[None]]]:
     """Complete the admin pass, then reboot the panel into a fresh session."""
     now = [1000.0]
@@ -218,7 +241,8 @@ async def _rebooted_panel(
         async_get_status=AsyncMock(return_value=None),
     ):
         entry = await _load(hass, user.id, unique_id=DID)
-    before = _Panel(daemon_running=True)
+    # A rootless panel never had a daemon; its pass finishes over network ADB.
+    before = _Panel(daemon_running=route != "rootless", route=route)
     network_adb["panel"] = before
     first = await _connect(hass, hass_ws_client, token, [*MANAGED, "local_adb"])
     tasks = [asyncio.create_task(before.serve(first))]
@@ -232,7 +256,7 @@ async def _rebooted_panel(
     first_session = async_get_sessions(hass).get(entry.entry_id)
     await first.client.close()
     await hass.async_block_till_done()
-    rebooted = _Panel(daemon_running=daemon_after_boot)
+    rebooted = _Panel(daemon_running=daemon_after_boot, route=route)
     network_adb["panel"] = rebooted
     second = await _connect(hass, hass_ws_client, token, [*MANAGED, "local_adb"])
     tasks.append(asyncio.create_task(rebooted.serve(second)))
@@ -249,6 +273,7 @@ async def _polls(coordinator: Any, now: list[float], count: int) -> None:
         assert coordinator.last_update_success
 
 
+@pytest.mark.parametrize("route", ["adbd", "su"])
 async def test_rebooted_panel_without_daemon_gets_one_pinned_bootstrap(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
@@ -256,6 +281,7 @@ async def test_rebooted_panel_without_daemon_gets_one_pinned_bootstrap(
     hass_read_only_access_token: str,
     monkeypatch: pytest.MonkeyPatch,
     network_adb: dict[str, Any],
+    route: str,
 ) -> None:
     entry, panel, now, tasks = await _rebooted_panel(
         hass,
@@ -265,6 +291,7 @@ async def test_rebooted_panel_without_daemon_gets_one_pinned_bootstrap(
         network_adb,
         monkeypatch,
         daemon_after_boot=False,
+        route=route,
     )
     try:
         await _polls(entry.runtime_data.coordinator, now, 3)
@@ -416,6 +443,35 @@ async def test_failed_rebooted_bootstrap_does_not_rerun_the_admin_pass(
             "adb.prepare",
             "adb.ready",
         ]
+    finally:
+        for task in tasks:
+            task.cancel()
+
+
+async def test_pass_finished_on_a_rootless_route_never_restarts_recovery(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    monkeypatch: pytest.MonkeyPatch,
+    network_adb: dict[str, Any],
+) -> None:
+    entry, panel, now, tasks = await _rebooted_panel(
+        hass,
+        hass_ws_client,
+        hass_read_only_user,
+        hass_read_only_access_token,
+        network_adb,
+        monkeypatch,
+        daemon_after_boot=False,
+        route="rootless",
+    )
+    try:
+        # Several polls, each past the five-minute retry spacing.
+        await _polls(entry.runtime_data.coordinator, now, 4)
+        # No route here can start a daemon: nothing is staged or connected.
+        assert panel.network_hosts == []
+        assert [op for op in panel.requests if op.startswith("adb.")] == []
     finally:
         for task in tasks:
             task.cancel()

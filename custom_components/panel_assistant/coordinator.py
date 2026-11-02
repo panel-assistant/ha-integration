@@ -130,6 +130,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         self._admin_backoff = 0.0
         # The live session whose ADB recovery daemon was last proved running.
         self._recovery_session: PanelSession | None = None
+        # Whether the finished pass saw root over ADB, which recovery needs.
+        # Each pass sets it before it can finish, so a key change needs no reset.
+        self._admin_root = False
         # True until the first poll answers otherwise, as `last_update_success` starts.
         self.reachable = True
         # Where the panel last said it was in an accepted session:
@@ -374,7 +377,14 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         # reboot only the network route may have the root to start it.
         recovering = self._admin_done and not health.home_pending
         if (
-            (recovering and (session is None or session is self._recovery_session))
+            (
+                recovering
+                and (
+                    not self._admin_root
+                    or session is None
+                    or session is self._recovery_session
+                )
+            )
             or monotonic() < self._admin_retry_at
             or not claim_panel_operation(self.hass, entry.entry_id)
         ):
@@ -437,7 +447,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                     return
                 device = await adb._async_connect(target, signer, authorize=False)
                 nonce = token_hex(16)
-                adb._parse_identity_root(
+                self._admin_root = adb._parse_identity_root(
                     await adb._async_shell(
                         device,
                         adb._identity_root_command(nonce),
@@ -445,7 +455,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                     ),
                     nonce,
                     target,
-                )
+                ) in (adb.AdbRootMode.ROOT_ADBD, adb.AdbRootMode.ROOT_SU)
                 if health.home_pending:
                     # Only initial setup's durable pending intent permits a HOME
                     # takeover here. Explicit handback clears it, across HA reloads.
