@@ -1837,7 +1837,9 @@ async def test_a_missing_original_launcher_is_named_with_its_fix(
     fake, server = panel
     fake.hand_back = answer
     fake.original_home = original_home
-    fake.set(home=VENDOR_HOME, installed=[PACKAGE_ID, "com.eWeLinkControlPanel"])
+    # A Shelly launcher is one Panel Assistant could make HOME itself, which
+    # it must not do for these refusals.
+    fake.set(installed=[PACKAGE_ID, vendor_provisioning.SHELLY_LAUNCHER])
     entry = _entry(hass, server)
 
     options = await _shown(hass, "options.error", await _remove(hass, entry))
@@ -1864,6 +1866,6 @@ async def test_a_missing_original_launcher_is_named_with_its_fix(
         assert (f"Reinstall {NOVA} on" in shown) is named
         assert ("Reinstall that launcher" in shown) is not named
     # A refusal is never overridden through the vendor's launcher.
-    assert fake.installed == sorted([PACKAGE_ID, "com.eWeLinkControlPanel"])
-    assert fake.read()["home"] == VENDOR_HOME
+    assert fake.installed == sorted([PACKAGE_ID, vendor_provisioning.SHELLY_LAUNCHER])
+    assert fake.read()["home"] == APP_HOME
     assert fake.read()["events"] == []
