@@ -616,7 +616,7 @@ def update_failure_entry_id(issue_id: str, events: list[Any]) -> str | None:
             continue
         entry_id = event.get("entry_id")
         if (
-            event.get("kind") == "update"
+            event.get("kind") in {"update", "retry_hold"}
             and isinstance(entry_id, str)
             and panel_failure_issue_id(f"update:{entry_id}") == issue_id
         ):
@@ -668,29 +668,37 @@ async def async_record_retry_hold(
     """Keep the repair and show why its latest Retry could not proceed."""
     reason = error.reason if isinstance(error, RetrySafetyHold) else "retry_failed"
     entry_id = previous.get("entry_id")
-    entry = (
-        hass.config_entries.async_get_entry(entry_id)
-        if isinstance(entry_id, str)
-        else None
-    )
+    if not isinstance(entry_id, str):
+        entry_id = None
+    entry = hass.config_entries.async_get_entry(entry_id) if entry_id else None
     panel = (
         panel_display_name(hass, entry)
         if entry is not None
         else str(previous.get("panel", "Panel"))
     )
+    event: dict[str, Any] = {
+        "kind": "retry_hold",
+        "at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "address": previous.get("address"),
+        "panel": panel,
+        "reason": reason,
+        "exception": "".join(traceback.format_exception(error))[-12000:],
+        "previous": previous.get("job_id") or previous.get("entry_id"),
+    }
+    if entry_id is not None:
+        event["entry_id"] = entry_id
     await _failure_store(hass).append(
         issue_id,
-        {
-            "kind": "retry_hold",
-            "at": datetime.now(UTC).isoformat(timespec="seconds"),
-            "address": previous.get("address"),
-            "panel": panel,
-            "reason": reason,
-            "exception": "".join(traceback.format_exception(error))[-12000:],
-            "previous": previous.get("job_id") or previous.get("entry_id"),
-        },
+        event,
+        lambda: _issue(hass, issue_id, panel, "retry_hold", reason),
+        # A panel removed while its Retry ran took its Repair with it; an
+        # update Retry records nothing once its entry is no longer current.
+        None
+        if entry_id is None
+        else lambda: (
+            entry is not None and hass.config_entries.async_get_entry(entry_id) is entry
+        ),
     )
-    _issue(hass, issue_id, panel, "retry_hold", reason)
 
 
 async def async_support_report(hass: HomeAssistant, issue_id: str) -> str:
