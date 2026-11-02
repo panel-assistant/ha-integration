@@ -837,7 +837,7 @@ test('a reconnect that reloads the frame posts no open signal, and supersedes an
 
 test('relayed subscriptions forward updates, close on reconnect and end with the frame', async () => {
   const hass = fakeHass();
-  const { panel, subs, target } = await relaying(hass);
+  let { panel, subs, target, $ } = await relaying(hass);
   const subscribe = { kind: 'manage', command_id: 's1', op: 'subscribe', args: { family: 'perf' } };
   fromWindow(target, { type: RELAY_TYPE, frame: subscribe }); await tick();
   assert.deepEqual([subs[1].message, subs[1].options], [{ type: 'panel_assistant/ui', entry_id: 'one', request: subscribe }, { resubscribe: false }]);
@@ -874,6 +874,7 @@ test('relayed subscriptions forward updates, close on reconnect and end with the
   panel.route = { path: '/two' }; await tick();
   assert.equal(subs[5].unsubscribed, 1);
   subs[6].callback({ kind: 'opened', url: url(TOKEN2) });
+  target = $('#frame').contentWindow;
   fromWindow(target, { type: RELAY_TYPE, frame: { ...subscribe, command_id: 's5' } }); await tick();
   panel.isConnected = false; panel.disconnectedCallback(); await tick();
   assert.equal(subs[7].unsubscribed, 1);
@@ -1018,6 +1019,7 @@ test('Configure preferences are shared by panels and survive remount with foreig
   fromWindow(mounted.target, { type: 'panel-assistant-config-view', value });
   mounted.$('#panels').fire('change', { target: { value: 'two' } }); await tick();
   mounted.subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
+  mounted.target = mounted.$('#frame').contentWindow;
   fromWindow(mounted.target, { type: 'panel-assistant-config-view', read: true });
   assert.deepEqual(mounted.target.posted.at(-1)[0], { type: 'panel-assistant-config-view', value });
   mounted.panel.disconnectedCallback();
@@ -1036,6 +1038,7 @@ test('storage refusal still retains Configure preferences while switching panels
   fromWindow(mounted.target, { type: 'panel-assistant-config-view', value });
   mounted.$('#panels').fire('change', { target: { value: 'two' } }); await tick();
   mounted.subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
+  mounted.target = mounted.$('#frame').contentWindow;
   fromWindow(mounted.target, { type: 'panel-assistant-config-view', read: true });
   assert.deepEqual(mounted.target.posted.at(-1)?.[0], { type: 'panel-assistant-config-view', value });
   mounted.panel.disconnectedCallback();

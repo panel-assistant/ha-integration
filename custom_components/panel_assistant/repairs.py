@@ -9,6 +9,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.components.repairs import RepairsFlow, RepairsFlowResult
+from homeassistant.components.update import DATA_COMPONENT as UPDATE_COMPONENT
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, Platform
 from homeassistant.core import HomeAssistant
@@ -75,7 +76,7 @@ from .repairs_removal import (
     removal_issue_id,
 )
 from .repairs_restart import ISSUE_RESTART_REQUIRED, RestartRequiredFlow
-from .repairs_webview import ISSUE_WEBVIEW, async_update_webview, webview_issue_id
+from .repairs_webview import async_update_webview
 from .transport_binding import (
     ISSUE_DATA_ENTRY_ID,
     ISSUE_DATA_USER_ID,
@@ -500,6 +501,9 @@ class InstallerFailureFlow(RepairsFlow):
             if entity_id is None:
                 raise RetrySafetyHold("retry_update_unavailable")
             state = self.hass.states.get(entity_id)
+            if state is not None and state.attributes.get("in_progress"):
+                # The update is still running; its own outcome ends this Repair.
+                return "retry_panel_busy"
             offered = state.attributes.get("latest_version") if state else None
             installed = (
                 state.attributes.get("installed_version", state.state)
@@ -532,7 +536,7 @@ class InstallerFailureFlow(RepairsFlow):
                 and isinstance(installed, str)
             ):
                 if not claim_panel_operation(self.hass, entry_id):
-                    return "retry_failed"
+                    return "retry_panel_busy"
                 try:
                     entry = self.hass.config_entries.async_get_entry(entry_id)
                     if entry is None or not entry.data.get(CONF_TRANSPORT_USER_ID):
@@ -540,7 +544,9 @@ class InstallerFailureFlow(RepairsFlow):
                     reason = await async_update_webview(
                         self.hass, entry_id, allow_legacy=True
                     )
-                    if reason is not None:
+                    # Unpublished WebView files end the bundle as the install
+                    # does: the app is current, the WebView is offered later.
+                    if reason not in (None, "webview_download_deferred"):
                         raise HomeAssistantError(reason)
                     await async_clear_update_failure_if_installed(
                         self.hass,
@@ -588,12 +594,23 @@ class InstallerFailureFlow(RepairsFlow):
             service_data = {"entity_id": entity_id}
             if not current_retry and isinstance(previous.get("target_version"), str):
                 service_data["version"] = previous["target_version"]
-            await self.hass.services.async_call(
-                Platform.UPDATE,
-                "install",
-                service_data,
-                blocking=True,
-            )
+            try:
+                await self.hass.services.async_call(
+                    Platform.UPDATE,
+                    "install",
+                    service_data,
+                    blocking=True,
+                )
+            except HomeAssistantError as err:
+                # An update that began after the state was read is refused,
+                # by Home Assistant or by the panel's own operation claim.
+                component = self.hass.data.get(UPDATE_COMPONENT)
+                entity = component.get_entity(entity_id) if component else None
+                if err.translation_key == "update_busy" or (
+                    entity is not None and entity.in_progress
+                ):
+                    return "retry_panel_busy"
+                raise
             return "_update_completed"
         except RetrySafetyHold as err:
             await async_record_retry_hold(self.hass, self.issue_id, previous, err)
@@ -789,13 +806,6 @@ async def async_create_fix_flow(
         return RemoveFromPanelFlow(entry_id)
     if issue_id == ISSUE_RESTART_REQUIRED:
         return RestartRequiredFlow()
-    if issue_id.startswith(f"{ISSUE_WEBVIEW}_"):
-        entry_id = values.get("entry_id")
-        if not isinstance(entry_id, str) or issue_id != webview_issue_id(entry_id):
-            raise UnknownStep
-        # A flow opened before an integration upgrade cannot authorize a new
-        # standalone operation. The combined update Repair owns any pending work.
-        raise UnknownStep
     if issue_id.startswith(f"{ISSUE_PANEL_PERMISSIONS}_"):
         entry_id = values.get("entry_id")
         if not isinstance(entry_id, str) or issue_id != permission_issue_id(entry_id):

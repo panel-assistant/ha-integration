@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import logging
 from secrets import token_hex
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import issue_registry as ir
 
 from .client import CannotConnectError, InvalidResponseError
 from .const import CONF_TRANSPORT_USER_ID, DOMAIN
@@ -22,13 +23,10 @@ from .transport_sessions import (
 )
 from .webview import ACTIVE_STATES, WebViewStatus, parse_webview
 
-# Retained only to retire issues created by older integration versions.
-ISSUE_WEBVIEW = "panel_webview"
-
-
-def webview_issue_id(entry_id: str) -> str:
-    """The retired standalone issue ID, also used during entry cleanup."""
-    return f"{ISSUE_WEBVIEW}_{entry_id}"
+_LOGGER = logging.getLogger(__name__)
+# How long the first read waits for a restarting app to reconnect, leaving
+# the rest of the step's budget for the HTTP fallback.
+RECONNECT_WAIT = 90.0
 
 
 async def async_reconcile_webview_issue(
@@ -47,16 +45,22 @@ async def async_reconcile_webview_issue(
         panel_failure_issue_id,
     )
 
-    ir.async_delete_issue(hass, DOMAIN, webview_issue_id(entry.entry_id))
     observation = status.webview
     if (
         CONF_TRANSPORT_USER_ID not in entry.data
         or observation is None
+        # A running install is not a failure; only an ended one needs the owner.
         or not (
             observation.needs_attention
-            or observation.transaction_state in ACTIVE_STATES | {"submitted_unknown"}
+            or (
+                observation.transaction_state == "submitted_unknown"
+                and not observation.settled
+            )
         )
+        or observation.transaction_state in ACTIVE_STATES
         or observation.transaction_state is None
+        # Unpublished WebView files: the app update completed with a WARNING.
+        or observation.download_unpublished
     ):
         return
     if not claim_panel_operation(hass, entry.entry_id):
@@ -74,7 +78,11 @@ async def async_reconcile_webview_issue(
             entry.entry_id,
             entry.title,
             None,
-            RuntimeError("The app is installed; its WebView update is unfinished"),
+            HomeAssistantError(
+                "The app is installed; its WebView update is unfinished",
+                translation_domain=DOMAIN,
+                translation_key="update_webview_unfinished",
+            ),
             webview_pending=True,
         )
     finally:
@@ -124,11 +132,20 @@ async def async_update_webview(
         session()
         return observed
 
+    # Set once the panel holds WebView work: an install this step submitted,
+    # or one already running or unsure when the step looked.
+    pending = False
     try:
-        async with asyncio.timeout(120):
+        async with asyncio.timeout(120) as contact_deadline:
             # The successor app owns the profile. Its authenticated native read
             # also works on panels whose HTTP listener is unreachable.
             try:
+                # The app just restarted into its new build; give its session
+                # time to come back before falling back to HTTP.
+                with contextlib.suppress(TimeoutError):
+                    async with asyncio.timeout(RECONNECT_WAIT):
+                        while session() is None:  # noqa: ASYNC110 - no event to wait on
+                            await asyncio.sleep(1)
                 status = await observe()
             except (
                 HomeAssistantError,
@@ -143,15 +160,22 @@ async def async_update_webview(
                 if fresh.webview is None:
                     # Older apps omit the additive contract entirely.
                     return None
-                if (
-                    not fresh.webview.needs_attention
-                    and fresh.webview.transaction_state
-                    not in ACTIVE_STATES | {"submitted_unknown"}
-                ):
+                pending = fresh.webview.transaction_state in ACTIVE_STATES | {
+                    "submitted_unknown"
+                }
+                if not fresh.webview.needs_attention and not pending:
                     return None
                 raise
+            pending = status.transaction_state in ACTIVE_STATES | {"submitted_unknown"}
             if (
-                status.transaction_state not in ACTIVE_STATES | {"submitted_unknown"}
+                status.reason == "current"
+                and status.supported
+                and status.candidate_sha256
+                and status.transaction_state not in ACTIVE_STATES
+            ):
+                return None
+            if (
+                status.transaction_state not in ACTIVE_STATES
                 and status.supported
                 and status.eligible
                 and status.candidate_sha256
@@ -159,6 +183,7 @@ async def async_update_webview(
                 current = session()
                 if current is None:
                     raise ConnectionError("panel_reconnecting")
+                pending = True
                 status = parse_webview(
                     await async_manage(
                         hass,
@@ -169,10 +194,14 @@ async def async_update_webview(
                     )
                 )
                 session()
+            # A received active transaction is progress, however long its
+            # download or install takes. Only lost observation is bounded.
+            contact_deadline.reschedule(asyncio.get_running_loop().time() + 120)
             while status.transaction_state in ACTIVE_STATES:
                 await asyncio.sleep(1)
                 try:
                     status = await observe()
+                    contact_deadline.reschedule(asyncio.get_running_loop().time() + 120)
                 except (
                     HomeAssistantError,
                     CannotConnectError,
@@ -181,13 +210,26 @@ async def async_update_webview(
                 ):
                     session()
                     continue
+            if status.download_unpublished:
+                # The WebView files are not published for this panel yet; the
+                # app update itself is complete.
+                _LOGGER.warning(
+                    "%s could not download its WebView update %s because the "
+                    "files are not published yet; the WebView was not installed",
+                    entry.title,
+                    status.candidate_sha256,
+                )
+                return "webview_download_deferred"
             return (
                 "webview_deferred"
                 if status.transaction_state == "submitted_unknown"
                 or status.needs_attention
                 else None
             )
-    except Exception:
+    except Exception as err:
         # An accepted request may have lost its answer. The durable panel record
-        # owns the outcome; an explicit retry starts with observation, never POST.
-        return "webview_unavailable"
+        # owns the outcome; a later explicit retry observes before resubmitting.
+        # With no WebView work on the panel, or once this panel left the entry,
+        # nothing is pending that the entry still owns.
+        retired = isinstance(err, ValueError) and str(err) == "panel_unavailable"
+        return "webview_deferred" if pending and not retired else "webview_unavailable"

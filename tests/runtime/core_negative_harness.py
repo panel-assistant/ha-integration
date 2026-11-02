@@ -222,7 +222,13 @@ class _PanelServer(AbstractContextManager["_PanelServer"]):
                     self.send_header("Content-Length", str(len(body)))
                     self.end_headers()
                     self.wfile.write(body)
-                    recorder.record(self.path, "unexpected", len(body))
+                    # Optional WebView observation is unsupported on this old panel.
+                    mode = (
+                        "webview_unsupported"
+                        if self.path == "/api/v1/webview"
+                        else "unexpected"
+                    )
+                    recorder.record(self.path, mode, len(body))
                     return
                 recorder.record(self.path, mode, len(body))
                 self.send_response(200)

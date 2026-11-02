@@ -57,6 +57,8 @@ REASON_ADB_AUTHORIZATION: Final = "adb_authorization"
 REASON_PANEL_CHANGED: Final = "panel_changed"
 REASON_APPROVAL_REQUIRED: Final = "approval_required"
 REASON_NO_REPLACEMENT_HOME: Final = "no_replacement_home"
+REASON_ORIGINAL_HOME_MISSING: Final = "original_home_missing"
+REASON_ORIGINAL_HOME_MISSING_UNNAMED: Final = "original_home_missing_unnamed"
 REASON_OWNERSHIP_UNREADABLE: Final = "ownership_unreadable"
 REASON_PACKAGE_STATE_UNKNOWN: Final = "package_state_unknown"
 REASON_HOME_NOT_HANDED: Final = "home_not_handed"
@@ -66,6 +68,7 @@ REASON_REMOVE_FAILED: Final = "remove_failed"
 
 _HAND_BACK_REASONS: Final = {
     "no-replacement-home": REASON_NO_REPLACEMENT_HOME,
+    "original-home-missing": REASON_ORIGINAL_HOME_MISSING_UNNAMED,
     "ownership-unreadable": REASON_OWNERSHIP_UNREADABLE,
     "package-state-unknown": REASON_PACKAGE_STATE_UNKNOWN,
     "unsupported": REASON_UNSUPPORTED,
@@ -77,11 +80,15 @@ _NOT_A_LAUNCHER: Final = frozenset(
 
 
 class RemovalError(Exception):
-    """A removal stopped; ``reason`` says why and what is still installed."""
+    """A removal stopped; ``reason`` says why and what is still installed.
 
-    def __init__(self, reason: str) -> None:
+    ``placeholders`` fill the reason's text, such as the launcher it names.
+    """
+
+    def __init__(self, reason: str, placeholders: dict[str, str] | None = None) -> None:
         super().__init__(reason)
         self.reason = reason
+        self.placeholders = placeholders or {}
 
 
 async def async_read_firmware(hass: HomeAssistant, entry: ConfigEntry) -> str | None:
@@ -237,6 +244,10 @@ async def _async_remove_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
             or (await _async_step(found, MoveStep.VENDOR_HOME)).home
             not in vendor_provisioning.VENDOR_HOME_PACKAGES
         ):
+            if err.code == "original-home-missing" and err.launcher is not None:
+                raise RemovalError(
+                    REASON_ORIGINAL_HOME_MISSING, {"launcher": err.launcher}
+                ) from err
             raise RemovalError(
                 _HAND_BACK_REASONS.get(err.code, REASON_HOME_NOT_HANDED)
             ) from err

@@ -5,7 +5,9 @@ new one. This release says so at setup, in a Repair and on an update, and
 installs nothing on the panel.
 """
 
+import json
 from dataclasses import replace
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -153,3 +155,74 @@ async def test_adding_a_moving_panel_again_still_repairs_its_address(
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "already_configured"
     assert entry.data[CONF_ADDRESS] == "panel.local"
+
+
+@pytest.mark.parametrize("old_app", [True, False])
+async def test_old_app_panel_without_a_route_gets_only_the_refusal(
+    hass: HomeAssistant, hass_read_only_user: Any, old_app: bool
+) -> None:
+    """The no-route Repair would contradict the old-app refusal, so it goes."""
+    from custom_components.panel_assistant.repairs_update_route import (
+        async_reconcile_update_route_issue,
+        no_update_route_issue_id,
+    )
+
+    entry = _entry(hass, hass_read_only_user.id)
+    health = replace(CURRENT, package=LEGACY_PACKAGE_ID) if old_app else CURRENT
+    await _set_up(hass, entry, health)
+    entity_id = next(
+        item.entity_id
+        for item in er.async_entries_for_config_entry(
+            er.async_get(hass), entry.entry_id
+        )
+        if item.domain == "update"
+    )
+    entity = hass.data["update"].get_entity(entity_id)
+    issue_id = no_update_route_issue_id(entry.entry_id)
+    # One left from before the panel was seen running the old app.
+    async_reconcile_update_route_issue(hass, entry, has_route=False, status=None)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+    entity._async_reconcile_route_issue(has_route=False)
+    assert (ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None) == old_app
+
+
+_TRANSLATIONS = (
+    Path(__file__).parents[1] / "custom_components/panel_assistant/translations"
+)
+
+
+def _old_app_texts(path: Path) -> list[str]:
+    strings = json.loads(path.read_text())
+    return [
+        strings["config"][section]["old_app_installed"]
+        for section in ("abort", "error")
+        if "old_app_installed" in strings["config"].get(section, {})
+    ]
+
+
+def test_old_app_advice_points_at_the_safe_recovery_steps() -> None:
+    """Every locale gives the Repair's advice, never a bare 'Redownload 0.9.0'."""
+    english = _old_app_texts(_TRANSLATIONS / "en.json")
+    assert len(english) == 2
+    for path in sorted(_TRANSLATIONS.glob("*.json")):
+        for text in _old_app_texts(path):
+            assert "{old_app_help_url}" in text, path.name
+            assert "Redownload" not in text, path.name
+
+
+@OLD_APP_HEALTHS
+async def test_the_old_app_abort_carries_its_help_link(
+    hass: HomeAssistant, package: str | None
+) -> None:
+    """The abort and the add form both fill the help link their text names."""
+    with patch(
+        "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+        AsyncMock(return_value=replace(FLOW_HEALTH, package=package)),
+    ):
+        form = await _start_step(hass, "add_panel")
+        result = await hass.config_entries.flow.async_configure(
+            form["flow_id"], {CONF_ADDRESS: "panel.local"}
+        )
+    assert result["reason"] == "old_app_installed"
+    assert "old_app_needs_090" in result["description_placeholders"]["old_app_help_url"]
+    assert "old_app_help_url" in form["description_placeholders"]

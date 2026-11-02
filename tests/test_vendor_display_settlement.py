@@ -86,8 +86,34 @@ dumpsys() {
 """
 
 
-def _run(state: Path, mode: str) -> tuple[list[str], list[str]]:
-    program = vendor_display_settlement_command(_NONCE, PACKAGE_ID)
+def _browser_program() -> str:
+    module = (
+        Path(__file__).resolve().parents[1]
+        / "custom_components/panel_assistant/frontend/src/vendor-provisioning.mjs"
+    )
+    script = (
+        f"import {{buildVendorDisplaySettlement}} from {json.dumps(module.as_uri())}; "
+        "console.log(JSON.stringify(buildVendorDisplaySettlement("
+        f"'{_NONCE}', '{PACKAGE_ID}')));"
+    )
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", script],
+        text=True,
+        capture_output=True,
+        check=True,
+        timeout=10,
+    )
+    return json.loads(result.stdout)
+
+
+@pytest.fixture(params=["network", "browser"])
+def settlement_program(request: pytest.FixtureRequest) -> str:
+    if request.param == "browser":
+        return _browser_program()
+    return vendor_display_settlement_command(_NONCE, PACKAGE_ID)
+
+
+def _run(state: Path, mode: str, program: str) -> tuple[list[str], list[str]]:
     output = subprocess.run(
         ["/bin/sh", "-c", _STAND_IN + program.replace('"/proc/', '"$STATE/proc/')],
         check=True,
@@ -117,14 +143,14 @@ def native_panel(tmp_path: Path) -> Path:
 
 @pytest.mark.parametrize("mode", ["pending", "unchanged", "cold"])
 def test_native_resume_finishes_before_setup_can_accept(
-    native_panel: Path, mode: str
+    native_panel: Path, mode: str, settlement_program: str
 ) -> None:
     if mode == "pending":
         (native_panel / "pending").touch()
     if mode == "cold":
         (native_panel / "pid").unlink()
         (native_panel / "proc/100").rmdir()
-    lines, calls = _run(native_panel, mode)
+    lines, calls = _run(native_panel, mode, settlement_program)
     assert parse_vendor_display_settlement(lines) == "settled"
     if mode == "pending":
         assert calls == ["resume", "shutdown", "resume", "home", "resume"]
@@ -150,12 +176,12 @@ def test_native_resume_finishes_before_setup_can_accept(
     ],
 )
 def test_no_positive_native_completion_refuses_setup(
-    native_panel: Path, mode: str
+    native_panel: Path, mode: str, settlement_program: str
 ) -> None:
     if mode == "cold-exit":
         (native_panel / "pid").unlink()
         (native_panel / "proc/100").rmdir()
-    lines, calls = _run(native_panel, mode)
+    lines, calls = _run(native_panel, mode, settlement_program)
     with pytest.raises(VendorResponseError):
         parse_vendor_display_settlement(lines)
     assert lines == ["error"]
@@ -165,50 +191,33 @@ def test_no_positive_native_completion_refuses_setup(
         assert calls.count("resume") == 1
 
 
-def test_other_vendors_do_not_change_home_or_start_stargate(native_panel: Path) -> None:
-    lines, calls = _run(native_panel, "other")
+def test_other_vendors_do_not_change_home_or_start_stargate(
+    native_panel: Path, settlement_program: str
+) -> None:
+    lines, calls = _run(native_panel, "other", settlement_program)
     assert parse_vendor_display_settlement(lines) == "skipped"
     assert calls == []
 
 
 def test_interrupted_setup_repeats_after_the_pending_restart(
     native_panel: Path,
+    settlement_program: str,
 ) -> None:
     (native_panel / "pending").touch()
-    first, _ = _run(native_panel, "pending")
+    first, _ = _run(native_panel, "pending", settlement_program)
     assert parse_vendor_display_settlement(first) == "settled"
     (native_panel / "clock").write_text("0\n")
     (native_panel / "calls").unlink()
-    second, calls = _run(native_panel, "cold")
+    second, calls = _run(native_panel, "cold", settlement_program)
     assert parse_vendor_display_settlement(second) == "settled"
     assert calls == ["resume", "home", "resume"]
 
 
-def test_browser_and_network_run_the_same_settlement_program() -> None:
-    module = (
-        Path(__file__).resolve().parents[1]
-        / "custom_components/panel_assistant/frontend/src/vendor-provisioning.mjs"
-    )
-    script = (
-        f"import {{buildVendorDisplaySettlement}} from {json.dumps(module.as_uri())}; "
-        "console.log(JSON.stringify(buildVendorDisplaySettlement("
-        f"'{_NONCE}', '{PACKAGE_ID}')));"
-    )
-    result = subprocess.run(
-        ["node", "--input-type=module", "-e", script],
-        text=True,
-        capture_output=True,
-        check=True,
-    )
-    assert json.loads(result.stdout) == vendor_display_settlement_command(
-        _NONCE, PACKAGE_ID
-    )
-
-
 def test_a_configuration_delivered_after_warmup_is_consumed_by_a_fresh_resume(
     native_panel: Path,
+    settlement_program: str,
 ) -> None:
-    lines, calls = _run(native_panel, "delayed-font")
+    lines, calls = _run(native_panel, "delayed-font", settlement_program)
     assert lines == ["settled"]
     assert calls == ["resume", "configuration", "home", "resume", "shutdown"]
     assert (native_panel / "app").read_text().strip() == "stopped"

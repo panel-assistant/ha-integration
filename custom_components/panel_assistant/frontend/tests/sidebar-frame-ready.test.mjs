@@ -54,7 +54,7 @@ test('a retry message after its own load does not hold back the next page', asyn
 test('switching to a panel whose page says nothing shows the retrying failure, and the refresh opens it again', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const { $, subs } = await mount(fakeHass({ panels: [row('shown'), row('silent')] }));
-  const frame = $('#frame');
+  let frame = $('#frame');
   frame.contentWindow = frameWindow();
   subs[0].callback({ kind: 'opened', url: url(TOKEN) });
   frame.fire('load');
@@ -63,6 +63,7 @@ test('switching to a panel whose page says nothing shows the retrying failure, a
   $('#panels').fire('change', { target: { value: 'silent' } }); await tick();
   assert.equal(subs[1].message.entry_id, 'silent');
   subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
+  frame = $('#frame');
   // An error status or a network error page loads without the embed view's script.
   frame.fire('load');
   t.mock.timers.tick(1999);
@@ -77,6 +78,7 @@ test('switching to a panel whose page says nothing shows the retrying failure, a
   assert.equal(subs.length, 3);
   assert.equal(subs[2].message.entry_id, 'silent');
   subs[2].callback({ kind: 'opened', url: url(TOKEN) });
+  frame = $('#frame');
   // WebKit can deliver a page's word just after its load.
   frame.fire('load');
   t.mock.timers.tick(500);
@@ -90,7 +92,7 @@ test('switching to a panel whose page says nothing shows the retrying failure, a
 test('a panel left before its silent page fails opens the next panel undisturbed', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const { $, subs } = await mount(fakeHass({ panels: [row('left'), row('next')] }));
-  const frame = $('#frame');
+  let frame = $('#frame');
   frame.contentWindow = frameWindow();
   subs[0].callback({ kind: 'opened', url: url(TOKEN) });
   frame.fire('load');
@@ -99,6 +101,7 @@ test('a panel left before its silent page fails opens the next panel undisturbed
   // WebKit can load a blank document into the frame whose URL was removed.
   frame.fire('load');
   subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
+  frame = $('#frame');
   t.mock.timers.tick(1500);
   frame.fire('load');
   fromWindow(frame.contentWindow, { type: 'panel-assistant-ready' });
@@ -111,7 +114,7 @@ test('a panel left before its silent page fails opens the next panel undisturbed
 test('a frame whose connection fails without a load fails once the slowest real page would have opened', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const { $, subs } = await mount(fakeHass());
-  const frame = $('#frame');
+  let frame = $('#frame');
   frame.contentWindow = frameWindow();
   subs[0].callback({ kind: 'opened', url: url(TOKEN) });
   t.mock.timers.tick(149_999);
@@ -122,6 +125,7 @@ test('a frame whose connection fails without a load fails once the slowest real 
   // Retry documents are answers: a panel coming back stays Opening while each refresh answers.
   intervals[0].fn(); await tick();
   subs[1].callback({ kind: 'opened', url: url(TOKEN2) });
+  frame = $('#frame');
   for (let refresh = 0; refresh < 60; refresh++) {
     fromWindow(frame.contentWindow, { type: 'panel-assistant-wait' });
     frame.fire('load');

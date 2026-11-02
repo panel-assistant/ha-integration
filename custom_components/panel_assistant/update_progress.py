@@ -127,12 +127,14 @@ class UpdateProgress:
         """Fix what the update shows until the panel runs the target build."""
         if self.attempt is None:
             self.attempt = _Attempt(installed, latest)
+            self._coordinator.expected_restart = True
             self._stop_redraw = async_track_time_interval(
                 hass, self._redraw, _PROGRESS_REDRAW
             )
 
     def end(self) -> None:
         self.attempt = None
+        self._coordinator.expected_restart = False
         if self._stop_redraw is not None:
             self._stop_redraw()
             self._stop_redraw = None

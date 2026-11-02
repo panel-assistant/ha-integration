@@ -1,14 +1,19 @@
 """Discovery includes only complete, supported release choices."""
 
 import json
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
 
 from custom_components.panel_assistant import release_catalog as catalog
+from custom_components.panel_assistant.feed_coordinator import StableReleaseCoordinator
 from custom_components.panel_assistant.release import ReleaseResolutionError
 
 from .http_fakes import FakeResponse, FakeSession
+
+# Captured before conftest stubs the release refresh for unrelated tests.
+_REAL_STABLE_UPDATE = StableReleaseCoordinator._async_update_data
 
 
 def document(tag="v1.2.3", *, prerelease=False):
@@ -49,13 +54,26 @@ def session(latest, recent):
     )
 
 
-async def test_recent_stable_and_exact_rc_candidates_are_discovered():
+@pytest.fixture
+def discovery_authentication(monkeypatch):
+    """Isolate discovery from signatures, covered by the signed fixtures below."""
+
+    async def authenticate(session, tag, *, release_body=None):
+        return SimpleNamespace(artifact=SimpleNamespace(tag=tag, version=tag[1:]))
+
+    monkeypatch.setattr(catalog, "_async_release_choice", authenticate)
+
+
+async def test_recent_stable_and_exact_rc_candidates_are_discovered(
+    discovery_authentication,
+):
     rc = document("v1.3.0-rc2", prerelease=True)
     client = session(document(), [rc, document("v1.0.0"), rc])
-    assert await catalog.async_list_install_releases(client) == [
-        {"tag": "v1.2.3", "prerelease": False},
-        {"tag": "v1.3.0-rc2", "prerelease": True},
-        {"tag": "v1.0.0", "prerelease": False},
+    choices = await catalog.async_resolve_update_candidates(client)
+    assert [choice.artifact.tag for choice in choices] == [
+        "v1.3.0-rc2",
+        "v1.2.3",
+        "v1.0.0",
     ]
     assert [url for url, _ in client.requests] == [
         str(catalog._SITE_RELEASES_URL),
@@ -68,35 +86,37 @@ async def test_recent_stable_and_exact_rc_candidates_are_discovered():
         assert options["timeout"].total == 10
 
 
-async def test_total_choice_limit_includes_latest_stable():
+async def test_total_choice_limit_includes_latest_stable(discovery_authentication):
     recent = [document(f"v1.3.0-rc{n}", prerelease=True) for n in range(30, 0, -1)]
-    choices = await catalog.async_list_install_releases(session(document(), recent))
+    choices = await catalog.async_resolve_update_candidates(session(document(), recent))
     assert len(choices) == 30
-    assert choices[0] == {"tag": "v1.2.3", "prerelease": False}
-    assert choices[-1] == {"tag": "v1.3.0-rc2", "prerelease": True}
+    assert {choice.artifact.tag for choice in choices} == {
+        "v1.2.3",
+        *(f"v1.3.0-rc{n}" for n in range(30, 1, -1)),
+    }
 
 
 @pytest.mark.parametrize("missing", range(5))
-async def test_every_install_asset_is_required(missing):
+async def test_every_install_asset_is_required(missing, discovery_authentication):
     latest = document()
     latest["assets"].pop(missing)
     rc = document("v1.3.0-rc2", prerelease=True)
-    assert await catalog.async_list_install_releases(session(latest, [rc])) == [
-        {"tag": "v1.3.0-rc2", "prerelease": True}
-    ]
+    choices = await catalog.async_resolve_update_candidates(session(latest, [rc]))
+    assert [choice.artifact.tag for choice in choices] == ["v1.3.0-rc2"]
 
 
-async def test_latest_cannot_substitute_rc_and_bad_rows_are_ignored():
+async def test_latest_cannot_substitute_rc_and_bad_rows_are_ignored(
+    discovery_authentication,
+):
     rc = document("v1.3.0-rc2", prerelease=True)
-    assert await catalog.async_list_install_releases(session(rc, [None, rc])) == [
-        {"tag": "v1.3.0-rc2", "prerelease": True}
-    ]
+    choices = await catalog.async_resolve_update_candidates(session(rc, [None, rc]))
+    assert [choice.artifact.tag for choice in choices] == ["v1.3.0-rc2"]
 
 
 @pytest.mark.parametrize(
     "change", ["missing", "url", "duplicate", "draft", "flag", "tag"]
 )
-async def test_bad_choices_are_omitted(change):
+async def test_bad_choices_are_omitted(change, discovery_authentication):
     candidate = document("v1.3.0-rc2", prerelease=True)
     if change == "missing":
         candidate["assets"] = candidate["assets"][:3]
@@ -112,13 +132,16 @@ async def test_bad_choices_are_omitted(change):
         candidate["tag_name"] = "v1.3.0-beta1"
     latest = document()
     latest["assets"] = []
-    assert await catalog.async_list_install_releases(session(latest, [candidate])) == []
+    assert (
+        await catalog.async_resolve_update_candidates(session(latest, [candidate]))
+        == []
+    )
 
 
 @pytest.mark.parametrize("recent", [{}, [None] * 31])
 async def test_invalid_catalog_shape_or_count_fails(recent):
     with pytest.raises(ReleaseResolutionError):
-        await catalog.async_list_install_releases(session(document(), recent))
+        await catalog.async_resolve_update_candidates(session(document(), recent))
 
 
 @pytest.mark.parametrize(
@@ -138,7 +161,7 @@ async def test_bounded_and_unambiguous_response(body, status):
         status, body, catalog._RECENT_RELEASES_URL
     )
     with pytest.raises(ReleaseResolutionError):
-        await catalog.async_list_install_releases(client)
+        await catalog.async_resolve_update_candidates(client)
 
 
 def authenticated_session(signing_key, rows):
@@ -465,3 +488,120 @@ async def test_install_recommendation_keeps_github_name_order_over_feed_code(
     recommended = await catalog.async_resolve_install_choice(hass, None)
     assert recommended.tag == choices[0]["tag"]
     assert recommended.descriptor.version_code == 701
+
+
+def _fail_tags(client, tags, status=403):
+    from yarl import URL
+
+    for tag in tags:
+        url = URL(f"{catalog.ANDROID_RELEASES_API}/tags/{tag}")
+        client.responses[str(url)] = FakeResponse(status, b"", url)
+
+
+@pytest.mark.parametrize("site", [FakeResponse(404, b""), FakeResponse(200, b"{")])
+async def test_site_list_failure_is_logged_before_the_github_fallback(
+    release_key, caplog, site
+):
+    import logging
+
+    client = authenticated_session(release_key, [("v1.2.0", (5, 5))])
+    site.url = catalog._SITE_RELEASES_URL
+    client.responses[str(catalog._SITE_RELEASES_URL)] = site
+    caplog.set_level(logging.DEBUG, logger=catalog.__name__)
+    candidates = await catalog.async_resolve_update_candidates(client)
+    assert [bundle.artifact.tag for bundle in candidates] == ["v1.2.0"]
+    assert str(catalog._SITE_RELEASES_URL) in caplog.text
+    if site.status == 404:
+        assert "HTTP 404" in caplog.text
+
+
+def _unreachable_tags(client, tags):
+    from aiohttp import ClientConnectionError
+    from yarl import URL
+
+    urls = {str(URL(f"{catalog.ANDROID_RELEASES_API}/tags/{tag}")) for tag in tags}
+    get = client.get
+
+    def unreachable(url, **kwargs):
+        if str(url) in urls:
+            raise ClientConnectionError("unreachable")
+        return get(url, **kwargs)
+
+    client.get = unreachable
+
+
+@pytest.mark.parametrize("failure", ["status", "connection"])
+async def test_every_release_download_failing_is_a_failed_check(release_key, failure):
+    client = authenticated_session(
+        release_key, [("v1.2.0", (5, 5)), ("v1.1.0", (5, 5))]
+    )
+    fail = _fail_tags if failure == "status" else _unreachable_tags
+    fail(client, ["v1.2.0", "v1.1.0"])
+    with pytest.raises(ReleaseResolutionError):
+        await catalog.async_resolve_update_candidates(client)
+
+
+async def test_one_failed_release_leaves_the_other_offered(release_key):
+    client = authenticated_session(
+        release_key, [("v1.2.0", (5, 5)), ("v1.1.0", (5, 5))]
+    )
+    _fail_tags(client, ["v1.2.0"])
+    candidates = await catalog.async_resolve_update_candidates(client)
+    assert [bundle.artifact.tag for bundle in candidates] == ["v1.1.0"]
+
+
+async def test_every_release_rejected_is_an_empty_successful_check(
+    release_key, monkeypatch
+):
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    client = authenticated_session(
+        release_key, [("v1.2.0", (5, 5)), ("v1.1.0", (5, 5))]
+    )
+    from .test_release import _install_test_key
+
+    _install_test_key(
+        monkeypatch, rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    )
+    assert await catalog.async_resolve_update_candidates(client) == []
+
+
+async def test_stable_coordinator_keeps_its_offer_when_every_download_fails(
+    hass, release_key, caplog, monkeypatch
+):
+    import logging
+    from unittest.mock import patch
+
+    from custom_components.panel_assistant import feed_coordinator, update_policy
+
+    monkeypatch.setattr(update_policy, "INTEGRATION_VERSION", "1.0.0")
+
+    client = authenticated_session(release_key, [("v1.1.0", (5, 5))])
+    coordinator = feed_coordinator.StableReleaseCoordinator(hass)
+    caplog.set_level(logging.WARNING)
+    with (
+        patch.object(
+            feed_coordinator.StableReleaseCoordinator,
+            "_async_update_data",
+            _REAL_STABLE_UPDATE,
+        ),
+        patch.object(feed_coordinator, "async_get_clientsession", lambda _: client),
+    ):
+        await coordinator.async_refresh()
+        offered = coordinator.data
+        assert offered is not None and offered.tag == "v1.1.0"
+        _fail_tags(client, ["v1.1.0"])
+        await coordinator.async_refresh()
+    assert coordinator.last_update_success is False
+    assert coordinator.data is offered
+    assert "could not be authenticated" in caplog.text
+
+
+async def test_install_choices_without_feed_fail_when_every_download_fails(
+    hass, release_key, monkeypatch
+):
+    client = authenticated_session(release_key, [("v1.1.0", (5, 5))])
+    _fail_tags(client, ["v1.1.0"])
+    monkeypatch.setattr(catalog, "async_get_clientsession", lambda _: client)
+    with pytest.raises(ReleaseResolutionError):
+        await catalog.async_list_install_choices(hass)

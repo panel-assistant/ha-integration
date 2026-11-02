@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import json
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -477,8 +478,17 @@ async def test_a_panel_without_management_is_still_polled_over_http(
     assert not coordinator.last_update_success
     assert not coordinator.reachable
     # Nothing was asked on the session: the next message answers a request.
-    session = async_get_sessions(hass).get(entry.entry_id)
-    assert session is not None and not session.pending
+    response = await _send(
+        panel.client,
+        {
+            "type": "panel_assistant/report_state",
+            "session": panel.token,
+            "sync": "delta",
+            "observations": [],
+        },
+    )
+    assert response["type"] == "result", response
+    assert response["success"], response
 
 
 async def test_a_request_on_a_superseded_session_fails_and_its_late_answer_is_ignored(
@@ -511,3 +521,63 @@ async def test_a_request_on_a_superseded_session_fails_and_its_late_answer_is_ig
 
     assert not coordinator.last_update_success
     assert coordinator.data is previous
+
+
+@pytest.mark.parametrize(
+    ("webview", "reason", "settled"),
+    [
+        ("installed", "current", True),
+        # The panel reports the candidate current, so the uncertain send landed.
+        ("submitted_unknown", "current", True),
+        ("submitted_unknown", None, False),
+    ],
+)
+async def test_a_session_snapshot_ends_an_update_repair_once_its_webview_settles(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    webview: str,
+    reason: str | None,
+    settled: bool,
+) -> None:
+    """A managed panel never reaches the HTTP status read, so its snapshot clears."""
+    entry = await _load(hass, hass_read_only_user.id)
+    coordinator = entry.runtime_data.coordinator
+    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token, MANAGED)
+    await async_record_update_failure(
+        hass,
+        entry.entry_id,
+        entry.title,
+        "0.9.11-rc1 build 1200",
+        RuntimeError(),
+        webview_pending=True,
+    )
+    issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+    status_body = json.dumps(
+        {
+            **json.loads(STATUS_BODY),
+            "webview": {
+                "schema": 1,
+                "supported": True,
+                "eligible": False,
+                "reason": reason,
+                "candidate": {"sha256": "c" * 64},
+                "transaction": {"state": webview, "request_id": "r", "reason": None},
+            },
+        }
+    )
+    with _http_answers():
+        refresh = asyncio.ensure_future(coordinator.async_refresh())
+        request = await panel.manage()
+        assert request["op"] == "snapshot"
+        answered = await panel.answer(
+            request, "applied", result={"health": HEALTH_LINE, "status": status_body}
+        )
+        assert answered["success"], answered
+        await refresh
+
+    assert coordinator.last_update_success
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    assert (issue is None) is settled

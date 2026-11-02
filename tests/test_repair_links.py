@@ -20,7 +20,6 @@ from custom_components.panel_assistant.const import DOMAIN
     [
         ("volume_number_removed", "automations_url"),
         ("panel_permissions", "permissions_url"),
-        ("panel_webview", "learn_more_url"),
         ("no_update_route", "recovery_url"),
         ("adb_update_authorization", "approval_url"),
         ("installer_failure", "repair_url"),
@@ -112,7 +111,8 @@ async def test_every_issue_has_a_repair_map_entry(hass: HomeAssistant) -> None:
     ).get("repair", {})
     # Owner-requested removal links directly to the existing removal-risks topic.
     # Fault Repairs use /go/repair and require an issue-specific destination.
-    fault_issues = issues - {"remove_from_panel"}
+    # The unfinished-WebView wording of the update Repair shares its page.
+    fault_issues = issues - {"remove_from_panel", "installer_failure_update_webview"}
     assert fault_issues and fault_issues == set(pinned)
     assert len(set(pinned.values())) == len(fault_issues)
     assert all("#" in destination for destination in pinned.values())
@@ -140,3 +140,19 @@ async def test_repair_descriptions_have_short_linked_fix_steps(
         assert re.search(r"\[[^]]+\]\([^)]+\)", steps[0]), key
         if ".fix_flow." in key:
             assert "[Learn more]({learn_more_url})" in text, key
+
+
+@pytest.mark.parametrize(
+    "language",
+    ["cs", "de", "en", "es", "fr", "it", "nl", "pl", "pt-BR", "uk", "zh-Hans"],
+)
+async def test_retired_standalone_webview_repair_is_absent_from_core(
+    hass: HomeAssistant, language: str
+) -> None:
+    """Only the combined update Repair owns unfinished browser-engine work."""
+    assert await async_setup_component(hass, DOMAIN, {})
+    strings = await async_get_translations(hass, language, "issues", {DOMAIN})
+    prefix = f"component.{DOMAIN}.issues."
+    assert strings
+    assert not any(key.startswith(f"{prefix}panel_webview.") for key in strings)
+    assert any(key.startswith(f"{prefix}installer_failure_update.") for key in strings)

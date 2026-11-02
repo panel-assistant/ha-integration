@@ -386,13 +386,12 @@ async def test_a_panel_named_in_any_locale_carries_out_the_request(
     )
     said = _say(hass, sample["text"], language, None)
     sent = await panel.command()
+    command = sample["command"]
+    expected = STEPPED[command][0] if command in STEPPED else (command, None)
+    assert (sent["channel"], sent["value"]) == expected
     await panel.answer(sent["command_id"], "applied")
-    reply = _speech(await said)
     replies = voice_grammar.load_grammar(language)["responses"]
-    assert reply not in (
-        replies["panel_unknown"].format(panel=sample["panel"]),
-        replies["not_a_panel"],
-    )
+    assert _speech(await said) == replies[command]
 
 
 async def test_a_panel_that_cannot_press_back_says_so(

@@ -187,21 +187,6 @@ def _store_presence(path_text: str) -> tuple[bool, bool]:
     return exists, corrupt
 
 
-def _store_is_private(path_text: str) -> bool:
-    """Return whether a persisted secret is a regular owner-only POSIX file."""
-    path = Path(path_text)
-    try:
-        metadata = path.lstat()
-        return (
-            stat.S_ISREG(metadata.st_mode)
-            and (metadata.st_mode & 0o777) == 0o600
-            and metadata.st_uid == os.geteuid()
-            and metadata.st_nlink == 1
-        )
-    except OSError as err:
-        raise AdbCredentialError from err
-
-
 def _metadata_identity(metadata: os.stat_result) -> tuple[int, ...]:
     return (
         metadata.st_dev,

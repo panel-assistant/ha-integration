@@ -63,6 +63,7 @@ from .removed_panels import (
     async_remember_removed_panel,
 )
 from .repairs_microphone import async_delete_microphone_issue
+from .repairs_removal import async_dismiss_removal_notification
 from .repairs_restart import async_setup_restart_check
 from .repairs_upgrade import (
     async_evaluate_app_too_old,
@@ -362,6 +363,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
     """
     await async_delete_entry_issues(hass, entry.entry_id)
     async_clear_foreign_ha_issue(hass, entry.entry_id)
+    async_dismiss_removal_notification(hass, entry.entry_id)
     async_delete_merged_identity_issue(hass, entry)
     async_get_sessions(hass).forget_entry(entry.entry_id)
     # The panel's Sendspin key goes with its entry; a re-added panel gets a new one.

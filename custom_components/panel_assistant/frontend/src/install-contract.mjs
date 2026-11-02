@@ -66,16 +66,31 @@ export function parseInstall(body, nonce) {
 // web server up, and a refused connection meanwhile is expected, not a fault.
 // Wait here, read-only, for the app to be listening before the one strict
 // health read. The loop is bounded: 30 checks two seconds apart.
-export function buildAppReady(nonce) {
+// The app takes 8888 when it is free and otherwise the next free port, which it
+// keeps, and another app may hold 8888. So the app is the listening socket owned
+// by its own user id, 8888 first among its sockets. Only where the socket table
+// cannot be read does any listener on 8888 count. The port found is echoed.
+export function buildAppReady(nonce, packageId) {
   checkId(nonce);
-  return `echo HAPANELD_READY_BEGIN:${nonce}; i=0; r=1; while [ $i -lt 30 ]; do ` +
-    `if { ss -ltn 2>/dev/null; netstat -ltn 2>/dev/null; } | grep -q ':8888 '; then r=0; break; fi; ` +
+  if (typeof packageId !== 'string' || !/^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(packageId)) fail('invalid_request');
+  return `echo HAPANELD_READY_BEGIN:${nonce}; i=0; r=1; while [ $i -lt 30 ]; do p=; ` +
+    `u=$(stat -c %u /data/data/${packageId} 2>/dev/null); ` +
+    `[ -n "$u" ] || u=$(dumpsys package ${packageId} 2>/dev/null | sed -n 's/.*userId=\\([0-9]*\\).*/\\1/p' | head -n 1); ` +
+    `if [ -n "$u" ] && [ -r /proc/net/tcp ]; then p=$(cat /proc/net/tcp /proc/net/tcp6 2>/dev/null | { f=; ` +
+    `while read -r _ l _ s _ _ _ o _; do if [ "$s" = 0A ] && [ "$o" = "$u" ]; then q=$((0x\${l##*:})); ` +
+    `if [ "$q" = 8888 ]; then f=8888; break; fi; [ -n "$f" ] || f=$q; fi; done; echo "$f"; }); ` +
+    `elif { ss -ltn 2>/dev/null; netstat -ltn 2>/dev/null; } | grep -q ':8888 '; then p=8888; fi; ` +
+    `if [ -n "$p" ]; then echo "$p"; r=0; break; fi; ` +
     `i=$((i+1)); sleep 2; done; echo HAPANELD_READY_END:${nonce}:$r`;
 }
+/** The port the app listens on, or null while it is not listening yet. */
 export function parseAppReady(body, nonce) {
   const { lines, status } = parseSection(body, nonce, 'READY');
-  if (lines.length !== 0 || ![0, 1].includes(status)) fail();
-  return status === 0;
+  if (status === 1 && lines.length === 0) return null;
+  if (status === 0 && lines.length === 1 && /^[1-9][0-9]{0,4}$/.test(lines[0]) && Number(lines[0]) <= 65535) {
+    return Number(lines[0]);
+  }
+  fail();
 }
 export function parseLaunch(body, nonce) {
   const { status } = parseSection(body, nonce, 'LAUNCH');

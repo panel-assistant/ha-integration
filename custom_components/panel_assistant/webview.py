@@ -39,16 +39,37 @@ class WebViewStatus:
             "installed",
             "deferred",
             "rejected",
+            "submitted_unknown",
         ):
             return False
         return (
             self.supported
             and self.candidate_sha256 is not None
+            and (self.eligible or self.transaction_state in ATTENTION_STATES)
+        )
+
+    @property
+    def download_unpublished(self) -> bool:
+        """The panel could not fetch its WebView files: they are not published yet.
+
+        The app update is complete and only the WebView is missing, so this is
+        a WARNING log line, never a Repair.
+        """
+        return (
+            self.transaction_state == "deferred"
+            and self.transaction_reason == "download_failed"
+        )
+
+    @property
+    def settled(self) -> bool:
+        """No WebView work is running or left for the owner to finish."""
+        return (
+            self.transaction_state not in ACTIVE_STATES
             and (
-                self.eligible
-                or self.reason == "no_install_route"
-                or self.transaction_state in ATTENTION_STATES
+                self.transaction_state != "submitted_unknown"
+                or (self.reason == "current" and self.candidate_sha256 is not None)
             )
+            and (not self.needs_attention or self.download_unpublished)
         )
 
     def as_dict(self) -> dict[str, Any]:

@@ -1,5 +1,5 @@
 import { readBounded } from './bounded-stream.mjs';
-import { PANEL_HTTP_SERVICE } from './panel-http.mjs';
+import { DEFAULT_PANEL_PORT, panelHttpService } from './panel-http.mjs';
 import { isBuildVersionName } from './release-identity.mjs';
 
 export class UsbHealthError extends Error {
@@ -85,15 +85,17 @@ async function readUsbApp(adb, path, parse, {
   ensureCurrent = () => {}, quarantine, timeoutMs = 5000, closeMs = 2000,
   request = null,
   optional = false,
+  port = DEFAULT_PANEL_PORT,
 } = {}) {
   if (typeof ensureCurrent !== 'function' || typeof quarantine !== 'function' ||
       !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 5000 ||
-      !Number.isSafeInteger(closeMs) || closeMs < 1 || closeMs > 2000) fail('invalid_request');
+      !Number.isSafeInteger(closeMs) || closeMs < 1 || closeMs > 2000 ||
+      !Number.isSafeInteger(port) || port < 1 || port > 65535) fail('invalid_request');
   let socket, writer, stopped = false, timer;
   const guard = () => { if (stopped) fail('health_unavailable'); ensureCurrent(); };
   const operation = (async () => {
     guard();
-    socket = await adb.createSocket(PANEL_HTTP_SERVICE);
+    socket = await adb.createSocket(panelHttpService(port));
     if (stopped) {
       void Promise.resolve().then(() => socket.close()).catch(() => {});
       fail('health_unavailable');
@@ -101,7 +103,7 @@ async function readUsbApp(adb, path, parse, {
     guard();
     writer = socket.writable.getWriter();
     const body = request === null ? '' : JSON.stringify(request);
-    await writer.write(encoder.encode(`${request === null ? 'GET' : 'POST'} ${path} HTTP/1.1\r\nHost: 127.0.0.1:8888\r\nConnection: close\r\n` +
+    await writer.write(encoder.encode(`${request === null ? 'GET' : 'POST'} ${path} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nConnection: close\r\n` +
       (request === null ? '\r\n' : `Content-Type: application/json\r\nContent-Length: ${encoder.encode(body).length}\r\n\r\n${body}`)));
     guard();
     let text;

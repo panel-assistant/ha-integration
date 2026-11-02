@@ -18,8 +18,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant import transport_protocol
-
 from .test_native import DESCRIPTORS, _hello, _observations, _report
 from .test_transport import DID, WsClientFactory, _send
 from .test_transport_commands import (
@@ -29,7 +27,6 @@ from .test_transport_commands import (
     _connect,
     native,  # noqa: F401  # the fixture
 )
-from .test_transport_contract import _BY_CHANNEL
 
 
 def _player(hass: HomeAssistant) -> str:
@@ -100,33 +97,31 @@ async def panel(
         (None, False),
     ],
 )
-def test_media_observation_values(value: Any, accepted: bool) -> None:
-    """Only the four states with a strict mute flag are a media observation."""
-    descriptor = _BY_CHANNEL["media"]
-    validate = transport_protocol._VALUE_VALIDATORS[descriptor["platform"]]
-    if accepted:
-        assert validate(value | {"extra": 1}, descriptor) == value
-    else:
-        with pytest.raises(transport_protocol.ValueRejected):
-            validate(value, descriptor)
-
-
-async def test_a_rejected_media_report_is_named_in_the_reply(
-    hass: HomeAssistant, panel: Panel
+async def test_media_observation_values_reach_the_player_or_are_rejected(
+    hass: HomeAssistant, panel: Panel, value: Any, accepted: bool
 ) -> None:
-    """A well-formed media value is stored; a malformed one is rejected."""
-    await _observe(hass, panel, "media", {"state": "playing", "muted": False})
+    """Reports validate on the live session and rejected values keep the old state."""
+    await _observe(hass, panel, "media", {"state": "paused", "muted": False})
+    reported = value | {"extra": 1} if accepted else value
     response = await _send(
         panel.client,
         _report(
             panel.token,
             "delta",
-            [{"channel": "media", "state": "known", "value": {"state": "loud"}}],
+            [{"channel": "media", "state": "known", "value": reported}],
         ),
     )
     assert response["success"], response
-    assert [item["channel"] for item in response["result"]["rejected"]] == ["media"]
-    assert hass.states.get(_player(hass)).state == MediaPlayerState.PLAYING
+    assert [item["channel"] for item in response["result"]["rejected"]] == (
+        [] if accepted else ["media"]
+    )
+    await hass.async_block_till_done()
+    shown = hass.states.get(_player(hass))
+    assert shown is not None
+    assert shown.state == (value["state"] if accepted else "paused")
+    assert shown.attributes["is_volume_muted"] is (
+        value["muted"] if accepted else False
+    )
 
 
 @pytest.mark.parametrize(

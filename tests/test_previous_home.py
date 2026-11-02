@@ -27,6 +27,7 @@ def _shell(
     query_status: int = 0,
     package_status: int = 0,
     expected_status: int = 0,
+    home: str = "com.vendor.launcher/com.vendor.launcher.OriginalHome",
 ) -> str:
     log = shlex.quote(str(tmp_path / "captured"))
     # Installing can invalidate Android's HOME preference. Only the pre-install
@@ -36,9 +37,7 @@ def _shell(
         f"printf '%s\\n' {shlex.quote(query_response)}; return {query_status}; fi; "
     )
     prelude = (
-        "cmd() { "
-        + query
-        + "echo com.vendor.launcher/com.vendor.launcher.OriginalHome; }; "
+        "cmd() { " + query + f"echo {shlex.quote(home)}; }}; "
         "pm() { cmd() { "
         + query
         + "echo android/ResolverActivity; }; echo Success; }; "
@@ -106,7 +105,59 @@ def test_capture_refuses_symlink_without_touching_target(tmp_path: Path) -> None
     assert target.read_text() == "preserve me"
 
 
-def test_usb_and_network_install_use_identical_custody_program() -> None:
+def _snapshot(carrier: str, apk: str) -> str:
+    if carrier == "network":
+        return snapshot_previous_home(apk)
+    source = (
+        Path(__file__).parents[1]
+        / "custom_components/panel_assistant/frontend/src/previous-home.mjs"
+    )
+    script = (
+        f"import {{snapshotPreviousHome}} from {json.dumps(source.as_uri())}; "
+        f"console.log(JSON.stringify(snapshotPreviousHome({json.dumps(apk)})));"
+    )
+    return json.loads(
+        subprocess.run(
+            ["node", "--input-type=module", "-e", script],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+    )
+
+
+@pytest.mark.parametrize("carrier", ["network", "usb"])
+def test_snapshot_refuses_a_symlinked_record(tmp_path: Path, carrier: str) -> None:
+    apk = str(tmp_path / "install.apk")
+    target = tmp_path / "unrelated"
+    target.write_text("preserve me")
+    Path(apk + ".previous-home").symlink_to(target)
+    _shell(_snapshot(carrier, apk), tmp_path, expected_status=1)
+    assert target.read_text() == "preserve me"
+
+
+@pytest.mark.parametrize("carrier", ["network", "usb"])
+@pytest.mark.parametrize(
+    "home",
+    [
+        "io.panelassistant.android/.DashboardActivity",
+        "io.github.maxlyth.hapaneld/.DashboardActivity",
+        "android/com.android.internal.app.ResolverActivity",
+        "com.android.settings/.FallbackHome",
+    ],
+)
+def test_snapshot_never_records_a_home_that_cannot_be_handed_back(
+    tmp_path: Path, carrier: str, home: str
+) -> None:
+    apk = str(tmp_path / "install.apk")
+    _shell(_snapshot(carrier, apk), tmp_path, home=home)
+    assert Path(apk + ".previous-home").read_text() == "none\n"
+
+
+def test_usb_install_preserves_original_home_before_install_can_clear_it(
+    tmp_path: Path,
+) -> None:
+    """The USB shell transfers the original HOME after package install resets it."""
     source = (
         Path(__file__).parents[1]
         / "custom_components/panel_assistant/frontend/src/install-contract.mjs"
@@ -123,9 +174,16 @@ def test_usb_and_network_install_use_identical_custody_program() -> None:
             text=True,
         ).stdout
     )
-    assert actual == _install_command(
-        "0" * 32, "/data/local/tmp/ha-paneld-install-" + "1" * 32 + ".apk", 34
+    apk = tmp_path / ("ha-paneld-install-" + "1" * 32 + ".apk")
+    output = _shell(actual.replace("/data/local/tmp", str(tmp_path)), tmp_path)
+    assert "HAPANELD_INSTALL_END:" + "0" * 32 + ":0" in output
+    assert (tmp_path / "captured").is_file()
+    assert (
+        "--es previous_home_component "
+        "com.vendor.launcher/com.vendor.launcher.OriginalHome"
+        in (tmp_path / "captured").read_text()
     )
+    assert not Path(str(apk) + ".previous-home").exists()
 
 
 def test_cancelled_job_discards_only_its_snapshot(tmp_path: Path) -> None:

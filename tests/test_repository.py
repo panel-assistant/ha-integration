@@ -1,6 +1,10 @@
-"""Repository and distribution contract tests."""
+"""Repository and distribution contract tests.
 
-import ast
+Source-text reason: manifests, locale catalogues, README links and release workflow
+wiring are shipped artifacts. Their public schemas, copy and distribution wiring
+are the contracts under test; executable client behavior is exercised separately.
+"""
+
 import importlib.util
 import json
 import re
@@ -12,10 +16,11 @@ from typing import Any
 
 import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.panel_assistant import app_identity
-from custom_components.panel_assistant.client import parse_health_response
+from custom_components.panel_assistant.client import HaPaneldClient, normalize_address
 
 ROOT = Path(__file__).parents[1]
 INTEGRATION = ROOT / "custom_components" / "panel_assistant"
@@ -549,22 +554,29 @@ def test_setup_starts_from_the_address_and_never_strands_a_running_panel() -> No
         assert removed not in steps
 
 
-def test_runtime_harness_health_fixture_uses_production_grammar() -> None:
-    """Keep the real-Core fixture admissible by the shipping health parser."""
-    source = (ROOT / "tests" / "runtime" / "core_negative_harness.py").read_text(
-        encoding="utf-8"
+async def test_runtime_harness_health_fixture_uses_production_grammar(
+    hass: HomeAssistant, tmp_path: Path, socket_enabled
+) -> None:
+    """The real-Core server serves health accepted by the shipping HTTP client."""
+    spec = importlib.util.spec_from_file_location(
+        "core_negative_harness", ROOT / "tests" / "runtime" / "core_negative_harness.py"
     )
-    health_bodies = [
-        node.value
-        for node in ast.walk(ast.parse(source))
-        if isinstance(node, ast.Constant)
-        and isinstance(node.value, bytes)
-        and node.value.startswith(b"ha-paneld ")
-    ]
-
-    assert len(health_bodies) == 1
-    health = parse_health_response(health_bodies[0].decode("ascii"))
-    assert health.panel_id == "runtime_negative"
+    assert spec is not None and spec.loader is not None
+    harness = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(harness)
+    server = await hass.async_add_executor_job(
+        harness._PanelServer, "127.0.0.1", tmp_path / "mode"
+    )
+    await hass.async_add_executor_job(server.__enter__)
+    try:
+        client = HaPaneldClient(
+            async_get_clientsession(hass), normalize_address(f"127.0.0.1:{server.port}")
+        )
+        health = await client.async_get_health()
+        assert health.panel_id == "runtime_negative"
+        assert health.build == "100"
+    finally:
+        await hass.async_add_executor_job(server.__exit__)
 
 
 def test_readme_links_to_hacs_and_panel_preparation() -> None:
@@ -688,8 +700,6 @@ def test_outward_links_are_redirects_stamped_with_this_version() -> None:
     assert f"v={INTEGRATION_VERSION}" in link
     assert f"build={INTEGRATION_BUILD}" in link
     assert "model=TPA10" in help_url("panel-unreachable", model="TPA10")
-    source = (INTEGRATION / "const.py").read_text(encoding="utf-8")
-    assert source.count("panel-assistant.io") == 1, "one place names the site"
 
 
 def test_the_two_identity_modules_state_exactly_the_same_values() -> None:

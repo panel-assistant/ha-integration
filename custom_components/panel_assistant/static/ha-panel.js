@@ -70,7 +70,7 @@ var n = Object.freeze({
 			downloading: "Getting the app ready…",
 			verifying: "Getting the app ready…",
 			verified: "Continue in the new window.",
-			installed: "Panel Assistant is installed. Finish the panel's setup in the installer window, then close this tab.",
+			installed: "Panel Assistant is installed. Finish setting up the panel in the window you opened for the install, then close this tab.",
 			cancelled: "Cancelled.",
 			popup_blocked: "Your browser blocked the new window. Allow pop-ups for this page, then press Continue.",
 			invalid_request: "Choose a version first.",
@@ -102,6 +102,9 @@ var n = Object.freeze({
 			stepStarting: "Starting the app…",
 			stepPermissions: "Giving the app what it needs to run…",
 			stepOpening: "Opening your panel’s setup…",
+			stepWebView: "Updating the panel’s browser engine…",
+			stepWebViewUpdated: "The panel’s browser engine is up to date.",
+			stepWebViewKept: "The panel’s browser engine was left as it is.",
 			keepConnected: "Keep the cable plugged in until this finishes.",
 			doneHeading: "Installed",
 			doneOpening: "Taking you to your panel’s setup…",
@@ -127,6 +130,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "Something went wrong. Keep the panel plugged in and press Try again.",
+			installErrorUsbBusy: "Another app is using the USB connection. Close other apps using the panel’s USB connection, then press Try again.",
 			installErrorBusy: "The panel is busy with another install. Wait a minute, then try again.",
 			installErrorStorage: "This browser couldn’t save its progress. Allow this site to store data, then try again.",
 			installErrorTarget: "A different panel was connected. Plug in the same panel and try again.",
@@ -231,7 +235,7 @@ var n = Object.freeze({
 			downloading: "Příprava aplikace…",
 			verifying: "Příprava aplikace…",
 			verified: "Pokračujte v novém okně.",
-			installed: "Panel Assistant je nainstalován. Dokončete nastavení panelu v okně instalátoru a pak tuto kartu zavřete.",
+			installed: "Panel Assistant is installed. Finish setting up the panel in the window you opened for the install, then close this tab.",
 			cancelled: "Zrušeno.",
 			popup_blocked: "Prohlížeč zablokoval nové okno. Povolte pro tuto stránku vyskakovací okna a pak stiskněte Pokračovat.",
 			invalid_request: "Nejprve vyberte verzi.",
@@ -263,6 +267,9 @@ var n = Object.freeze({
 			stepStarting: "Spouštění aplikace…",
 			stepPermissions: "Poskytování toho, co aplikace potřebuje k běhu…",
 			stepOpening: "Otevírání nastavení panelu…",
+			stepWebView: "Updating the panel’s browser engine…",
+			stepWebViewUpdated: "The panel’s browser engine is up to date.",
+			stepWebViewKept: "The panel’s browser engine was left as it is.",
 			keepConnected: "Nechte kabel připojený, dokud se proces nedokončí.",
 			doneHeading: "Nainstalováno",
 			doneOpening: "Přesměrování na nastavení panelu…",
@@ -288,6 +295,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "Něco se pokazilo. Nechte panel připojený a stiskněte Zkusit znovu.",
+			installErrorUsbBusy: "Připojení USB používá jiná aplikace. Zavřete ostatní aplikace používající připojení USB panelu a poté stiskněte Zkusit znovu.",
 			installErrorBusy: "Panel je zaneprázdněný jinou instalací. Počkejte minutu a pak to zkuste znovu.",
 			installErrorStorage: "Tento prohlížeč nedokázal uložit průběh. Povolte tomuto webu ukládání dat a pak to zkuste znovu.",
 			installErrorTarget: "Byl připojen jiný panel. Připojte stejný panel a zkuste to znovu.",
@@ -392,7 +400,7 @@ var n = Object.freeze({
 			downloading: "Die App wird vorbereitet…",
 			verifying: "Die App wird vorbereitet…",
 			verified: "Fahre im neuen Fenster fort.",
-			installed: "Panel Assistant ist installiert. Schließe die Einrichtung des Panels im Installationsfenster ab und schließe dann diesen Tab.",
+			installed: "Panel Assistant is installed. Finish setting up the panel in the window you opened for the install, then close this tab.",
 			cancelled: "Abgebrochen.",
 			popup_blocked: "Dein Browser hat das neue Fenster blockiert. Erlaube Pop-ups für diese Seite und drücke dann „Weiter“.",
 			invalid_request: "Wähle zuerst eine Version.",
@@ -424,6 +432,9 @@ var n = Object.freeze({
 			stepStarting: "Die App wird gestartet…",
 			stepPermissions: "Die App erhält alles, was sie zum Ausführen braucht…",
 			stepOpening: "Die Einrichtung deines Panels wird geöffnet…",
+			stepWebView: "Updating the panel’s browser engine…",
+			stepWebViewUpdated: "The panel’s browser engine is up to date.",
+			stepWebViewKept: "The panel’s browser engine was left as it is.",
 			keepConnected: "Lass das Kabel angeschlossen, bis der Vorgang abgeschlossen ist.",
 			doneHeading: "Installiert",
 			doneOpening: "Du wirst zur Einrichtung deines Panels weitergeleitet…",
@@ -449,6 +460,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "Etwas ist schiefgegangen. Lass das Panel angeschlossen und drücke „Erneut versuchen“.",
+			installErrorUsbBusy: "Eine andere App verwendet die USB-Verbindung. Schließe andere Apps, die die USB-Verbindung des Panels verwenden, und drücke dann „Erneut versuchen“.",
 			installErrorBusy: "Das Panel ist mit einer anderen Installation beschäftigt. Warte eine Minute und versuche es dann erneut.",
 			installErrorStorage: "Dieser Browser konnte den Fortschritt nicht speichern. Erlaube dieser Website, Daten zu speichern, und versuche es erneut.",
 			installErrorTarget: "Ein anderes Panel wurde angeschlossen. Schließe dasselbe Panel an und versuche es erneut.",
@@ -553,7 +565,7 @@ var n = Object.freeze({
 			downloading: "Preparando la aplicación…",
 			verifying: "Preparando la aplicación…",
 			verified: "Continúa en la nueva ventana.",
-			installed: "Panel Assistant está instalado. Termina la configuración del panel en la ventana del instalador y después cierra esta pestaña.",
+			installed: "Panel Assistant is installed. Finish setting up the panel in the window you opened for the install, then close this tab.",
 			cancelled: "Cancelado.",
 			popup_blocked: "Tu navegador bloqueó la nueva ventana. Permite las ventanas emergentes para esta página y pulsa Continuar.",
 			invalid_request: "Elige primero una versión.",
@@ -585,6 +597,9 @@ var n = Object.freeze({
 			stepStarting: "Iniciando la aplicación…",
 			stepPermissions: "Dando a la aplicación lo que necesita para funcionar…",
 			stepOpening: "Abriendo la configuración de tu panel…",
+			stepWebView: "Updating the panel’s browser engine…",
+			stepWebViewUpdated: "The panel’s browser engine is up to date.",
+			stepWebViewKept: "The panel’s browser engine was left as it is.",
 			keepConnected: "Mantén el cable conectado hasta que termine.",
 			doneHeading: "Instalada",
 			doneOpening: "Te estamos llevando a la configuración de tu panel…",
@@ -610,6 +625,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "Algo salió mal. Mantén el panel conectado y pulsa Volver a intentar.",
+			installErrorUsbBusy: "Otra aplicación está usando la conexión USB. Cierra las demás aplicaciones que usen la conexión USB del panel y pulsa Volver a intentar.",
 			installErrorBusy: "El panel está ocupado con otra instalación. Espera un minuto y vuelve a intentarlo.",
 			installErrorStorage: "Este navegador no pudo guardar el progreso. Permite que este sitio almacene datos y vuelve a intentarlo.",
 			installErrorTarget: "Se conectó un panel diferente. Conecta el mismo panel y vuelve a intentarlo.",
@@ -714,7 +730,7 @@ var n = Object.freeze({
 			downloading: "Préparation de l’application…",
 			verifying: "Préparation de l’application…",
 			verified: "Continuez dans la nouvelle fenêtre.",
-			installed: "Panel Assistant est installé. Terminez la configuration du panneau dans la fenêtre de l'installateur, puis fermez cet onglet.",
+			installed: "Panel Assistant is installed. Finish setting up the panel in the window you opened for the install, then close this tab.",
 			cancelled: "Annulé.",
 			popup_blocked: "Votre navigateur a bloqué la nouvelle fenêtre. Autorisez les fenêtres contextuelles pour cette page, puis appuyez sur « Continuer ».",
 			invalid_request: "Choisissez d’abord une version.",
@@ -746,6 +762,9 @@ var n = Object.freeze({
 			stepStarting: "Démarrage de l’application…",
 			stepPermissions: "L’application reçoit ce qu’il lui faut pour fonctionner…",
 			stepOpening: "Ouverture de la configuration de votre panneau…",
+			stepWebView: "Updating the panel’s browser engine…",
+			stepWebViewUpdated: "The panel’s browser engine is up to date.",
+			stepWebViewKept: "The panel’s browser engine was left as it is.",
 			keepConnected: "Gardez le câble branché jusqu’à la fin.",
 			doneHeading: "Installée",
 			doneOpening: "Ouverture de la configuration de votre panneau…",
@@ -771,6 +790,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "Une erreur s’est produite. Gardez le panneau branché et appuyez sur « Réessayer ».",
+			installErrorUsbBusy: "Une autre application utilise la connexion USB. Fermez les autres applications qui utilisent la connexion USB du panneau, puis appuyez sur « Réessayer ».",
 			installErrorBusy: "Le panneau est occupé par une autre installation. Attendez une minute, puis réessayez.",
 			installErrorStorage: "Ce navigateur n’a pas pu enregistrer sa progression. Autorisez ce site à stocker des données, puis réessayez.",
 			installErrorTarget: "Un autre panneau a été connecté. Branchez le même panneau et réessayez.",
@@ -875,7 +895,7 @@ var n = Object.freeze({
 			downloading: "Preparazione dell’app…",
 			verifying: "Preparazione dell’app…",
 			verified: "Continua nella nuova finestra.",
-			installed: "Panel Assistant è installato. Completa la configurazione del pannello nella finestra dell'installer, poi chiudi questa scheda.",
+			installed: "Panel Assistant is installed. Finish setting up the panel in the window you opened for the install, then close this tab.",
 			cancelled: "Annullato.",
 			popup_blocked: "Il browser ha bloccato la nuova finestra. Consenti i popup per questa pagina, poi premi Continua.",
 			invalid_request: "Scegli prima una versione.",
@@ -907,6 +927,9 @@ var n = Object.freeze({
 			stepStarting: "Avvio dell’app…",
 			stepPermissions: "Assegnazione all’app di ciò che le serve per funzionare…",
 			stepOpening: "Apertura della configurazione del pannello…",
+			stepWebView: "Updating the panel’s browser engine…",
+			stepWebViewUpdated: "The panel’s browser engine is up to date.",
+			stepWebViewKept: "The panel’s browser engine was left as it is.",
 			keepConnected: "Lascia il cavo collegato fino al termine dell’operazione.",
 			doneHeading: "Installata",
 			doneOpening: "Apertura della configurazione del pannello…",
@@ -932,6 +955,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "Si è verificato un problema. Lascia il pannello collegato e premi Riprova.",
+			installErrorUsbBusy: "Un’altra app sta usando la connessione USB. Chiudi le altre app che usano la connessione USB del pannello, poi premi Riprova.",
 			installErrorBusy: "Il pannello è impegnato in un’altra installazione. Attendi un minuto, poi riprova.",
 			installErrorStorage: "Questo browser non è riuscito a salvare l’avanzamento. Consenti a questo sito di memorizzare dati, poi riprova.",
 			installErrorTarget: "È stato collegato un pannello diverso. Collega lo stesso pannello e riprova.",
@@ -1036,7 +1060,7 @@ var n = Object.freeze({
 			downloading: "App voorbereiden…",
 			verifying: "App voorbereiden…",
 			verified: "Ga verder in het nieuwe venster.",
-			installed: "Panel Assistant is geïnstalleerd. Rond de installatie van het paneel af in het installatievenster en sluit dan dit tabblad.",
+			installed: "Panel Assistant is installed. Finish setting up the panel in the window you opened for the install, then close this tab.",
 			cancelled: "Geannuleerd.",
 			popup_blocked: "De browser heeft het nieuwe venster geblokkeerd. Sta pop-ups toe voor deze pagina en druk op Doorgaan.",
 			invalid_request: "Kies eerst een versie.",
@@ -1068,6 +1092,9 @@ var n = Object.freeze({
 			stepStarting: "App starten…",
 			stepPermissions: "De app geven wat die nodig heeft om te werken…",
 			stepOpening: "Paneelconfiguratie openen…",
+			stepWebView: "Updating the panel’s browser engine…",
+			stepWebViewUpdated: "The panel’s browser engine is up to date.",
+			stepWebViewKept: "The panel’s browser engine was left as it is.",
 			keepConnected: "Laat de kabel aangesloten totdat dit klaar is.",
 			doneHeading: "Geïnstalleerd",
 			doneOpening: "Je wordt naar de paneelconfiguratie geleid…",
@@ -1093,6 +1120,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "Er ging iets mis. Laat het paneel aangesloten en druk op Opnieuw proberen.",
+			installErrorUsbBusy: "Een andere app gebruikt de USB-verbinding. Sluit andere apps die de USB-verbinding van het paneel gebruiken en druk daarna op Opnieuw proberen.",
 			installErrorBusy: "Het paneel is bezig met een andere installatie. Wacht een minuut en probeer het opnieuw.",
 			installErrorStorage: "Deze browser kon de voortgang niet opslaan. Sta toe dat deze site gegevens opslaat en probeer het opnieuw.",
 			installErrorTarget: "Er is een ander paneel aangesloten. Sluit hetzelfde paneel aan en probeer het opnieuw.",
@@ -1197,7 +1225,7 @@ var n = Object.freeze({
 			downloading: "Przygotowywanie aplikacji…",
 			verifying: "Przygotowywanie aplikacji…",
 			verified: "Kontynuuj w nowym oknie.",
-			installed: "Panel Assistant jest zainstalowany. Dokończ konfigurację panelu w oknie instalatora, a następnie zamknij tę kartę.",
+			installed: "Panel Assistant is installed. Finish setting up the panel in the window you opened for the install, then close this tab.",
 			cancelled: "Anulowano.",
 			popup_blocked: "Przeglądarka zablokowała nowe okno. Zezwól na wyskakujące okna dla tej strony, a potem naciśnij Kontynuuj.",
 			invalid_request: "Najpierw wybierz wersję.",
@@ -1229,6 +1257,9 @@ var n = Object.freeze({
 			stepStarting: "Uruchamianie aplikacji…",
 			stepPermissions: "Zapewnianie aplikacji warunków do działania…",
 			stepOpening: "Otwieranie konfiguracji panelu…",
+			stepWebView: "Updating the panel’s browser engine…",
+			stepWebViewUpdated: "The panel’s browser engine is up to date.",
+			stepWebViewKept: "The panel’s browser engine was left as it is.",
 			keepConnected: "Zostaw kabel podłączony do zakończenia.",
 			doneHeading: "Zainstalowano",
 			doneOpening: "Przechodzenie do konfiguracji panelu…",
@@ -1254,6 +1285,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "Coś poszło nie tak. Zostaw panel podłączony i naciśnij Spróbuj ponownie.",
+			installErrorUsbBusy: "Inna aplikacja używa połączenia USB. Zamknij inne aplikacje korzystające z połączenia USB panelu, a następnie naciśnij Spróbuj ponownie.",
 			installErrorBusy: "Panel jest zajęty inną instalacją. Poczekaj minutę, a potem spróbuj ponownie.",
 			installErrorStorage: "Przeglądarka nie mogła zapisać postępu. Zezwól tej stronie na zapisywanie danych, a potem spróbuj ponownie.",
 			installErrorTarget: "Podłączono inny panel. Podłącz ten sam panel co wcześniej i spróbuj ponownie.",
@@ -1358,7 +1390,7 @@ var n = Object.freeze({
 			downloading: "Preparando o aplicativo…",
 			verifying: "Preparando o aplicativo…",
 			verified: "Continue na nova janela.",
-			installed: "O Panel Assistant está instalado. Conclua a configuração do painel na janela do instalador e depois feche esta guia.",
+			installed: "Panel Assistant is installed. Finish setting up the panel in the window you opened for the install, then close this tab.",
 			cancelled: "Cancelado.",
 			popup_blocked: "Seu navegador bloqueou a nova janela. Permita pop-ups nesta página e pressione Continuar.",
 			invalid_request: "Escolha uma versão primeiro.",
@@ -1390,6 +1422,9 @@ var n = Object.freeze({
 			stepStarting: "Iniciando o aplicativo…",
 			stepPermissions: "Concedendo ao aplicativo o que ele precisa para funcionar…",
 			stepOpening: "Abrindo a configuração do seu painel…",
+			stepWebView: "Updating the panel’s browser engine…",
+			stepWebViewUpdated: "The panel’s browser engine is up to date.",
+			stepWebViewKept: "The panel’s browser engine was left as it is.",
 			keepConnected: "Mantenha o cabo conectado até terminar.",
 			doneHeading: "Instalado",
 			doneOpening: "Levando você à configuração do seu painel…",
@@ -1415,6 +1450,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "Algo deu errado. Mantenha o painel conectado e pressione Tentar novamente.",
+			installErrorUsbBusy: "Outro aplicativo está usando a conexão USB. Feche os outros aplicativos que usam a conexão USB do painel e pressione Tentar novamente.",
 			installErrorBusy: "O painel está ocupado com outra instalação. Aguarde um minuto e tente novamente.",
 			installErrorStorage: "Este navegador não conseguiu salvar o progresso. Permita que este site armazene dados e tente novamente.",
 			installErrorTarget: "Outro painel foi conectado. Conecte o mesmo painel e tente novamente.",
@@ -1519,7 +1555,7 @@ var n = Object.freeze({
 			downloading: "Підготовка програми…",
 			verifying: "Підготовка програми…",
 			verified: "Продовжуйте в новому вікні.",
-			installed: "Panel Assistant установлено. Завершіть налаштування панелі у вікні інсталятора, а потім закрийте цю вкладку.",
+			installed: "Panel Assistant is installed. Finish setting up the panel in the window you opened for the install, then close this tab.",
 			cancelled: "Скасовано.",
 			popup_blocked: "Браузер заблокував нове вікно. Дозвольте спливні вікна для цієї сторінки та натисніть «Продовжити».",
 			invalid_request: "Спочатку виберіть версію.",
@@ -1551,6 +1587,9 @@ var n = Object.freeze({
 			stepStarting: "Запуск програми…",
 			stepPermissions: "Надання програмі всього необхідного для роботи…",
 			stepOpening: "Відкриття налаштування панелі…",
+			stepWebView: "Updating the panel’s browser engine…",
+			stepWebViewUpdated: "The panel’s browser engine is up to date.",
+			stepWebViewKept: "The panel’s browser engine was left as it is.",
 			keepConnected: "Залиште кабель під’єднаним до завершення.",
 			doneHeading: "Встановлено",
 			doneOpening: "Перехід до налаштування панелі…",
@@ -1576,6 +1615,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "Щось пішло не так. Залиште панель під’єднаною та натисніть «Спробувати ще раз».",
+			installErrorUsbBusy: "Інша програма використовує USB-з’єднання. Закрийте інші програми, які використовують USB-з’єднання панелі, а потім натисніть «Спробувати ще раз».",
 			installErrorBusy: "На панелі вже триває інше встановлення. Зачекайте хвилину й повторіть спробу.",
 			installErrorStorage: "Браузеру не вдалося зберегти перебіг роботи. Дозвольте цьому сайту зберігати дані й повторіть спробу.",
 			installErrorTarget: "Було під’єднано іншу панель. Під’єднайте ту саму панель і повторіть спробу.",
@@ -1680,7 +1720,7 @@ var n = Object.freeze({
 			downloading: "正在准备应用…",
 			verifying: "正在准备应用…",
 			verified: "请在新窗口中继续。",
-			installed: "Panel Assistant 已安装。请在安装程序窗口中完成面板的设置，然后关闭此标签页。",
+			installed: "Panel Assistant is installed. Finish setting up the panel in the window you opened for the install, then close this tab.",
 			cancelled: "已取消。",
 			popup_blocked: "浏览器阻止了新窗口。请允许此页面弹出窗口，然后点击“继续”。",
 			invalid_request: "请先选择版本。",
@@ -1712,6 +1752,9 @@ var n = Object.freeze({
 			stepStarting: "正在启动应用…",
 			stepPermissions: "正在为应用提供运行所需的条件…",
 			stepOpening: "正在打开面板设置…",
+			stepWebView: "Updating the panel’s browser engine…",
+			stepWebViewUpdated: "The panel’s browser engine is up to date.",
+			stepWebViewKept: "The panel’s browser engine was left as it is.",
 			keepConnected: "请保持数据线连接，直到完成。",
 			doneHeading: "已安装",
 			doneOpening: "正在带您进入面板设置…",
@@ -1737,6 +1780,7 @@ var n = Object.freeze({
 		},
 		errors: {
 			installErrorGeneric: "发生了错误。请保持面板连接，然后点击“重试”。",
+			installErrorUsbBusy: "另一个应用正在使用 USB 连接。请关闭其他使用面板 USB 连接的应用，然后点击“重试”。",
 			installErrorBusy: "面板正在进行另一项安装。请等待一分钟后重试。",
 			installErrorStorage: "此浏览器无法保存进度。请允许此网站存储数据，然后重试。",
 			installErrorTarget: "连接了另一个面板。请连接原来的面板后重试。",
@@ -1942,33 +1986,40 @@ var fe = class extends HTMLElement {
 	#p = null;
 	#m = null;
 	#h = null;
-	#g = () => this.#I();
-	#_ = /* @__PURE__ */ new Map();
-	#v = 0;
-	#y = !1;
-	#b = null;
-	#x = 0;
-	#S = 0;
-	#C = (e) => {
+	#g;
+	#_ = () => this.#R();
+	#v = (e) => {
+		let t = this.shadowRoot.querySelector("#frame");
+		if (e.currentTarget !== t || !t.getAttribute("src")) return;
+		let n = ++this.#C;
+		this.#B(() => this.#w >= n, O);
+	};
+	#y = /* @__PURE__ */ new Map();
+	#b = 0;
+	#x = !1;
+	#S = null;
+	#C = 0;
+	#w = 0;
+	#T = (e) => {
 		let t = this.shadowRoot.querySelector("#frame"), n = e.data?.type;
 		if (e.data?.type === C && e.source && e.source === t.contentWindow && this.#p?.state === "open") {
 			if (e.data.read === !0) {
 				try {
-					this.#b = T(JSON.parse(localStorage.getItem(w))) ?? this.#b;
+					this.#S = T(JSON.parse(localStorage.getItem(w))) ?? this.#S;
 				} catch {}
-				this.#V({
+				this.#U({
 					type: C,
-					value: this.#b
+					value: this.#S
 				});
 			} else {
 				let t = T(e.data.value);
 				if (!t) return;
-				this.#b = t;
+				this.#S = t;
 				try {
 					localStorage.setItem(w, JSON.stringify(t));
 				} catch {}
 			}
-		} else (n === E || n === D) && e.source && e.source === t.contentWindow ? (t.getAttribute("src") && (t.dataset.ready = String(n === D), this.#S++, n === E && this.#z()), this.#W()) : this.#U(e);
+		} else (n === E || n === D) && e.source && e.source === t.contentWindow ? (t.getAttribute("src") && (t.dataset.ready = String(n === D), this.#w++, n === E && this.#V()), this.#K()) : this.#G(e);
 	};
 	constructor() {
 		super(), this.attachShadow({ mode: "open" }), this.shadowRoot.innerHTML = `<style>${c}${l}
@@ -2056,38 +2107,34 @@ var fe = class extends HTMLElement {
 			composed: !0
 		})));
 		let n = e.querySelector("#overflow");
-		n.setAttribute("aria-label", this.#e.more), n.setAttribute("title", this.#e.more), n.hidden = !0, e.querySelector("#backdrop").hidden = !0, e.querySelector("#dot").hidden = !0, n.addEventListener("click", () => this.#T(!this.#w())), e.querySelector("#backdrop").addEventListener("click", () => this.#T(!1)), e.querySelector("#root").addEventListener("keydown", (e) => {
-			e.key === "Escape" && this.#w() && (this.#T(!1), n.focus?.());
-		}), e.querySelector("#frame").setAttribute("title", this.#e.frameTitle), e.querySelector("#frame").addEventListener("load", () => {
-			if (!e.querySelector("#frame").getAttribute("src")) return;
-			let t = ++this.#x;
-			this.#R(() => this.#S >= t, O);
-		});
+		n.setAttribute("aria-label", this.#e.more), n.setAttribute("title", this.#e.more), n.hidden = !0, e.querySelector("#backdrop").hidden = !0, e.querySelector("#dot").hidden = !0, n.addEventListener("click", () => this.#D(!this.#E())), e.querySelector("#backdrop").addEventListener("click", () => this.#D(!1)), e.querySelector("#root").addEventListener("keydown", (e) => {
+			e.key === "Escape" && this.#E() && (this.#D(!1), n.focus?.());
+		}), e.querySelector("#frame").setAttribute("title", this.#e.frameTitle), e.querySelector("#frame").addEventListener("load", this.#v);
 		let r = e.querySelector("#settings");
 		r.setAttribute("aria-label", this.#e.integrationSettings), r.setAttribute("title", this.#e.integrationSettings);
 		let i = e.querySelector("#github");
-		i.setAttribute("aria-label", this.#e.github), i.setAttribute("title", this.#e.github), i.addEventListener("click", () => this.#T(!1));
+		i.setAttribute("aria-label", this.#e.github), i.setAttribute("title", this.#e.github), i.addEventListener("click", () => this.#D(!1));
 		let a = e.querySelector("#device");
 		a.setAttribute("aria-label", this.#e.device), a.setAttribute("title", this.#e.device), a.addEventListener("click", (e) => {
 			let t = a.getAttribute("href");
-			if (this.#T(!1), !t || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+			if (this.#D(!1), !t || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
 			e.preventDefault();
-			let n = this.#p?.page;
+			let n = this.#g;
 			history.pushState(history.state, "", `/panel-assistant/${this.#u}${n ? "/" + n : ""}`), M(t);
 		});
 		for (let [t, n] of [["add", j], ["settings", ee]]) {
 			let r = e.querySelector(`#${t}`);
 			r.setAttribute("href", n), r.addEventListener("click", (e) => {
-				this.#T(!1), !(e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) && (e.preventDefault(), M(n));
+				this.#D(!1), !(e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) && (e.preventDefault(), M(n));
 			});
 		}
 		e.querySelector("#panels").addEventListener("change", (e) => {
-			let t = e.target.value, n = this.#p?.page;
+			let t = e.target.value, n = this.#g;
 			this.#d = n ? {
 				entryId: t,
 				suffix: n
-			} : null, this.#M(t);
-		}), this.#W();
+			} : null, this.#P(t);
+		}), this.#K();
 	}
 	get hass() {
 		return this.#t;
@@ -2097,11 +2144,11 @@ var fe = class extends HTMLElement {
 		this.#t = e;
 		let n = e?.themes?.darkMode;
 		if (typeof n == "boolean" && this.setAttribute?.("theme", n ? "dark" : "light"), this.isConnected) {
-			if (this.#E(), t?.connection !== e?.connection || t?.user?.id !== e?.user?.id || t?.user?.is_admin !== e?.user?.is_admin) {
-				this.#A();
+			if (this.#O(), t?.connection !== e?.connection || t?.user?.id !== e?.user?.id || t?.user?.is_admin !== e?.user?.is_admin) {
+				this.#M();
 				return;
 			}
-			(t?.language !== e?.language || !!t?.themes?.darkMode != !!e?.themes?.darkMode) && (this.#L(), this.#N());
+			(t?.language !== e?.language || !!t?.themes?.darkMode != !!e?.themes?.darkMode) && (this.#z(), this.#F());
 		}
 	}
 	get panel() {
@@ -2117,7 +2164,7 @@ var fe = class extends HTMLElement {
 		let t = this.#r?.path;
 		if (this.#r = e, t === e?.path) return;
 		let n = ce(e?.path);
-		this.#d = n.suffix ? n : null, this.#M(n.entryId);
+		this.#d = n.suffix ? n : null, this.#P(n.entryId);
 	}
 	get narrow() {
 		return this.#i;
@@ -2137,16 +2184,16 @@ var fe = class extends HTMLElement {
 			let n = t.querySelector(`#${e}`);
 			this.#i ? n.setAttribute("role", "menuitem") : n.removeAttribute("role");
 		}
-		this.#i || this.#T(!1), this.#E();
+		this.#i || this.#D(!1), this.#O();
 	}
-	#w() {
+	#E() {
 		return this.shadowRoot.querySelector("#more").getAttribute("data-open") !== null;
 	}
-	#T(e) {
+	#D(e) {
 		let t = this.shadowRoot, n = t.querySelector("#more"), r = e && this.#i;
 		r ? n.setAttribute("data-open", "") : n.removeAttribute("data-open"), t.querySelector("#backdrop").hidden = !r, t.querySelector("#overflow").setAttribute("aria-expanded", String(r));
 	}
-	#E() {
+	#O() {
 		let e = this.isConnected && this.#i ? this.#t?.connection : void 0, t = this.#h;
 		if (t?.connection === e || (t && (this.#h = null, t.unsubscribe?.then((e) => e()).catch(() => {}), this.shadowRoot.querySelector("#dot").hidden = !0), !e?.subscribeMessage)) return;
 		let n = {
@@ -2154,9 +2201,9 @@ var fe = class extends HTMLElement {
 			notifications: {},
 			unsubscribe: null
 		};
-		this.#h = n, n.unsubscribe = Promise.resolve().then(() => e.subscribeMessage((e) => this.#D(n, e), { type: "persistent_notification/subscribe" })), n.unsubscribe.catch(() => {});
+		this.#h = n, n.unsubscribe = Promise.resolve().then(() => e.subscribeMessage((e) => this.#k(n, e), { type: "persistent_notification/subscribe" })), n.unsubscribe.catch(() => {});
 	}
-	#D(e, t) {
+	#k(e, t) {
 		if (this.#h === e && ie.has(t?.type) && t.notifications && typeof t.notifications == "object") {
 			if (t.type === "current") e.notifications = { ...t.notifications };
 			else if (t.type === "removed") for (let n of Object.keys(t.notifications)) delete e.notifications[n];
@@ -2168,24 +2215,24 @@ var fe = class extends HTMLElement {
 		}
 	}
 	connectedCallback() {
-		window.addEventListener("message", this.#C), clearInterval(this.#m), this.#A(), this.#E(), this.#m = setInterval(() => this.#j(), re);
+		window.addEventListener("message", this.#T), clearInterval(this.#m), this.#M(), this.#O(), this.#m = setInterval(() => this.#N(), re);
 	}
 	disconnectedCallback() {
-		window.removeEventListener("message", this.#C), clearInterval(this.#m), this.#m = null, this.#c++, this.#k(), this.#L(), this.#E();
-	}
-	#O() {
-		return this.#t?.user?.is_admin === !0;
-	}
-	#k() {
-		this.#a?.removeEventListener?.("ready", this.#g), this.#a = void 0;
+		window.removeEventListener("message", this.#T), clearInterval(this.#m), this.#m = null, this.#c++, this.#j(), this.#z(), this.#O();
 	}
 	#A() {
-		this.#k(), this.#L(), this.#o = null, this.#l = "", this.#s = "loading", this.#O() && this.#t.connection && (this.#a = this.#t.connection, this.#a.addEventListener("ready", this.#g)), this.#W(), this.#j();
+		return this.#t?.user?.is_admin === !0;
 	}
-	async #j() {
+	#j() {
+		this.#a?.removeEventListener?.("ready", this.#_), this.#a = void 0;
+	}
+	#M() {
+		this.#j(), this.#z(), this.#o = null, this.#l = "", this.#s = "loading", this.#A() && this.#t.connection && (this.#a = this.#t.connection, this.#a.addEventListener("ready", this.#_)), this.#K(), this.#N();
+	}
+	async #N() {
 		let e = ++this.#c;
-		if (!this.#O()) {
-			this.#W();
+		if (!this.#A()) {
+			this.#K();
 			return;
 		}
 		let t;
@@ -2200,7 +2247,7 @@ var fe = class extends HTMLElement {
 			t = ae(e);
 		} catch {
 			if (e !== this.#c) return;
-			this.#o = null, this.#s = "failed", this.#L(), this.#W();
+			this.#o = null, this.#s = "failed", this.#z(), this.#K();
 			return;
 		}
 		if (e !== this.#c) return;
@@ -2208,21 +2255,21 @@ var fe = class extends HTMLElement {
 			let e = ce(this.#r?.path).entryId, n = t.some((t) => t.entry_id === e) ? e : ue();
 			this.#u = t.some((e) => e.entry_id === n) ? n : t[0]?.entry_id ?? null;
 		}
-		this.#N();
+		this.#F();
 		let n = this.#p;
-		this.#y && n?.state === "open" && t.some((e) => e.entry_id === n.entryId && e.state === "reachable") && (this.#y = !1, this.#V({
+		this.#x && n?.state === "open" && t.some((e) => e.entry_id === n.entryId && e.state === "reachable") && (this.#x = !1, this.#U({
 			type: S,
 			open: !0
 		}));
 	}
-	#M(e) {
-		this.#d?.entryId !== e && (this.#d = null), this.#o?.some((t) => t.entry_id === e) && (e !== this.#u || this.#d) && (this.#u = e, de(e), this.#L(), this.#N());
+	#P(e) {
+		this.#d?.entryId !== e && (this.#d = null), this.#o?.some((t) => t.entry_id === e) && (e !== this.#u || this.#d) && (this.#u = e, de(e), this.#z(), this.#F());
 	}
-	#N() {
+	#F() {
 		let e = this.#o?.find((e) => e.entry_id === this.#u), t = this.#p;
-		!e || e.state !== "reachable" ? t && (t.state !== "closed" || t.entryId !== e?.entry_id) && this.#L() : (!t || t.entryId !== e.entry_id || !["opening", "open"].includes(t.state)) && (this.#L(), this.#P(e.entry_id, null, null)), this.#W();
+		!e || e.state !== "reachable" ? t && (t.state !== "closed" || t.entryId !== e?.entry_id) && this.#z() : (!t || t.entryId !== e.entry_id || !["opening", "open"].includes(t.state)) && (this.#z(), this.#I(e.entry_id, null, null)), this.#K();
 	}
-	#P(e, t, n) {
+	#I(e, t, n) {
 		let r = this.#t, i = {
 			entryId: e,
 			token: t,
@@ -2241,86 +2288,88 @@ var fe = class extends HTMLElement {
 			theme: r.themes?.darkMode ? "dark" : "light",
 			...t ? { resume: t } : {}
 		};
-		i.unsubscribe = Promise.resolve().then(() => r.connection.subscribeMessage((e) => this.#F(i, e), a, { resubscribe: !1 })), i.unsubscribe.catch((e) => {
-			this.#p === i && (i.state = "failed", i.code = e?.code ?? null, this.#B(), this.#W());
+		i.unsubscribe = Promise.resolve().then(() => r.connection.subscribeMessage((e) => this.#L(i, e), a, { resubscribe: !1 })), i.unsubscribe.catch((e) => {
+			this.#p === i && (i.state = "failed", i.code = e?.code ?? null, this.#H(), this.#K());
 		});
 	}
-	#F(e, t) {
+	#L(e, t) {
 		if (this.#p === e && t) {
 			if (t.kind === "opened") {
 				let n = oe(t.url);
 				if (!n) {
-					this.#L(), this.#p = {
+					this.#z(), this.#p = {
 						entryId: e.entryId,
 						state: "failed",
 						code: null,
 						unsubscribe: null
-					}, this.#W();
+					}, this.#K();
 					return;
 				}
 				e.token = n, e.url = t.url, e.state = "open";
 				let r = this.shadowRoot.querySelector("#frame");
 				if (this.#f !== t.url) {
-					delete r.dataset.ready, this.#f = t.url, this.#z();
+					delete r.dataset.ready, this.#f = t.url, this.#V();
 					let n = this.#d?.entryId === e.entryId ? this.#d.suffix : "";
 					n && (this.#d = null), r.setAttribute("src", t.url + n);
-				} else e.reopen && this.#V({
+				} else e.reopen && this.#U({
 					type: S,
 					open: !0
-				}), r.dataset.ready !== "true" && this.#z();
-				e.reopen = !1, this.#W();
-			} else t.kind === "page" ? (t.page === "" || se.has(t.page)) && (e.page = t.page, history.replaceState(history.state, "", `/panel-assistant/${e.entryId}${t.page ? "/" + t.page : ""}`)) : t.kind === "closed" && (this.#V({
+				}), r.dataset.ready !== "true" && this.#V();
+				e.reopen = !1, this.#K();
+			} else t.kind === "page" ? (t.page === "" || se.has(t.page)) && (this.#g = e.page = t.page, history.replaceState(history.state, "", `/panel-assistant/${e.entryId}${t.page ? "/" + t.page : ""}`)) : t.kind === "closed" && (this.#U({
 				type: S,
 				closed: !0
-			}), this.#L(), this.#p = {
+			}), this.#z(), this.#p = {
 				entryId: e.entryId,
 				state: "closed",
 				code: null,
 				unsubscribe: null
-			}, this.#W(), this.#j());
+			}, this.#K(), this.#N());
 		}
 	}
-	#I() {
+	#R() {
 		let e = this.#p;
-		this.isConnected && e && ["opening", "open"].includes(e.state) && (this.#H(!1), this.#V({
+		this.isConnected && e && ["opening", "open"].includes(e.state) && (this.#W(!1), this.#U({
 			type: S,
 			closed: !0
-		}), this.#P(e.entryId, e.token, e.url), this.#W());
-	}
-	#L() {
-		this.#H(!0);
-		let e = this.#p;
-		this.#p = null, e && (e.state = "ended", e.unsubscribe?.then((e) => e()).catch(() => {}), this.#B());
-	}
-	#R(e, t) {
-		let n = this.#p;
-		setTimeout(() => {
-			this.#p !== n || e() || (n.state = "failed", n.code = null, this.#B(), this.#W());
-		}, t);
+		}), this.#I(e.entryId, e.token, e.url), this.#K());
 	}
 	#z() {
-		let e = this.#S;
-		this.#R(() => this.#S > e, k);
+		this.#W(!0);
+		let e = this.#p;
+		this.#p = null, e && (e.state = "ended", e.unsubscribe?.then((e) => e()).catch(() => {}), this.#H());
 	}
-	#B() {
+	#B(e, t) {
+		let n = this.#p;
+		setTimeout(() => {
+			this.#p !== n || e() || (n.state = "failed", n.code = null, this.#H(), this.#K());
+		}, t);
+	}
+	#V() {
+		let e = this.#w;
+		this.#B(() => this.#w > e, k);
+	}
+	#H() {
 		let e = this.shadowRoot.querySelector("#frame");
-		delete e.dataset.ready, this.#f = null, this.#x = this.#S = 0, e.removeAttribute("src");
-	}
-	#V(e) {
-		this.shadowRoot.querySelector("#frame").contentWindow?.postMessage(e, "*");
-	}
-	#H(e) {
-		this.#v++, this.#y = !1;
-		let t = [...this.#_.values()];
-		if (this.#_.clear(), e) for (let e of t) e.then((e) => e()).catch(() => {});
+		delete e.dataset.ready, this.#f = null, this.#C = this.#w = 0, e.removeAttribute("src");
+		let t = e.cloneNode();
+		t.addEventListener("load", this.#v), e.replaceWith(t);
 	}
 	#U(e) {
+		this.shadowRoot.querySelector("#frame").contentWindow?.postMessage(e, "*");
+	}
+	#W(e) {
+		this.#b++, this.#x = !1;
+		let t = [...this.#y.values()];
+		if (this.#y.clear(), e) for (let e of t) e.then((e) => e()).catch(() => {});
+	}
+	#G(e) {
 		let t = this.shadowRoot.querySelector("#frame").contentWindow, n = e.data?.frame, r = this.#p;
 		if (!t || e.data?.type !== "panel-assistant-ui" || !n || typeof n != "object") return;
 		let i = e.source === null && e.origin === "null" && n.op === "unsubscribe";
 		if (e.source !== t && !i) return;
-		let a = this.#v, o = (e) => {
-			!i && a === this.#v && this.#V({
+		let a = this.#b, o = (e) => {
+			!i && a === this.#b && this.#U({
 				type: S,
 				frame: e
 			});
@@ -2339,23 +2388,23 @@ var fe = class extends HTMLElement {
 			request: n
 		}, l = this.#t.connection;
 		if (n.op === "unsubscribe") {
-			let e = this.#_.get(n.args?.subscription);
-			this.#_.delete(n.args?.subscription), e?.then((e) => e()).catch(() => {}), o({
+			let e = this.#y.get(n.args?.subscription);
+			this.#y.delete(n.args?.subscription), e?.then((e) => e()).catch(() => {}), o({
 				command_id: n.command_id,
 				outcome: "applied"
 			});
 		} else if (n.op === "subscribe") {
 			let e = Promise.resolve().then(() => l.subscribeMessage((e) => {
 				if (e?.closed === !0) {
-					if (this.#_.delete(n.command_id), a !== this.#v) return;
-					this.#y = !0, this.#V({
+					if (this.#y.delete(n.command_id), a !== this.#b) return;
+					this.#x = !0, this.#U({
 						type: S,
 						closed: !0
 					});
 				} else o(e);
 			}, c, { resubscribe: !1 }));
-			this.#_.set(n.command_id, e), e.catch(() => {
-				this.#_.get(n.command_id) === e && this.#_.delete(n.command_id), s();
+			this.#y.set(n.command_id, e), e.catch(() => {
+				this.#y.get(n.command_id) === e && this.#y.delete(n.command_id), s();
 			});
 		} else {
 			let e = null;
@@ -2370,7 +2419,7 @@ var fe = class extends HTMLElement {
 					try {
 						n = new URL(t?.result?.authorization_url);
 					} catch {}
-					a === this.#v && t?.outcome === "applied" && ["http:", "https:"].includes(n?.protocol) ? e.location.replace(n.href) : e.close();
+					a === this.#b && t?.outcome === "applied" && ["http:", "https:"].includes(n?.protocol) ? e.location.replace(n.href) : e.close();
 				}
 				o(t);
 			}, () => {
@@ -2378,7 +2427,7 @@ var fe = class extends HTMLElement {
 			});
 		}
 	}
-	#W() {
+	#K() {
 		let e = this.shadowRoot, t = this.#t?.language;
 		this.isConnected && this.setAttribute?.("lang", a(t));
 		let n = this.#e;
@@ -2392,7 +2441,7 @@ var fe = class extends HTMLElement {
 			["add", "addPanel"]
 		]) e.querySelector(`#${t}`).setAttribute("aria-label", n[r]), e.querySelector(`#${t}`).setAttribute("title", n[r]);
 		e.querySelector("#frame").setAttribute("title", n.frameTitle), e.querySelector("#version").textContent = p(this.#n?.config, t);
-		let r = e.querySelector("#panels"), i = this.#O() ? this.#o ?? [] : [], c = JSON.stringify([i, a(t)]);
+		let r = e.querySelector("#panels"), i = this.#A() ? this.#o ?? [] : [], c = JSON.stringify([i, a(t)]);
 		if (c !== this.#l) {
 			this.#l = c, r.replaceChildren();
 			for (let e of i) {
@@ -2404,7 +2453,7 @@ var fe = class extends HTMLElement {
 		let l = i.find((e) => e.entry_id === this.#u), u = e.querySelector("#device");
 		u.hidden = !l?.device_id, l?.device_id && u.setAttribute("href", `/config/devices/device/${encodeURIComponent(l.device_id)}`);
 		let d = this.#p, f = e.querySelector("#frame"), m = "", h = !1;
-		this.#O() ? this.#s === "loading" ? h = !0 : this.#s === "ready" ? d?.state === "closed" && d.entryId === l?.entry_id ? m = "closed" : l?.state === "restarting" ? m = "restarting" : l?.state === "unreachable" ? m = "unreachableBody" : l?.state === "not_loaded" ? m = "notLoadedBody" : d?.state === "failed" ? m = d.code === "not_loaded" ? "notLoadedBody" : "failed" : f.dataset.ready !== "true" && (h = !0) : m = this.#s : m = "admin";
+		this.#A() ? this.#s === "loading" ? h = !0 : this.#s === "ready" ? d?.state === "closed" && d.entryId === l?.entry_id ? m = "closed" : l?.state === "restarting" ? m = "restarting" : l?.state === "unreachable" ? m = "unreachableBody" : l?.state === "not_loaded" ? m = "notLoadedBody" : d?.state === "failed" ? m = d.code === "not_loaded" ? "notLoadedBody" : "failed" : f.dataset.ready !== "true" && (h = !0) : m = this.#s : m = "admin";
 		let g = e.querySelector("#status");
 		g.textContent = m === "restarting" ? s(this.#e.restarting, { reason: o("sidebarReason", t)[l.reason] }) : m ? this.#e[m] : "";
 		let _ = [
@@ -2467,7 +2516,7 @@ function ye(e) {
 	let t = Number(I.exec(e)[1]);
 	return t <= ge ? t : null;
 }
-var V = (e) => ye(e) !== null, be = (e) => Array.from(new Uint8Array(e), (e) => e.toString(16).padStart(2, "0")).join(""), xe = (e = crypto) => be(e.getRandomValues(/* @__PURE__ */ new Uint8Array(16))), H = (e, t) => typeof t == "string" && e.exec(t)?.[0] === t, U = (e, t) => typeof e == "object" && !!e && !Array.isArray(e) && Object.keys(e).length === t.length && t.every((t) => Object.hasOwn(e, t)), W = "/api/panel_assistant/usb/release", Se = "/api/panel_assistant/usb/handover", Ce = "/api/panel_assistant/usb/adb_key", we = 35e3, Te = /(?:[0-9]{1,3}\.){3}[0-9]{1,3}/, Ee = /[a-z_]{1,48}/, G = 67108864, De = 18e5, K = [
+var V = (e) => ye(e) !== null, be = (e) => Array.from(new Uint8Array(e), (e) => e.toString(16).padStart(2, "0")).join(""), xe = (e = crypto) => be(e.getRandomValues(/* @__PURE__ */ new Uint8Array(16))), H = (e, t) => typeof t == "string" && e.exec(t)?.[0] === t, U = (e, t) => typeof e == "object" && !!e && !Array.isArray(e) && Object.keys(e).length === t.length && t.every((t) => Object.hasOwn(e, t)), W = "/api/panel_assistant/usb/release", Se = "/api/panel_assistant/usb/handover", Ce = "/api/panel_assistant/usb/adb_key", we = 35e3, Te = /(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[1-9][0-9]{0,4})?/, Ee = /[a-z_]{1,48}/, G = 67108864, De = 18e5, K = [
 	"id",
 	"tag",
 	"checksum",
@@ -2627,7 +2676,7 @@ function ke(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () 
 			"type",
 			"nonce",
 			"address"
-		]) || !H(Te, t.address)) return;
+		]) || !H(Te, t.address) || Number(t.address.split(":")[1] ?? 8888) > 65535) return;
 		C = !0;
 		let n = (e, t = {}) => {
 			try {
@@ -2800,6 +2849,7 @@ var Le = class extends HTMLElement {
         <fieldset id="release" aria-describedby="catalog-status"><legend id="release-label" data-message="release"></legend><select id="release-choices" aria-labelledby="release-label"></select></fieldset></details>
         <p id="catalog-status" role="status" aria-live="polite"></p>
         <button id="retry" class="pbtn wiz-secondary" data-message="retry"></button>
+        <p id="selected-release" role="status" aria-live="polite"><span id="selected-release-label"></span>: <strong id="selected-release-version"></strong></p>
         <button id="start" class="pbtn primary wiz-primary" data-message="start"></button>
         <p id="status" role="status" aria-live="polite"></p>
         <button id="cancel" class="pbtn wiz-secondary" data-message="cancel"></button>
@@ -2859,12 +2909,12 @@ var Le = class extends HTMLElement {
 				r[e + 1].textContent = `${t.name ?? t.tag.replace(/^v/, "")}${n ? ` (${n})` : ""}`;
 			}
 		}
-		let i = this.#e?.user?.is_admin === !0, s = typeof this.#n?.config?.installer_url == "string" && this.#n.config.installer_url.length > 0, c = this.shadowRoot.querySelector("#release-choices").value, l = c === "" ? this.#c[0] : this.#c.find((e) => e.tag === c), u = this.#a === "installed";
-		this.shadowRoot.querySelector("#start").hidden = u, this.shadowRoot.querySelector("#versions").hidden = u, this.shadowRoot.querySelector("#start").disabled = !i || !s || !!this.#r || !l, this.shadowRoot.querySelector("#cancel").disabled = !this.#r, this.shadowRoot.querySelector("#release").disabled = !!this.#r || this.#s !== "ready";
-		let d = this.shadowRoot.querySelector("#catalog-status");
-		d.textContent = i && s && this.#s !== "ready" ? this.#t[this.#s] : "", d.hidden = !d.textContent, this.shadowRoot.querySelector("#retry").hidden = !i || !s || !["catalogError", "empty"].includes(this.#s), this.shadowRoot.querySelector("#cancel").hidden = !this.#r;
-		let f = i ? s ? this.#a : "unavailable" : "admin", m = this.shadowRoot.querySelector("#status");
-		m.textContent = Object.hasOwn(this.#t, f) ? this.#t[f] : this.#t.failed, m.hidden = !m.textContent;
+		let i = this.#e?.user?.is_admin === !0, s = typeof this.#n?.config?.installer_url == "string" && this.#n.config.installer_url.length > 0, c = this.shadowRoot.querySelector("#release-choices").value, l = c === "" ? this.#c[0] : this.#c.find((e) => e.tag === c), u = this.#a === "installed", d = e.querySelector("#selected-release");
+		d.hidden = u || !i || !s || !l, e.querySelector("#selected-release-label").textContent = c === "" ? this.#t.choose : this.#t.release, e.querySelector("#selected-release-version").textContent = l ? l.name ?? l.tag.replace(/^v/, "") : "", this.shadowRoot.querySelector("#start").hidden = u, this.shadowRoot.querySelector("#versions").hidden = u, this.shadowRoot.querySelector("#start").disabled = !i || !s || !!this.#r || !l, this.shadowRoot.querySelector("#cancel").disabled = !this.#r, this.shadowRoot.querySelector("#release").disabled = !!this.#r || this.#s !== "ready";
+		let f = this.shadowRoot.querySelector("#catalog-status");
+		f.textContent = i && s && this.#s !== "ready" ? this.#t[this.#s] : "", f.hidden = !f.textContent, this.shadowRoot.querySelector("#retry").hidden = !i || !s || !["catalogError", "empty"].includes(this.#s), this.shadowRoot.querySelector("#cancel").hidden = !this.#r;
+		let m = i ? s ? this.#a : "unavailable" : "admin", h = this.shadowRoot.querySelector("#status");
+		h.textContent = Object.hasOwn(this.#t, m) ? this.#t[m] : this.#t.failed, h.hidden = !h.textContent;
 	}
 	#d() {
 		if (this.#r || this.#e?.user?.is_admin !== !0) return;

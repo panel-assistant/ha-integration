@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 
 // The real installer bootstrap, with USB and the transaction stubbed: what a USB
 // install leaves for Panel Assistant's own ADB access, through the page that runs it.
-function journey({ key, runsTheApp = false, networkAdb = 'turned_on', adopted = false, savedPhase = null }) {
+function journey({ key, runsTheApp = false, networkAdb = 'turned_on', adopted = false, savedPhase = null, webView = 'deferred' }) {
   const main = new URL('../src/install-main.mjs', import.meta.url).href;
   const actualHandover = new URL('../src/release-handoff.mjs?actual', import.meta.url).href;
   const script = `
@@ -17,6 +17,10 @@ function journey({ key, runsTheApp = false, networkAdb = 'turned_on', adopted = 
       if (!elements.has(id)) elements.set(id, { hidden: false, dataset: {}, style: {}, textContent: '', attributes: new Map(), children: [],
         listeners: new Map(), addEventListener(type, fn) { this.listeners.set(type, fn); },
         querySelector() { return node(id + ':child'); }, setAttribute(name, value) { this.attributes.set(name, value); }, replaceChildren(...children) { this.children = children; } });
+      if (id === 'activity' && !elements.get(id).shown) {
+        const shown = elements.get(id).shown = [];
+        Object.defineProperty(elements.get(id), 'textContent', { get() { return shown.at(-1) ?? ''; }, set(value) { shown.push(value); } });
+      }
       return elements.get(id);
     };
     globalThis.document = { documentElement: {}, getElementById: node, querySelectorAll: () => [],
@@ -36,7 +40,7 @@ function journey({ key, runsTheApp = false, networkAdb = 'turned_on', adopted = 
       adopt: async () => (stored = {id: 'b'.repeat(32), revision: 0, phase: 'installed', target, artifact}),
       create: async () => { throw Error('must adopt without a new install'); },
       advance: async (key, revision, phase) => (stored = {...stored, revision: revision + 1, phase})};
-    globalThis.testPorts = {authenticate: async () => ({kind: 'authenticated-apk-bytes', descriptor: artifact}),
+    globalThis.testPorts = {appPort: () => 8888, authenticate: async () => ({kind: 'authenticated-apk-bytes', descriptor: artifact}),
       inspect: async receipt => { assert.ok(['installed', 'launching', 'healthy'].includes(receipt.phase)); return {target, installed: true, healthy: true}; },
       launch: async () => { order.push('launch'); }, removeSetAside: async () => 'absent',
       commissionPermissions: async () => { order.push('commission'); return {permissionsVerified: true}; },
@@ -45,15 +49,15 @@ function journey({ key, runsTheApp = false, networkAdb = 'turned_on', adopted = 
     const stubs = {
       '@yume-chan/adb': 'export class Adb { constructor() { this.disconnected = new Promise(resolve => { globalThis.unplug = resolve; }); } close() {} getProp(name) { return Promise.resolve(name === "service.adb.tcp.port" ? "0" : ""); } createSocketAndWait(service) { globalThis.order.push(service); return Promise.resolve("restarting in TCP mode port: 5555"); } }; export class AdbTcpIpService { constructor(adb) { this.adb = adb; } async setPort(port) { return this.adb.createSocketAndWait("tcpip:" + port); } }; export const AdbCommand = {Auth: 1}; export const AdbDaemonTransport = { authenticate: async options => { globalThis.authOptions = options; globalThis.order.push("authenticate"); return {}; } };',
       '@yume-chan/adb-credential-web': 'export default class Store {}',
-      '@yume-chan/adb-daemon-webusb': 'export class AdbDaemonWebUsbDeviceManager { requestDevice() { return Promise.resolve({ raw: { close() {} }, serial: "panel", connect: async () => ({}) }); } }',
+      '@yume-chan/adb-daemon-webusb': 'export class AdbDaemonWebUsbDevice { static DeviceBusyError = class extends Error {}; } export class AdbDaemonWebUsbDeviceManager { requestDevice() { return Promise.resolve({ raw: { close() {} }, serial: "panel", connect: async () => ({}) }); } }',
       'usb-bounds.mjs': 'export const boundedUsb = value => value;',
       'session-target.mjs': 'export const inspectSessionTarget = async () => ({ serial: "RAW_SERIAL" });',
       'job-store.mjs': 'export const openJobStore = async () => ({ close() {} });',
-      'usb-transaction-ports.mjs': 'export function createUsbTransactionPorts(options) { return {}; }',
+      'usb-transaction-ports.mjs': 'export function createUsbTransactionPorts(options) { return { appPort: () => 8888 }; }',
       'install-controller.mjs': 'export function createInstallController() { return { preview: async () => { if (${runsTheApp}) throw Object.assign(new Error("target_installed"), { code: "target_installed" }); return { receipt: null }; }, install: async () => { globalThis.order.push("install"); return { receipt: {id: "b".repeat(32)}, permissions: {} }; }, completeSetup: async () => { globalThis.order.push("completeSetup"); return {}; } }; }',
-      'webview.mjs': 'export const provisionUsbWebView = async () => { globalThis.order.push("webview"); return "deferred"; };',
+      'webview.mjs': 'export const provisionUsbWebView = async () => { globalThis.order.push("webview"); globalThis.during = document.getElementById("activity").textContent; return ${JSON.stringify(webView)}; };',
       'panel-address.mjs': 'export const readSetupUrl = async () => "http://192.168.1.20:8080/setup";',
-      'panel-assistant-adb.mjs': 'export const panelAssistantKeyAuthenticator = key => "authenticator for " + key; export const ensureNetworkAdb = async (adb, { beforeRestart }) => { globalThis.order.push("networkAdb"); beforeRestart(); globalThis.unplug(); await new Promise(resolve => setImmediate(resolve)); return ${JSON.stringify(networkAdb)}; };',
+            'panel-assistant-adb.mjs': 'export const panelAssistantKeyAuthenticator = key => "authenticator for " + key; export const ensureNetworkAdb = async (adb, { beforeRestart }) => { globalThis.order.push("networkAdb"); beforeRestart(); globalThis.unplug(); await new Promise(resolve => setImmediate(resolve)); return ${JSON.stringify(networkAdb)}; };',
       'release-handoff.mjs': 'import { handOverThenOpen as actualOpen } from ' + JSON.stringify(${JSON.stringify(actualHandover)}) + '; export const handoffOptions = () => ({}); export const receiveReleaseHandoff = () => ({ cancel() {}, completion: Promise.resolve({ release: { descriptor: { versionName: "1.2.3", versionCode: 42 } }, authenticate: async () => ({kind: "authenticated-apk-bytes", descriptor: {versionName: "1.2.3", versionCode: 42}}) }) }); export const requestPanelAssistantKey = async () => ${JSON.stringify(key)}; export const requestSetupHandover = async () => { globalThis.order.push("handover"); return "handed_over"; }; export const handOverThenOpen = actualOpen;',
     };
     if (adopted || savedPhase) {
@@ -79,6 +83,7 @@ function journey({ key, runsTheApp = false, networkAdb = 'turned_on', adopted = 
     await tick();
     process.stdout.write(JSON.stringify({ order, authenticators: globalThis.authOptions.authenticators ?? null,
       done: node('step-done').hidden === false, error: node('step-error').hidden === false,
+      during: globalThis.during ?? null, after: node('activity').shown.at(-2) ?? null,
       support: node('support-log').textContent, heading: node('step-done:child').textContent,
       text: node('done-text').textContent + node('error-text').textContent }));
   `;
@@ -136,5 +141,14 @@ for (const savedPhase of [null, 'installed', 'launching', 'healthy']) {
     assert.equal(result.order.filter(value => value === 'commission').length, 1);
     assert.equal(result.order.filter(value => value === 'completeSetup').length, 1);
     assert.ok(!result.order.includes('tcpip:5555'), JSON.stringify(result.order));
+  });
+}
+
+for (const [webView, line] of [['installed', /is up to date/], ['deferred', /left as it is/], ['failed', /left as it is/]]) {
+  test(`a USB install says it is updating the browser engine, then what happened (${webView})`, () => {
+    const result = journey({ key: 'PA_KEY', webView });
+    assert.match(result.during, /Updating the panel’s browser engine/);
+    assert.match(result.after, line);
+    assert.match(result.support, new RegExp(webView));
   });
 }

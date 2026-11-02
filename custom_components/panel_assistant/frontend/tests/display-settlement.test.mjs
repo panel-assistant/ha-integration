@@ -82,7 +82,7 @@ async function fixture({shelly = true, pending = true, hold = false, density = 2
       running = true;
       return frame(['Status: ok']);
     }
-    if (step === 'READY') return frame([]);
+    if (step === 'READY') return frame(['8888']);
     if (step === 'PERMISSIONS_READ') return frame(['com.other/.Reader']);
     if (step === 'PERMISSIONS_GRANT') { events.push('grants'); return frame([`home_chooser:${deferred ? 'deferred' : 'kept'}`]); }
     if (step === 'PERMISSIONS_VERIFY') return frame([

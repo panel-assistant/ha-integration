@@ -92,6 +92,7 @@ async def test_a_hello_offering_unknown_state_is_granted_it(
 
 def test_every_sensor_translates_each_no_reading_reason() -> None:
     """Home Assistant shows the reason in words for every sensor and binary sensor."""
+    # Source-text reason: the shipped catalogue must name every public sensor reason.
     component = Path(__file__).parents[1] / "custom_components" / "panel_assistant"
     strings = json.loads((component / "strings.json").read_text(encoding="utf-8"))
     reasons = {

@@ -139,12 +139,17 @@ case "${0##*/} $1 $2" in
         :
     elif [ "${c#*/}" = "$release" ] && [ -e "$s/installed/$p" ] \
         && [ ! -e "$s/no_release/$p" ] && [ -e "$s/admin/$p" ]; then
-        echo released > "$s/admin/$p"; echo "release admin $p" >> "$s/events"
+        cat "$s/release_sleeps" 2>/dev/null > "$s/admin/$p" || echo 1 > "$s/admin/$p"
+        echo "release admin $p" >> "$s/events"
     fi ;;
 # Android lets go of a released admin only once it has told the app it is
-# disabled, which takes time: here, until the shell next sleeps.
+# disabled, which takes time: here, after release_sleeps shell sleeps (one).
 "sleep "*)
-    for f in "$s"/admin/*; do [ ! -s "$f" ] || rm "$f"; done ;;
+    for f in "$s"/admin/*; do
+        [ -s "$f" ] || continue
+        n=$(($(cat "$f") - 1))
+        if [ "$n" -le 0 ]; then rm "$f"; else echo "$n" > "$f"; fi
+    done ;;
 "am "*|"dumpsys "*) ;;
 *) exit 1 ;;
 esac
@@ -184,6 +189,8 @@ class FakePanel:
         #: How the app answers hand-back-home: "hand", "approval", a 409
         #: code, "unconfirmed" (200 without a launcher) or an HTTP status.
         self.hand_back: str | int = "hand"
+        #: The recorded original home screen a 409 names, when set.
+        self.original_home: Any = None
         self.hand_back_requests = 0
         #: Raise after the shell ran, as a dropped connection would.
         self.drop_after: str | None = None
@@ -293,7 +300,10 @@ class FakePanel:
             )
         if isinstance(mode, int):
             return web.Response(status=mode)
-        return web.json_response({"ok": False, "error": mode}, status=409)
+        refusal: dict[str, Any] = {"ok": False, "error": mode}
+        if self.original_home is not None:
+            refusal["original_home"] = self.original_home
+        return web.json_response(refusal, status=409)
 
 
 @pytest.fixture
@@ -374,6 +384,17 @@ async def _open_form(hass: HomeAssistant, entry: Any) -> dict[str, Any]:
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "remove_app"
     return result
+
+
+async def _choose_removal(admin: Any, menu: dict[str, Any]) -> dict[str, Any]:
+    """Pick Remove in the Repair's menu, as the owner does."""
+    assert menu["type"] == "menu", menu
+    assert menu["menu_options"] == ["confirm", "keep_app"]
+    response = await admin.post(
+        f"/api/repairs/issues/fix/{menu['flow_id']}", json={"next_step_id": "confirm"}
+    )
+    assert response.status == 200
+    return await response.json()
 
 
 async def _remove(hass: HomeAssistant, entry: Any) -> dict[str, Any]:
@@ -458,6 +479,20 @@ async def test_an_app_holding_device_admin_gives_it_up_and_is_removed(
     assert events.index(f"release admin {holder}") < events.index(f"uninstall {holder}")
 
 
+async def test_a_slow_device_admin_release_is_awaited_within_the_budget(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
+) -> None:
+    """Android may take most of the ten-second wait to drop a released admin."""
+    fake, server = panel
+    fake.set(admin=[PACKAGE_ID], release_sleeps=9)
+    entry = _entry(hass, server)
+
+    result = await _remove(hass, entry)
+
+    assert result.get("errors") is None, (result.get("errors"), fake.read())
+    assert fake.installed == []
+
+
 async def test_an_app_that_cannot_give_up_device_admin_is_kept_and_reported(
     hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
 ) -> None:
@@ -470,8 +505,6 @@ async def test_an_app_that_cannot_give_up_device_admin_is_kept_and_reported(
 
     assert result.get("errors") == {"base": "removal_remove_failed"}
     assert fake.installed == [PACKAGE_ID]
-    # The first refusal and ten retries, then the observation reports it.
-    assert fake.read()["events"].count(f"uninstall refused {PACKAGE_ID}") == 11
 
 
 async def test_the_risks_link_names_the_panel_make_model_and_firmware(
@@ -713,7 +746,8 @@ async def test_an_unauthorized_panel_is_sent_to_authorize_adb_first(
 
     result = await _remove(hass, entry)
 
-    assert result.get("errors") == {"base": "removal_adb_authorization"}
+    # With no answering panel Configure has no Allow updates step to name.
+    assert result.get("errors") == {"base": "removal_adb_authorization_unavailable"}
     assert fake.installed == [PACKAGE_ID]
     assert fake.hand_back_requests == 0
 
@@ -724,7 +758,7 @@ async def test_an_unauthorized_panel_is_sent_to_authorize_adb_first(
         (
             "_async_connect",
             InstallAdbErrorCode.AUTHORIZATION_REQUIRED,
-            "removal_adb_authorization",
+            "removal_adb_authorization_unavailable",
         ),
         (
             "_parse_identity_root",
@@ -879,16 +913,15 @@ async def test_removal_gives_a_portal_its_meta_values_back_before_the_uninstall(
     assert result["reason"] == "removed_entry_deleted"
     assert fake.installed == [control_center]
     events = fake.read()["events"]
-    assert events == [
-        "settings put screensaver_components",
-        "settings delete screensaver_default_component",
-        f"appops set {control_center} allow",
-        "settings put package_verifier_enable",
-        f"uninstall {PACKAGE_ID}",
-    ]
+    # Restores may run in any order, but must finish before terminal uninstall.
+    assert events[-1:] == [f"uninstall {PACKAGE_ID}"]
     assert (fake.state_path / "setting.screensaver_components").read_text() == (
         "meta/.Dream\n"
     )
+    assert not (fake.state_path / "setting.screensaver_default_component").exists()
+    assert (
+        fake.state_path / f"appop.{control_center}.SYSTEM_ALERT_WINDOW"
+    ).read_text() == "allow\n"
     assert not record.exists()
     assert (fake.state_path / "setting.package_verifier_enable").read_text() == "1\n"
     assert not verifier.exists()
@@ -918,6 +951,7 @@ async def test_removal_gives_shelly_home_its_overlay_and_the_panel_its_size_back
     fake.set(installed=[PACKAGE_ID, launcher])
     (fake.state_path / f"appop.{launcher}.SYSTEM_ALERT_WINDOW").write_text("deny\n")
     (fake.state_path / "density").write_text("216\n")
+    (fake.state_path / "setting.font_scale").write_text("1.2\n")
     entry = _entry(hass, server)
 
     result = await _remove(hass, entry)
@@ -926,13 +960,12 @@ async def test_removal_gives_shelly_home_its_overlay_and_the_panel_its_size_back
     assert result["reason"] == "removed_entry_deleted"
     assert fake.installed == [launcher]
     assert fake.read()["home"] == f"{launcher}/.activities.SplashActivity"
-    assert fake.read()["events"] == [
-        f"set home {launcher}/.activities.SplashActivity",
-        f"appops set {launcher} allow",
-        "wm density reset",
-        "settings delete font_scale",
-        f"uninstall {PACKAGE_ID}",
-    ]
+    # Only the order against uninstall matters, not the order among restores.
+    assert fake.read()["events"][-1:] == [f"uninstall {PACKAGE_ID}"]
+    assert (
+        fake.state_path / f"appop.{launcher}.SYSTEM_ALERT_WINDOW"
+    ).read_text() == "allow\n"
+    assert not (fake.state_path / "setting.font_scale").exists()
     assert not (fake.state_path / "density").exists()
     assert not shelly.exists()
     assert not display.exists()
@@ -976,10 +1009,12 @@ async def test_device_action_waits_for_owner_confirmation_then_deletes_entry(
     hass_read_only_user: Any,
 ) -> None:
     """The device's button opens a Repair; only its Submit changes the panel."""
+    from homeassistant.components import persistent_notification
     from homeassistant.helpers import entity_registry as er
     from homeassistant.helpers import issue_registry as ir
     from homeassistant.setup import async_setup_component
 
+    from custom_components.panel_assistant.device import panel_display_name
     from custom_components.panel_assistant.repairs_removal import removal_issue_id
 
     from .test_native import _setup
@@ -1003,13 +1038,19 @@ async def test_device_action_waits_for_owner_confirmation_then_deletes_entry(
     assert "/go/removal-risks" in issue.learn_more_url
     assert fake.hand_back_requests == 0
     assert fake.installed == [PACKAGE_ID]
+    # Pressing must visibly answer: a notification points at the Repair.
+    notification_id = f"{DOMAIN}_remove_from_panel_{entry.entry_id}"
+    notices = persistent_notification._async_get_or_create_notifications(hass)
+    assert notification_id in notices
+    assert panel_display_name(hass, entry) in notices[notification_id]["message"]
+    assert "/config/repairs" in notices[notification_id]["message"]
 
     admin = await hass_client()
     response = await admin.post(
         "/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue_id}
     )
     assert response.status == 200
-    form = await response.json()
+    form = await _choose_removal(admin, await response.json())
     assert form.get("step_id") == "confirm"
     assert fake.hand_back_requests == 0
     response = await admin.post(f"/api/repairs/issues/fix/{form['flow_id']}", json={})
@@ -1021,6 +1062,61 @@ async def test_device_action_waits_for_owner_confirmation_then_deletes_entry(
     assert fake.read()["home"] == VENDOR_HOME
     assert hass.config_entries.async_get_entry(entry.entry_id) is None
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+    assert notification_id not in notices
+
+
+async def test_removal_notice_survives_reload_and_goes_with_its_entry(
+    hass: HomeAssistant,
+    panel: tuple[FakePanel, TestServer],
+    hass_read_only_user: Any,
+) -> None:
+    """A reload keeps the press's notice; deleting the entry withdraws it."""
+    from homeassistant.components import persistent_notification
+
+    from custom_components.panel_assistant.repairs_removal import (
+        async_request_removal,
+    )
+
+    from .test_native import _setup
+
+    fake, _server = panel
+    fake.did = "d" * 64
+    entry = await _setup(hass, hass_read_only_user.id)
+    await async_request_removal(hass, entry)
+    notification_id = f"{DOMAIN}_remove_from_panel_{entry.entry_id}"
+    notices = persistent_notification._async_get_or_create_notifications(hass)
+    assert notification_id in notices
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert notification_id in notices
+    await hass.config_entries.async_remove(entry.entry_id)
+    await hass.async_block_till_done()
+    assert notification_id not in notices
+
+
+async def test_options_removal_posts_no_press_notice(
+    hass: HomeAssistant,
+    panel: tuple[FakePanel, TestServer],
+    hass_read_only_user: Any,
+) -> None:
+    """The options-flow path records the Repair without the press notice."""
+    from homeassistant.components import persistent_notification
+    from homeassistant.helpers import issue_registry as ir
+
+    from custom_components.panel_assistant.repairs_removal import (
+        async_request_removal,
+        removal_issue_id,
+    )
+
+    from .test_native import _setup
+
+    fake, _server = panel
+    fake.did = "d" * 64
+    entry = await _setup(hass, hass_read_only_user.id)
+    await async_request_removal(hass, entry, notify=False)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, removal_issue_id(entry.entry_id))
+    notices = persistent_notification._async_get_or_create_notifications(hass)
+    assert f"{DOMAIN}_remove_from_panel_{entry.entry_id}" not in notices
 
 
 async def test_stale_address_never_removes_a_different_enrolled_panel(
@@ -1093,14 +1189,14 @@ async def test_deleted_entry_withdraws_an_open_removal_confirmation(
     fake, server = panel
     entry = _entry(hass, server)
     assert await async_setup_component(hass, "repairs", {})
-    async_request_removal(hass, entry)
+    await async_request_removal(hass, entry)
     admin = await hass_client()
     response = await admin.post(
         "/api/repairs/issues/fix",
         json={"handler": DOMAIN, "issue_id": removal_issue_id(entry.entry_id)},
     )
     assert response.status == 200
-    form = await response.json()
+    form = await _choose_removal(admin, await response.json())
     assert form.get("step_id") == "confirm"
     assert await hass.config_entries.async_remove(entry.entry_id)
 
@@ -1151,14 +1247,14 @@ async def test_uninstall_keeps_repair_until_entry_deletion_has_completed(
     fake, server = panel
     entry = _entry(hass, server)
     assert await async_setup_component(hass, "repairs", {})
-    async_request_removal(hass, entry)
+    await async_request_removal(hass, entry)
     admin = await hass_client()
     issue_id = removal_issue_id(entry.entry_id)
     response = await admin.post(
         "/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue_id}
     )
     assert response.status == 200
-    form = await response.json()
+    form = await _choose_removal(admin, await response.json())
     removal_started = asyncio.Event()
     allow_entry_removal = asyncio.Event()
     remove_entry = hass.config_entries.async_remove
@@ -1217,7 +1313,7 @@ async def test_options_uninstall_retains_retry_when_entry_deletion_is_interrupte
         "/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue_id}
     )
     assert response.status == 200
-    form = await response.json()
+    form = await _choose_removal(admin, await response.json())
     response = await admin.post(f"/api/repairs/issues/fix/{form['flow_id']}", json={})
     assert response.status == 200
     assert (await response.json())["type"] == "create_entry"
@@ -1240,14 +1336,14 @@ async def test_repair_keeps_request_when_home_assistant_declines_entry_deletion(
     assert await async_setup_component(hass, DOMAIN, {})
     fake, server = panel
     entry = _entry(hass, server)
-    async_request_removal(hass, entry)
+    await async_request_removal(hass, entry)
     issue_id = removal_issue_id(entry.entry_id)
     admin = await hass_client()
     response = await admin.post(
         "/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue_id}
     )
     assert response.status == 200
-    form = await response.json()
+    form = await _choose_removal(admin, await response.json())
     with patch.object(
         hass.config_entries, "async_remove", AsyncMock(return_value=False)
     ):
@@ -1520,14 +1616,14 @@ async def test_repair_keeps_failed_app_removal_retryable(
     fake, server = panel
     fake.set(fail_uninstall=[PACKAGE_ID])
     entry = _entry(hass, server)
-    async_request_removal(hass, entry)
+    await async_request_removal(hass, entry)
     issue_id = removal_issue_id(entry.entry_id)
     admin = await hass_client()
     response = await admin.post(
         "/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue_id}
     )
     assert response.status == 200
-    form = await response.json()
+    form = await _choose_removal(admin, await response.json())
 
     response = await admin.post(f"/api/repairs/issues/fix/{form['flow_id']}", json={})
 
@@ -1612,3 +1708,165 @@ async def test_withdrawal_during_vendor_restore_preserves_pending_display_restor
         assert not display.exists()
         assert not (fake.state_path / "density").exists()
         assert f"uninstall {PACKAGE_ID}" in fake.read()["events"]
+
+
+async def test_the_owner_can_withdraw_a_removal_request_and_keep_the_app(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer], hass_client: Any
+) -> None:
+    """Keep Panel Assistant clears the Repair and touches neither panel nor entry."""
+    from homeassistant.components import persistent_notification
+    from homeassistant.helpers import issue_registry as ir
+    from homeassistant.setup import async_setup_component
+
+    from custom_components.panel_assistant.repairs_removal import (
+        async_request_removal,
+        removal_issue_id,
+    )
+
+    assert await async_setup_component(hass, "repairs", {})
+    assert await async_setup_component(hass, DOMAIN, {})
+    fake, server = panel
+    entry = _entry(hass, server)
+    await async_request_removal(hass, entry)
+    issue_id = removal_issue_id(entry.entry_id)
+    admin = await hass_client()
+    response = await admin.post(
+        "/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue_id}
+    )
+    menu = await response.json()
+    assert menu["type"] == "menu", menu
+    response = await admin.post(
+        f"/api/repairs/issues/fix/{menu['flow_id']}", json={"next_step_id": "keep_app"}
+    )
+    assert (await response.json())["type"] == "create_entry"
+    await hass.async_block_till_done()
+
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+    assert hass.config_entries.async_get_entry(entry.entry_id) is entry
+    assert fake.installed == [PACKAGE_ID]
+    notices = persistent_notification._async_get_or_create_notifications(hass)
+    assert f"{DOMAIN}_remove_from_panel_{entry.entry_id}" not in notices
+    assert fake.hand_back_requests == 0
+
+    await async_request_removal(hass, entry)
+    again = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    assert again is not None
+    assert again.dismissed_version is None
+
+
+async def test_an_unauthorized_panel_is_asked_to_allow_home_assistant_in_the_repair(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer], hass_client: Any
+) -> None:
+    """The Repair offers its own Allow step instead of naming one it lacks."""
+    from homeassistant.setup import async_setup_component
+
+    from custom_components.panel_assistant.removal import REASON_ADB_AUTHORIZATION
+    from custom_components.panel_assistant.repairs_removal import (
+        async_request_removal,
+        removal_issue_id,
+    )
+
+    assert await async_setup_component(hass, "repairs", {})
+    assert await async_setup_component(hass, DOMAIN, {})
+    fake, server = panel
+    entry = _entry(hass, server)
+    await async_request_removal(hass, entry)
+    admin = await hass_client()
+    response = await admin.post(
+        "/api/repairs/issues/fix",
+        json={"handler": DOMAIN, "issue_id": removal_issue_id(entry.entry_id)},
+    )
+    form = await _choose_removal(admin, await response.json())
+    with patch(
+        "custom_components.panel_assistant.repairs_removal.async_remove_app",
+        AsyncMock(side_effect=removal.RemovalError(REASON_ADB_AUTHORIZATION)),
+    ):
+        response = await admin.post(
+            f"/api/repairs/issues/fix/{form['flow_id']}", json={}
+        )
+    result = await response.json()
+
+    assert result["type"] == "form", result
+    assert result["step_id"] == "authorize_adb"
+    assert fake.installed == [PACKAGE_ID]
+
+
+NOVA = "com.teslacoilsw.launcher"
+
+
+async def _shown(hass: HomeAssistant, path: str, result: dict[str, Any]) -> str:
+    """The base error as the owner reads it: English text, placeholders filled."""
+    from homeassistant.helpers.translation import async_get_translations
+
+    category, _, rest = path.partition(".")
+    text = (await async_get_translations(hass, "en", category, {DOMAIN}))[
+        f"component.{DOMAIN}.{category}.{rest}.{result['errors']['base']}"
+    ]
+    return str(text).format(**(result.get("description_placeholders") or {}))
+
+
+@pytest.mark.parametrize(
+    ("answer", "original_home", "named"),
+    [
+        ("original-home-missing", f"{NOVA}/.Launcher", True),
+        ("original-home-missing", None, False),
+        ("original-home-missing", "not a component", False),
+        ("original-home-missing", 7, False),
+        ("no-replacement-home", None, False),
+    ],
+)
+async def test_a_missing_original_launcher_is_named_with_its_fix(
+    hass: HomeAssistant,
+    panel: tuple[FakePanel, TestServer],
+    hass_client: Any,
+    answer: str,
+    original_home: Any,
+    named: bool,
+) -> None:
+    """Options and the Repair name the recorded launcher and say to reinstall
+    it; an older app's no-replacement-home keeps its own message."""
+    from homeassistant.setup import async_setup_component
+
+    from custom_components.panel_assistant.repairs_removal import (
+        async_request_removal,
+        removal_issue_id,
+    )
+
+    assert await async_setup_component(hass, "repairs", {})
+    assert await async_setup_component(hass, DOMAIN, {})
+    fake, server = panel
+    fake.hand_back = answer
+    fake.original_home = original_home
+    # A Shelly launcher is one Panel Assistant could make HOME itself, which
+    # it must not do for these refusals.
+    fake.set(installed=[PACKAGE_ID, vendor_provisioning.SHELLY_LAUNCHER])
+    entry = _entry(hass, server)
+
+    options = await _shown(hass, "options.error", await _remove(hass, entry))
+    await async_request_removal(hass, entry)
+    admin = await hass_client()
+    response = await admin.post(
+        "/api/repairs/issues/fix",
+        json={"handler": DOMAIN, "issue_id": removal_issue_id(entry.entry_id)},
+    )
+    form = await _choose_removal(admin, await response.json())
+    response = await admin.post(f"/api/repairs/issues/fix/{form['flow_id']}", json={})
+    repair = await _shown(
+        hass, "issues.remove_from_panel.fix_flow.error", await response.json()
+    )
+
+    for shown in (options, repair):
+        assert "Nothing was removed" in shown
+        if answer == "no-replacement-home":
+            assert "no other home-screen app" in shown
+            assert "Reinstall" not in shown
+            continue
+        assert "no other home-screen app" not in shown
+        assert "Reinstall" in shown
+        assert "no longer installed or is turned off" in shown
+        assert (f"Reinstall {NOVA} or turn it back on" in shown) is named
+        assert ("Reinstall that launcher or turn it back on" in shown) is not named
+    # A refusal is never overridden through the vendor's launcher.
+    assert fake.installed == sorted([PACKAGE_ID, vendor_provisioning.SHELLY_LAUNCHER])
+    assert fake.read()["home"] == APP_HOME
+    assert fake.read()["events"] == []

@@ -94,8 +94,10 @@ async def test_owner_app_update_retains_and_finishes_successor_provider_bundle(
     )
 
     async def delivery(*_args: Any, **_kwargs: Any) -> None:
-        # Persistence precedes the app restart, including cancellation with no receipt.
-        assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+        # Persistence precedes the app restart, including cancellation with no
+        # receipt; the Repair itself waits for a real failure or a restart.
+        assert await async_failure_events(hass, issue_id)
+        assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
         operations.append("app.install")
         if outcome == "cancel_app":
             raise asyncio.CancelledError
@@ -177,16 +179,19 @@ async def test_owner_app_update_retains_and_finishes_successor_provider_bundle(
         expected += ["webview.install"]
     assert operations == ["app.install", *expected]
     assert submitted == (outcome != "cancel_app" and not skipped)
+    # A cancelled update keeps only its record; the next startup restores the
+    # Repair from it.
+    cancelled = outcome.startswith("cancel_")
     assert (ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None) == (
-        pending
+        pending and not cancelled
     )
-    if pending:
+    if pending and not legacy_unavailable:
         events = await async_failure_events(hass, issue_id)
         assert events[-1]["webview_pending"] is True
         await async_clear_update_failure_if_installed(
             hass, entry.entry_id, "0.9.10", 102, verified_success=True
         )
-        assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+        assert await async_failure_events(hass, issue_id)
     # The existing single operation owner is released even when either leg is cancelled.
     from custom_components.panel_assistant.panel_operations import (
         claim_panel_operation,
@@ -291,3 +296,52 @@ async def test_provider_recovery_cannot_replace_an_in_progress_app_target(
     assert (await async_failure_events(hass, issue_id))[-1][
         "target_version"
     ] == "0.9.10"
+
+
+async def test_rootless_panel_without_install_route_finishes_app_update(
+    hass: HomeAssistant,
+) -> None:
+    """An old WebView with no install route is advice, never unfinished work."""
+    entity, client = _entity(hass)
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Panel",
+        unique_id="a" * 64,
+        data={CONF_ADDRESS: "panel.local", CONF_TRANSPORT_USER_ID: "owner"},
+    )
+    entry.add_to_hass(hass)
+    entry.runtime_data = SimpleNamespace(coordinator=entity.coordinator)
+    entity._entry_id = entry.entry_id
+    entity._async_install_route = AsyncMock(
+        return_value=(ROUTE_STAGED, object(), object())
+    )
+    document = observation(eligible=False)
+    document["reason"] = "no_install_route"
+
+    async def delivery(*_args: Any, **_kwargs: Any) -> None:
+        current = entity.coordinator.data
+        entity.coordinator.data = replace(
+            current, health=replace(current.health, version="0.9.10", version_code=102)
+        )
+
+    entity._delivery.async_deliver_build = AsyncMock(side_effect=delivery)
+    client.async_get_status = AsyncMock(return_value=status(document))
+    manage = AsyncMock(return_value=document)
+    session = SimpleNamespace(
+        did=entry.unique_id, user_id="owner", capabilities={"management"}
+    )
+    with (
+        patch(
+            "custom_components.panel_assistant.repairs_webview.async_get_sessions"
+        ) as sessions,
+        patch("custom_components.panel_assistant.repairs_webview.async_manage", manage),
+    ):
+        sessions.return_value.get.return_value = session
+        await entity.async_install(None, backup=False)
+    assert all(call.args[2] != "webview.install" for call in manage.await_args_list)
+    issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+    assert not any(
+        event.get("webview_pending")
+        for event in await async_failure_events(hass, issue_id)
+    )

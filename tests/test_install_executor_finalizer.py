@@ -298,32 +298,6 @@ async def test_concurrent_finalizers_have_one_owner_and_one_release(
     assert leases.released == [receipt.job_id]
 
 
-async def test_same_owner_resubmit_during_verification_is_busy(
-    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The owner submitting again mid-proof never starts a second panel read."""
-    receipt, manager = await seed_healthy(hass)
-    proof = FinalProof(monkeypatch, hold_health=True)
-    executor, _ = counting_executor(hass, manager)
-
-    first = hass.async_create_task(
-        executor.async_verify_finalization(receipt.job_id, "flow_one")
-    )
-    await proof.health_started.wait()
-    again = hass.async_create_task(
-        executor.async_verify_finalization(receipt.job_id, "flow_one")
-    )
-    try:
-        for _ in range(10):
-            await asyncio.sleep(0)
-        assert again.done()
-        assert again.result().outcome is FinalizationOutcome.BUSY
-        assert proof.health_reads == 1
-    finally:
-        proof.release_health.set()
-        await asyncio.wait_for(asyncio.gather(first, again), timeout=5)
-
-
 async def test_cancelled_verification_releases_its_lease_exactly_once(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:

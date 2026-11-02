@@ -228,9 +228,12 @@ class _FailureStore:
         issue_id: str,
         event: dict[str, Any],
         after_save: Callable[[], None] | None = None,
+        when: Callable[[], bool] | None = None,
     ) -> None:
         async with self.lock:
             records = await self.load()
+            if when is not None and not when():
+                return
             previous = records.get(issue_id, {})
             events = previous.get("events", [])
             if not isinstance(events, list):
@@ -300,12 +303,16 @@ def _issue(
         translation_key = f"{ISSUE_INSTALLER_FAILURE}_{reason}"
     elif kind == "update" and reason == "adb_authorization_required":
         translation_key = "installer_failure_adb_authorization"
+    elif kind == "update" and reason == "update_webview_unfinished":
+        translation_key = f"{ISSUE_INSTALLER_FAILURE}_update_webview"
     elif kind == "update":
         translation_key = f"{ISSUE_INSTALLER_FAILURE}_update"
     elif kind == "retry_hold":
         translation_key = f"{ISSUE_INSTALLER_FAILURE}_retry_hold"
     else:
         translation_key = ISSUE_INSTALLER_FAILURE
+    # The WebView wording shares the update Repair's help page.
+    anchor = translation_key.removesuffix("_webview")
     if translation_key == "installer_failure_adb_authorization" and entry_id:
         ir.async_delete_issue(hass, DOMAIN, adb_authorization_issue_id(entry_id))
     ir.async_create_issue(
@@ -316,11 +323,11 @@ def _issue(
         is_persistent=True,
         severity=ir.IssueSeverity.ERROR,
         translation_key=translation_key,
-        learn_more_url=help_url("repair", issue=translation_key),
+        learn_more_url=help_url("repair", issue=anchor),
         translation_placeholders={
             "panel": panel,
-            "repair_url": help_url("repair", issue=translation_key),
-            "learn_more_url": help_url("repair", issue=translation_key),
+            "repair_url": help_url("repair", issue=anchor),
+            "learn_more_url": help_url("repair", issue=anchor),
             "guide_url": help_url("support-report"),
             "approval_url": help_url("repair", issue="adb_update_authorization"),
         },
@@ -389,6 +396,9 @@ async def async_record_update_bundle(
         RuntimeError("The combined app and WebView update is unfinished"),
         artifact=artifact,
         webview_pending=bool(entry and entry.data.get(CONF_TRANSPORT_USER_ID)),
+        # A normal update is not a failure: only a startup that finds this
+        # record left behind turns it into the Repair.
+        raise_issue=False,
     )
 
 
@@ -402,6 +412,7 @@ async def async_record_update_failure(
     artifact: dict[str, Any] | None = None,
     observed_before: tuple[str, int | None] | None = None,
     webview_pending: bool = False,
+    raise_issue: bool = True,
 ) -> None:
     """Retain the cause that Home Assistant's update toast otherwise loses."""
     entry = hass.config_entries.async_get_entry(entry_id)
@@ -428,10 +439,15 @@ async def async_record_update_failure(
         event["observed_before"] = list(observed_before)
     if webview_pending:
         event["webview_pending"] = True
+    if isinstance(cause := getattr(error, "translation_key", None), str):
+        # A restart restores the same wording from the saved report.
+        event["translation_key"] = cause
     await _failure_store(hass).append(
         issue_id,
         event,
-        lambda: _issue(
+        None
+        if not raise_issue
+        else lambda: _issue(
             hass,
             issue_id,
             panel,
@@ -441,6 +457,8 @@ async def async_record_update_failure(
             if getattr(error, "translation_key", None) == "adb_authorization_required"
             else None,
         ),
+        # An entry removed during the awaits above keeps neither report nor Repair.
+        lambda: hass.config_entries.async_get_entry(entry_id) is entry,
     )
 
 
@@ -485,8 +503,8 @@ async def async_clear_update_failure_if_installed(
 ) -> None:
     """Resolve a saved failure only after this panel reaches its failed build."""
     issue_id = panel_failure_issue_id(f"update:{entry_id}")
-    if ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None:
-        return
+    # A record can exist without its Repair (an update still running, or one
+    # restored at startup), so the record decides, not the registry.
 
     def reached(record: dict[str, Any]) -> bool:
         if is_current is not None and not is_current():
@@ -640,7 +658,7 @@ async def async_restore_update_failure(hass: HomeAssistant, entry_id: str) -> No
             (event for event in reversed(events) if isinstance(event, dict)), {}
         )
         kind = "retry_hold" if latest.get("kind") == "retry_hold" else "update"
-        reason = str(latest.get("reason", ""))
+        reason = str(latest.get("translation_key") or latest.get("reason", ""))
         _issue(hass, issue_id, panel_display_name(hass, entry), kind, reason, entry_id)
 
 

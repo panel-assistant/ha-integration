@@ -108,6 +108,42 @@ async def test_accepted_listener_port_recovers_only_a_verified_endpoint(
     assert async_get_sessions(hass).get(entry.entry_id) is session
 
 
+async def test_port_follow_keeps_the_typed_host_over_a_reported_address(
+    hass, hass_ws_client, hass_read_only_user, hass_read_only_access_token
+):
+    """A moved port keeps the typed IPv4 host when it answers, not the panel's ULA."""
+    from unittest.mock import AsyncMock, patch
+
+    from custom_components.panel_assistant.client import HaPaneldClient
+
+    from .test_transport import HEALTH, STATUS
+
+    typed = "192.168.1.28"
+    entry = await _load(hass, hass_read_only_user.id, address=typed)
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+
+    async def health(panel_client):
+        return HEALTH
+
+    with (
+        patch.object(HaPaneldClient, "async_get_health", health),
+        patch.object(
+            HaPaneldClient, "async_get_status", AsyncMock(return_value=STATUS)
+        ),
+    ):
+        response = await _send(
+            client, _hello(http_port=8889, addresses=["fd00::28", typed])
+        )
+        assert response["success"]
+        session = async_get_sessions(hass).get(entry.entry_id)
+        assert session is not None
+        session.remote = None
+        await entry.runtime_data.coordinator.async_refresh()
+        await hass.async_block_till_done()
+    assert entry.data[CONF_ADDRESS] == f"{typed}:8889"
+    assert entry.runtime_data.client.address.port == 8889
+
+
 @pytest.mark.parametrize("wrong_identity", [False, True])
 async def test_listener_port_is_not_written_without_matching_health(
     hass,

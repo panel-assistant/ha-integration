@@ -61,7 +61,7 @@ async def test_catalog_rejects_query_and_redacts_failures(catalog_endpoint):
 async def test_closed_service_refuses_discovery(catalog_endpoint, hass):
     client, listing = catalog_endpoint
     service = hass.data["panel_assistant"][delivery.DATA_BROWSER_DELIVERY]
-    service._closed = True
+    await service.async_stop(None)
     response = await client.get(URL)
     assert response.status == 503
     assert await response.json() == {"error": "browser_release_closed"}

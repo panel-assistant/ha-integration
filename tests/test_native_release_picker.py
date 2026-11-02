@@ -1,6 +1,5 @@
 """Published release choices and offline native setup behavior."""
 
-import asyncio
 from contextlib import ExitStack
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -76,8 +75,8 @@ async def test_real_catalog_populates_selector_and_caches(
         if pa_version == "1.0.0":
             # One recommended release is nothing to choose: straight to the question.
             assert form["step_id"] == "confirm_install_candidate"
-            assert flow._pending_release.tag == "v1.2.3"
-            assert flow._pending_rc_tag is None
+            assert form["description_placeholders"]["tag"] == "v1.2.3"
+            assert form["description_placeholders"]["version"] == "1.2.3"
             return
         again = await flow.async_step_choose_version()
     assert "release_candidate" not in address_form["data_schema"].schema
@@ -255,9 +254,8 @@ async def test_network_setup_offers_and_installs_a_feed_build(
         # The feed build is the one recommended choice, so no version step shows.
         result = await flow.async_step_add_panel({CONF_ADDRESS: "panel.local"})
     assert result["step_id"] == "confirm_install_candidate"
-    assert flow._pending_release is not None
-    assert flow._pending_release.tag == "build-772-successor"
-    assert flow._pending_rc_tag is None
+    assert result["description_placeholders"]["tag"] == "build-772-successor"
+    assert result["description_placeholders"]["version"] == "0.9.7-rc4"
     mocks["credential"].assert_not_awaited()
     manager.async_create_or_join.assert_not_awaited()
 
@@ -283,12 +281,12 @@ async def test_found_panel_offers_its_unfinished_setup_before_connecting(hass):
 
 
 async def test_setup_wizard_opens_and_the_flow_connects_when_setup_is_done(hass):
-    """Home Assistant opens the wizard and moves on by itself once setup is done."""
-    setup = AsyncMock(side_effect=[False, False, True])
+    """The setup page is linked in a form; Submit connects once setup is done."""
+    setup = AsyncMock(side_effect=[False, True])
     # The panel's setup state agrees with its completion once the wizard ends;
     # the entry is created only after that durable completion.
     state = AsyncMock(
-        side_effect=lambda: PanelSetupState(complete=setup.await_count >= 3)
+        side_effect=lambda: PanelSetupState(complete=setup.await_count >= 2)
     )
     with (
         patch(
@@ -305,19 +303,16 @@ async def test_setup_wizard_opens_and_the_flow_connects_when_setup_is_done(hass)
         opened = await hass.config_entries.flow.async_configure(
             form["flow_id"], {"next_step_id": "panel_setup"}
         )
-        assert opened["type"] is FlowResultType.EXTERNAL_STEP
-        # The wizard opens at the address the installer pinned for this panel.
-        assert opened["url"] == "http://192.168.1.23:8889/setup"
-        # The watcher runs in the background; wait for it to see setup done.
-        for _ in range(200):
-            if hass.config_entries.flow.async_get(form["flow_id"])["step_id"] == (
-                "connect_found"
-            ):
-                break
-            await asyncio.sleep(0.01)
-        done = await hass.config_entries.flow.async_configure(form["flow_id"])
+        assert opened["type"] is FlowResultType.FORM
+        # The setup page is linked at the address the installer pinned.
+        assert opened["description_placeholders"]["setup_url"] == (
+            "http://192.168.1.23:8889/setup"
+        )
+        early = await hass.config_entries.flow.async_configure(form["flow_id"], {})
+        assert early["errors"] == {"base": "panel_setup_not_finished"}
+        done = await hass.config_entries.flow.async_configure(form["flow_id"], {})
     assert done["type"] is FlowResultType.CREATE_ENTRY
-    assert setup.await_count == 3
+    assert setup.await_count == 2
 
 
 async def test_a_panel_that_cannot_report_setup_connects_as_before(hass):
@@ -407,7 +402,7 @@ async def test_opening_the_wizard_tells_the_panel_where_home_assistant_is(hass):
         opened = await hass.config_entries.flow.async_configure(
             form["flow_id"], {"next_step_id": "panel_setup"}
         )
-        assert opened["type"] is FlowResultType.EXTERNAL_STEP
+        assert opened["type"] is FlowResultType.FORM
 
     hand_over.assert_awaited_once_with("http://192.0.2.5:8123")
 

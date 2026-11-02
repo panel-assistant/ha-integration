@@ -27,8 +27,7 @@ from custom_components.panel_assistant.repairs_update_route import (
 )
 from custom_components.panel_assistant.status import PanelStatus
 from tests.test_repair_links import assert_repair_links
-
-pytest_plugins = ["tests.test_update_adb_route"]
+from tests.test_update_adb_route import route as route
 
 
 def _entry(hass: HomeAssistant) -> MockConfigEntry:

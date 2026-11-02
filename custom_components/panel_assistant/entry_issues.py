@@ -77,8 +77,6 @@ async def async_reconcile_issues(hass: HomeAssistant) -> None:
             links = {"approval_url": url}
         elif key == "no_update_route":
             links = {"recovery_url": url}
-        elif key == "panel_webview":
-            links = {}
         else:
             continue
         ir.async_create_issue(

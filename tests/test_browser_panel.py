@@ -198,6 +198,8 @@ async def test_actual_shipped_module_is_served(hass, hass_client_no_auth):
     assert response.status == 200
     expected = (browser_panel.STATIC_PATH / "ha-panel.js").read_bytes()
     assert await response.read() == expected
+    # Source-text reason: the standalone published bundle must register this HA
+    # custom element and ship without a reference to an unavailable source map.
     assert b"panel-assistant-usb-install" in expected
     assert b"sourceMappingURL" not in expected
     for path in ("index.html", "package.json", "src/ha-install-panel.mjs"):

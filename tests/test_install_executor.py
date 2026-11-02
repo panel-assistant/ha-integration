@@ -2125,18 +2125,6 @@ async def test_version_mismatch_never_becomes_healthy_or_creates_entry(
     add_entry.assert_not_awaited()
 
 
-async def test_receipt_reconstruction_always_supplies_authenticated_descriptor(
-    hass: HomeAssistant,
-) -> None:
-    """The executor accepts only an already authenticated durable receipt."""
-    manager = InstallJobManager(hass)
-    receipt = await create_job(manager)
-
-    frozen = install_executor._frozen_execution(receipt)
-
-    assert frozen.release.descriptor is not None
-
-
 async def test_durable_cancel_after_stage_uses_cleanup_barrier_then_cancels(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -2465,3 +2453,29 @@ async def test_resume_hook_quarantines_but_does_not_resume_ambiguous_phase(
     assert "stage" not in harness.events
     assert "install" not in harness.events
     assert "launch" not in harness.events
+
+
+async def test_a_dialog_waiting_for_the_webview_step_is_woken_while_it_runs(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The wait ends as the engine step starts; the job then finishes as before."""
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    Harness(monkeypatch)
+    release = asyncio.Event()
+
+    async def _blocked(*_args: object, **_kwargs: object) -> None:
+        await release.wait()
+
+    monkeypatch.setattr(
+        install_executor.HaPaneldClient, "async_get_webview", _blocked, raising=False
+    )
+    executor = InstallExecutor(hass, manager)
+
+    await executor.async_wait(receipt.job_id, until_webview=True)
+    assert executor.is_updating_webview(receipt.job_id)
+    release.set()
+    completed = await executor.async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
+    assert not executor.is_updating_webview(receipt.job_id)

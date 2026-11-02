@@ -55,4 +55,4 @@ class RemoveFromPanelButton(ButtonEntity):
 
     async def async_press(self) -> None:
         """Open a persistent confirmation; pressing alone removes nothing."""
-        async_request_removal(self.hass, self._entry)
+        await async_request_removal(self.hass, self._entry)

@@ -1,13 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { LAUNCH_COMPONENTS, LEGACY_PACKAGE_ID, PACKAGE_ID,
-  accessibilityComponentFor, isLaunchComponent } from '../src/app-identity.mjs';
+  accessibilityComponentFor, homeComponentFor, isLaunchComponent } from '../src/app-identity.mjs';
 import { PreflightError, RESIDUE_PROBES, buildPreflight, classifyTarget,
   parsePreflight } from '../src/preflight.mjs';
 import { DelegatedProofError, parseDelegatedProof } from '../src/delegated-proof.mjs';
 import { InstallContractError, buildLaunch } from '../src/install-contract.mjs';
-import { InstalledObservationError, buildInstalledObservation } from '../src/installed-observation.mjs';
-import { buildVendorDisplaySettlement } from '../src/vendor-provisioning.mjs';
+import { InstalledObservationError, buildInstalledObservation, parseInstalledObservation } from '../src/installed-observation.mjs';
+import { buildVendorDisplaySettlement, parseVendorDisplaySettlement } from '../src/vendor-provisioning.mjs';
 import { buildHomeClaim } from '../src/home-chooser.mjs';
 import { createUsbTransactionPorts } from '../src/usb-transaction-ports.mjs';
 import { createInstallController } from '../src/install-controller.mjs';
@@ -45,11 +49,7 @@ test('the one app id names its own components, old classes and moved ones', () =
   assert.throws(() => accessibilityComponentFor('io.panelassistant.android/.MainActivity'), RangeError);
 });
 
-test("launch starts the descriptor's own package by its own component", () => {
-  for (const component of LAUNCH_COMPONENTS[PACKAGE_ID]) {
-    assert.ok(buildLaunch(nonce, PACKAGE_ID, component, 33).includes(
-      `am start -W -n ${component} -p io.panelassistant.android`));
-  }
+test("launch refuses foreign packages and the old app", () => {
   assert.throws(() => buildLaunch(nonce, 'io.example.other', MOVED, 33), InstallContractError);
   // The old app is never started, by its own launcher or the new one.
   assert.throws(() => buildLaunch(nonce, LEGACY_PACKAGE_ID, OLD_APP_LAUNCH, 33), InstallContractError);
@@ -57,23 +57,92 @@ test("launch starts the descriptor's own package by its own component", () => {
 });
 
 test('no panel program is built for the old app', () => {
-  assert.ok(buildInstalledObservation(nonce, PACKAGE_ID).includes(`pm path ${PACKAGE_ID})`));
   assert.throws(() => buildInstalledObservation(nonce, LEGACY_PACKAGE_ID),
     error => error instanceof InstalledObservationError && error.code === 'invalid_request');
-  assert.ok(buildVendorDisplaySettlement(nonce, PACKAGE_ID).includes(PACKAGE_ID));
   assert.throws(() => buildVendorDisplaySettlement(nonce, LEGACY_PACKAGE_ID), /vendor_setup_unreadable/);
-  for (const component of LAUNCH_COMPONENTS[PACKAGE_ID]) assert.match(buildHomeClaim(component), /set-home-activity/);
   assert.throws(() => buildHomeClaim(OLD_APP_LAUNCH), RangeError);
 });
 
-test('the preflight still reads the old app and its data, as well as this one', () => {
-  const program = buildPreflight(nonce);
-  assert.deepEqual([...new Set(RESIDUE_PROBES.map(({ packageId }) => packageId))], PROBED);
+// The same programs run for this app against a panel that answers only for it.
+const runPanel = program => spawnSync('/bin/sh', ['-c', program], { encoding: 'utf8', timeout: 5000 });
+
+test('the installed observation reads this app', () => {
+  // The host has no /data/app to redirect from, so the size read answers in place.
+  const result = runPanel(`pm() { [ "$1 $2" = 'path ${PACKAGE_ID}' ] && echo 'package:/data/app/x/base.apk'; }
+stat() { echo 81a4; }; sha256sum() { echo "${'a'.repeat(64)}  $1"; }
+${buildInstalledObservation(nonce, PACKAGE_ID).replace('wc -c < "$hapaneld_apk"', 'echo 1234')}`);
+  assert.equal(parseInstalledObservation(result.stdout, nonce, { apkSize: 1234, apkSha256: 'a'.repeat(64) }), true);
+});
+
+test('vendor display settlement proceeds only while this app holds HOME', t => {
+  const dir = mkdtempSync(join(tmpdir(), 'identity-settle-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const settle = home => runPanel(`
+pm() { echo package:cloud.shelly.stargate; }
+cmd() { echo '${home}/.MainActivity'; }
+timeout() { shift; "$@"; }
+am() { rm -f "${dir}/paused"; echo 'Status: ok'; }
+input() { touch "${dir}/paused"; }
+pidof() { echo 42; }
+wm() { echo 'Physical density: 216'; }
+settings() { echo 1; }
+dumpsys() { echo '  ACTIVITY cloud.shelly.stargate/.activities.MainActivity 1 pid=42'
+  if [ -e "${dir}/paused" ]; then echo '    mResumed=false mStopped=true mFinished=false'
+  else echo '    mResumed=true mStopped=false mFinished=false'; fi
+  echo '    mCurrentConfig={1.0 ?mcc 216dpi }'; }
+${buildVendorDisplaySettlement(nonce, PACKAGE_ID)}`).stdout;
+  assert.equal(parseVendorDisplaySettlement(settle(PACKAGE_ID), nonce), 'settled');
+  assert.throws(() => parseVendorDisplaySettlement(settle(LEGACY_PACKAGE_ID), nonce), /vendor_setup_unreadable/);
+});
+
+test("the HOME claim sets this app's dashboard as HOME", t => {
+  const dir = mkdtempSync(join(tmpdir(), 'identity-home-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  for (const component of LAUNCH_COMPONENTS[PACKAGE_ID]) {
+    rmSync(join(dir, 'home'), { force: true });
+    const result = runPanel(`
+cmd() { if [ "$2" = set-home-activity ]; then echo "$3" > "${dir}/home"; else cat "${dir}/home" 2>/dev/null || echo android/com.android.internal.app.ResolverActivity; fi; }
+input() { :; }; uiautomator() { return 1; }; sleep() { :; }
+${buildHomeClaim(component)}
+echo "$hp_chooser"`);
+    assert.equal(result.stdout, 'set\n', component);
+    assert.equal(readFileSync(join(dir, 'home'), 'utf8'), `${homeComponentFor(component)}\n`);
+  }
+});
+
+test('the executed preflight refuses either app, retained package, and every data location', t => {
+  const root = mkdtempSync(join(tmpdir(), 'identity-preflight-'));
+  t.after(() => rmSync(root, {recursive: true, force: true}));
+  const bases = ['/data/user/0', '/data/data', '/data/user_de/0'];
+  for (const base of bases) mkdirSync(join(root, base), {recursive: true});
+  const run = ({installed = '', retained = ''} = {}) => {
+    const result = spawnSync('/bin/sh', ['-c', `
+getprop() { case "$1" in ro.product.model) echo 'Test panel';; ro.serialno) echo serial;; ro.product.cpu.abi) echo arm64-v8a;; ro.build.version.sdk) echo 34;; ro.secure) echo 1;; ro.debuggable) echo 0;; esac; }
+id() { echo 2000; }
+command() { return 1; }
+pm() {
+  if [ "$1 $2" = 'path android' ]; then echo package:/system/framework/framework-res.apk;
+  elif [ "$1" = path ]; then [ "$2" = '${installed}' ] && echo "package:/data/app/$2/base.apk";
+  elif [ "$1 $2 $3" = 'list packages -u' ]; then [ "$4" != '${retained}' ] || echo "package:$4";
+  else return 1; fi
+}
+${buildPreflight(nonce).replaceAll('/data/', `${root}/data/`)}`], {encoding: 'utf8', timeout: 2000});
+    assert.equal(result.status, 0);
+    // Capture the caller's result so a refusal mutant fails an assertion, rather
+    // than escaping as a parser or shell exception.
+    try { return parsePreflight(result.stdout, nonce, {...DESCRIPTOR, packageId: PACKAGE_ID}); }
+    catch (error) { return {code: error.code}; }
+  };
+  assert.equal(run().installationAdmission, 'clean_preflight');
   for (const packageId of PROBED) {
-    assert.ok(program.includes(`pm path ${packageId};`), packageId);
-    assert.ok(program.includes(`pm list packages -u ${packageId};`), packageId);
-    for (const base of ['/data/user/0', '/data/data', '/data/user_de/0']) {
-      assert.ok(program.includes(`[ -e ${base}/${packageId} ]`), `${base}/${packageId}`);
+    assert.deepEqual(run({installed: packageId}),
+      {code: packageId === PACKAGE_ID ? 'target_installed' : 'target_not_clean'});
+    assert.deepEqual(run({retained: packageId}), {code: 'target_not_clean'});
+    for (const base of bases) {
+      const residue = join(root, base, packageId);
+      mkdirSync(residue);
+      assert.deepEqual(run(), {code: 'target_not_clean'}, `${base}/${packageId}`);
+      rmSync(residue, {recursive: true});
     }
   }
 });
