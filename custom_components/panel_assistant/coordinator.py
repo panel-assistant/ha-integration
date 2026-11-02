@@ -128,6 +128,8 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         self._admin_done = False
         self._admin_retry_at = 0.0
         self._admin_backoff = 0.0
+        # The live session whose ADB recovery daemon was last proved running.
+        self._recovery_session: PanelSession | None = None
         # True until the first poll answers otherwise, as `last_update_success` starts.
         self.reachable = True
         # Where the panel last said it was in an accepted session:
@@ -366,19 +368,28 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             self._admin_done = False
             self._admin_retry_at = 0.0
             self._admin_backoff = 0.0
+            self._recovery_session = None
+        session = local_adb.session_for(self.hass, entry)
+        # A finished pass still restarts recovery once per new session: after a
+        # reboot only the network route may have the root to start it.
+        recovering = self._admin_done and not health.home_pending
         if (
-            (self._admin_done and not health.home_pending)
+            (recovering and (session is None or session is self._recovery_session))
             or monotonic() < self._admin_retry_at
             or not claim_panel_operation(self.hass, entry.entry_id)
         ):
             return
         device: AdbDeviceAsync | None = None
         try:
-            async with asyncio.timeout(
-                None if local_adb.session_for(self.hass, entry) is not None else 45
-            ):
+            async with asyncio.timeout(None if session is not None else 45):
                 manager = await async_get_install_job_manager(self.hass)
                 self._admin_retry_at = monotonic() + 300
+                if recovering:
+                    if await local_adb.async_ensure_recovery(
+                        self.hass, entry, self.client.address
+                    ):
+                        self._recovery_session = session
+                    return
                 # A background pass never waits on an on-panel approval.
                 target = await local_adb.async_target(
                     self.hass, entry, self.client.address, approval=False
@@ -495,7 +506,8 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             TimeoutError,
         ) as err:
             # Admin readback alone cannot finish a pass whose vendor I/O failed.
-            self._admin_done = False
+            # A failed recovery restart leaves a finished pass finished.
+            self._admin_done = recovering
             _LOGGER.debug("Deferred panel device admin could not be activated")
             if local_adb.approval_pending(err):
                 # Hardened mode: each shell needs someone at the panel. Ask
