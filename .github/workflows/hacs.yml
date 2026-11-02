@@ -36,7 +36,7 @@ jobs:
       # half of this check runs with the tests on every push.
       - name: Set up Python for the help topic check
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: "3.14.2"
       - name: Verify every help topic is known to the site
