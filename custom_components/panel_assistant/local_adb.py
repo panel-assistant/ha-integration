@@ -265,6 +265,48 @@ async def _bootstrap(
         return None
 
 
+async def _async_start_recovery(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    session: PanelSession,
+    address: PanelAddress,
+    prepared: tuple[str, str, str] | None,
+    legacy: bool,
+) -> bool:
+    """Bootstrap over network ADB, then require the launched build to answer."""
+    build = await _bootstrap(hass, entry, session, address, prepared)
+    if build is None:
+        return False
+    for _attempt in range(10):
+        ready = await _request(
+            hass, entry, session, "adb.ready", {"include_build_id": True}, 10
+        )
+        if _ready(ready) and ready.get("build_id", build if legacy else None) == build:
+            return True
+        await asyncio.sleep(0.2)
+    raise _failure()
+
+
+async def async_ensure_recovery(
+    hass: HomeAssistant, entry: ConfigEntry, address: PanelAddress
+) -> bool:
+    """Start recovery again on a live channel whose daemon is not running.
+
+    Only ``adb.ready``, ``adb.prepare`` and the pinned network route are used,
+    so no on-panel approval is ever requested. A daemon that answers ready is
+    left alone. False, or an error, means recovery is still not proved.
+    """
+    session = session_for(hass, entry)
+    if session is None:
+        return False
+    ready = await _request(
+        hass, entry, session, "adb.ready", {"include_build_id": True}, 10
+    )
+    return _ready(ready) or await _async_start_recovery(
+        hass, entry, session, address, None, "build_id" not in ready
+    )
+
+
 async def async_target(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -296,22 +338,10 @@ async def async_target(
             # owner. The root bootstrap still pins and revalidates this panel.
             await async_recover(hass, entry, approval=approval)
             is_ready = False
-    if not is_ready:
-        build = await _bootstrap(hass, entry, session, address, prepared)
-        if build is None:
-            return None
-        for _attempt in range(10):
-            ready = await _request(
-                hass, entry, session, "adb.ready", {"include_build_id": True}, 10
-            )
-            if (
-                _ready(ready)
-                and ready.get("build_id", build if legacy else None) == build
-            ):
-                break
-            await asyncio.sleep(0.2)
-        else:
-            raise _failure()
+    if not is_ready and not await _async_start_recovery(
+        hass, entry, session, address, prepared, legacy
+    ):
+        return None
     device = LocalAdbDevice(hass, entry, session, approval)
     nonce = token_hex(16)
     try:
