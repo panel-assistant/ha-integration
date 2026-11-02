@@ -1780,6 +1780,14 @@ async def async_wait_for_adb_allow(
             watcher.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await watcher
+            # Closing the dialog during the watcher's connection close must
+            # still end this wait, not be absorbed with the watcher's own.
+            task = asyncio.current_task()
+            if task is not None and task.cancelling():
+                raise asyncio.CancelledError
+    if watcher.done() and not watcher.cancelled():
+        # A trusted connection that ended in the offer's own loop step wins.
+        return watcher.result()
     if offered.state in (
         InstallTargetState.ADB_UNAUTHORIZED,
         InstallTargetState.ADB_UNREACHABLE,

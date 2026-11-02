@@ -1,6 +1,7 @@
 """Existing-panel callers wait for one remembered Allow on the panel."""
 
 import asyncio
+import contextlib
 from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack
 from types import SimpleNamespace
@@ -41,6 +42,15 @@ class AskingPanel:
         self.fresh_probes = 0
         self.probed_fresh = asyncio.Event()
         self.trusted_after_fresh: int | None = None
+        self.unreachable_fresh: set[int] = set()
+        # One fresh connection can hang until cancelled, then take a while to
+        # close, as the real probe's shielded close does.
+        self.slow_close_fresh: int | None = None
+        self.fresh_waiting = asyncio.Event()
+        self.closing = asyncio.Event()
+        self.close_release = asyncio.Event()
+        self.calls: list[bool] = []
+        self.offer_task: asyncio.Task[Any] | None = None
 
     async def probe(
         self,
@@ -50,12 +60,17 @@ class AskingPanel:
         authorize: bool = False,
         approval_seconds: float = 5.0,
     ) -> InstallTargetProbe:
+        self.calls.append(authorize)
         if self.trusted:
             return InstallTargetProbe(state=InstallTargetState.INSTALLED)
         if not authorize:
             self.fresh_probes += 1
             if self.fresh_probes >= 3:
                 self.probed_fresh.set()
+            if self.fresh_probes == self.slow_close_fresh:
+                await self._hang_then_close_slowly()
+            if self.fresh_probes in self.unreachable_fresh:
+                return InstallTargetProbe(state=InstallTargetState.ADB_UNREACHABLE)
             if (
                 self.trusted_after_fresh is not None
                 and self.fresh_probes >= self.trusted_after_fresh
@@ -64,6 +79,7 @@ class AskingPanel:
                 return InstallTargetProbe(state=InstallTargetState.INSTALLED)
             return InstallTargetProbe(state=InstallTargetState.ADB_UNAUTHORIZED)
         self.offers.append(approval_seconds)
+        self.offer_task = asyncio.current_task()
         try:
             if not self.offer_opens:
                 await asyncio.Event().wait()
@@ -75,6 +91,17 @@ class AskingPanel:
             return InstallTargetProbe(state=InstallTargetState.ADB_UNAUTHORIZED)
         self.trusted = self.remembers
         return InstallTargetProbe(state=InstallTargetState.INSTALLED)
+
+    async def _hang_then_close_slowly(self) -> None:
+        self.fresh_waiting.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            self.closing.set()
+            while not self.close_release.is_set():
+                with contextlib.suppress(asyncio.CancelledError):
+                    await asyncio.shield(self.close_release.wait())
+            raise
 
 
 @pytest.fixture(params=["options", "authorization_repair", "failure_repair"])
@@ -257,6 +284,17 @@ async def test_existing_panel_known_key_does_not_offer_again(
     caller.install.assert_not_awaited()
 
 
+def _close_dialog(hass: HomeAssistant, caller: Any) -> None:
+    if caller.route == "options":
+        hass.config_entries.options.async_abort(caller.flow_id)
+    else:
+        from homeassistant.components.repairs import repairs_flow_manager
+
+        manager = repairs_flow_manager(hass)
+        assert manager is not None
+        manager.async_abort(caller.flow_id)
+
+
 async def test_existing_panel_closing_the_dialog_cancels_the_offer(
     hass: HomeAssistant, caller: Any
 ) -> None:
@@ -295,11 +333,11 @@ async def test_existing_panel_allow_delivered_elsewhere_finishes_on_first_press(
             caller.panel.taps.put_nowait(False)
         await asyncio.wait_for(hass.async_block_till_done(), 5)
     result = await caller.configure({})
-    assert len(caller.panel.offers) == 1
-    assert caller.panel.offers[0] >= 60
+    assert caller.panel.offers == [120.0]
     assert caller.panel.fresh_probes >= 3
     caller.install.assert_not_awaited()
     if outcome == "allowed_elsewhere":
+        assert caller.panel.fresh_probes == 3
         assert caller.panel.cancelled
         assert result["type"] == (
             "menu" if caller.route == "failure_repair" else "create_entry"
@@ -310,3 +348,50 @@ async def test_existing_panel_allow_delivered_elsewhere_finishes_on_first_press(
         assert result["errors"] == {"base": "adb_still_unauthorized"}
         caller.reload.assert_not_awaited()
         assert ir.async_get(hass).async_get_issue(DOMAIN, caller.issue_id) is not None
+
+
+async def test_existing_panel_unreachable_fresh_connection_keeps_the_offer(
+    hass: HomeAssistant, caller: Any
+) -> None:
+    """A fresh connection that cannot reach ADB does not end the pending offer."""
+    caller.panel.unreachable_fresh = {1}
+    with patch.object(config_flow, "_ADB_ALLOW_POLL_SECONDS", 0.01, create=True):
+        waiting = await caller.configure({})
+        assert waiting["type"] == "progress"
+        await asyncio.wait_for(caller.panel.probed_fresh.wait(), 5)
+        caller.panel.taps.put_nowait(True)
+        await asyncio.wait_for(hass.async_block_till_done(), 5)
+    result = await caller.configure({})
+    assert result["type"] == (
+        "menu" if caller.route == "failure_repair" else "create_entry"
+    )
+    assert caller.panel.offers == [120.0]
+    assert not caller.panel.cancelled
+    caller.reload.assert_awaited_once_with(caller.entry.entry_id)
+
+
+async def test_existing_panel_closing_the_dialog_during_a_fresh_close_ends_the_wait(
+    hass: HomeAssistant, caller: Any
+) -> None:
+    """Closing the dialog while a fresh connection is still closing stops at once."""
+    caller.panel.slow_close_fresh = 1
+    with patch.object(config_flow, "_ADB_ALLOW_POLL_SECONDS", 0.01, create=True):
+        waiting = await caller.configure({})
+        assert waiting["type"] == "progress"
+        await asyncio.wait_for(caller.panel.fresh_waiting.wait(), 5)
+        # The offer opens; the wait now cancels the hung fresh connection,
+        # whose close is still running when the owner closes the dialog.
+        caller.panel.taps.put_nowait(True)
+        await asyncio.wait_for(caller.panel.closing.wait(), 5)
+        calls = list(caller.panel.calls)
+        _close_dialog(hass, caller)
+        await asyncio.sleep(0)
+        caller.panel.close_release.set()
+        task = caller.panel.offer_task
+        assert task is not None
+        await asyncio.wait({task}, timeout=5)
+        await asyncio.wait_for(hass.async_block_till_done(), 5)
+    assert task.cancelled()
+    assert caller.panel.calls == calls
+    caller.reload.assert_not_awaited()
+    caller.install.assert_not_awaited()
