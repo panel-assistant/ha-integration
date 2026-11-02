@@ -47,12 +47,79 @@ from .test_install_adb import (  # noqa: F401 - fixtures resolve by parameter na
 )
 
 _STAND_IN_PANEL = r"""
+home_write_barrier() {
+  if [ -f "$STATE/pause.$1" ]; then
+    touch "$STATE/paused.$1"
+    while [ ! -f "$STATE/resume.$1" ]; do command sleep 0.01; done
+  fi
+}
+flock() {
+  [ ! -f "$STATE/flock.unavailable" ] || return 127
+  command flock "$@"
+}
+handback_after_home_authority() {
+  handback=${1:-handback.after.home.authority}
+  if [ -f "$STATE/$handback" ]; then
+    # Simulated native completion followed by a successful owner handback.
+    touch "$STATE/home_ack" "$STATE/handback.done"
+    cp "$STATE/$handback" "$STATE/home"
+  fi
+}
 am() {
   case "$*" in
+    *"operation claim_pending_home"*)
+      if [ -f "$STATE/incomplete.setup" ] || [ -f "$STATE/home_ack" ] ||
+          [ -f "$STATE/legacy.receiver" ] || [ -f "$STATE/receiver.absent" ]; then
+        echo "Broadcast completed: result=0"
+      elif [ -f "$STATE/native.home" ]; then
+        while [ "$#" -ge 3 ]; do
+          if [ "$1 $2" = "--es home_component" ]; then
+            pkg=${3%%/*}; cls=${3#*/}
+            case "$cls" in "$pkg".*) cls=${cls#"$pkg"} ;; esac
+            echo "$pkg/$cls" > "$STATE/home"
+            touch "$STATE/home_ack"
+            break
+          fi
+          shift
+        done
+        handback_after_home_authority
+        echo 'Broadcast completed: result=1,' \
+          'data="panel-assistant-pending-home-claimed"'
+      else
+        handback_after_home_authority handback.after.shell.offer
+        if [ -f "$STATE/native.recover.after.shell.offer" ]; then
+          touch "$STATE/native.home"
+        fi
+        echo 'Broadcast completed: result=2, data="panel-assistant-pending-home-shell"'
+      fi ;;
+    *"operation pending_home_shell_lock_eligibility"*)
+      identity=
+      while [ "$#" -ge 3 ]; do
+        if [ "$1 $2" = "--es home_lock_identity" ]; then identity=$3; break; fi
+        shift
+      done
+      if [ -f "$STATE/incomplete.setup" ] || [ -f "$STATE/home_ack" ] ||
+          [ -f "$STATE/native.home" ] ||
+          [ -f "$STATE/legacy.lock.receiver" ] ||
+          [ -f "$STATE/lock.identity.mismatch" ] ||
+          [ "$identity" != "$(stat -Lc '%d:%i' "$STATE/home-lock")" ]; then
+        echo "Broadcast completed: result=0"
+      else
+        echo 'Broadcast completed: result=1,' \
+          'data="panel-assistant-pending-home-shell-locked"'
+      fi ;;
+    *"operation pending_home_shell_eligibility"*)
+      if [ -f "$STATE/incomplete.setup" ] || [ -f "$STATE/home_ack" ] ||
+          [ -f "$STATE/native.home" ]; then
+        echo "Broadcast completed: result=0"
+      else
+        echo 'Broadcast completed: result=1, data="panel-assistant-pending-home-shell"'
+      fi ;;
     *"operation setup_eligibility"*)
       if [ -f "$STATE/legacy.receiver" ]; then echo "Broadcast completed: result=1"
       elif [ -f "$STATE/incomplete.setup" ]; then echo "Broadcast completed: result=0"
       else
+        handback_after_home_authority
         echo 'Broadcast completed: result=1, data="panel-assistant-setup-eligible"'
       fi ;;
     *"operation acknowledge_home"*)
@@ -106,6 +173,8 @@ cmd() {
     if [ -f "$STATE/home" ]; then cat "$STATE/home"
     else echo android/com.android.internal.app.ResolverActivity; fi
   elif [ "$1 $2" = "package set-home-activity" ]; then
+    stat -Lc '%d:%i' /proc/self/fd/0 > "$STATE/home.stdin"
+    home_write_barrier set-home
     echo "cmd $*" >> "$STATE/calls"
     # Android keeps the component and prints its short form back.
     pkg=${3%%/*}; cls=${3#*/}
@@ -125,11 +194,18 @@ input() {
     touch "$STATE/chooser.shown"
   elif [ "$1" = tap ] && [ -f "$STATE/chooser.shown" ] &&
       [ "$2 $3" = "$(cat "$STATE/chooser.tap")" ]; then
+    home_write_barrier chooser-tap
     cp "$STATE/chooser.home" "$STATE/home"
   fi
 }
 uiautomator() {
-  if [ -f "$STATE/chooser.shown" ]; then cp "$STATE/chooser.xml" "$2"; fi
+  if [ -f "$STATE/chooser.shown" ]; then
+    cp "$STATE/chooser.xml" "$2"
+    handback_after_home_authority handback.during.chooser
+    if [ -f "$STATE/native.recover.during.chooser" ]; then
+      touch "$STATE/native.home"
+    fi
+  fi
 }
 pm() {
   if [ "$1" = path ]; then
@@ -202,10 +278,18 @@ dumpsys() {
 
 
 def _run_on_stand_in_panel(command: str, state: Path) -> bytes:
+    # Preserve the generated locking program and real host flock. Only Android's
+    # immutable directory and command side effects belong to this fixture.
+    (state / "home-lock").mkdir(exist_ok=True)
+    command = command.replace(
+        getattr(adb_protocol, "_HOME_LOCK_DIRECTORY", "/system"),
+        shlex.quote(str(state / "home-lock")),
+    )
     return subprocess.run(
         ["/bin/sh", "-c", _STAND_IN_PANEL + command],
         capture_output=True,
         check=True,
+        timeout=30,
         env={"PATH": os.environ["PATH"], "STATE": str(state)},
     ).stdout
 
@@ -540,6 +624,50 @@ async def _launch_on(
     )
     assert outcome is LaunchOutcome.STARTED
     return fake
+
+
+@pytest.mark.parametrize("operation", ["install_launch", "update_repair"])
+async def test_explicit_install_and_update_repair_home_without_pending_setup(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    successor_descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    operation: str,
+) -> None:
+    installed = replace(
+        successor_descriptor,
+        launch_component=LAUNCH_COMPONENTS[successor_descriptor.package_id][-1],
+    )
+    # Setup has previously finished, and a subsequent handback returned HOME.
+    # Explicit supported install/update repair still has broader authority than
+    # the automatic coordinator's completion of a pending first setup.
+    (tmp_path / "home_ack").touch()
+    (tmp_path / "home").write_text("com.vendor.launcher/.Home\n")
+    for _ in range(2):
+        fake = _RoutingFakeDevice(tmp_path)
+        _install_fakes(monkeypatch, [fake])
+        if operation == "install_launch":
+            result = await async_launch_installed_app(
+                target, signer, installed, expected_root_mode=AdbRootMode.ROOTLESS
+            )
+            assert result is LaunchOutcome.STARTED
+        else:
+            await install_adb.async_repair_installed_app_permissions(
+                target, signer, installed, expected_root_mode=AdbRootMode.ROOTLESS
+            )
+        assert _panel_value(tmp_path, "home") == f"{PACKAGE_ID}/.DashboardActivity"
+        assert _panel_value(tmp_path, f"appop.{PACKAGE_ID}.WRITE_SETTINGS") == "allow"
+        assert (
+            _panel_value(tmp_path, f"appop.{PACKAGE_ID}.SYSTEM_ALERT_WINDOW") == "allow"
+        )
+    assert (
+        sum(
+            line.startswith("cmd package set-home-activity")
+            for line in (tmp_path / "calls").read_text().splitlines()
+        )
+        == 1
+    )
 
 
 @pytest.mark.parametrize("identity", list(_CLASS_SETS))

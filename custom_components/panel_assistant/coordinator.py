@@ -471,7 +471,11 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                     # Only initial setup's durable pending intent permits a HOME
                     # takeover here. Explicit handback clears it, across HA reloads.
                     await _async_repair_app_permissions(
-                        device, target, package, LAUNCH_COMPONENTS[package][-1]
+                        device,
+                        target,
+                        package,
+                        LAUNCH_COMPONENTS[package][-1],
+                        deferred_setup=True,
                     )
                 listed = f"{package}/{DEVICE_ADMIN_RECEIVER.removeprefix(package)}:"
 
