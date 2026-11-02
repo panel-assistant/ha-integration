@@ -1,4 +1,4 @@
-//#region src/stale-module.mjs
+// src/stale-module.mjs
 var e = ["panel-assistant-sidebar", "panel-assistant-usb-install"], t = "panel-assistant-module-reloaded";
 if (e.some((e) => customElements.get(e))) {
 	let e = null;
@@ -9,8 +9,7 @@ if (e.some((e) => customElements.get(e))) {
 	}
 	e !== import.meta.url && location.reload();
 }
-//#endregion
-//#region src/translations/index.mjs
+// src/translations/index.mjs
 var n = Object.freeze({
 	en: {
 		sidebar: {
@@ -2085,13 +2084,7 @@ var fe = class extends HTMLElement {
 		let t = this.#t;
 		this.#t = e;
 		let n = e?.themes?.darkMode;
-		if (typeof n == "boolean" && this.setAttribute?.("theme", n ? "dark" : "light"), this.isConnected) {
-			if (this.#E(), t?.connection !== e?.connection || t?.user?.id !== e?.user?.id || t?.user?.is_admin !== e?.user?.is_admin) {
-				this.#A();
-				return;
-			}
-			(t?.language !== e?.language || !!t?.themes?.darkMode != !!e?.themes?.darkMode) && (this.#L(), this.#N());
-		}
+		typeof n == "boolean" && this.setAttribute?.("theme", n ? "dark" : "light"), this.isConnected && (this.#E(), t?.connection !== e?.connection || t?.user?.id !== e?.user?.id || t?.user?.is_admin !== e?.user?.is_admin ? this.#A() : (t?.language !== e?.language || !!t?.themes?.darkMode != !!e?.themes?.darkMode) && (this.#L(), this.#N()));
 	}
 	get panel() {
 		return this.#n;
@@ -2209,7 +2202,7 @@ var fe = class extends HTMLElement {
 	}
 	#N() {
 		let e = this.#o?.find((e) => e.entry_id === this.#u), t = this.#p;
-		!e || e.state !== "reachable" ? t && (t.state !== "closed" || t.entryId !== e?.entry_id) && this.#L() : (!t || t.entryId !== e.entry_id || !["opening", "open"].includes(t.state)) && (this.#L(), this.#P(e.entry_id, null, null)), this.#W();
+		!e || e.state !== "reachable" ? t && (t.state !== "closed" || t.entryId !== e?.entry_id) && this.#L() : t && t.entryId === e.entry_id && ["opening", "open"].includes(t.state) || (this.#L(), this.#P(e.entry_id, null, null)), this.#W();
 	}
 	#P(e, t, n) {
 		let r = this.#t, i = {
@@ -2420,8 +2413,7 @@ var fe = class extends HTMLElement {
 	}
 };
 customElements.get("panel-assistant-sidebar") || customElements.define("panel-assistant-sidebar", fe);
-//#endregion
-//#region src/display-provisioning.mjs
+// src/display-provisioning.mjs
 function pe(e) {
 	if (typeof e != "object" || !e) return null;
 	let { density: t, font_scale: n } = e;
@@ -2430,8 +2422,7 @@ function pe(e) {
 		fontScale: n
 	});
 }
-//#endregion
-//#region src/app-identity.mjs
+// src/app-identity.mjs
 var me = "io.panelassistant.android";
 Object.freeze(["io.panelassistant.android.install.v1", "io.github.maxlyth.hapaneld.install.v1"]), Object.freeze(["io.panelassistant.android.buildfeed.v1", "io.github.maxlyth.hapaneld.buildfeed.v1"]);
 var N = "io.panelassistant.android/io.github.maxlyth.hapaneld.MainActivity", P = "io.panelassistant.android/io.panelassistant.android.MainActivity";
@@ -2520,15 +2511,9 @@ function ke(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () 
 			i(e);
 		} catch {}
 	}, E = (e = null) => {
-		if (!f) {
-			if (f = !0, d.abort(), clearTimeout(m), T(e ?? "verified"), e) {
-				w(), l(new Y(e));
-				return;
-			}
-			x = setInterval(() => {
-				p.closed && w();
-			}, 2e3), S = setTimeout(w, De), c();
-		}
+		f || (f = !0, d.abort(), clearTimeout(m), T(e ?? "verified"), e ? (w(), l(new Y(e))) : (x = setInterval(() => {
+			p.closed && w();
+		}, 2e3), S = setTimeout(w, De), c()));
 	};
 	async function D() {
 		try {
@@ -2671,27 +2656,7 @@ function ke(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () 
 		} catch {}
 	}
 	function j(e) {
-		if (e.source === p && e.origin === h) {
-			if (e.data?.type === "ha-paneld/usb-adb-key" && e.data.nonce === g && U(e.data, ["type", "nonce"])) {
-				f && A();
-				return;
-			}
-			if (e.data?.type === "ha-paneld/usb-admission" && e.data.nonce === g) {
-				O(e.data);
-				return;
-			}
-			if (e.data?.type === "ha-paneld/usb-handover" && e.data.nonce === g) {
-				k(e.data);
-				return;
-			}
-			if (U(e.data, ["type", "nonce"]) && e.data.nonce === g) {
-				if (e.data.type === "ha-paneld/usb-ready") {
-					!_ && !f ? (_ = !0, D()) : y && !p.closed && p.postMessage(y, h);
-					return;
-				}
-				f || (e.data.type === "ha-paneld/usb-verified" && v ? E() : e.data.type === "ha-paneld/usb-error" && E("verification_failed"));
-			}
-		}
+		e.source === p && e.origin === h && (e.data?.type === "ha-paneld/usb-adb-key" && e.data.nonce === g && U(e.data, ["type", "nonce"]) ? f && A() : e.data?.type === "ha-paneld/usb-admission" && e.data.nonce === g ? O(e.data) : e.data?.type === "ha-paneld/usb-handover" && e.data.nonce === g ? k(e.data) : U(e.data, ["type", "nonce"]) && e.data.nonce === g && (e.data.type === "ha-paneld/usb-ready" ? !_ && !f ? (_ = !0, D()) : y && !p.closed && p.postMessage(y, h) : f || (e.data.type === "ha-paneld/usb-verified" && v ? E() : e.data.type === "ha-paneld/usb-error" && E("verification_failed"))));
 	}
 	try {
 		X(e && typeof e.fetchWithAuth == "function" && (n === null || B(n) || V(n)) && Number.isSafeInteger(s) && s > 0 && s <= 3e5, "invalid_request");
@@ -2715,8 +2680,7 @@ function ke(e, t, { rcTag: n = null, language: r = e?.language, onState: i = () 
 		}
 	};
 }
-//#endregion
-//#region src/release-catalog.mjs
+// src/release-catalog.mjs
 var Ae = 30, je = 500, Me = 131072;
 function $(e) {
 	if (!e) throw Error("Invalid release catalogue");
@@ -2760,8 +2724,7 @@ async function Ie(e, { signal: t, timeoutMs: n = 725e3 } = {}) {
 		clearTimeout(a), t?.removeEventListener("abort", i), r.signal.removeEventListener("abort", o), r.abort();
 	}
 }
-//#endregion
-//#region src/ha-install-panel.mjs
+// src/ha-install-panel.mjs
 var Le = class extends HTMLElement {
 	#e;
 	get #t() {
@@ -2875,4 +2838,3 @@ var Le = class extends HTMLElement {
 	}
 };
 customElements.get("panel-assistant-usb-install") || customElements.define("panel-assistant-usb-install", Le);
-//#endregion
