@@ -95,7 +95,7 @@
       },
       "confirm_reinstall_rc": {
         "title": "Zainstalować Panel Assistant {version}?",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "Tylko do testów: Panel Assistant {version} jest wersją kandydującą do wydania, a nie wersją stabilną, i może zawierać błędy.\n\nWszystko gotowe do instalacji na panelu pod adresem {address}.\n\nTwoje inne aplikacje pozostaną nietknięte.\n\nTen panel ponownie dołączy do {entry_title} i zachowa swoje encje oraz historię."
       },
       "release_preview_only": {
         "title": "Nie można zainstalować tej wersji automatycznie",
@@ -147,7 +147,7 @@
       "old_app_installed": "Na tym panelu nadal działa stara aplikacja ha-paneld. Panel Assistant 1.0 nie może przeprowadzić migracji do nowej aplikacji i nie instaluje niczego obok starej. Wykonaj [kroki bezpiecznego odzyskiwania]({old_app_help_url}), aby dokończyć migrację za pomocą Panel Assistant 0.9.0. Jeśli na którymkolwiek panelu działa już aplikacja w wersji 1.0 lub nie masz kopii zapasowej sprzed aktualizacji, poproś o pomoc przed zmianą wersji.",
       "already_configured": "Ten panel został już skonfigurowany.",
       "reinstall_successful": "Aplikacja została zainstalowana ponownie. Ten panel zachowuje swoją historię i ustawienia w Home Assistant.",
-      "usb_installed": "Panel Assistant is installed and the panel has been added to Home Assistant. Finish setting up the panel in the window you opened for the install.",
+      "usb_installed": "Panel Assistant jest zainstalowany, a panel został dodany do Home Assistant. Dokończ konfigurację panelu w oknie otwartym na potrzeby instalacji.",
       "reinstall_identity_mismatch": "Aplikacja jest zainstalowana, ale nie udało się jej powiązać z zachowanym panelem. Jego historia i ustawienia w Home Assistant zostały zachowane. Sprawdź panel w Home Assistant, zanim spróbujesz ponownie.",
       "not_panel": "To nie jest panel, na którym Panel Assistant może instalować.",
       "invalid_discovery": "Wykryty panel nie okazał się tą samą, prawidłowo działającą instalacją Panel Assistant. Nie zmieniono żadnego wpisu Home Assistant ani ustawienia panelu.",
@@ -842,7 +842,7 @@
       "message": "Aktualizacja panelu nie została zakończona"
     },
     "update_webview_unfinished": {
-      "message": "The app is installed, but its WebView update did not finish. Open the Repair for this panel to try the WebView step again."
+      "message": "Aplikacja jest zainstalowana, ale aktualizacja jej WebView nie została ukończona. Otwórz problem dotyczący tego panelu w Problemach, aby ponowić krok aktualizacji WebView."
     },
     "panel_backup_failed": {
       "message": "Nie udało się wykonać kopii zapasowej panelu, więc nic nie zostało zainstalowane"
@@ -1522,7 +1522,7 @@
       }
     },
     "installer_failure_update_webview": {
-      "title": "The WebView update on {panel} did not finish",
+      "title": "Aktualizacja WebView na panelu {panel} nie została ukończona",
       "fix_flow": {
         "step": {
           "init": {
@@ -1778,8 +1778,8 @@
             }
           },
           "authorize_adb": {
-            "title": "Allow Home Assistant on {panel}",
-            "description": "Panel Assistant cannot be removed from {panel} until the panel allows Home Assistant's ADB connection.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}), then select Submit to send the approval request.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n3. Wait here; the removal question comes back once the panel allows it.\n\n[Learn more]({learn_more_url})"
+            "title": "Zezwól na połączenie Home Assistant z panelem {panel}",
+            "description": "Nie można usunąć Panel Assistant z panelu {panel}, dopóki panel nie zezwoli na połączenie ADB z Home Assistant.\n\nAby usunąć:\n1. Przeczytaj [kroki odzyskiwania]({recovery_url}), a następnie wybierz Zatwierdź, aby wysłać prośbę o zgodę.\n2. Na panelu {panel} zaznacz **Zawsze zezwalaj z tego komputera**, a następnie dotknij **Zezwól**.\n3. Poczekaj tutaj; pytanie o usunięcie pojawi się ponownie, gdy panel zezwoli na połączenie.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "confirm": {
             "title": "Usuń Panel Assistant z panelu {panel}",
@@ -1787,14 +1787,14 @@
           }
         },
         "progress": {
-          "authorize_adb": "Android approval on {panel} is still needed.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}) if needed.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n\nThis continues automatically after approval.\n\n[Learn more]({learn_more_url})"
+          "authorize_adb": "Nadal wymagana jest zgoda w systemie Android na panelu {panel}.\n\nAby usunąć:\n1. W razie potrzeby przeczytaj [kroki odzyskiwania]({recovery_url}).\n2. Na panelu {panel} zaznacz **Zawsze zezwalaj z tego komputera**, a następnie dotknij **Zezwól**.\n\nProces będzie kontynuowany automatycznie po udzieleniu zgody.\n\n[Dowiedz się więcej]({learn_more_url})"
         },
         "error": {
           "cannot_connect": "Nie udało się nawiązać połączenia z prawidłowym punktem końcowym stanu działania usługi Panel Assistant.",
           "invalid_install_address": "Wpisz tylko nazwę hosta lub adres IP panelu.",
-          "install_resolution_failed": "Home Assistant nie może rozpoznać adresu tego panelu. Sprawdź adres i lokalny DNS, a następnie spróbuj ponownie.",
-          "install_resolution_timeout": "Upłynął limit czasu lokalnego rozpoznawania nazwy, zanim adres panelu mógł zostać bezpiecznie ustalony. Sprawdź lokalny DNS, a następnie spróbuj ponownie.",
-          "install_too_many_addresses": "Ta nazwa hosta została rozpoznana jako zbyt wiele adresów, aby można było bezpiecznie ją przypiąć. Użyj dedykowanej lokalnej nazwy hosta lub prywatnego adresu IP.",
+          "install_resolution_failed": "Home Assistant nie mógł rozpoznać adresu tego panelu. Sprawdź adres i lokalny DNS, a następnie spróbuj ponownie.",
+          "install_resolution_timeout": "Upłynął limit czasu lokalnego rozpoznawania nazwy, zanim adres panelu mógł zostać bezpiecznie przypięty. Sprawdź lokalny DNS, a następnie spróbuj ponownie.",
+          "install_too_many_addresses": "Dla tej nazwy hosta uzyskano zbyt wiele adresów, aby można było bezpiecznie przypiąć adres. Użyj dedykowanej lokalnej nazwy hosta lub prywatnego adresu IP.",
           "unsafe_install_target": "Instalacja jest dozwolona wyłącznie pod prywatnym lokalnym adresem IPv4 lub unikalnym lokalnym adresem IPv6. Nie podjęto żadnej próby nawiązania połączenia typu ADB.",
           "install_target_changed": "Nazwa hosta nie wskazuje już tego samego przypiętego adresu panelu. Nie wysłano klucza ADB ani instalacji. Sprawdź adres i zacznij od nowa.",
           "adb_unreachable": "Panel odpowiedział, ale nic nie odpowiedziało na jego porcie Android Debug Bridge (5555). Na panelu włącz Android Debug Bridge i zezwól na jego działanie przez sieć, a następnie spróbuj ponownie. Jeśli możesz podłączyć panel do komputera, na którym przeglądasz tę stronę, zainstaluj zamiast tego przez USB.",

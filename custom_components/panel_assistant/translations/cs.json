@@ -1821,8 +1821,8 @@
       }
     },
     "dashboard_unfiltered": {
-      "title": "{panel} zobrazuje řídicí panel bez filtrování entit",
-      "description": "{panel} otevřel řídicí panel se všemi entitami, protože nestihl včas připravit filtr entit. Dál to zkouší a k filtrovanému řídicímu panelu se vrátí sám.\n\nPostup opravy:\n1. Otevřete [nastavení entit]({entities_url}) pro {panel} a podívejte se, na co čeká.\n2. Pokud žádá rozhodnutí nebo nové přihlášení, postupujte podle kroků tam."
+      "title": "{panel} zobrazuje ovládací panel bez filtrování entit",
+      "description": "{panel} otevřel ovládací panel se všemi entitami, protože nestihl včas připravit filtr entit. Dál to zkouší a k filtrovanému ovládacímu panelu se vrátí sám.\n\nPostup opravy:\n1. Otevřete [nastavení entit]({entities_url}) pro {panel} a podívejte se, na co čeká.\n2. Pokud žádá rozhodnutí nebo nové přihlášení, postupujte tam podle uvedených kroků."
     }
   },
   "options": {

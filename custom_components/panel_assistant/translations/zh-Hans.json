@@ -113,7 +113,7 @@
     },
     "error": {
       "panel_setup_not_finished": "面板尚未完成设置。请完成设置页面，然后再次选择“提交”。",
-      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
+      "old_app_installed": "此面板仍在运行旧版 ha-paneld 应用。Panel Assistant 1.0 无法将其迁移到新应用，也不会与其并存安装任何内容。请按照[安全恢复步骤]({old_app_help_url})，使用 Panel Assistant 0.9.0 完成迁移。如果任何面板已在运行 1.0 应用，或者您没有升级前的备份，请在更改版本之前寻求帮助。",
       "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
       "invalid_address": "请输入不含 URL 方案或路径的主机名或 IP 地址。",
       "invalid_install_address": "请只输入面板的主机名或 IP 地址。",
@@ -1821,8 +1821,8 @@
       }
     },
     "dashboard_unfiltered": {
-      "title": "{panel} 正在显示未经实体筛选的仪表板",
-      "description": "{panel} 未能及时准备好实体筛选器，因此以全部实体打开了仪表板。它会继续尝试，并自动回到筛选后的仪表板。\n\n解决方法：\n1. 打开 {panel} 的[实体设置]({entities_url})，查看它在等待什么。\n2. 如果需要做出决定或重新登录，请按照其中的步骤操作。"
+      "title": "{panel} 正在显示未经实体筛选的仪表盘",
+      "description": "{panel} 未能及时准备好实体筛选器，因此以全部实体打开了仪表盘。它会继续尝试，并自动回到筛选后的仪表盘。\n\n解决方法：\n1. 打开 {panel} 的[实体设置]({entities_url})，查看它在等待什么。\n2. 如果需要做出决定或重新登录，请按照其中的步骤操作。"
     }
   },
   "options": {

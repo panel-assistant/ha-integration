@@ -1821,8 +1821,8 @@
       }
     },
     "dashboard_unfiltered": {
-      "title": "{panel} mostra la dashboard senza filtro delle entità",
-      "description": "{panel} ha aperto la dashboard con tutte le entità perché non è riuscito a preparare in tempo il filtro delle entità. Continua a provare e torna da solo alla dashboard filtrata.\n\nPer risolvere:\n1. Apri le [impostazioni delle entità]({entities_url}) di {panel} per vedere cosa sta aspettando.\n2. Se chiede una decisione o un nuovo accesso, segui i passaggi indicati."
+      "title": "{panel} mostra la plancia senza filtro delle entità",
+      "description": "{panel} ha aperto la plancia con tutte le entità perché non è riuscito a preparare in tempo il filtro delle entità. Continua a provare e torna da solo alla plancia filtrata.\n\nPer risolvere:\n1. Apri le [impostazioni delle entità]({entities_url}) di {panel} per vedere cosa sta aspettando.\n2. Se chiede una decisione o un nuovo accesso, segui i passaggi indicati."
     }
   },
   "options": {
