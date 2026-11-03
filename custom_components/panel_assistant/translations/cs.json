@@ -1,8 +1,8 @@
 {
   "title": "Panel Assistant",
   "common": {
-    "remove_from_panel_notification_title": "Remove Panel Assistant from {panel}",
-    "remove_from_panel_notification_message": "To remove Panel Assistant from {panel}, open [Repairs]({repairs_url}) and confirm there. Nothing has changed on the panel yet."
+    "remove_from_panel_notification_title": "Odstranit Panel Assistant z panelu {panel}",
+    "remove_from_panel_notification_message": "Chcete-li odstranit Panel Assistant z panelu {panel}, otevřete [Opravy]({repairs_url}) a tam odstranění potvrďte. Na panelu se zatím nic nezměnilo."
   },
   "config": {
     "flow_title": "{name}",
@@ -91,11 +91,11 @@
       },
       "confirm_reinstall_candidate": {
         "title": "Nainstalovat Panel Assistant {version}?",
-        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "Vše je připraveno k instalaci na panel na adrese {address}.\n\nVaše ostatní aplikace zůstanou beze změny.\n\nTento panel se znovu připojí k {entry_title} a zachová si své entity a historii."
       },
       "confirm_reinstall_rc": {
         "title": "Nainstalovat Panel Assistant {version}?",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "Pouze pro testování: Panel Assistant {version} je kandidát na vydání, nikoli stabilní vydání, a může obsahovat chyby.\n\nVše je připraveno k instalaci na panel na adrese {address}.\n\nVaše ostatní aplikace zůstanou beze změny.\n\nTento panel se znovu připojí k {entry_title} a zachová si své entity a historii."
       },
       "release_preview_only": {
         "title": "Vydání nelze nainstalovat automaticky",
@@ -109,11 +109,11 @@
     "progress": {
       "authorize_adb": "Podívejte se na obrazovku panelu na adrese {address}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač.\n\nJakmile to panel povolí, bude se pokračovat samo.",
       "installing": "Instalace Panel Assistant na adrese {address}. Nechte tento dialog otevřený; operace se dokončí sama.\n\nPokud ho zavřete, instalace bude pokračovat. Pro dokončení přidejte stejnou adresu znovu.",
-      "updating_webview": "Updating the panel's browser engine on {address}…"
+      "updating_webview": "Aktualizuje se jádro prohlížeče panelu na adrese {address}…"
     },
     "error": {
-      "panel_setup_not_finished": "The panel has not finished its setup yet. Finish the setup page, then select Submit again.",
-      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
+      "panel_setup_not_finished": "Panel ještě nedokončil nastavení. Dokončete stránku nastavení a poté znovu vyberte Odeslat.",
+      "old_app_installed": "Na tomto panelu stále běží stará aplikace ha-paneld. Panel Assistant 1.0 ji nemůže převést na novou aplikaci a nic vedle ní nenainstaluje. Postupujte podle [kroků bezpečné obnovy]({old_app_help_url}) a dokončete přechod pomocí Panel Assistant 0.9.0. Pokud už na některém panelu běží aplikace verze 1.0 nebo nemáte zálohu z doby před aktualizací, požádejte před změnou verzí o pomoc.",
       "cannot_connect": "Nelze se připojit k platnému koncovému bodu kontroly stavu Panel Assistant.",
       "invalid_address": "Zadejte název hostitele nebo IP adresu bez schématu URL či cesty.",
       "invalid_install_address": "Zadejte pouze název hostitele nebo IP adresu panelu.",
@@ -144,10 +144,10 @@
       "release_selection_required": "Vyberte verzi ze seznamu."
     },
     "abort": {
-      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
+      "old_app_installed": "Na tomto panelu stále běží stará aplikace ha-paneld. Panel Assistant 1.0 ji nemůže převést na novou aplikaci a nic vedle ní nenainstaluje. Postupujte podle [kroků bezpečné obnovy]({old_app_help_url}) a dokončete přechod pomocí Panel Assistant 0.9.0. Pokud už na některém panelu běží aplikace verze 1.0 nebo nemáte zálohu z doby před aktualizací, požádejte před změnou verzí o pomoc.",
       "already_configured": "Tento panel je již nastavený.",
       "reinstall_successful": "Aplikace byla znovu nainstalována. Tento panel si zachovává svou historii a nastavení v Home Assistant.",
-      "usb_installed": "Panel Assistant is installed and the panel has been added to Home Assistant. Finish setting up the panel in the window you opened for the install.",
+      "usb_installed": "Panel Assistant je nainstalován a panel byl přidán do Home Assistant. Dokončete nastavení panelu v okně, které jste otevřeli pro instalaci.",
       "reinstall_identity_mismatch": "Aplikace je nainstalovaná, ale nepodařilo se ji propojit se zachovaným panelem. Jeho historie a nastavení v Home Assistant byly zachovány. Před dalším pokusem zkontrolujte panel v Home Assistant.",
       "not_panel": "Toto není panel, na který může Panel Assistant instalovat.",
       "invalid_discovery": "Nepodařilo se prokázat, že nalezený panel je tatáž funkční instalace Panel Assistant. Žádný záznam v Home Assistant ani nastavení panelu se nezměnilo.",
@@ -842,7 +842,7 @@
       "message": "Aktualizace panelu nebyla dokončena"
     },
     "update_webview_unfinished": {
-      "message": "The app is installed, but its WebView update did not finish. Open the Repair for this panel to try the WebView step again."
+      "message": "Aplikace je nainstalována, ale její aktualizace WebView nebyla dokončena. Otevřete opravu pro tento panel a zkuste krok aktualizace WebView znovu."
     },
     "panel_backup_failed": {
       "message": "Panel se nepodařilo zálohovat, proto se nic nenainstalovalo"
@@ -1522,7 +1522,7 @@
       }
     },
     "installer_failure_update_webview": {
-      "title": "The WebView update on {panel} did not finish",
+      "title": "Aktualizace WebView na panelu {panel} nebyla dokončena",
       "fix_flow": {
         "step": {
           "init": {
@@ -1771,23 +1771,23 @@
       "fix_flow": {
         "step": {
           "init": {
-            "title": "Remove or keep Panel Assistant",
+            "title": "Odebrat/ponechat Panel Assistant",
             "menu_options": {
-              "confirm": "Remove Panel Assistant",
-              "keep_app": "Keep Panel Assistant"
+              "confirm": "Odstranit Panel Assistant",
+              "keep_app": "Ponechat Panel Assistant"
             }
           },
           "authorize_adb": {
-            "title": "Allow Home Assistant on {panel}",
-            "description": "Panel Assistant cannot be removed from {panel} until the panel allows Home Assistant's ADB connection.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}), then select Submit to send the approval request.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n3. Wait here; the removal question comes back once the panel allows it.\n\n[Learn more]({learn_more_url})"
+            "title": "Povolit Home Assistant na panelu {panel}",
+            "description": "Panel Assistant nelze odstranit z panelu {panel}, dokud panel nepovolí připojení ADB z Home Assistant.\n\nPostup odstranění:\n1. Přečtěte si [kroky obnovy]({recovery_url}) a poté vyberte Odeslat, čímž odešlete žádost o schválení.\n2. Na panelu {panel} zaškrtněte **Vždy povolit z tohoto počítače** a poté klepněte na **Povolit**.\n3. Počkejte zde; jakmile panel připojení povolí, znovu se zobrazí dotaz na odstranění.\n\n[Další informace]({learn_more_url})"
           },
           "confirm": {
             "title": "Odebrat Panel Assistant z panelu {panel}",
-            "description": "Panel Assistant restores the panel's home screen and the vendor apps and settings it changed, then uninstalls itself and deletes this panel from Home Assistant. Its settings on the panel are deleted.\n\nTo remove:\n1. Read [what removal can do to this panel]({risks_url}). Some panels lose access to Android Settings or network debugging, which may prevent reinstalling the app without opening the panel.\n2. Select Submit to confirm removal.\n\nIf you no longer want to remove it, close this dialog and choose Keep Panel Assistant instead; that changes nothing on the panel.\n\n[Learn more]({learn_more_url})"
+            "description": "Panel Assistant obnoví domovskou obrazovku panelu a aplikace a nastavení výrobce, které změnil, poté se odinstaluje a odstraní tento panel z Home Assistant. Jeho nastavení na panelu budou odstraněna.\n\nPostup odstranění:\n1. Přečtěte si, [jaké dopady může mít odstranění na tento panel]({risks_url}). Některé panely ztratí přístup k nastavení systému Android nebo k ladění přes síť, což může znemožnit opětovnou instalaci aplikace bez otevření panelu.\n2. Vyberte Odeslat pro potvrzení odstranění.\n\nPokud už aplikaci nechcete odstranit, zavřete tento dialog a místo toho zvolte Ponechat Panel Assistant; tím se na panelu nic nezmění.\n\n[Další informace]({learn_more_url})"
           }
         },
         "progress": {
-          "authorize_adb": "Android approval on {panel} is still needed.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}) if needed.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n\nThis continues automatically after approval.\n\n[Learn more]({learn_more_url})"
+          "authorize_adb": "Na panelu {panel} je stále potřeba schválení v systému Android.\n\nPostup odstranění:\n1. V případě potřeby si přečtěte [kroky obnovy]({recovery_url}).\n2. Na panelu {panel} zaškrtněte **Vždy povolit z tohoto počítače** a poté klepněte na **Povolit**.\n\nPo schválení bude postup automaticky pokračovat.\n\n[Další informace]({learn_more_url})"
         },
         "error": {
           "cannot_connect": "Nelze se připojit k platnému koncovému bodu Panel Assistant pro kontrolu stavu.",
@@ -1897,7 +1897,7 @@
       "removal_busy": "Tento panel už mění jiná operace. Nic nebylo odebráno; zkuste to znovu, až tato operace skončí.",
       "removal_adb_unreachable": "Home Assistant se nedokázal spojit s panelem přes Android Debug Bridge (port 5555). Nic nebylo odebráno. Zkontrolujte, že je panel zapnutý a ladění po síti je stále povolené, a pak to zkuste znovu.",
       "removal_adb_authorization": "Panel nepřijal tuto instanci Home Assistant pro Android Debug Bridge. Nic nebylo odebráno. Nejdřív vyberte „Povolit aktualizace“ a potom to zkuste znovu.",
-      "removal_adb_authorization_unavailable": "The panel has not accepted this Home Assistant instance for the Android Debug Bridge. Nothing was removed. Check that the panel is on and answering, then try again.",
+      "removal_adb_authorization_unavailable": "Panel nepovolil této instanci Home Assistant přístup přes Android Debug Bridge. Nic nebylo odstraněno. Zkontrolujte, zda je panel zapnutý a odpovídá, a poté to zkuste znovu.",
       "removal_panel_changed": "Na adrese tohoto panelu nyní odpovídá jiné zařízení. Nic nebylo odebráno.",
       "removal_approval_required": "Je zapnuté posílené zabezpečení, takže předání domovské obrazovky zpět musí být schváleno na samotném panelu. Nic se nezměnilo a Panel Assistant je stále nainstalovaný. Schvalte požadavek na panelu a potom znovu odešlete formulář.",
       "removal_no_replacement_home": "Panel nemohl předat svou domovskou obrazovku jinému spouštěči: nemá jinou aplikaci domovské obrazovky, takže může zobrazit pouze Panel Assistant. Nic nebylo odebráno a panel stále funguje. Nainstalujte spouštěč nebo znovu zapněte ten od výrobce a pak to zkuste znovu.",

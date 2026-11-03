@@ -1,8 +1,8 @@
 {
   "title": "Panel Assistant",
   "common": {
-    "remove_from_panel_notification_title": "Remove Panel Assistant from {panel}",
-    "remove_from_panel_notification_message": "To remove Panel Assistant from {panel}, open [Repairs]({repairs_url}) and confirm there. Nothing has changed on the panel yet."
+    "remove_from_panel_notification_title": "从 {panel} 移除 Panel Assistant",
+    "remove_from_panel_notification_message": "要从 {panel} 移除 Panel Assistant，请打开[修复]({repairs_url})并在那里确认。面板目前尚未发生任何更改。"
   },
   "config": {
     "flow_title": "{name}",
@@ -60,7 +60,7 @@
       },
       "panel_setup": {
         "title": "完成面板设置",
-        "description": "Complete the panel's [setup page]({setup_url}), then select Submit to connect the panel to Home Assistant."
+        "description": "完成面板的[设置页面]({setup_url})，然后选择“提交”，将面板连接到 Home Assistant。"
       },
       "choose_version": {
         "title": "选择版本",
@@ -91,11 +91,11 @@
       },
       "confirm_reinstall_candidate": {
         "title": "安装 Panel Assistant {version}？",
-        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "已准备好在地址为 {address} 的面板上安装。\n\n您的其他应用不会受到影响。\n\n此面板将重新加入 {entry_title}，并保留其实体和历史记录。"
       },
       "confirm_reinstall_rc": {
         "title": "安装 Panel Assistant {version}？",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "仅供测试：Panel Assistant {version} 是候选发布版，并非稳定版，可能存在缺陷。\n\n已准备好在地址为 {address} 的面板上安装。\n\n您的其他应用不会受到影响。\n\n此面板将重新加入 {entry_title}，并保留其实体和历史记录。"
       },
       "release_preview_only": {
         "title": "无法自动安装此版本",
@@ -109,10 +109,10 @@
     "progress": {
       "authorize_adb": "请查看位于 {address} 的面板屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。\n\n面板允许后，将自动继续。",
       "installing": "正在 {address} 上安装 Panel Assistant。请保持此对话框打开；操作会自动完成。\n\n如果关闭对话框，安装仍会继续。请再次添加同一地址以完成操作。",
-      "updating_webview": "Updating the panel's browser engine on {address}…"
+      "updating_webview": "正在更新地址为 {address} 的面板上的浏览器引擎…"
     },
     "error": {
-      "panel_setup_not_finished": "The panel has not finished its setup yet. Finish the setup page, then select Submit again.",
+      "panel_setup_not_finished": "面板尚未完成设置。请完成设置页面，然后再次选择“提交”。",
       "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
       "invalid_address": "请输入不含 URL 方案或路径的主机名或 IP 地址。",
@@ -147,7 +147,7 @@
       "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
       "already_configured": "此面板已配置。",
       "reinstall_successful": "应用已重新安装。此面板在 Home Assistant 中的历史记录和设置会保留。",
-      "usb_installed": "Panel Assistant is installed and the panel has been added to Home Assistant. Finish setting up the panel in the window you opened for the install.",
+      "usb_installed": "Panel Assistant 已安装，面板已添加到 Home Assistant。请在为安装而打开的窗口中完成面板设置。",
       "reinstall_identity_mismatch": "应用已安装，但无法关联到保留的面板。该面板在 Home Assistant 中的历史记录和设置已保留。请先在 Home Assistant 中检查此面板，再重试。",
       "not_panel": "这不是 Panel Assistant 可以在其上进行安装的面板。",
       "invalid_discovery": "发现的面板无法证明它是同一健康的 Panel Assistant 安装。未更改 Home Assistant 条目或面板设置。",
@@ -842,7 +842,7 @@
       "message": "面板更新未完成"
     },
     "update_webview_unfinished": {
-      "message": "The app is installed, but its WebView update did not finish. Open the Repair for this panel to try the WebView step again."
+      "message": "应用已安装，但其 WebView 更新未完成。请打开此面板的修复项，重试 WebView 步骤。"
     },
     "panel_backup_failed": {
       "message": "无法备份面板，因此未安装任何内容"
@@ -1522,7 +1522,7 @@
       }
     },
     "installer_failure_update_webview": {
-      "title": "The WebView update on {panel} did not finish",
+      "title": "{panel} 上的 WebView 更新未完成",
       "fix_flow": {
         "step": {
           "init": {
@@ -1771,15 +1771,15 @@
       "fix_flow": {
         "step": {
           "init": {
-            "title": "Remove or keep Panel Assistant",
+            "title": "移除或保留 Panel Assistant",
             "menu_options": {
-              "confirm": "Remove Panel Assistant",
-              "keep_app": "Keep Panel Assistant"
+              "confirm": "移除 Panel Assistant",
+              "keep_app": "保留 Panel Assistant"
             }
           },
           "authorize_adb": {
-            "title": "Allow Home Assistant on {panel}",
-            "description": "Panel Assistant cannot be removed from {panel} until the panel allows Home Assistant's ADB connection.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}), then select Submit to send the approval request.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n3. Wait here; the removal question comes back once the panel allows it.\n\n[Learn more]({learn_more_url})"
+            "title": "在 {panel} 上允许 Home Assistant",
+            "description": "在面板允许 Home Assistant 的 ADB 连接之前，无法从 {panel} 移除 Panel Assistant。\n\n移除步骤：\n1. 阅读[恢复步骤]({recovery_url})，然后选择“提交”以发送授权请求。\n2. 在 {panel} 上，勾选**一律允许使用这台计算机进行调试**（Always allow from this computer），然后点按**允许**（Allow）。\n3. 在此等待；面板允许连接后，将重新显示移除确认。\n\n[了解更多]({learn_more_url})"
           },
           "confirm": {
             "title": "从 {panel} 移除 Panel Assistant",
@@ -1787,7 +1787,7 @@
           }
         },
         "progress": {
-          "authorize_adb": "Android approval on {panel} is still needed.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}) if needed.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n\nThis continues automatically after approval.\n\n[Learn more]({learn_more_url})"
+          "authorize_adb": "仍需在 {panel} 上获得 Android 授权。\n\n移除步骤：\n1. 如有需要，请阅读[恢复步骤]({recovery_url})。\n2. 在 {panel} 上，勾选 **Always allow from this computer**，然后点按 **Allow**。\n\n授权后将自动继续。\n\n[了解更多]({learn_more_url})"
         },
         "error": {
           "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
@@ -1897,7 +1897,7 @@
       "removal_busy": "另一项操作正在更改此面板。未移除任何内容；请在该操作完成后重试。",
       "removal_adb_unreachable": "Home Assistant 无法通过 Android Debug Bridge（端口 5555）连接到面板。未移除任何内容。请确认面板已开启且网络调试仍处于启用状态，然后重试。",
       "removal_adb_authorization": "面板尚未接受此 Home Assistant 实例的 Android Debug Bridge 连接。未移除任何内容。请先选择“允许更新”，然后重试。",
-      "removal_adb_authorization_unavailable": "The panel has not accepted this Home Assistant instance for the Android Debug Bridge. Nothing was removed. Check that the panel is on and answering, then try again.",
+      "removal_adb_authorization_unavailable": "面板尚未授权此 Home Assistant 实例使用 Android 调试桥。未移除任何内容。请检查面板是否已开机且能响应，然后重试。",
       "removal_panel_changed": "此面板的地址现在由另一台设备响应。未移除任何内容。",
       "removal_approval_required": "已开启强化安全模式，因此交还主屏幕必须在面板上批准。未做任何更改，Panel Assistant 仍已安装。请在面板上批准请求，然后再次提交。",
       "removal_no_replacement_home": "面板无法把主屏幕交给其他启动器：面板上没有其他主屏幕应用，因此只能显示 Panel Assistant。未移除任何内容，面板仍可正常使用。请安装一个启动器或重新启用厂商启动器，然后重试。",
