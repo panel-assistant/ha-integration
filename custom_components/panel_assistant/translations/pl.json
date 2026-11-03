@@ -1778,7 +1778,7 @@
             }
           },
           "authorize_adb": {
-            "title": "Zezwól na połączenie Home Assistant z panelem {panel}",
+            "title": "Allow Home Assistant on {panel}",
             "description": "Nie można usunąć Panel Assistant z panelu {panel}, dopóki panel nie zezwoli na połączenie ADB z Home Assistant.\n\nAby usunąć:\n1. Przeczytaj [kroki odzyskiwania]({recovery_url}), a następnie wybierz Zatwierdź, aby wysłać prośbę o zgodę.\n2. Na panelu {panel} zaznacz **Zawsze zezwalaj z tego komputera**, a następnie dotknij **Zezwól**.\n3. Poczekaj tutaj; pytanie o usunięcie pojawi się ponownie, gdy panel zezwoli na połączenie.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "confirm": {
