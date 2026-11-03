@@ -144,7 +144,7 @@
       "release_selection_required": "请从列表中选择一个版本。"
     },
     "abort": {
-      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
+      "old_app_installed": "此面板仍在运行旧版 ha-paneld 应用。Panel Assistant 1.0 无法将其迁移到新应用，也不会在旧应用之外另行安装任何内容。请按照[安全恢复步骤]({old_app_help_url})，使用 Panel Assistant 0.9.0 完成迁移。如果任何面板已在运行 1.0 应用，或者您没有升级前的备份，请在更改版本之前寻求帮助。",
       "already_configured": "此面板已配置。",
       "reinstall_successful": "应用已重新安装。此面板在 Home Assistant 中的历史记录和设置会保留。",
       "usb_installed": "Panel Assistant 已安装，面板已添加到 Home Assistant。请在为安装而打开的窗口中完成面板设置。",
@@ -1796,8 +1796,8 @@
           "install_resolution_timeout": "在能够安全固定面板地址之前，本地名称解析已超时。请检查本地 DNS，然后重试。",
           "install_too_many_addresses": "此主机名解析出的地址过多，无法安全固定。请使用专用的本地主机名或私有 IP 地址。",
           "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
-          "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥，也未执行安装。请检查地址并重新开始。",
-          "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到您正在使用的这台计算机上，也可以改用 USB 安装。",
+          "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥或安装内容。请检查地址并重新开始。",
+          "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以将面板连接到您当前用于浏览的计算机，请改用 USB 安装。",
           "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
           "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
           "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照 {recovery_address} 中的步骤操作。在备份经过验证之前，请勿卸载或重置应用。",
