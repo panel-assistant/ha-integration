@@ -1522,7 +1522,7 @@
       }
     },
     "installer_failure_update_webview": {
-      "title": "Aktualizacja WebView na panelu {panel} nie została ukończona",
+      "title": "The WebView update on {panel} did not finish",
       "fix_flow": {
         "step": {
           "init": {
