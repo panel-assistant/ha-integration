@@ -17,6 +17,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.panel_assistant import repairs_webview
 from custom_components.panel_assistant.client import CannotConnectError
 from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
 from custom_components.panel_assistant.repairs_failure import (
@@ -380,10 +381,23 @@ async def test_plain_update_failure_keeps_the_update_wording(
     assert issue is not None and issue.translation_key == "installer_failure_update"
 
 
+class _NoPauseAsyncio:
+    """asyncio as a module sees it, except that a pause returns at once."""
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(asyncio, name)
+
+    @staticmethod
+    async def sleep(_seconds: float) -> None:
+        await asyncio.sleep(0)
+
+
 async def test_webview_step_waits_for_the_restarted_app_to_reconnect(
-    hass: HomeAssistant,
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     entity, _client, entry, issue_id = _native(hass)
+    # The one-second pause between session checks passes at once.
+    monkeypatch.setattr(repairs_webview, "asyncio", _NoPauseAsyncio())
     answers = iter([None, None])
     sent: list[str] = []
 

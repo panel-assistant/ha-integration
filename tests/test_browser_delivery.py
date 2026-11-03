@@ -418,8 +418,16 @@ async def test_signed_catalogue_beyond_fifteen_seconds_is_delivered(
     client = authenticated_session(key, [("v1.0.0", (5, 5))])
     monkeypatch.setattr(catalog, "async_get_clientsession", lambda _: client)
 
+    # Each answer takes two seconds of loop time without a real wait: the loop's
+    # clock jumps, so a timeout on it expires just as it would in real time.
+    real_time = hass.loop.time
+    skipped = 0.0
+    monkeypatch.setattr(hass.loop, "time", lambda: real_time() + skipped)
+
     async def delayed_enter(self):
-        await asyncio.sleep(2)
+        nonlocal skipped
+        skipped += 2
+        await asyncio.sleep(0)
         return self
 
     monkeypatch.setattr(FakeResponse, "__aenter__", delayed_enter)

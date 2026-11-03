@@ -57,6 +57,20 @@ async def _announcement(panel: Panel, seconds: float = 5) -> dict[str, Any]:
     return event
 
 
+async def _nothing_announced(panel: Panel) -> list[dict[str, Any]]:
+    """Return the events sent so far, asserting none rings the panel.
+
+    The connection keeps order, so everything sent before the pong arrives first.
+    """
+    await panel.client.send_json_auto_id({"type": "ping"})
+    events: list[dict[str, Any]] = []
+    async with asyncio.timeout(5):
+        while (message := await panel.receive())["type"] != "pong":
+            events.append(message.get("event") or {})
+    assert all(event.get("kind") != "voice_announce" for event in events), events
+    return events
+
+
 async def _played(panel: Panel, event: dict[str, Any]) -> None:
     played = await panel.send(
         {
@@ -132,8 +146,13 @@ async def test_a_cancelled_timer_does_not_ring(
     await intent.async_handle(
         hass, "test", intent.INTENT_CANCEL_TIMER, {}, device_id=device_id
     )
-    with pytest.raises(TimeoutError):
-        await _announcement(panel, seconds=2)
+    # Well past when the one-second timer would have finished.
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=2))
+    # A ring would still be waiting for the panel to play it, once sent.
+    with contextlib.suppress(TimeoutError):
+        async with asyncio.timeout(1):
+            await hass.async_block_till_done()
+    await _nothing_announced(panel)
 
 
 async def test_a_panel_takes_timers_only_while_its_voice_assistant_is_on(
@@ -205,6 +224,8 @@ async def test_a_ring_waiting_on_a_turn_is_dropped_when_voice_turns_off(
         async with asyncio.timeout(5):
             await started.wait()
         await _timer(hass, _device(hass, entity_id))
+        # The one-second timer finishes.
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=2))
         async with asyncio.timeout(5):
             await cancelling.wait()
         await panel.client.send_json_auto_id(_configuration(panel.token, enabled=False))
@@ -213,10 +234,10 @@ async def test_a_ring_waiting_on_a_turn_is_dropped_when_voice_turns_off(
         assert message["success"], message
         assert hass.states.get(entity_id) is None
         release.set()
-        await hass.async_block_till_done()
+        # A ring would still be waiting for the panel to play it, once sent.
+        with contextlib.suppress(TimeoutError):
+            async with asyncio.timeout(1):
+                await hass.async_block_till_done()
 
-    with contextlib.suppress(TimeoutError):
-        async with asyncio.timeout(1):
-            while True:
-                events.append((await panel.receive()).get("event") or {})
+    events.extend(await _nothing_announced(panel))
     assert all(event.get("kind") != "voice_announce" for event in events), events

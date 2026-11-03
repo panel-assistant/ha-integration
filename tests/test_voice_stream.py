@@ -748,8 +748,11 @@ async def test_late_audio_finishes_on_its_rescheduled_timeline(
     )
     service = async_get_voice_stream(hass)
     assert service is not None
-    # Include a partial final slice, as real speech clips do.
-    monkeypatch.setitem(CLIPS, "late", _clip(8.05))
+    # Include a partial final slice, as real speech clips do. A 0.4 s queue
+    # keeps the scenario of a 2 s queue on an 8 s clip, in a fifth of the time:
+    # the 1 s pause outlasts the queue, so the last six slices start late.
+    monkeypatch.setattr(voice_stream_module, "MAX_AHEAD_US", 400_000)
+    monkeypatch.setitem(CLIPS, "late", _clip(1.55))
     url = f"{base}/test_voice_stream/late"
     sleep_to_limit = PushStream.sleep_to_limit_buffer
     commits = 0
@@ -758,8 +761,8 @@ async def test_late_audio_finishes_on_its_rescheduled_timeline(
         nonlocal commits
         await sleep_to_limit(push, limit)
         commits += 1
-        if commits == 55:
-            await asyncio.sleep(3)
+        if commits == 10:
+            await asyncio.sleep(1)
 
     remaining: list[int] = []
     ended = speaker._ended
@@ -791,7 +794,7 @@ async def test_late_audio_finishes_on_its_rescheduled_timeline(
         async with asyncio.timeout(15):
             await call
     await _until(lambda: speaker.ends == 1, 15)
-    assert commits == 81
+    assert commits == 16
     assert speaker.seconds(0) == _whole(_pcm("late"))
     assert len(remaining) == 1
     assert remaining[0] <= 0, (
@@ -1410,8 +1413,12 @@ async def test_a_panel_that_stops_its_stream_leaves_it_and_the_others_play_on(
     entry: MockConfigEntry,  # noqa: F811
     base: str,
     wires: list[tuple[Wire, Speaker]],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """voice_stream_stop ends the stream for that panel alone, as preempted."""
+    # A 0.4 s queue on a 2 s clip: the stopped panel holds well under all of it.
+    monkeypatch.setattr(voice_stream_module, "MAX_AHEAD_US", 400_000)
+    monkeypatch.setitem(CLIPS, "long", _clip(2.0))
     other = await _second_entry(hass, hass_read_only_user.id)
     token = hass_read_only_access_token
     panel_a, wire_a, a = await _voice_panel(hass, hass_ws_client, token, wires)
@@ -1452,7 +1459,7 @@ async def test_a_panel_that_stops_its_stream_leaves_it_and_the_others_play_on(
     await b.ended(1)
 
     assert [end["outcome"] for end in wire_b.ends] == ["played"]
-    assert a.seconds(0) < 6.0  # of 8 s
+    assert a.seconds(0) < 1.5  # of 2 s
     assert b.seconds(0) == _whole(_pcm("long"))
     # Nothing labelled the stream reached the panel after it ended for it.
     assert not [i for i in wire_a.frames(stream_id) if i > wire_a.end_index(stream_id)]
@@ -1483,8 +1490,11 @@ async def test_withdrawn_waiting_announcement_preserves_newer_speech(
     hass_read_only_access_token: str,
     entry: MockConfigEntry,  # noqa: F811
     wires: list[tuple[Wire, Speaker]],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Cancellation while admission waits cannot preempt an active reply."""
+    # Long enough to be playing throughout admission, which takes milliseconds.
+    monkeypatch.setitem(CLIPS, "long", _clip(1.5))
     voice_stream = async_get_voice_stream(hass)
     assert voice_stream is not None
     _, _, speaker = await _voice_panel(
@@ -1599,7 +1609,7 @@ async def test_a_slow_earlier_batch_leaves_the_next_window_coalescing(
         # Its window has closed; its clip is still held.
         await _until(lambda: voice_stream._batches.get("same") is not opened)
     # The next window only bounds a hang: c joins it however late it starts.
-    with patch.object(voice_stream_module, "COALESCE_WINDOW", 3.0):
+    with patch.object(voice_stream_module, "COALESCE_WINDOW", 1.0):
         later_b = asyncio.ensure_future(
             voice_stream.async_announce("same", _listener(b, told), speech)
         )

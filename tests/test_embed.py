@@ -186,6 +186,23 @@ def _notified_login_failure(hass: HomeAssistant) -> bool:
     return "http-login" in notifications
 
 
+class LoopClock:
+    """The event loop's clock, which a test moves on instead of waiting.
+
+    Timeouts and sleeps on the loop expire against it as they would in real time.
+    """
+
+    def __init__(self, hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
+        real_time = hass.loop.time
+        self.skipped = 0.0
+        monkeypatch.setattr(hass.loop, "time", lambda: real_time() + self.skipped)
+
+    async def skip(self, seconds: float) -> None:
+        """Let this much loop time pass at once."""
+        self.skipped += seconds
+        await asyncio.sleep(0)
+
+
 # ---------------------------------------------------------------------------
 # The panel's own session, answering as the app does.
 
@@ -257,6 +274,14 @@ class SessionPanel:
                 **fields,
             }
         )
+
+    async def pending_approval(self, event: dict[str, Any]) -> None:
+        """Report the request waiting for approval, once Home Assistant took it."""
+        await self.send_result(event, outcome="pending_approval", interim=True)
+        # The session loop is inside this answer, so read the acknowledgement here.
+        message = await self.ws.receive_json()
+        assert message.get("type") == "result", message
+        self.results.append(message)
 
     async def update(self, subscription: str, value: Any) -> None:
         await self.ws.send_json_auto_id(
@@ -1389,11 +1414,12 @@ async def test_a_relayed_request_waits_through_its_approval(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(ui_relay, "ANSWER_GRACE_SECONDS", 0)
+    clock = LoopClock(hass, monkeypatch)
 
     async def reboot(event: dict[str, Any]) -> dict[str, Any]:
-        await live.send_result(event, outcome="pending_approval", interim=True)
+        await live.pending_approval(event)
         # Approved on the panel's screen well after the request's deadline.
-        await asyncio.sleep(1.0)
+        await clock.skip(1.0)
         return {"outcome": "applied", "result": {"ok": True}}
 
     live.answers["device.reboot"] = reboot
@@ -1433,7 +1459,9 @@ async def test_approval_completion_reaches_the_waiting_browser(
     Only the panel's 600-second approval clock and one-second polling interval
     are scaled by 200. The initial five-second answer grace stays enabled.
     The panel creates approval before reporting pending; receipt is not creation.
+    The panel's waits pass on the loop's clock rather than in real time.
     """
+    clock = LoopClock(hass, monkeypatch)
     approval_seconds = 3.0
     poll_seconds = 0.005
     transit_seconds = 0.03
@@ -1448,19 +1476,19 @@ async def test_approval_completion_reaches_the_waiting_browser(
         created = hass.loop.time()
         # The earlier-refusal control has a larger creation-to-pending offset:
         # its expiry answer arrives before receipt + TTL even on the base.
-        await asyncio.sleep(0.2 if completion == "early_refusal" else 0.005)
-        await live.send_result(event, outcome="pending_approval", interim=True)
+        await clock.skip(0.2 if completion == "early_refusal" else 0.005)
+        await live.pending_approval(event)
         if completion == "approved_archive":
             # Approved shortly before expiry; archive work starts then.
             due = created + approval_seconds - 20 * poll_seconds
         else:
             # First poll after absolute creation-time expiry, then final transit.
             due = created + approval_seconds + poll_seconds + transit_seconds
-        await asyncio.sleep(max(0, due - hass.loop.time()))
+        await clock.skip(max(0, due - hass.loop.time()))
         if completion == "approved_archive":
             assert hass.loop.time() < created + approval_seconds
             # Work outlasts a grace-only extension, but fits the six-second budget.
-            await asyncio.sleep(5.4)
+            await clock.skip(5.4)
             if kind == "manage":
                 reference = await live.upload(event, archive)
                 result = {"blob": reference}
@@ -1511,11 +1539,16 @@ async def test_a_missing_approval_completion_still_has_a_bounded_wait(
     """A lost final answer still releases the browser after its finite budget."""
     monkeypatch.setattr(ui_relay, "APPROVAL_SECONDS", 0.05)
     assert ui_relay.ANSWER_GRACE_SECONDS == 5.0
+    clock = LoopClock(hass, monkeypatch)
     held = asyncio.Event()
 
     async def missing(event: dict[str, Any]) -> dict[str, Any]:
-        await live.send_result(event, outcome="pending_approval", interim=True)
-        await held.wait()
+        await live.pending_approval(event)
+        await clock.skip(4.9)
+        # Then loop time runs twenty times faster than real time until released.
+        while not held.is_set():
+            await asyncio.sleep(0.001)
+            clock.skipped += 0.02
         return {"outcome": "refused", "code": "approval_timeout"}
 
     live.answers["backup"] = missing

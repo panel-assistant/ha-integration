@@ -8,6 +8,7 @@ from dataclasses import asdict, replace
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -17,6 +18,7 @@ from custom_components.panel_assistant import (
     install_adb,
     install_executor,
     install_jobs,
+    webview,
 )
 from custom_components.panel_assistant.adb_protocol import (
     AdbInstallTarget,
@@ -132,6 +134,17 @@ async def test_optional_webview_attempt_never_prevents_app_setup(
     assert submitted.await_args.args == (f"pa-install-{receipt.job_id}", "c" * 64)
 
 
+class _NoPauseAsyncio:
+    """asyncio as a module sees it, except that a pause returns at once."""
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(asyncio, name)
+
+    @staticmethod
+    async def sleep(_seconds: float) -> None:
+        await asyncio.sleep(0)
+
+
 @pytest.mark.parametrize("active", ["downloading", "verified", "installing"])
 async def test_webview_install_rebind_only_reobserves_before_app_setup(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, active: str
@@ -155,6 +168,8 @@ async def test_webview_install_rebind_only_reobserves_before_app_setup(
     }
     observed = AsyncMock(side_effect=[initial, CannotConnectError, installed])
     submitted = AsyncMock(return_value={**initial, "transaction": {"state": active}})
+    # The one-second pause between progress reads passes at once.
+    monkeypatch.setattr(webview, "asyncio", _NoPauseAsyncio())
     monkeypatch.setattr(
         install_executor.HaPaneldClient, "async_get_webview", observed, raising=False
     )

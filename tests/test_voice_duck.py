@@ -46,7 +46,9 @@ from .test_voice import (  # noqa: F401  (fixtures)
     pipeline,
 )
 from .test_voice_stream import (  # noqa: F401  (fixtures)
+    CLIPS,
     LINGERING,
+    _clip,
     _ClipView,
     _fetched,
     _second_entry,
@@ -896,8 +898,11 @@ async def test_session_loss_settles_streamed_reply_and_restores_room(
     wires,  # noqa: F811
     follow_up,
     loss,
+    monkeypatch,
 ):
     """A streamed reply cut off by its session settles then, not at its drain."""
+    # Still playing when the newer turn starts, a few ms in; asserted below.
+    monkeypatch.setitem(CLIPS, "long", _clip(1.5))
     token = hass_read_only_access_token
     panel, wire, _ = await _voice_panel(hass, hass_ws_client, token, wires)
     satellite = _satellite(hass, entry)
@@ -934,6 +939,7 @@ async def test_session_loss_settles_streamed_reply_and_restores_room(
     assert speaker.level < LEVEL
     # The cut-off stream ends later and cannot end the newer turn.
     voice_stream = async_get_voice_stream(hass)
+    assert voice_stream._playing, "the cut-off stream must outlast this point"
     await _until(lambda: not voice_stream._playing, 15)
     await hass.async_block_till_done()
     assert hass.states.get(satellite).state == "responding"
