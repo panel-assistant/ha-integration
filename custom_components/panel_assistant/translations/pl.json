@@ -1783,7 +1783,7 @@
           },
           "confirm": {
             "title": "Usuń Panel Assistant z panelu {panel}",
-            "description": "Panel Assistant przywraca ekran główny panelu oraz aplikacje i ustawienia producenta, które zmienił, a następnie odinstalowuje się i usuwa ten panel z Home Assistant. Jego ustawienia na panelu zostają usunięte.\n\nAby usunąć:\n1. Przeczytaj, [jakie skutki może mieć usunięcie dla tego panelu]({risks_url}). Niektóre panele tracą dostęp do Ustawień Androida lub debugowania przez sieć, co może uniemożliwić ponowną instalację aplikacji bez otwierania panelu.\n2. Wybierz Zatwierdź, aby potwierdzić usunięcie.\n\nJeśli nie chcesz już usuwać aplikacji, zamknij to okno i wybierz zamiast tego Zachowaj Panel Assistant; nie zmieni to niczego na panelu.\n\n[Dowiedz się więcej]({learn_more_url})"
+            "description": "Panel Assistant restores the panel's home screen and the vendor apps and settings it changed, then uninstalls itself and deletes this panel from Home Assistant. Its settings on the panel are deleted.\n\nTo remove:\n1. Read [what removal can do to this panel]({risks_url}). Some panels lose access to Android Settings or network debugging, which may prevent reinstalling the app without opening the panel.\n2. Select Submit to confirm removal.\n\nIf you no longer want to remove it, close this dialog and choose Keep Panel Assistant instead; that changes nothing on the panel.\n\n[Learn more]({learn_more_url})"
           }
         },
         "progress": {
