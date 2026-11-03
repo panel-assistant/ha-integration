@@ -1527,7 +1527,7 @@
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "The panel app is installed, but its WebView (browser engine) update did not finish.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Keep the panel connected, then select **Try again** to repeat only the WebView step.\n\n[Learn more]({learn_more_url})",
+            "description": "La aplicación del panel está instalada, pero su actualización de WebView (motor del navegador) no ha terminado.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Mantén el panel conectado y luego selecciona **Reintentar** para repetir solo el paso de WebView.\n\n[Más información]({learn_more_url})",
             "menu_options": {
               "retry": "Reintentar",
               "authorize_adb": "Permitir actualizaciones",
