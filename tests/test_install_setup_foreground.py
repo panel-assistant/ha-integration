@@ -286,3 +286,42 @@ async def test_a_display_settlement_relaunch_replaces_the_first_claims_authority
 
     assert await _finalize(hass, receipt.job_id) is FinalizationOutcome.VERIFIED
     assert harness.setup_foreground_requests[-1] is not first_deferred
+
+
+@pytest.mark.parametrize(
+    "chooser", ["tapped", "other_app", "no_button", "other_home", None]
+)
+async def test_no_other_home_claim_outcome_relaxes_the_proof(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    chooser: str | None,
+) -> None:
+    """Only a deferred claim may ask for the setup screen; HOME stays unowned."""
+    harness = Harness(monkeypatch)
+    harness.home_chooser = chooser
+    monkeypatch.setattr(install_executor, "_HEALTH_RETRY_SECONDS", 0)
+    stand_in = install_executor.HaPaneldClient
+
+    class UnownedHomeClient(stand_in):  # type: ignore[misc,valid-type]
+        async def async_get_status(
+            self, *, home_proof: bool = False, setup_foreground: bool = False
+        ) -> PanelStatus:
+            # Setup is incomplete and HOME is the resolver's: the app shows its
+            # setup screen only to a request that asks for it.
+            harness.home_ui_state = "setup" if setup_foreground else "blocked"
+            return await super().async_get_status(
+                home_proof=home_proof, setup_foreground=setup_foreground
+            )
+
+    monkeypatch.setattr(install_executor, "HaPaneldClient", UnownedHomeClient)
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.RECOVERY_REQUIRED
+    assert completed.result_subcode == "home_ui:not_ready"
+    assert not completed.home_claim_deferred
+    assert harness.setup_foreground_requests == [False] * (
+        install_executor._HEALTH_ATTEMPTS
+    )
