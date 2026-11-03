@@ -1527,7 +1527,7 @@
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "The panel app is installed, but its WebView (browser engine) update did not finish.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Keep the panel connected, then select **Try again** to repeat only the WebView step.\n\n[Learn more]({learn_more_url})",
+            "description": "Aplikace panelu je nainstalována, ale její aktualizace WebView (jádra prohlížeče) nebyla dokončena.\n\nPostup opravy:\n1. Postupujte podle [kroků obnovy]({repair_url}).\n2. Nechte panel připojený a poté vyberte **Zkusit znovu**, aby se zopakoval pouze krok aktualizace WebView.\n\n[Další informace]({learn_more_url})",
             "menu_options": {
               "retry": "Zkusit znovu",
               "authorize_adb": "Povolit aktualizace",
