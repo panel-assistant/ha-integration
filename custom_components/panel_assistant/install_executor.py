@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from functools import partial
 from hashlib import sha256
@@ -57,10 +57,10 @@ from .install_adb import (
     async_cleanup_staged_apk,
     async_install_staged_apk,
     async_installed_artifact_size,
-    async_launch_installed_app,
     async_preflight_install,
     async_settle_vendor_display,
     async_stage_apk,
+    async_start_installed_app,
     async_verify_installed_target,
 )
 from .install_artifacts import (
@@ -594,7 +594,9 @@ class InstallExecutor:
         if not health_is_installed_app(health, receipt.artifact):
             return await self._async_reject_healthy(receipt, "health:identity_mismatch")
         try:
-            status = await panel.async_get_status(home_proof=True)
+            status = await panel.async_get_status(
+                home_proof=True, setup_foreground=receipt.home_claim_deferred
+            )
         except CannotConnectError:
             return FinalizationResult(FinalizationOutcome.RETRY)
         except InvalidResponseError:
@@ -982,7 +984,9 @@ class InstallExecutor:
                     panel = HaPaneldClient(
                         async_get_clientsession(self._hass), execution.pinned.pinned
                     )
-                    health, health_subcode = await self._async_health(execution, panel)
+                    health, health_subcode = await self._async_health(
+                        execution, panel, receipt.home_claim_deferred
+                    )
                     if health is None or not health_is_installed_app(
                         health, receipt.artifact
                     ):
@@ -1049,6 +1053,7 @@ class InstallExecutor:
                             receipt,
                             InstallPhase.HEALTHY_UNCLAIMED,
                             health_checked_at=_now_timestamp(),
+                            home_claim_deferred=receipt.home_claim_deferred,
                         )
                 else:
                     raise InstallJobTransitionError
@@ -1214,19 +1219,24 @@ class InstallExecutor:
             credential, receipt = await self._async_mutation_authority(
                 receipt, execution
             )
-            outcome = await async_launch_installed_app(
+            launch = await async_start_installed_app(
                 execution.adb_target,
                 credential.signer,
                 execution.descriptor,
                 expected_root_mode=_root_mode(receipt),
                 previous_home_job_id=_REMOTE_STAGING_SLOT_ID,
             )
-            if outcome is not LaunchOutcome.STARTED:
+            if launch.outcome is not LaunchOutcome.STARTED:
                 return await self._async_recovery(
                     receipt,
                     InstallResultCode.VERIFICATION_REQUIRED,
                     "display_settlement:launch_refused",
                 )
+            # This launch's HOME claim replaces the first one's. It is
+            # persisted with the HEALTHY_UNCLAIMED transition that follows.
+            receipt = replace(
+                receipt, home_claim_deferred=launch.home_chooser == "deferred"
+            )
         except _CancellationObserved as err:
             return err.receipt
         except (AdbCredentialError, InstallAdbError, InstallNetworkError) as err:
@@ -1235,7 +1245,9 @@ class InstallExecutor:
                 InstallResultCode.VERIFICATION_REQUIRED,
                 _result_subcode(err),
             )
-        health, subcode = await self._async_health(execution, panel)
+        health, subcode = await self._async_health(
+            execution, panel, receipt.home_claim_deferred
+        )
         if health is None or not health_is_installed_app(health, receipt.artifact):
             return await self._async_recovery(
                 receipt,
@@ -1413,7 +1425,7 @@ class InstallExecutor:
             credential, receipt = await self._async_mutation_authority(
                 receipt, execution
             )
-            outcome = await async_launch_installed_app(
+            launch = await async_start_installed_app(
                 execution.adb_target,
                 credential.signer,
                 execution.descriptor,
@@ -1441,8 +1453,16 @@ class InstallExecutor:
             return await self._async_fail(
                 receipt, InstallResultCode.LAUNCH_FAILED, _result_subcode(err)
             )
+        outcome = launch.outcome
         if outcome is LaunchOutcome.STARTED:
-            return await self._async_transition(receipt, InstallPhase.HEALTH_CHECK)
+            # Only a claim the app deferred until its first setup may let the
+            # setup screen stand in for owned HOME; every other outcome keeps
+            # demanding owned HOME.
+            return await self._async_transition(
+                receipt,
+                InstallPhase.HEALTH_CHECK,
+                home_claim_deferred=launch.home_chooser == "deferred",
+            )
         if outcome is LaunchOutcome.REFUSED:
             return await self._async_fail(
                 receipt, InstallResultCode.LAUNCH_FAILED, "launch:refused"
@@ -1456,7 +1476,10 @@ class InstallExecutor:
         )
 
     async def _async_health(
-        self, execution: _FrozenExecution, client: HaPaneldClient
+        self,
+        execution: _FrozenExecution,
+        client: HaPaneldClient,
+        setup_foreground: bool,
     ) -> tuple[PanelHealth | None, str | None]:
         artifact = execution.descriptor
         attempts = _HEALTH_ATTEMPTS
@@ -1481,7 +1504,9 @@ class InstallExecutor:
                 continue
             if health_is_installed_app(health, artifact):
                 try:
-                    status = await client.async_get_status(home_proof=True)
+                    status = await client.async_get_status(
+                        home_proof=True, setup_foreground=setup_foreground
+                    )
                 except CannotConnectError, InvalidResponseError:
                     failure_subcode = "home_ui:unavailable"
                 else:
@@ -1569,6 +1594,7 @@ class InstallExecutor:
         health_checked_at: str | None = None,
         result_code: InstallResultCode | None = None,
         preflight_root_mode: str | None = None,
+        home_claim_deferred: bool | None = None,
     ) -> InstallJobReceipt:
         try:
             root_mode = (
@@ -1583,6 +1609,7 @@ class InstallExecutor:
                 actual_apk_bytes=actual_apk_bytes,
                 health_checked_at=health_checked_at,
                 result_code=result_code,
+                home_claim_deferred=home_claim_deferred,
                 **root_mode,
             )
         except InstallJobRevisionError:

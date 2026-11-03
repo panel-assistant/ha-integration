@@ -128,9 +128,10 @@ class FinalProof:
                 )
 
             async def async_get_status(
-                self, *, home_proof: bool = False
+                self, *, home_proof: bool = False, setup_foreground: bool = False
             ) -> PanelStatus:
                 assert home_proof
+                assert not setup_foreground
                 return PanelStatus(
                     warning_count=0,
                     capability_count=0,

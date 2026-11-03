@@ -825,6 +825,21 @@ async def test_client_requests_fresh_home_proof_only_when_asked() -> None:
     assert str(url) == "http://panel.local:8888/api/v1/status?home_proof=1"
 
 
+async def test_client_asks_for_the_setup_screen_only_with_a_home_proof() -> None:
+    """A fresh panel may prove its setup screen instead of owned HOME."""
+    body = b'{"warnings":[],"capabilities":[]}'
+    session = _session(body=body)
+    client = HaPaneldClient(session, normalize_address("panel.local"))  # type: ignore[arg-type]
+
+    await client.async_get_status(home_proof=True, setup_foreground=True)
+    await client.async_get_status(setup_foreground=True)
+
+    assert [str(url) for url, _ in session.requests] == [
+        "http://panel.local:8888/api/v1/status?home_proof=1&setup_foreground=1",
+        "http://panel.local:8888/api/v1/status",
+    ]
+
+
 @pytest.mark.parametrize(
     "home_ui",
     [

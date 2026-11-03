@@ -681,14 +681,21 @@ class HaPaneldClient:
         except UnicodeDecodeError as err:
             raise InvalidResponseError from err
 
-    async def async_get_status(self, *, home_proof: bool = False) -> PanelStatus:
-        """Fetch and parse the bounded, privacy-safe status response."""
+    async def async_get_status(
+        self, *, home_proof: bool = False, setup_foreground: bool = False
+    ) -> PanelStatus:
+        """Fetch and parse the bounded, privacy-safe status response.
+
+        ``setup_foreground`` lets a fresh panel prove its setup screen is in
+        front instead of owning HOME; the app honours it only before setup.
+        """
         from .status import parse_status_response
 
+        query = {"home_proof": "1"}
+        if setup_foreground:
+            query["setup_foreground"] = "1"
         body = await self._async_get_bounded(
-            self.status_url.with_query({"home_proof": "1"})
-            if home_proof
-            else self.status_url,
+            self.status_url.with_query(query) if home_proof else self.status_url,
             MAX_STATUS_RESPONSE_BYTES,
         )
         try:

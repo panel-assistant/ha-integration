@@ -642,6 +642,7 @@ async def test_revision_overflow_is_rejected_before_store_write(
         lambda document: document["jobs"][0].update(attempt=1),
         lambda document: document["jobs"][0].update(actual_apk_bytes=12_345),
         lambda document: document["jobs"][0].update(plan_sha256="c" * 64),
+        lambda document: document["jobs"][0].update(home_claim_deferred="yes"),
     ],
 )
 async def test_corrupt_or_excessive_stored_documents_fail_closed(

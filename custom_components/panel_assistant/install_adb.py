@@ -185,6 +185,15 @@ class DefiniteCleanupReason(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class AppLaunch:
+    """One launch's outcome and what the HOME claim before it did."""
+
+    outcome: LaunchOutcome
+    #: ``home_chooser.CHOOSER_OUTCOMES``, or None when the grant was unread.
+    home_chooser: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class StagedApk:
     """Exact remote artifact verified after a completed FileSync push."""
 
@@ -1035,8 +1044,11 @@ async def _async_repair_app_permissions(
     launch_component: str,
     *,
     deferred_setup: bool = False,
-) -> None:
-    """Repair grants, retaining the caller's authority for HOME acquisition."""
+) -> str | None:
+    """Repair grants, retaining the caller's authority for HOME acquisition.
+
+    Returns what the HOME claim did (``home_chooser.CHOOSER_OUTCOMES``).
+    """
     nonce = token_hex(16)
     _parse_package_present(
         await _async_shell(
@@ -1104,6 +1116,7 @@ async def _async_repair_app_permissions(
                 for name in grant.missing
             ),
         )
+    return grant.chooser
 
 
 async def _async_vendor_setup(
@@ -1319,6 +1332,25 @@ async def async_launch_installed_app(
     previous_home_job_id: str | None = None,
 ) -> LaunchOutcome:
     """Launch the descriptor's one fixed package component exactly once."""
+    launch = await async_start_installed_app(
+        target,
+        signer,
+        descriptor,
+        expected_root_mode=expected_root_mode,
+        previous_home_job_id=previous_home_job_id,
+    )
+    return launch.outcome
+
+
+async def async_start_installed_app(
+    target: AdbInstallTarget,
+    signer: PythonRSASigner,
+    descriptor: InstallDescriptor,
+    *,
+    expected_root_mode: AdbRootMode,
+    previous_home_job_id: str | None = None,
+) -> AppLaunch:
+    """Launch once, reporting what the HOME claim before the start did."""
     _validate_request(target, descriptor)
     _validate_expected_root_mode(expected_root_mode)
     device: AdbDeviceAsync | None = None
@@ -1341,12 +1373,12 @@ async def async_launch_installed_app(
                     != f"HAPANELD_PREVIOUS_HOME:{nonce}:0\n".encode()
                 ):
                     raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE)
-            await _async_repair_app_permissions(
+            home_chooser = await _async_repair_app_permissions(
                 device, target, descriptor.package_id, descriptor.launch_component
             )
             nonce = token_hex(16)
             mutation_started = True
-            return _parse_launch_outcome(
+            outcome = _parse_launch_outcome(
                 await _async_shell(
                     device,
                     _launch_command(
@@ -1357,6 +1389,7 @@ async def async_launch_installed_app(
                 ),
                 nonce,
             )
+            return AppLaunch(outcome, home_chooser)
     except InstallAdbError:
         raise
     except (
