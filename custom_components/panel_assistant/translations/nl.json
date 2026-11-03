@@ -1821,7 +1821,7 @@
       }
     },
     "dashboard_unfiltered": {
-      "title": "{panel} toont zijn dashboard zonder entiteitsfilter",
+      "title": "{panel} toont zijn dashboard zonder entiteitfilter",
       "description": "{panel} heeft zijn dashboard met alle entiteiten geopend, omdat het entiteitsfilter niet op tijd klaar was. Het blijft het proberen en gaat vanzelf terug naar het gefilterde dashboard.\n\nOm dit op te lossen:\n1. Open de [entiteitsinstellingen]({entities_url}) van {panel} om te zien waarop het wacht.\n2. Als het om een beslissing of een nieuwe aanmelding vraagt, volg dan de stappen daar."
     }
   },
