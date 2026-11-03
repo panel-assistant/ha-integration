@@ -27,7 +27,10 @@ test = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-addopts = ["--strict-markers"]
+# Home Assistant's test plugin overrides aiohttp_client so late integrations can still register
+# HTTP views. pytest-aiohttp defines the same fixture, and whichever plugin loads last wins, so
+# a fresh environment could pick the wrong one and fail with "frozen router". Turn it off.
+addopts = ["--strict-markers", "-p", "no:aiohttp"]
 
 [tool.ruff]
 target-version = "py314"
