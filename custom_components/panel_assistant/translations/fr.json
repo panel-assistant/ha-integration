@@ -1,8 +1,8 @@
 {
   "title": "Panel Assistant",
   "common": {
-    "remove_from_panel_notification_title": "Remove Panel Assistant from {panel}",
-    "remove_from_panel_notification_message": "To remove Panel Assistant from {panel}, open [Repairs]({repairs_url}) and confirm there. Nothing has changed on the panel yet."
+    "remove_from_panel_notification_title": "Retirer Panel Assistant de {panel}",
+    "remove_from_panel_notification_message": "Pour retirer Panel Assistant de {panel}, ouvrez [Réparations]({repairs_url}) et confirmez-y le retrait. Rien n’a encore changé sur le panneau."
   },
   "config": {
     "flow_title": "{name}",
@@ -60,7 +60,7 @@
       },
       "panel_setup": {
         "title": "Terminer la configuration du panneau",
-        "description": "Complete the panel's [setup page]({setup_url}), then select Submit to connect the panel to Home Assistant."
+        "description": "Complétez la [page de configuration]({setup_url}) du panneau, puis sélectionnez Valider pour connecter le panneau à Home Assistant."
       },
       "choose_version": {
         "title": "Choisir une version",
@@ -91,11 +91,11 @@
       },
       "confirm_reinstall_candidate": {
         "title": "Installer Panel Assistant {version} ?",
-        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "Prêt pour l’installation sur le panneau à l’adresse {address}.\n\nVos autres applications ne sont pas modifiées.\n\nCe panneau rejoint à nouveau {entry_title} et conserve ses entités et son historique."
       },
       "confirm_reinstall_rc": {
         "title": "Installer Panel Assistant {version} ?",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "Pour les tests uniquement : Panel Assistant {version} est une version candidate, pas une version stable, et peut contenir des bugs.\n\nPrêt pour l’installation sur le panneau à l’adresse {address}.\n\nVos autres applications ne sont pas modifiées.\n\nCe panneau rejoint à nouveau {entry_title} et conserve ses entités et son historique."
       },
       "release_preview_only": {
         "title": "La version ne peut pas être installée automatiquement",
@@ -109,11 +109,11 @@
     "progress": {
       "authorize_adb": "Regardez l'écran du panneau à l'adresse {address} : cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**. Android peut décrire Home Assistant comme un ordinateur.\n\nL'opération se poursuivra d'elle-même dès que le panneau l'aura autorisé.",
       "installing": "Installation de Panel Assistant à l’adresse {address}. Gardez cette boîte de dialogue ouverte ; l’opération se termine automatiquement.\n\nSi vous la fermez, l’installation continue. Ajoutez à nouveau la même adresse pour terminer.",
-      "updating_webview": "Updating the panel's browser engine on {address}…"
+      "updating_webview": "Mise à jour du moteur de navigateur du panneau à l’adresse {address}…"
     },
     "error": {
-      "panel_setup_not_finished": "The panel has not finished its setup yet. Finish the setup page, then select Submit again.",
-      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
+      "panel_setup_not_finished": "Le panneau n’a pas encore terminé sa configuration. Complétez la page de configuration, puis sélectionnez à nouveau Valider.",
+      "old_app_installed": "Ce panneau utilise encore l’ancienne application ha-paneld. Panel Assistant 1.0 ne peut pas le faire passer à la nouvelle application et n’installe rien à côté. Suivez les [étapes de récupération sécurisée]({old_app_help_url}) pour terminer la migration avec Panel Assistant 0.9.0. Si un panneau utilise déjà l’application 1.0, ou si vous n’avez aucune sauvegarde datant d’avant la mise à niveau, demandez de l’aide avant de changer de version.",
       "cannot_connect": "Impossible de se connecter à un point de terminaison d'état Panel Assistant valide.",
       "invalid_address": "Saisissez un nom d'hôte ou une adresse IP sans schéma d'URL ni chemin.",
       "invalid_install_address": "Saisissez uniquement le nom d’hôte ou l’adresse IP du panneau.",
@@ -144,10 +144,10 @@
       "release_selection_required": "Choisissez une version dans la liste."
     },
     "abort": {
-      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
+      "old_app_installed": "Ce panneau utilise encore l’ancienne application ha-paneld. Panel Assistant 1.0 ne peut pas le faire passer à la nouvelle application et n’installe rien à côté. Suivez les [étapes de récupération sûres]({old_app_help_url}) pour terminer la migration avec Panel Assistant 0.9.0. Si un panneau utilise déjà l’application 1.0, ou si vous n’avez aucune sauvegarde datant d’avant la mise à niveau, demandez de l’aide avant de changer de version.",
       "already_configured": "Ce panneau est déjà configuré.",
       "reinstall_successful": "L’application a été réinstallée. Ce panneau conserve son historique et ses paramètres dans Home Assistant.",
-      "usb_installed": "Panel Assistant is installed and the panel has been added to Home Assistant. Finish setting up the panel in the window you opened for the install.",
+      "usb_installed": "Panel Assistant est installé et le panneau a été ajouté à Home Assistant. Terminez la configuration du panneau dans la fenêtre que vous avez ouverte pour l’installation.",
       "reinstall_identity_mismatch": "L’application est installée, mais elle n’a pas pu être associée au panneau conservé. Son historique et ses paramètres dans Home Assistant ont été conservés. Vérifiez le panneau dans Home Assistant avant de réessayer.",
       "not_panel": "Ce n'est pas un panneau sur lequel Panel Assistant peut effectuer une installation.",
       "invalid_discovery": "Le panneau détecté n’a pas confirmé qu’il s’agissait de la même installation Panel Assistant saine. Aucune entrée Home Assistant ni aucun réglage du panneau n’a été modifié.",
@@ -842,7 +842,7 @@
       "message": "La mise à jour du panneau ne s'est pas terminée"
     },
     "update_webview_unfinished": {
-      "message": "The app is installed, but its WebView update did not finish. Open the Repair for this panel to try the WebView step again."
+      "message": "L’application est installée, mais sa mise à jour de WebView n’a pas abouti. Ouvrez la réparation de ce panneau pour réessayer l’étape WebView."
     },
     "panel_backup_failed": {
       "message": "Le panneau n'a pas pu être sauvegardé, rien n'a donc été installé"
@@ -1522,12 +1522,12 @@
       }
     },
     "installer_failure_update_webview": {
-      "title": "The WebView update on {panel} did not finish",
+      "title": "La mise à jour de WebView sur {panel} n’a pas abouti",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Résoudre l'erreur du panneau",
-            "description": "The panel app is installed, but its WebView (browser engine) update did not finish.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Keep the panel connected, then select **Try again** to repeat only the WebView step.\n\n[Learn more]({learn_more_url})",
+            "description": "L’application du panneau est installée, mais sa mise à jour de WebView (moteur de navigateur) n’a pas abouti.\n\nPour résoudre le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Gardez le panneau connecté, puis sélectionnez **Réessayer** pour répéter uniquement l’étape WebView.\n\n[En savoir plus]({learn_more_url})",
             "menu_options": {
               "retry": "Réessayer",
               "authorize_adb": "Autoriser les mises à jour",
@@ -1771,23 +1771,23 @@
       "fix_flow": {
         "step": {
           "init": {
-            "title": "Remove or keep Panel Assistant",
+            "title": "Retirer ou garder Panel Assistant",
             "menu_options": {
-              "confirm": "Remove Panel Assistant",
-              "keep_app": "Keep Panel Assistant"
+              "confirm": "Retirer Panel Assistant",
+              "keep_app": "Conserver Panel Assistant"
             }
           },
           "authorize_adb": {
-            "title": "Allow Home Assistant on {panel}",
-            "description": "Panel Assistant cannot be removed from {panel} until the panel allows Home Assistant's ADB connection.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}), then select Submit to send the approval request.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n3. Wait here; the removal question comes back once the panel allows it.\n\n[Learn more]({learn_more_url})"
+            "title": "Autoriser Home Assistant sur {panel}",
+            "description": "Panel Assistant ne peut pas être retiré de {panel} tant que le panneau n’autorise pas la connexion ADB de Home Assistant.\n\nPour le retirer :\n1. Lisez les [étapes de récupération]({recovery_url}), puis sélectionnez Valider pour envoyer la demande d’autorisation.\n2. Sur {panel}, cochez la case permettant de toujours autoriser cet ordinateur, puis appuyez sur **Autoriser**.\n3. Patientez ici ; la question concernant le retrait réapparaît une fois que le panneau autorise la connexion.\n\n[En savoir plus]({learn_more_url})"
           },
           "confirm": {
             "title": "Retirer Panel Assistant de {panel}",
-            "description": "Panel Assistant restores the panel's home screen and the vendor apps and settings it changed, then uninstalls itself and deletes this panel from Home Assistant. Its settings on the panel are deleted.\n\nTo remove:\n1. Read [what removal can do to this panel]({risks_url}). Some panels lose access to Android Settings or network debugging, which may prevent reinstalling the app without opening the panel.\n2. Select Submit to confirm removal.\n\nIf you no longer want to remove it, close this dialog and choose Keep Panel Assistant instead; that changes nothing on the panel.\n\n[Learn more]({learn_more_url})"
+            "description": "Panel Assistant restaure l’écran d’accueil du panneau ainsi que les applications et les paramètres du fabricant qu’il a modifiés, puis se désinstalle et supprime ce panneau de Home Assistant. Ses paramètres sur le panneau sont supprimés.\n\nPour le retirer :\n1. Lisez [les effets possibles du retrait sur ce panneau]({risks_url}). Certains panneaux perdent l’accès aux Paramètres Android ou au débogage réseau, ce qui peut empêcher la réinstallation de l’application sans ouvrir le panneau.\n2. Sélectionnez Valider pour confirmer le retrait.\n\nSi vous ne souhaitez plus le retirer, fermez cette boîte de dialogue et choisissez plutôt de conserver Panel Assistant ; cela ne change rien sur le panneau.\n\n[En savoir plus]({learn_more_url})"
           }
         },
         "progress": {
-          "authorize_adb": "Android approval on {panel} is still needed.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}) if needed.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n\nThis continues automatically after approval.\n\n[Learn more]({learn_more_url})"
+          "authorize_adb": "L’autorisation Android sur {panel} est toujours nécessaire.\n\nPour le retirer :\n1. Lisez les [étapes de récupération]({recovery_url}) si nécessaire.\n2. Sur {panel}, cochez la case permettant de toujours autoriser cet ordinateur, puis appuyez sur **Autoriser**.\n\nLa procédure se poursuit automatiquement après l’autorisation.\n\n[En savoir plus]({learn_more_url})"
         },
         "error": {
           "cannot_connect": "Impossible de se connecter à un point de terminaison d'état Panel Assistant valide.",
@@ -1897,7 +1897,7 @@
       "removal_busy": "Une autre opération modifie déjà ce panneau. Rien n'a été retiré ; réessayez une fois l'opération terminée.",
       "removal_adb_unreachable": "Home Assistant n'a pas pu joindre le panneau via Android Debug Bridge (port 5555). Rien n'a été retiré. Vérifiez que le panneau est allumé et que le débogage réseau est toujours activé, puis réessayez.",
       "removal_adb_authorization": "Le panneau n’a pas accepté cette instance de Home Assistant pour Android Debug Bridge. Rien n’a été retiré. Choisissez d’abord « Autoriser les mises à jour », puis réessayez.",
-      "removal_adb_authorization_unavailable": "The panel has not accepted this Home Assistant instance for the Android Debug Bridge. Nothing was removed. Check that the panel is on and answering, then try again.",
+      "removal_adb_authorization_unavailable": "Le panneau n’a pas accepté cette instance de Home Assistant pour Android Debug Bridge. Rien n’a été supprimé. Vérifiez que le panneau est allumé et qu’il répond, puis réessayez.",
       "removal_panel_changed": "Un autre appareil répond maintenant à l'adresse de ce panneau. Rien n'a été retiré.",
       "removal_approval_required": "La sécurité renforcée est activée. La restitution de l’écran d’accueil doit donc être approuvée sur le panneau lui-même. Rien n’a été modifié et Panel Assistant est toujours installé. Approuvez la demande sur le panneau, puis envoyez à nouveau le formulaire.",
       "removal_no_replacement_home": "Le panneau n'a pas pu confier son écran d'accueil à un autre lanceur : aucune autre application d'écran d'accueil n'y est installée, Panel Assistant est donc la seule chose qu'il peut afficher. Rien n'a été retiré et le panneau fonctionne toujours. Installez un lanceur ou réactivez celui du fabricant, puis réessayez.",

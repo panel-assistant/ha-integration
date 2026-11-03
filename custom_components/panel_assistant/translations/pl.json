@@ -1,8 +1,8 @@
 {
   "title": "Panel Assistant",
   "common": {
-    "remove_from_panel_notification_title": "Remove Panel Assistant from {panel}",
-    "remove_from_panel_notification_message": "To remove Panel Assistant from {panel}, open [Repairs]({repairs_url}) and confirm there. Nothing has changed on the panel yet."
+    "remove_from_panel_notification_title": "Usuń Panel Assistant z panelu {panel}",
+    "remove_from_panel_notification_message": "Aby usunąć Panel Assistant z panelu {panel}, otwórz [Problemy]({repairs_url}) i tam potwierdź. Na panelu nic się jeszcze nie zmieniło."
   },
   "config": {
     "flow_title": "{name}",
@@ -60,7 +60,7 @@
       },
       "panel_setup": {
         "title": "Zakończ konfigurację panelu",
-        "description": "Complete the panel's [setup page]({setup_url}), then select Submit to connect the panel to Home Assistant."
+        "description": "Dokończ konfigurację panelu na [stronie konfiguracji]({setup_url}), a następnie wybierz Zatwierdź, aby połączyć panel z Home Assistant."
       },
       "choose_version": {
         "title": "Wybierz wersję",
@@ -91,7 +91,7 @@
       },
       "confirm_reinstall_candidate": {
         "title": "Zainstalować Panel Assistant {version}?",
-        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "Wszystko gotowe do instalacji na panelu pod adresem {address}.\n\nTwoje inne aplikacje pozostaną nietknięte.\n\nTen panel ponownie dołączy do {entry_title} i zachowa swoje encje oraz historię."
       },
       "confirm_reinstall_rc": {
         "title": "Zainstalować Panel Assistant {version}?",
@@ -109,11 +109,11 @@
     "progress": {
       "authorize_adb": "Spójrz na ekran panelu pod adresem {address}: zaznacz **Zawsze zezwalaj z tego komputera**, a potem dotknij **Zezwól**. Android może nazywać Home Assistant komputerem.\n\nGdy panel na to zezwoli, proces będzie kontynuowany sam.",
       "installing": "Instalowanie Panel Assistant pod adresem {address}. Pozostaw to okno dialogowe otwarte; operacja zakończy się sama.\n\nJeśli je zamkniesz, instalacja będzie kontynuowana. Dodaj ponownie ten sam adres, aby dokończyć.",
-      "updating_webview": "Updating the panel's browser engine on {address}…"
+      "updating_webview": "Aktualizowanie silnika przeglądarki panelu pod adresem {address}…"
     },
     "error": {
-      "panel_setup_not_finished": "The panel has not finished its setup yet. Finish the setup page, then select Submit again.",
-      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
+      "panel_setup_not_finished": "Konfiguracja panelu nie została jeszcze ukończona. Dokończ konfigurację na stronie konfiguracji, a następnie ponownie wybierz Zatwierdź.",
+      "old_app_installed": "Na tym panelu nadal działa stara aplikacja ha-paneld. Panel Assistant 1.0 nie może przeprowadzić migracji do nowej aplikacji i nie instaluje niczego obok starej. Wykonaj [kroki bezpiecznego odzyskiwania]({old_app_help_url}), aby dokończyć migrację za pomocą Panel Assistant 0.9.0. Jeśli na którymkolwiek panelu działa już aplikacja w wersji 1.0 lub nie masz kopii zapasowej sprzed aktualizacji, poproś o pomoc przed zmianą wersji.",
       "cannot_connect": "Nie udało się nawiązać połączenia z prawidłowym punktem końcowym stanu działania usługi Panel Assistant.",
       "invalid_address": "Wprowadź nazwę hosta lub adres IP bez schematu URL i ścieżki.",
       "invalid_install_address": "Wpisz tylko nazwę hosta lub adres IP panelu.",
@@ -144,7 +144,7 @@
       "release_selection_required": "Wybierz wersję z listy."
     },
     "abort": {
-      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
+      "old_app_installed": "Na tym panelu nadal działa stara aplikacja ha-paneld. Panel Assistant 1.0 nie może przeprowadzić migracji do nowej aplikacji i nie instaluje niczego obok starej. Wykonaj [kroki bezpiecznego odzyskiwania]({old_app_help_url}), aby dokończyć migrację za pomocą Panel Assistant 0.9.0. Jeśli na którymkolwiek panelu działa już aplikacja w wersji 1.0 lub nie masz kopii zapasowej sprzed aktualizacji, poproś o pomoc przed zmianą wersji.",
       "already_configured": "Ten panel został już skonfigurowany.",
       "reinstall_successful": "Aplikacja została zainstalowana ponownie. Ten panel zachowuje swoją historię i ustawienia w Home Assistant.",
       "usb_installed": "Panel Assistant is installed and the panel has been added to Home Assistant. Finish setting up the panel in the window you opened for the install.",
@@ -1771,10 +1771,10 @@
       "fix_flow": {
         "step": {
           "init": {
-            "title": "Remove or keep Panel Assistant",
+            "title": "Usuń lub zachowaj Panel Assistant",
             "menu_options": {
-              "confirm": "Remove Panel Assistant",
-              "keep_app": "Keep Panel Assistant"
+              "confirm": "Usuń Panel Assistant",
+              "keep_app": "Zachowaj Panel Assistant"
             }
           },
           "authorize_adb": {
@@ -1897,7 +1897,7 @@
       "removal_busy": "Inna operacja już zmienia ten panel. Nic nie zostało usunięte; spróbuj ponownie, gdy się zakończy.",
       "removal_adb_unreachable": "Home Assistant nie mógł połączyć się z panelem przez Android Debug Bridge (port 5555). Nic nie zostało usunięte. Sprawdź, czy panel jest włączony, a debugowanie przez sieć nadal aktywne, i spróbuj ponownie.",
       "removal_adb_authorization": "Panel nie zaakceptował tej instancji Home Assistant dla Android Debug Bridge. Niczego nie usunięto. Najpierw wybierz „Zezwól na aktualizacje”, a następnie spróbuj ponownie.",
-      "removal_adb_authorization_unavailable": "The panel has not accepted this Home Assistant instance for the Android Debug Bridge. Nothing was removed. Check that the panel is on and answering, then try again.",
+      "removal_adb_authorization_unavailable": "Panel nie zezwolił tej instancji Home Assistant na korzystanie z Android Debug Bridge. Niczego nie usunięto. Sprawdź, czy panel jest włączony i odpowiada, a następnie spróbuj ponownie.",
       "removal_panel_changed": "Pod adresem tego panelu odpowiada teraz inne urządzenie. Nic nie zostało usunięte.",
       "removal_approval_required": "Wzmocnione zabezpieczenia są włączone, więc przekazanie ekranu głównego z powrotem wymaga zgody na samym panelu. Niczego nie zmieniono i Panel Assistant nadal jest zainstalowany. Zatwierdź prośbę na panelu, a następnie ponownie wybierz Zatwierdź.",
       "removal_no_replacement_home": "Panel nie mógł oddać ekranu głównego innemu launcherowi: nie ma na nim innej aplikacji ekranu głównego, więc Panel Assistant to jedyne, co może wyświetlać. Nic nie zostało usunięte, a panel nadal działa. Zainstaluj launcher lub ponownie włącz launcher producenta i spróbuj ponownie.",
