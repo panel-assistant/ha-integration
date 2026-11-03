@@ -139,6 +139,19 @@ class HandBackRefusedError(UpdateRejectedError):
         self.code = code
         self.launcher = launcher
 
+    @classmethod
+    def from_refusal(cls, code: Any, original_home: Any) -> HandBackRefusedError:
+        """Read the panel's refusal body, whether HTTP or its session carried it.
+
+        Only the package of a well-formed ``original_home`` component is kept,
+        so a malformed body leaves the launcher unnamed.
+        """
+        launcher = original_home.split("/")[0] if isinstance(original_home, str) else ""
+        return cls(
+            code if isinstance(code, str) else "refused",
+            launcher if _PACKAGE_NAME_PATTERN.fullmatch(launcher) else None,
+        )
+
 
 def is_valid_discovery_id(value: str) -> bool:
     """Return whether an mDNS/health discovery token has the Android contract shape."""
@@ -897,12 +910,8 @@ class HaPaneldClient:
             raise HandBackRefusedError("unsupported")
         if status == 409:
             refusal = _load_json_object(body)
-            code = refusal.get("error")
-            original = refusal.get("original_home")
-            launcher = original.split("/")[0] if isinstance(original, str) else ""
-            raise HandBackRefusedError(
-                code if isinstance(code, str) else "refused",
-                launcher if _PACKAGE_NAME_PATTERN.fullmatch(launcher) else None,
+            raise HandBackRefusedError.from_refusal(
+                refusal.get("error"), refusal.get("original_home")
             )
         if status != 200:
             raise UpdateRejectedError if 400 <= status < 500 else CannotConnectError

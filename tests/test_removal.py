@@ -1870,3 +1870,108 @@ async def test_a_missing_original_launcher_is_named_with_its_fix(
     assert fake.installed == sorted([PACKAGE_ID, vendor_provisioning.SHELLY_LAUNCHER])
     assert fake.read()["home"] == APP_HOME
     assert fake.read()["events"] == []
+
+
+@pytest.mark.parametrize(
+    ("answer", "original_home", "named"),
+    [
+        ("handed", None, None),
+        ("original-home-missing", f"{NOVA}/.Launcher", NOVA),
+        ("original-home-missing", "not a component", None),
+    ],
+    ids=["handed", "named", "malformed"],
+)
+async def test_removal_over_the_panel_session_asks_the_app_to_hand_home_back(
+    hass: HomeAssistant,
+    hass_ws_client: Any,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    panel: tuple[FakePanel, TestServer],
+    monkeypatch: pytest.MonkeyPatch,
+    answer: str,
+    original_home: str | None,
+    named: str | None,
+) -> None:
+    """A rooted panel whose ADB is closed is removed through its session.
+
+    The hand back goes to the app over that session under the name the app
+    registers, and a refusal naming the recorded launcher reaches the owner.
+    """
+    from custom_components.panel_assistant import local_adb
+    from custom_components.panel_assistant.adb_protocol import AdbInstallTarget
+
+    from .test_local_adb import _panel
+    from .test_transport import _receive
+
+    fake, _server = panel
+    entry, session = await _panel(
+        hass, hass_ws_client, hass_read_only_user, hass_read_only_access_token
+    )
+    # The network leg after recovery checks the app it reaches is this entry's.
+    fake.did = entry.unique_id
+    target = AdbInstallTarget(
+        PanelAddress("192.168.1.30", 8888),
+        "PANEL1",
+        "px30_evb",
+        "arm64-v8a",
+        27,
+        local_shell=object(),
+    )
+    monkeypatch.setattr(local_adb, "async_target", AsyncMock(return_value=target))
+
+    async def next_event() -> dict[str, Any]:
+        while True:
+            message = await _receive(session.client)
+            if message.get("type") == "event":
+                event: dict[str, Any] = message["event"]
+                return event
+
+    removing = asyncio.create_task(removal.async_remove_app(hass, entry))
+    event = await next_event()
+    assert (event["kind"], event["op"], event["args"]) == (
+        "manage",
+        "hand_back_home",
+        {},
+    )
+    if answer == "handed":
+        # The app gives HOME to the vendor launcher, as its route does.
+        fake.set(home=VENDOR_HOME)
+        await session.answer(
+            event["command_id"],
+            "applied",
+            result={
+                "ok": True,
+                "restored": [],
+                "adopted": [],
+                "outstanding": [],
+                "home_handed_to": VENDOR_HOME.split("/")[0],
+            },
+        )
+        recover = await next_event()
+        assert recover["op"] == "adb.recover"
+        await session.answer(recover["command_id"], "applied", result={"enabled": True})
+        await removing
+        assert fake.installed == []
+        return
+    # A route refusal is HTTP 409, which the session carries as not_commandable
+    # with the route's own body.
+    await session.answer(
+        event["command_id"],
+        "refused",
+        code="not_commandable",
+        result={"ok": False, "error": answer, "original_home": original_home},
+    )
+    with pytest.raises(removal.RemovalError) as raised:
+        await removing
+    if named is None:
+        assert (raised.value.reason, raised.value.placeholders) == (
+            "original_home_missing_unnamed",
+            {},
+        )
+    else:
+        assert (raised.value.reason, raised.value.placeholders) == (
+            "original_home_missing",
+            {"launcher": named},
+        )
+    assert fake.installed == [PACKAGE_ID]
+    assert fake.read()["home"] == APP_HOME
