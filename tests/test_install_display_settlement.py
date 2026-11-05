@@ -496,3 +496,55 @@ async def test_a_reinstall_over_a_set_up_panel_leaves_its_display_size_alone(
 
     assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
     apply.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "setup", ["unreadable", "complete", "incomplete", "refused", "unsupported"]
+)
+async def test_exact_artifact_adoption_sizes_only_observed_incomplete_setup(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, setup: str
+) -> None:
+    """Retrying these installed bytes preserves owner sizing on an unknown state."""
+    await hass.config.async_update(internal_url="http://192.168.1.5:8123")
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    harness = Harness(monkeypatch)
+    harness.target_installed = True
+    harness.installed_bytes = receipt.artifact.apk_size
+    harness.display = _X2I_DISPLAY
+    harness.setup_state = PanelSetupState(
+        complete=setup == "complete", accepts_handover=setup != "unsupported"
+    )
+    if setup == "unreadable":
+        monkeypatch.setattr(
+            install_executor.HaPaneldClient,
+            "async_get_setup_state",
+            AsyncMock(side_effect=CannotConnectError),
+        )
+    if setup == "refused":
+        monkeypatch.setattr(
+            install_executor.HaPaneldClient,
+            "async_hand_over_ha_url",
+            AsyncMock(side_effect=CannotConnectError),
+        )
+    owner_size = [280, 1.2]
+
+    async def apply(
+        target: AdbInstallTarget, signer: PythonRSASigner, sizing: DisplaySizing
+    ) -> DisplayResult:
+        owner_size[:] = [sizing.density, sizing.font_scale]
+        return DisplayResult(("none", "null"), "216", "1", sizing)
+
+    monkeypatch.setattr(install_executor, "async_apply_display_sizing", apply)
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
+    assert harness.events.count("installed_size") == 1
+    assert harness.events.count("health") == 1
+    assert not {"download", "stage", "install"}.intersection(harness.events)
+    assert owner_size == (
+        [280, 1.2] if setup in {"unreadable", "complete"} else [216, 1.0]
+    )
+    assert harness.handed_over_urls == (
+        ["http://192.168.1.5:8123"] if setup == "incomplete" else []
+    )

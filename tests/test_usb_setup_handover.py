@@ -697,3 +697,49 @@ async def test_handover_accepts_only_the_specific_panels_known_custom_port(
     # New-panel registration rechecks setup readiness; every read must stay on
     # the endpoint whose custom port this panel actually advertised.
     assert panel.hosts and set(panel.hosts) == {address}
+
+
+@pytest.mark.parametrize(
+    "setup", ["unreadable", "complete", "incomplete", "refused", "unsupported"]
+)
+async def test_usb_adoption_offers_sizing_only_for_observed_incomplete_setup(
+    endpoint: Any, panel_health: AsyncMock, setup: str
+) -> None:
+    """An answering display cannot turn unknown setup into sizing permission."""
+    panel = _Panel(
+        CannotConnectError()
+        if setup == "unreadable"
+        else PanelSetupState(
+            complete=setup == "complete", accepts_handover=setup != "unsupported"
+        )
+    )
+    if setup == "refused":
+        panel.post_error = CannotConnectError()
+    recommendation = {"density": 216, "font_scale": 1.0}
+    with patch(
+        f"{_CLIENT}.async_get_display",
+        AsyncMock(
+            return_value={"recommended": recommendation, "privileged_sizing": False}
+        ),
+    ):
+        status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+
+    assert status == 200
+    assert panel.hosts
+    assert panel_health.await_count >= 1
+    assert body["display"] == (
+        None if setup in {"unreadable", "complete"} else recommendation
+    )
+    assert (
+        body["outcome"]
+        == {
+            "unreadable": "setup_state_unreadable",
+            "complete": "setup_complete",
+            "incomplete": "handed_over",
+            "refused": "handover_refused",
+            "unsupported": "handover_unsupported",
+        }[setup]
+    )
+    assert panel.posted == (
+        ["http://192.168.1.5:8123"] if setup == "incomplete" else []
+    )

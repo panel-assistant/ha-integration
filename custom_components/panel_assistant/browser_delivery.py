@@ -378,10 +378,10 @@ class BrowserSetupHandoverView(HomeAssistantView):
                     # The installer still holds USB: it applies the display and
                     # text size the panel's profile recommends before it opens
                     # the panel's setup, as the network installer does over ADB.
-                    # A panel already set up keeps the size its owner chose.
+                    # Complete or unreadable setup preserves the owner's size.
                     sizing = (
                         None
-                        if outcome == "setup_complete"
+                        if outcome in {"setup_complete", "setup_state_unreadable"}
                         else await async_read_recommended_sizing(client)
                     )
                 # Adding the panel sets its entry up before the flow returns,
