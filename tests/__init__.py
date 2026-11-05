@@ -9,7 +9,12 @@ import sys
 # importing the old name; where only the new package is installed, that name refers
 # to the same modules. The plugins module goes first: importing common before it
 # trips the new package's recorder import guard.
-if importlib.util.find_spec("pytest_homeassistant_custom_component.plugins") is None:
+# The package is looked up before its plugins module: a leftover directory of an
+# uninstalled copy is still importable, as an empty namespace package.
+if (
+    importlib.util.find_spec("pytest_homeassistant_custom_component") is None
+    or importlib.util.find_spec("pytest_homeassistant_custom_component.plugins") is None
+):
     for _suffix in ("", ".plugins", ".common", ".test_util", ".test_util.aiohttp"):
         sys.modules[f"pytest_homeassistant_custom_component{_suffix}"] = (
             importlib.import_module(f"pytest_homeassistant{_suffix}")
