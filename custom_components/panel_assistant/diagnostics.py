@@ -61,7 +61,21 @@ def _device(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> dict[str, Any] |
 
 def _diagnostics(entry: HaPaneldConfigEntry) -> dict[str, Any]:
     """Build diagnostics only from cached data."""
-    coordinator = entry.runtime_data.coordinator
+    runtime = getattr(entry, "runtime_data", None)
+    if runtime is None:
+        # Reloading, retrying or failed setup: nothing is cached to report.
+        return {
+            "integration_build": INTEGRATION_BUILD,
+            "entry": async_redact_data(dict(entry.data), _ENTRY_KEYS_TO_REDACT),
+            "state": entry.state.value,
+            "last_update_success": None,
+            "reachable": None,
+            "connected": None,
+            "health": None,
+            "status": None,
+            "status_error": None,
+        }
+    coordinator = runtime.coordinator
     snapshot: PanelSnapshot | None = coordinator.data
     return {
         "integration_build": INTEGRATION_BUILD,
