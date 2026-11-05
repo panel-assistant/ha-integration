@@ -1935,7 +1935,7 @@
         "4": "Informace",
         "5": "Varování",
         "6": "Chyba",
-        "7": "Fatální"
+        "7": "Fatální chyba"
       }
     },
     "system_level": {
@@ -1946,7 +1946,7 @@
         "4": "Informace",
         "5": "Varování",
         "6": "Chyba",
-        "7": "Fatální"
+        "7": "Fatální chyba"
       }
     }
   }
