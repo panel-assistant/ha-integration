@@ -194,6 +194,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         at the next interval.
         """
         assert self._entry_id is not None
+        entry_id = self._entry_id
 
         @callback
         def _remember() -> None:
@@ -211,6 +212,11 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             self.async_update_listeners()
             self._vendor_recovery.changed()
             session = self._session()
+            if session is None:
+                # The address report says the panel is connected. A panel
+                # switched off, or whose session simply ended, is unavailable,
+                # which needs no Repair.
+                async_delete_address_issue(self.hass, entry_id)
             if session is not None and (
                 not self.reachable
                 or (
@@ -293,8 +299,12 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                     )
                 )
 
+            # A dead stored address is reported only once the session has
+            # answered this same read: a panel losing power still holds its
+            # session until the heartbeat notices, and is not "connected".
+            withheld: list[tuple[str, str]] = []
             health, snapshot = await asyncio.gather(
-                self._async_probe_address(session),
+                self._async_probe_address(session, withheld),
                 self._async_read_session(session),
                 return_exceptions=True,
             )
@@ -321,6 +331,8 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                 if isinstance(outcome, BaseException):
                     raise outcome
             assert isinstance(snapshot, PanelSnapshot)
+            if withheld and entry is not None and probe_current():
+                self._report(entry, *withheld[-1])
             self._vendor_recovery.observe(snapshot)
             await self._async_activate_completed_admin(snapshot.health)
             return snapshot
@@ -589,7 +601,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             await async_reconcile_webview_issue(self.hass, entry, status)
         return PanelSnapshot(health=health, status=status, status_error=None)
 
-    async def _async_probe_address(self, session: PanelSession) -> PanelHealth | None:
+    async def _async_probe_address(
+        self, session: PanelSession, withheld: list[tuple[str, str]]
+    ) -> PanelHealth | None:
         """The health that proves the stored address answers as this panel.
 
         Only the operations still carried over HTTP need it, and the address
@@ -618,7 +632,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         if health is None or health.discovery_id != session.did:
             # Recovery fences its own answer (entry, address and session) after
             # its I/O, and moves the address when it adopts one.
-            health = await self._async_recover_address()
+            health = await self._async_recover_address(withheld=withheld)
             if health is None:
                 return None
         if self._entry_id is not None:
@@ -784,7 +798,10 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         )
 
     async def _async_recover_address(
-        self, *, report: bool = True
+        self,
+        *,
+        report: bool = True,
+        withheld: list[tuple[str, str]] | None = None,
     ) -> PanelHealth | None:
         """Try the address a connected panel is talking from, when it has one.
 
@@ -794,7 +811,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         read at the adopted address, or nothing when there was neither, no
         other address to try, or the address did not answer as this panel.
         Only a session's last two are reported: without one the panel is
-        unavailable, which the failed poll already says.
+        unavailable, which the failed poll already says. A caller that passes
+        ``withheld`` gets the report there instead, to raise once the session
+        has proved itself live.
         """
         session = self._session()
         entry = self._entry()
@@ -818,10 +837,11 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         )
         if not candidates:
             if session is not None:
-                self._report(
+                self._report_or_withhold(
                     entry,
                     ISSUE_PANEL_ADDRESS_UNREACHABLE,
                     session.remote or stored.host,
+                    withheld,
                 )
             return None
         answers = await async_probe_addresses(self.hass, candidates)
@@ -832,8 +852,11 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             ):
                 break
         else:
-            if session is not None and report:
-                self._report(entry, ISSUE_PANEL_ADDRESS_UNVERIFIED, candidates[0].host)
+            # A session that ended during the probe no longer says "connected".
+            if session is not None and report and self._session() is session:
+                self._report_or_withhold(
+                    entry, ISSUE_PANEL_ADDRESS_UNVERIFIED, candidates[0].host, withheld
+                )
             return None
         # A superseded session or edited entry cannot move an endpoint after I/O.
         if (
@@ -856,6 +879,19 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             entry.title,
         )
         return health
+
+    @callback
+    def _report_or_withhold(
+        self,
+        entry: ConfigEntry,
+        issue: str,
+        session_address: str,
+        withheld: list[tuple[str, str]] | None,
+    ) -> None:
+        if withheld is None:
+            self._report(entry, issue, session_address)
+        else:
+            withheld.append((issue, session_address))
 
     @callback
     def _report(self, entry: ConfigEntry, issue: str, session_address: str) -> None:
