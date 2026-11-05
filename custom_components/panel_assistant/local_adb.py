@@ -426,7 +426,7 @@ async def async_hand_back_home(hass: HomeAssistant, entry: ConfigEntry) -> None:
         )
     handed = result.get("home_handed_to")
     if not isinstance(handed, str) or _PACKAGE_NAME_PATTERN.fullmatch(handed) is None:
-        raise HandBackRefusedError("not-handed")
+        raise HandBackRefusedError.from_not_handed(result)
 
 
 def installation_finished(hass: HomeAssistant, entry_id: str) -> None:

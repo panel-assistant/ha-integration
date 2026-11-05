@@ -77,7 +77,9 @@ case "${0##*/} $1 $2" in
     cat "$s/home" ;;
 "cmd package set-home-activity")
     [ -e "$s/installed/${3%%/*}" ] || exit 1
-    echo "$3" > "$s/home"; echo "set home $3" >> "$s/events" ;;
+    if [ -f "$s/set_home_override" ]; then cat "$s/set_home_override" > "$s/home"
+    else echo "$3" > "$s/home"; fi
+    echo "set home $3" >> "$s/events" ;;
 "pm path "*)
     [ -e "$s/installed/$2" ] || exit 1
     echo "package:/data/app/$2/base.apk" ;;
@@ -191,6 +193,7 @@ class FakePanel:
         self.hand_back: str | int = "hand"
         #: The recorded original home screen a 409 names, when set.
         self.original_home: Any = None
+        self.hand_back_extra: dict[str, Any] = {}
         self.hand_back_requests = 0
         #: Raise after the shell ran, as a dropped connection would.
         self.drop_after: str | None = None
@@ -286,7 +289,13 @@ class FakePanel:
             )
         if mode == "unconfirmed":
             return web.json_response(
-                {"ok": False, "restored": [], "adopted": [], "outstanding": []}
+                {
+                    "ok": False,
+                    "restored": [],
+                    "adopted": [],
+                    "outstanding": [],
+                    **self.hand_back_extra,
+                }
             )
         if mode == "approval":
             return web.json_response(
@@ -1876,10 +1885,11 @@ async def test_a_missing_original_launcher_is_named_with_its_fix(
     ("answer", "original_home", "named"),
     [
         ("handed", None, None),
+        ("shell-target", None, None),
         ("original-home-missing", f"{NOVA}/.Launcher", NOVA),
         ("original-home-missing", "not a component", None),
     ],
-    ids=["handed", "named", "malformed"],
+    ids=["handed", "shell-target", "named", "malformed"],
 )
 async def test_removal_over_the_panel_session_asks_the_app_to_hand_home_back(
     hass: HomeAssistant,
@@ -1933,9 +1943,12 @@ async def test_removal_over_the_panel_session_asks_the_app_to_hand_home_back(
         "hand_back_home",
         {},
     )
-    if answer == "handed":
-        # The app gives HOME to the vendor launcher, as its route does.
-        fake.set(home=VENDOR_HOME)
+    if answer in {"handed", "shell-target"}:
+        # The app either moved HOME itself, or selected a target the shell can set.
+        if answer == "handed":
+            fake.set(home=VENDOR_HOME)
+        else:
+            fake.set(installed=[PACKAGE_ID, PORTAL_HOME.split("/")[0]])
         await session.answer(
             event["command_id"],
             "applied",
@@ -1944,14 +1957,23 @@ async def test_removal_over_the_panel_session_asks_the_app_to_hand_home_back(
                 "restored": [],
                 "adopted": [],
                 "outstanding": [],
-                "home_handed_to": VENDOR_HOME.split("/")[0],
+                **(
+                    {"home_handed_to": VENDOR_HOME.split("/")[0]}
+                    if answer == "handed"
+                    else {"home_target": PORTAL_HOME}
+                ),
             },
         )
         recover = await next_event()
         assert recover["op"] == "adb.recover"
         await session.answer(recover["command_id"], "applied", result={"enabled": True})
         await removing
-        assert fake.installed == []
+        assert fake.installed == (
+            [] if answer == "handed" else [PORTAL_HOME.split("/")[0]]
+        )
+        if answer == "shell-target":
+            assert fake.read()["home"] == PORTAL_HOME
+            assert fake.read()["events"][0] == f"set home {PORTAL_HOME}"
         return
     # A route refusal is HTTP 409, which the session carries as not_commandable
     # with the route's own body.
@@ -1975,3 +1997,115 @@ async def test_removal_over_the_panel_session_asks_the_app_to_hand_home_back(
         )
     assert fake.installed == [PACKAGE_ID]
     assert fake.read()["home"] == APP_HOME
+
+
+PORTAL_HOME = "com.facebook.alohaapps.launcher/com.facebook.aloha.app.home.HomeActivity"
+
+
+@pytest.mark.parametrize("relative_readback", [False, True])
+async def test_rootless_portal_removal_uses_the_app_selected_exact_home(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer], relative_readback: bool
+) -> None:
+    fake, server = panel
+    fake.hand_back = "unconfirmed"
+    fake.hand_back_extra = {"home_target": PORTAL_HOME}
+    selected = PORTAL_HOME
+    if relative_readback:
+        selected = "com.example.home/com.example.home.Launcher"
+        fake.hand_back_extra = {"home_target": "com.example.home/.Launcher"}
+        (fake.state_path / "set_home_override").write_text("com.example.home/.Launcher")
+    fake.set(installed=[PACKAGE_ID, selected.split("/")[0]])
+    entry = _entry(hass, server)
+
+    result = await _remove(hass, entry)
+
+    assert result.get("errors") is None, (result, fake.read())
+    assert result["reason"] == "removed_entry_deleted"
+    assert fake.hand_back_requests == 1
+    assert fake.read()["home"] == (
+        "com.example.home/.Launcher" if relative_readback else selected
+    )
+    assert fake.installed == [selected.split("/")[0]]
+    assert fake.read()["events"] == [
+        f"set home {selected}",
+        f"uninstall {PACKAGE_ID}",
+    ]
+    assert hass.config_entries.async_get_entry(entry.entry_id) is None
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        "com.android.settings/.FallbackHome",
+        "android/.ResolverActivity",
+        f"{PACKAGE_ID}/.DashboardActivity",
+        f"{LEGACY_PACKAGE_ID}/.DashboardActivity",
+        "com.example.home/.Home;echo injected",
+        "com.example.home/$HOME",
+        "",
+        None,
+        7,
+    ],
+)
+async def test_supplied_unsafe_home_never_uses_the_legacy_shelly_fallback(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer], target: Any
+) -> None:
+    fake, server = panel
+    fake.hand_back = "unconfirmed"
+    fake.hand_back_extra = {"home_target": target}
+    fake.set(installed=[PACKAGE_ID, vendor_provisioning.SHELLY_LAUNCHER])
+    entry = _entry(hass, server)
+
+    result = await _remove(hass, entry)
+
+    assert result.get("errors") == {"base": "removal_home_not_handed"}
+    assert PACKAGE_ID in fake.installed
+    assert fake.read()["events"] == []
+    assert hass.config_entries.async_get_entry(entry.entry_id) is entry
+
+
+@pytest.mark.parametrize(
+    "observed",
+    [
+        "com.facebook.alohaapps.launcher/.WrongActivity",
+        FALLBACK_HOME,
+        CHOOSER,
+    ],
+)
+async def test_selected_home_requires_exact_shell_readback_before_uninstall(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer], observed: str
+) -> None:
+    fake, server = panel
+    fake.hand_back = "unconfirmed"
+    fake.hand_back_extra = {"home_target": PORTAL_HOME}
+    fake.set(installed=[PACKAGE_ID, PORTAL_HOME.split("/")[0]])
+    (fake.state_path / "set_home_override").write_text(observed)
+    entry = _entry(hass, server)
+
+    result = await _remove(hass, entry)
+
+    assert result.get("errors") is not None
+    assert PACKAGE_ID in fake.installed
+    assert fake.read()["events"] == [f"set home {PORTAL_HOME}"]
+    assert hass.config_entries.async_get_entry(entry.entry_id) is entry
+
+
+async def test_selected_home_adb_rechecks_identity_before_mutation(
+    hass: HomeAssistant, panel: tuple[FakePanel, TestServer]
+) -> None:
+    fake, server = panel
+    fake.hand_back = "unconfirmed"
+    fake.hand_back_extra = {"home_target": PORTAL_HOME}
+    fake.set(installed=[PACKAGE_ID, PORTAL_HOME.split("/")[0]])
+    entry = _entry(hass, server)
+
+    def identity(*_args: Any) -> None:
+        if fake.hand_back_requests:
+            raise InstallAdbError(InstallAdbErrorCode.TARGET_CHANGED)
+
+    with patch.object(install_adb, "_parse_identity_root", identity):
+        result = await _remove(hass, entry)
+    assert result.get("errors") == {"base": "removal_panel_changed"}
+    assert fake.hand_back_requests == 1
+    assert fake.read()["events"] == []
+    assert PACKAGE_ID in fake.installed

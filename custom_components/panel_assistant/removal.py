@@ -239,7 +239,12 @@ async def _async_remove_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
     except HandBackRefusedError as err:
         # An app that could not make the vendor's launcher HOME answers
         # without one; the panel's shell still can.
-        if (
+        if err.code == "not-handed" and err.home_target is not None:
+            _require_entry(hass, entry)
+            await _async_step(
+                found, MoveStep.HAND_BACK_HOME, home_target=err.home_target
+            )
+        elif (
             err.code != "not-handed"
             or (await _async_step(found, MoveStep.VENDOR_HOME)).home
             not in vendor_provisioning.VENDOR_HOME_PACKAGES
@@ -331,10 +336,15 @@ def _app_left(observed: MoveObservation) -> bool:
 
 
 async def _async_step(
-    found: tuple[AdbInstallTarget, Any], step: MoveStep
+    found: tuple[AdbInstallTarget, Any],
+    step: MoveStep,
+    *,
+    home_target: str | None = None,
 ) -> MoveObservation:
     target, signer = found
     try:
+        if home_target is not None:
+            return await async_move_step(target, signer, step, home_target=home_target)
         return await async_move_step(target, signer, step)
     except InstallAdbError as err:
         if err.code is InstallAdbErrorCode.AUTHORIZATION_REQUIRED:
