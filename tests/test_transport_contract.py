@@ -608,8 +608,8 @@ def _raised_translation_keys() -> dict[str, set[str]]:
             for keyword in node.keywords:
                 if keyword.arg != "translation_key":
                     continue
-                if name == "send_error":
-                    # Codes the panel renders from its own catalogue.
+                if name in {"send_error", "SelectSelectorConfig"}:
+                    # Panel errors and selector options have separate catalogues.
                     continue
                 value = keyword.value
                 if isinstance(value, ast.Name) and _resolve(value, constants) is None:

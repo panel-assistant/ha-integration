@@ -2,10 +2,9 @@
 
 import pytest
 import voluptuous as vol
-import voluptuous_serialize
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.data_entry_flow import FlowManagerIndexView
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from tests.test_transport import DID, WsClientFactory, _hello, _send
@@ -29,9 +28,9 @@ async def test_log_options_are_fleet_wide(
         "system_level": 0,
         "also_home_assistant": False,
     }
-    rendered = voluptuous_serialize.convert(
-        form["data_schema"], custom_serializer=cv.custom_serializer
-    )
+    rendered = FlowManagerIndexView(hass.config_entries.options)._prepare_result_json(
+        form
+    )["data_schema"]
     destination = next(field for field in rendered if field["name"] == "destination")
     assert destination["selector"]["select"].get("translation_key") == "destination"
     # HA's legacy numeric select translates by field name and returns integer keys.
@@ -111,9 +110,9 @@ async def test_saved_destination_is_offered_and_adopted_only_explicitly(
     form = await hass.config_entries.options.async_configure(
         opened["flow_id"], {"next_step_id": "panel_logs"}
     )
-    rendered = voluptuous_serialize.convert(
-        form["data_schema"], custom_serializer=cv.custom_serializer
-    )
+    rendered = FlowManagerIndexView(hass.config_entries.options)._prepare_result_json(
+        form
+    )["data_schema"]
     destination = next(field for field in rendered if field["name"] == "destination")
     assert {"value": f"saved:{DID}", "label": "saved.local:5514 (udp)"} in (
         destination["selector"]["select"]["options"]
