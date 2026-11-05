@@ -13,7 +13,10 @@ and for every locale at once, whether that can happen:
   of our own sentences when its name, area and floor slots may be any text?
   A match only counts when the built-in template contributes at least one
   literal word, so a bare ``{name}`` template (a script or scene said by name)
-  does not count against every phrase.
+  does not count against every phrase. Words between two free slots do not
+  count either: ``{name} in {area}`` is a scene said by name and area, and its
+  "in" would otherwise find a sentence in every phrase with a preposition or,
+  spaces ignored, an "in" inside a word ("sett-in-gs").
 
 Both are intersections of the two grammars' finite automata (hassil's own
 ``fst`` compilation), compared character by character with spaces ignored, so
@@ -198,6 +201,25 @@ class _Automaton:
             prev = nxt
 
 
+# What a left (built-in) path's literal words have earned; see ``claimed``.
+_NONE, _PENDING, _COUNTED, _GLUE = "none", "pending", "counted", "glue"
+
+
+def _after_free_slot(earned: str) -> str:
+    """Entering or staying in a free slot: words pending since the last one
+    were glue between two free slots."""
+    return _GLUE if earned in (_NONE, _PENDING, _GLUE) else _COUNTED
+
+
+def _after_symbol(earned: str, literal: bool) -> str:
+    """One left symbol that is not a free slot: a word, or a number."""
+    if not literal:
+        # A number after the words: they did not sit between two free slots.
+        return _COUNTED if earned is _PENDING else earned
+    # Before any free slot a word counts at once; after one it waits.
+    return _COUNTED if earned in (_NONE, _COUNTED) else _PENDING
+
+
 def _intersect(
     left: _Automaton, right: _Automaton, require_left_literal: bool
 ) -> str | None:
@@ -210,7 +232,10 @@ def _intersect(
     labelled arcs are grouped by label, so a pair of states meets only on the
     labels both offer.
     """
-    start = (left.start, False, right.start, False, False)
+    # The last element is what the left side's literals have earned so far:
+    # COUNTED, or PENDING for words after a free slot, which count only if no
+    # other free slot follows them.
+    start = (left.start, False, right.start, False, _NONE)
     # state -> (previous state, character), to spell the example on success.
     parent: dict[tuple[Any, ...], tuple[Any, str] | None] = {start: None}
     queue: deque[tuple[Any, ...]] = deque([start])
@@ -227,26 +252,32 @@ def _intersect(
         ls, lin, rs, rin, lit = node
         lsym, lwild, lfinal = left.moves(ls)
         rsym, rwild, rfinal = right.moves(rs)
-        if lfinal and rfinal and (lit or not require_left_literal):
+        if (
+            lfinal
+            and rfinal
+            and (lit in (_COUNTED, _PENDING) or not require_left_literal)
+        ):
             return spell(node)
         nexts: list[tuple[tuple[Any, ...], str]] = []
         # Wildcard moves: enter a wildcard arc, or consume one more symbol inside.
         lw = [*lwild, ls] if lin else lwild
         rw = [*rwild, rs] if rin else rwild
+        wild_lit = _after_free_slot(lit)
         for lto in lw:
             for rto in rw:
-                nexts.append(((lto, True, rto, True, lit), "…"))
+                nexts.append(((lto, True, rto, True, wild_lit), "…"))
             for label, targets in rsym.items():
                 char = "…" if label in (SLOT, OPAQUE) else label
                 for rto in targets:
-                    nexts.append(((lto, True, rto, False, lit), char))
+                    nexts.append(((lto, True, rto, False, wild_lit), char))
         if rw:
             for label, targets in lsym.items():
                 literal = label not in (SLOT, OPAQUE)
                 char = label if literal else "…"
+                earned = _after_symbol(lit, literal)
                 for lto in targets:
                     for rto in rw:
-                        nexts.append(((lto, False, rto, True, lit or literal), char))
+                        nexts.append(((lto, False, rto, True, earned), char))
         for label in lsym if len(lsym) <= len(rsym) else rsym:
             rtargets = rsym.get(label)
             ltargets = lsym.get(label)
@@ -254,9 +285,10 @@ def _intersect(
                 continue
             literal = label not in (SLOT, OPAQUE)
             char = label if literal else "…"
+            earned = _after_symbol(lit, literal)
             for lto in ltargets:
                 for rto in rtargets:
-                    nexts.append(((lto, False, rto, False, lit or literal), char))
+                    nexts.append(((lto, False, rto, False, earned), char))
         for state, char in nexts:
             if state not in parent:
                 parent[state] = (node, char)
