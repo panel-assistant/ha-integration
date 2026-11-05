@@ -307,7 +307,7 @@ VOICE_PLAYED_SCHEMA: Final = vol.Schema(
         # Names an announcement; absent for a turn's reply.
         vol.Optional("announce_id"): vol.Match(_ANNOUNCE_ID_PATTERN),
         # Absent when it played to the end; "stopped" when the owner stopped it.
-        vol.Optional("outcome"): vol.In([OUTCOME_STOPPED]),
+        vol.Optional("outcome"): str,
     },
     extra=vol.REMOVE_EXTRA,
 )

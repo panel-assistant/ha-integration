@@ -337,3 +337,36 @@ async def test_a_later_timer_takes_over_the_ring_and_stop_ends_it(
         await _played(panel, event, outcome="stopped")
         await asyncio.sleep(0.3)
         await _nothing_announced(panel)
+
+
+async def test_speaking_to_the_panel_answers_a_ringing_timer(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, entity_id = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    started = asyncio.Event()
+
+    async def listening(hass: HomeAssistant, **kwargs: Any) -> None:
+        started.set()
+        await asyncio.Event().wait()
+
+    with (
+        patch("custom_components.panel_assistant.assist_satellite.RING_PAUSE", 1.0),
+        patch(
+            "homeassistant.components.assist_satellite.entity.async_pipeline_from_audio_stream",
+            listening,
+        ),
+    ):
+        await _timer(hass, _device(hass, entity_id))
+        await _played(panel, await _announcement(panel))
+        await _run(panel, "hey_jarvis")
+        async with asyncio.timeout(5):
+            await started.wait()
+        await asyncio.sleep(1.3)
+        events = await _nothing_announced(panel)
+    assert all(event.get("kind") != "voice_announce" for event in events), events

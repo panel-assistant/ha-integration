@@ -22,6 +22,7 @@ from homeassistant.components.assist_satellite import (
     AssistSatelliteEntity,
     AssistSatelliteEntityFeature,
     AssistSatelliteWakeWord,
+    SatelliteBusyError,
 )
 from homeassistant.components.assist_satellite.entity import AssistSatelliteState
 from homeassistant.components.intent import (
@@ -76,7 +77,7 @@ TIMER_FINISHED_URL: Final = f"{STATIC_URL}/timer_finished.flac"
 # A finished timer rings until the panel says the owner stopped it, or for about
 # as long as the Voice Preview Edition rings, with a pause between rings.
 RING_FOR: Final = 15 * 60.0
-RING_PAUSE: Final = 1.0
+RING_PAUSE: Final = 2.0
 
 
 async def async_setup_entry(
@@ -222,14 +223,17 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         until = self.hass.loop.time() + RING_FOR
         try:
             while True:
-                if timer.name:
-                    await self.async_internal_announce(
-                        message=timer.name, preannounce_media_id=TIMER_FINISHED_URL
-                    )
-                else:
-                    await self.async_internal_announce(
-                        media_id=TIMER_FINISHED_URL, preannounce=False
-                    )
+                try:
+                    if timer.name:
+                        await self.async_internal_announce(
+                            message=timer.name, preannounce_media_id=TIMER_FINISHED_URL
+                        )
+                    else:
+                        await self.async_internal_announce(
+                            media_id=TIMER_FINISHED_URL, preannounce=False
+                        )
+                except SatelliteBusyError:
+                    pass  # another announcement plays; ring after it
                 if self.hass.loop.time() >= until:
                     return
                 # The panel reports a stop as it ends the sound, so wait for it.
@@ -376,6 +380,9 @@ class PanelAssistSatellite(AssistSatelliteEntity):
     async def async_run(self, run: VoiceRun) -> None:
         """Run one conversation turn from the panel's audio."""
         voice = self._voice
+        # The owner speaking to the panel answers a ringing timer.
+        if self._ring_stopped is not None:
+            self._ring_stopped.set()
         self._run = run
         self._reply_run = run
         self._reply_session = None
@@ -522,7 +529,11 @@ class PanelAssistSatellite(AssistSatelliteEntity):
     @callback
     def async_played(self, announce_id: str | None, outcome: str | None) -> None:
         """The panel finished playing an announcement, or a turn's reply."""
-        if outcome == OUTCOME_STOPPED and self._ring_stopped is not None:
+        if (
+            outcome == OUTCOME_STOPPED
+            and announce_id is not None
+            and self._ring_stopped is not None
+        ):
             # Only a ring plays while a timer rings.
             self._ring_stopped.set()
         if announce_id is None:
