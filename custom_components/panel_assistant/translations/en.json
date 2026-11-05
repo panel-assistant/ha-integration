@@ -108,7 +108,7 @@
     },
     "progress": {
       "authorize_adb": "Look at the screen of the panel at {address}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer.\n\nThis carries on by itself once the panel allows it.",
-      "installing": "Installing Panel Assistant on {address}. Keep this dialog open; it finishes on its own.\n\nIf you close it, the install keeps running. Add the same address again to finish.",
+      "installing": "Installing Panel Assistant on {address}. Keep this dialog open; it finishes on its own.\n\nIf the panel shows \"Send app for a security check?\" from Google Play Protect, tap one of its buttons on the panel. The install waits until you do. \"Always send unknown apps\" stops it asking again.\n\nIf you close it, the install keeps running. Add the same address again to finish.",
       "updating_webview": "Updating the panel's browser engine on {address}…"
     },
     "error": {
