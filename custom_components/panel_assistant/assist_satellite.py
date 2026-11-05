@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import secrets
@@ -55,6 +56,7 @@ from .transport_sessions import (
 from .voice import (
     EVENT_VOICE_ANNOUNCE,
     EVENT_VOICE_COLORS,
+    OUTCOME_STOPPED,
     VoiceConfiguration,
     VoiceRun,
     panel_url,
@@ -71,6 +73,10 @@ ANNOUNCE_TIMEOUT: Final = 5 * 60.0
 
 # The Voice Preview Edition's timer sound (see static/THIRD_PARTY.md).
 TIMER_FINISHED_URL: Final = f"{STATIC_URL}/timer_finished.flac"
+# A finished timer rings until the panel says the owner stopped it, or for about
+# as long as the Voice Preview Edition rings, with a pause between rings.
+RING_FOR: Final = 15 * 60.0
+RING_PAUSE: Final = 1.0
 
 
 async def async_setup_entry(
@@ -121,6 +127,9 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         # The colours last sent, and the session they were sent on.
         self._colors_sent: tuple[str, dict[str, str]] | None = None
         self._unregister_timers: Callable[[], None] | None = None
+        # Set when the owner stops the timer ringing now, and the task ringing it.
+        self._ring_stopped: asyncio.Event | None = None
+        self._ring_task: asyncio.Task[None] | None = None
         # The players this panel turns down while it holds a conversation.
         self._duck: RoomDuck
 
@@ -193,27 +202,49 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         if self._unregister_timers is not None:
             self._unregister_timers()
             self._unregister_timers = None
+        if self._ring_task is not None:
+            self._ring_task.cancel()
 
     @callback
     def _timer_event(self, event_type: TimerEventType, timer: TimerInfo) -> None:
         """Ring when a timer finishes; Home Assistant keeps the countdown."""
         if event_type is TimerEventType.FINISHED:
-            self.hass.async_create_task(
-                self._async_ring(timer), f"{self.entity_id}_timer_finished"
+            # A later timer takes over the ring.
+            if self._ring_task is not None:
+                self._ring_task.cancel()
+            self._ring_stopped = asyncio.Event()
+            self._ring_task = self.hass.async_create_background_task(
+                self._async_ring(timer, self._ring_stopped),
+                f"{self.entity_id}_timer_finished",
             )
 
-    async def _async_ring(self, timer: TimerInfo) -> None:
+    async def _async_ring(self, timer: TimerInfo, stopped: asyncio.Event) -> None:
+        until = self.hass.loop.time() + RING_FOR
         try:
-            if timer.name:
-                await self.async_internal_announce(
-                    message=timer.name, preannounce_media_id=TIMER_FINISHED_URL
-                )
-            else:
-                await self.async_internal_announce(
-                    media_id=TIMER_FINISHED_URL, preannounce=False
-                )
+            while True:
+                if timer.name:
+                    await self.async_internal_announce(
+                        message=timer.name, preannounce_media_id=TIMER_FINISHED_URL
+                    )
+                else:
+                    await self.async_internal_announce(
+                        media_id=TIMER_FINISHED_URL, preannounce=False
+                    )
+                if self.hass.loop.time() >= until:
+                    return
+                # The panel reports a stop as it ends the sound, so wait for it.
+                with contextlib.suppress(TimeoutError):
+                    async with asyncio.timeout(RING_PAUSE):
+                        await stopped.wait()
+                if stopped.is_set():
+                    return
         except HomeAssistantError as err:  # busy, or the panel went away
             _LOGGER.warning("The panel could not ring for timer %s: %s", timer.id, err)
+        finally:
+            # A later timer's ring may already have taken over.
+            if self._ring_task is asyncio.current_task():
+                self._ring_stopped = None
+                self._ring_task = None
 
     @callback
     def _schedule_colors(self) -> None:
@@ -489,8 +520,11 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         super().tts_response_finished()
 
     @callback
-    def async_played(self, announce_id: str | None) -> None:
+    def async_played(self, announce_id: str | None, outcome: str | None) -> None:
         """The panel finished playing an announcement, or a turn's reply."""
+        if outcome == OUTCOME_STOPPED and self._ring_stopped is not None:
+            # Only a ring plays while a timer rings.
+            self._ring_stopped.set()
         if announce_id is None:
             # A streamed reply was finished at drain; a panel may still say so.
             if not self._reply_streamed:

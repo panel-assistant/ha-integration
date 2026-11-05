@@ -16,7 +16,8 @@ Three requests and one event kind carry it, all on the panel's session:
   ``text``), the reply as the agent writes it (``reply``, its ``text`` so far
   and ``final`` once the reply is complete), what to play (``play``) and that
   the turn is over (``end``).
-- ``voice_played``: the panel finished playing a reply or an announcement.
+- ``voice_played``: the panel finished playing a reply or an announcement, with
+  ``outcome: "stopped"`` when the owner stopped it.
 - ``voice_announce`` events on the hello subscription ask the panel to play an
   announcement, and optionally to listen afterwards.
 - ``voice_colors`` events on the hello subscription give the colour of each
@@ -90,6 +91,7 @@ _LOGGER = logging.getLogger(__name__)
 COMMAND_VOICE_CONFIGURATION: Final = f"{DOMAIN}/voice_configuration"
 COMMAND_VOICE_RUN: Final = f"{DOMAIN}/voice_run"
 COMMAND_VOICE_PLAYED: Final = f"{DOMAIN}/voice_played"
+OUTCOME_STOPPED: Final = "stopped"
 COMMAND_VOICE_STREAM_FRAME: Final = f"{DOMAIN}/voice_stream_frame"
 COMMAND_VOICE_STREAM_RESET: Final = f"{DOMAIN}/voice_stream_reset"
 COMMAND_VOICE_STREAM_STOP: Final = f"{DOMAIN}/voice_stream_stop"
@@ -304,6 +306,8 @@ VOICE_PLAYED_SCHEMA: Final = vol.Schema(
         vol.Required("session"): _session_token,
         # Names an announcement; absent for a turn's reply.
         vol.Optional("announce_id"): vol.Match(_ANNOUNCE_ID_PATTERN),
+        # Absent when it played to the end; "stopped" when the owner stopped it.
+        vol.Optional("outcome"): vol.In([OUTCOME_STOPPED]),
     },
     extra=vol.REMOVE_EXTRA,
 )
@@ -532,7 +536,7 @@ def ws_voice_played(
     """Note that the panel finished playing a reply or an announcement."""
     if (satellite := _session_for(hass, connection, msg)) is None:
         return
-    satellite.async_played(msg.get("announce_id"))
+    satellite.async_played(msg.get("announce_id"), msg.get("outcome"))
     connection.send_result(msg["id"], {})
 
 
