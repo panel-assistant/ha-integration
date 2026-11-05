@@ -255,7 +255,13 @@ async def _async_remove_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
         # An interrupted run may already have handed HOME back and removed the
         # app under one id, which leaves nothing to answer. Only a panel whose
         # HOME is already another launcher goes on without the app.
-        if observed.home is None or observed.home in _NOT_A_LAUNCHER:
+        if (
+            observed.home is None
+            or observed.home in _NOT_A_LAUNCHER
+            # The surviving app owns the original brightness record. HOME alone cannot
+            # prove it was restored; keep the app and its custody until it answers.
+            or observed.shelly_installed
+        ):
             raise RemovalError(REASON_APP_UNREACHABLE) from err
     _require_entry(hass, entry)
     await _async_restore_vendor_setup(found)

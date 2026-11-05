@@ -23,6 +23,7 @@ from .client import (
     HaPaneldError,
     PanelAddress,
     UpdateApprovalRequiredError,
+    check_vendor_brightness_restore,
 )
 from .transport_protocol import (
     CAPABILITY_LOCAL_ADB,
@@ -424,6 +425,7 @@ async def async_hand_back_home(hass: HomeAssistant, entry: ConfigEntry) -> None:
         raise HandBackRefusedError.from_refusal(
             result.get("error"), result.get("original_home")
         )
+    check_vendor_brightness_restore(result)
     handed = result.get("home_handed_to")
     if not isinstance(handed, str) or _PACKAGE_NAME_PATTERN.fullmatch(handed) is None:
         raise HandBackRefusedError("not-handed")

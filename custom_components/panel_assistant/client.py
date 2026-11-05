@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING, Any, NoReturn
@@ -151,6 +152,20 @@ class HandBackRefusedError(UpdateRejectedError):
             code if isinstance(code, str) else "refused",
             launcher if _PACKAGE_NAME_PATTERN.fullmatch(launcher) else None,
         )
+
+
+def check_vendor_brightness_restore(result: dict[str, Any]) -> None:
+    """Keep failures retryable and disclose the limit of pre-record installations."""
+    outcome = result.get("vendor_brightness")
+    if outcome == "unknown":
+        logging.getLogger(__name__).warning(
+            "The original vendor automatic brightness setting was not recorded by "
+            "the previous app; it was left unchanged. If your panel uses vendor "
+            "automatic brightness, check it "
+            "in the vendor settings after removal"
+        )
+    elif outcome is not None and outcome not in ("restored", "untouched"):
+        raise HandBackRefusedError("vendor-brightness-unrestored")
 
 
 def is_valid_discovery_id(value: str) -> bool:
@@ -923,7 +938,9 @@ class HaPaneldClient:
             )
         if status != 200:
             raise UpdateRejectedError if 400 <= status < 500 else CannotConnectError
-        handed_to = _load_json_object(body).get("home_handed_to")
+        result = _load_json_object(body)
+        check_vendor_brightness_restore(result)
+        handed_to = result.get("home_handed_to")
         if (
             not isinstance(handed_to, str)
             or _PACKAGE_NAME_PATTERN.fullmatch(handed_to) is None
