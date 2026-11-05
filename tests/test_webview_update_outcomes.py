@@ -381,6 +381,37 @@ async def test_plain_update_failure_keeps_the_update_wording(
     assert issue is not None and issue.translation_key == "installer_failure_update"
 
 
+async def test_adb_authorization_update_repair_comes_back_as_itself_after_a_restart(
+    hass: HomeAssistant,
+) -> None:
+    from custom_components.panel_assistant.repairs_failure import (
+        async_restore_update_failure,
+    )
+    from custom_components.panel_assistant.update_errors import adb_authorization_error
+
+    _, _, entry, issue_id = _native(hass)
+    await async_record_update_failure(
+        hass,
+        entry.entry_id,
+        "Panel",
+        "0.9.10",
+        adb_authorization_error(hass, entry.entry_id, "Panel"),
+    )
+    registry = ir.async_get(hass)
+    issue = registry.async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_key == "installer_failure_adb_authorization"
+    ir.async_delete_issue(hass, DOMAIN, issue_id)
+    # Home Assistant starts again with only the saved report.
+    await async_restore_update_failure(hass, entry.entry_id)
+    restored = registry.async_get_issue(DOMAIN, issue_id)
+    assert restored is not None
+    assert restored.translation_key == "installer_failure_adb_authorization"
+    assert "adb_update_authorization" in (restored.translation_placeholders or {}).get(
+        "approval_url", ""
+    )
+
+
 class _NoPauseAsyncio:
     """asyncio as a module sees it, except that a pause returns at once."""
 
