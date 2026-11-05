@@ -52,6 +52,7 @@ Pairs with the 1.0.0 panel app, which each panel is offered as an update.
 
 ### Fixed
 
+- **Panel cameras work on Home Assistant 2026.11.** A panel's camera, which is off until you turn it on, is no longer left out with an error when Home Assistant starts, and reloading or removing a panel no longer fails on it.
 - **Installs and updates no longer stall on some rooted panels.** This applies over the network and with the USB installer.
 - **A panel signed in as a local-only user is given only local addresses.** It is no longer given your external or Home Assistant Cloud address, so it cannot fall back to a route Home Assistant refuses.
 - **Synchronised speech is sturdier.** Announcements and spoken replies fall back to playing on each panel independently when preparing synchronised speech takes too long, recover, with the 1.0.0 panel app, when the audio connection closes without replaying interrupted speech, and keep a busy panel in step with the others instead of dropping it.
