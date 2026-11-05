@@ -945,6 +945,10 @@
         }
       }
     },
+    "panel_restore_interrupted": {
+      "title": "{panel} nie dokończył przywracania kopii zapasowej.",
+      "description": "Aplikacja panelu na {panel} zatrzymała się w trakcie przywracania kopii zapasowej, więc może brakować części ustawień lub stanu panelu z kopii.\n\nAby rozwiązać problem:\n1. Otwórz [kartę Instalacja]({install_url}) na stronie panelu na pasku bocznym Panel Assistant.\n2. Przywróć ponownie tę samą kopię zapasową.\n\n[Dowiedz się więcej]({learn_more_url})"
+    },
     "panel_proximity_setup": {
       "title": "Skonfiguruj czujnik zbliżeniowy na panelu {panel}.",
       "fix_flow": {

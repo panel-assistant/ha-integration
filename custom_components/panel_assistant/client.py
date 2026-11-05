@@ -216,6 +216,9 @@ class PanelInstallStatus:
     awaiting_confirmation: bool = False
     # The finished operation's result line, such as "refused (<reason>)".
     message: str = ""
+    # A finished restore that Android cut short; the app keeps reporting it
+    # until the next destructive operation. Older apps never send it.
+    restore_interrupted: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -476,11 +479,16 @@ def parse_panel_install_status(body: bytes) -> PanelInstallStatus:
         or any(not " " <= character <= "~" for character in message)
     ):
         message = ""
+    result = document.get("result")
+    interrupted = (
+        not running and isinstance(result, dict) and result.get("interrupted") is True
+    )
     return PanelInstallStatus(
         running=running,
         component=component,
         awaiting_confirmation=awaiting,
         message=message,
+        restore_interrupted=interrupted,
     )
 
 

@@ -945,6 +945,10 @@
         }
       }
     },
+    "panel_restore_interrupted": {
+      "title": "{panel} non ha completato il ripristino di un backup.",
+      "description": "L'app del pannello su {panel} si è fermata a metà del ripristino di un backup, quindi alcune impostazioni o lo stato del pannello del backup potrebbero mancare.\n\nPer risolvere:\n1. Apri la [scheda Installa]({install_url}) nella pagina del pannello nella barra laterale di Panel Assistant.\n2. Ripristina di nuovo lo stesso backup.\n\n[Ulteriori informazioni]({learn_more_url})"
+    },
     "panel_proximity_setup": {
       "title": "Configura la prossimità su {panel}.",
       "fix_flow": {

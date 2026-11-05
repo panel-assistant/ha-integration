@@ -945,6 +945,10 @@
         }
       }
     },
+    "panel_restore_interrupted": {
+      "title": "{panel} n'a pas terminé la restauration d'une sauvegarde.",
+      "description": "L'application du panneau sur {panel} s'est arrêtée au milieu de la restauration d'une sauvegarde : certains réglages ou l'état du panneau issus de la sauvegarde peuvent manquer.\n\nPour corriger le problème :\n1. Ouvrez l'[onglet Installation]({install_url}) sur la page du panneau dans la barre latérale Panel Assistant.\n2. Restaurez à nouveau la même sauvegarde.\n\n[En savoir plus]({learn_more_url})"
+    },
     "panel_proximity_setup": {
       "title": "Configurez la proximité sur {panel}.",
       "fix_flow": {

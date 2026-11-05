@@ -945,6 +945,10 @@
         }
       }
     },
+    "panel_restore_interrupted": {
+      "title": "{panel} 未完成备份恢复。",
+      "description": "{panel} 上的面板应用在恢复备份的中途停止，因此备份中的部分设置或面板状态可能缺失。\n\n解决方法：\n1. 在 Panel Assistant 侧边栏中打开该面板页面的[安装选项卡]({install_url})。\n2. 再次恢复同一个备份。\n\n[了解更多]({learn_more_url})"
+    },
     "panel_proximity_setup": {
       "title": "请在 {panel} 上设置接近传感器。",
       "fix_flow": {

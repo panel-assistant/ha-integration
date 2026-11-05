@@ -945,6 +945,10 @@
         }
       }
     },
+    "panel_restore_interrupted": {
+      "title": "{panel} nedokončil obnovení zálohy.",
+      "description": "Aplikace panelu na {panel} se zastavila uprostřed obnovy zálohy, takže některá nastavení nebo stav panelu ze zálohy mohou chybět.\n\nPostup opravy:\n1. Otevřete [kartu Instalace]({install_url}) na stránce panelu v postranním panelu Panel Assistant.\n2. Obnovte stejnou zálohu znovu.\n\n[Další informace]({learn_more_url})"
+    },
     "panel_proximity_setup": {
       "title": "Nastavte detekci přiblížení na panelu {panel}.",
       "fix_flow": {

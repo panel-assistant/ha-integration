@@ -945,6 +945,10 @@
         }
       }
     },
+    "panel_restore_interrupted": {
+      "title": "{panel} no terminó de restaurar una copia de seguridad.",
+      "description": "La app del panel en {panel} se detuvo a mitad de la restauración de una copia de seguridad, así que pueden faltar algunos ajustes o estado del panel de la copia.\n\nPara solucionarlo:\n1. Abre la [pestaña Instalar]({install_url}) en la página del panel en la barra lateral de Panel Assistant.\n2. Restaura de nuevo la misma copia de seguridad.\n\n[Más información]({learn_more_url})"
+    },
     "panel_proximity_setup": {
       "title": "Configura la proximidad en {panel}.",
       "fix_flow": {
