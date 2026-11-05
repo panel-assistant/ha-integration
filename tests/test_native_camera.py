@@ -1,11 +1,16 @@
 """Standard camera behaviour through a real panel transport session."""
 
 import asyncio
+import logging
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from homeassistant.components.camera import CameraEntityFeature, async_get_image
+from homeassistant.components.camera import (
+    CameraEntityFeature,
+    StreamType,
+    async_get_image,
+)
 from homeassistant.components.stream import Stream
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
@@ -97,6 +102,46 @@ async def test_camera_off_is_available_and_refuses_media_then_fetches_fresh_stil
         assert await camera.async_camera_image(320, 180) == b"320x180"
     assert await camera.async_create_stream() is stream
     assert stream.endpoint_url("hls") == endpoint
+
+
+async def test_a_camera_added_while_off_and_unloaded_raises_nothing_and_drops_media(
+    hass: HomeAssistant,
+    native: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Off is the default, so most panels' cameras are added off.
+
+    Adding one and unloading its entry log no error on any supported Home
+    Assistant, and turning it off or unloading stops its stream and stops
+    offering a stream to the frontend.
+    """
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    camera, token = await _camera(hass, native, client)
+    assert camera is not None
+    assert hass.states.get(camera.entity_id).state == "idle"
+    assert camera.camera_capabilities.frontend_stream_types == set()
+
+    await _on(hass, client, token, True)
+    assert camera.camera_capabilities.frontend_stream_types == {StreamType.HLS}
+    stream = await camera.async_create_stream()
+    assert stream is not None
+    with patch.object(Stream, "stop", autospec=True) as stop:
+        await _on(hass, client, token, False)
+    assert camera.stream is None
+    assert [call.args[0] for call in stop.await_args_list] == [stream]
+    assert camera.camera_capabilities.frontend_stream_types == set()
+
+    await _on(hass, client, token, True)
+    stream = await camera.async_create_stream()
+    assert stream is not None
+    with patch.object(Stream, "stop", autospec=True) as stop:
+        assert await hass.config_entries.async_unload(native.entry_id)
+        await hass.async_block_till_done()
+    assert camera.stream is None
+    assert [call.args[0] for call in stop.await_args_list] == [stream]
+    assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
 
 
 async def test_snapshot_after_entry_address_update_replaces_source_and_revokes_old_hls(
