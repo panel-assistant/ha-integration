@@ -266,7 +266,8 @@ async def test_a_finished_timer_rings_again_until_the_panel_stops_it(
     first = await _announcement(panel)
     await _played(panel, first)
     second = await _announcement(panel)
-    assert second["url"] == first["url"]
+    # The same sound, its signature made afresh.
+    assert second["url"].split("?")[0] == first["url"].split("?")[0]
     assert second["announce_id"] != first["announce_id"]
     await _played(panel, second, outcome="stopped")
     # Past the pause before another ring.
