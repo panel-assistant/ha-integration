@@ -591,6 +591,45 @@ async def test_an_announcement_plays_on_the_panel_and_waits_for_it(
         await call
 
 
+async def test_starting_a_conversation_asks_the_panel_to_listen_after_speaking(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+) -> None:
+    panel, entity_id = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    satellite = hass.data[DATA_COMPONENT].get_entity(entity_id)
+    assert satellite is not None
+    call = asyncio.ensure_future(
+        satellite.async_start_conversation(
+            AssistSatelliteAnnouncement(
+                "", "/local/doorbell.mp3", "/local/doorbell.mp3", None, "url"
+            )
+        )
+    )
+    message = await panel.receive()
+    assert message["id"] == panel.subscription
+    event = message["event"]
+    assert event["kind"] == "voice_announce"
+    assert event["listen_after"] is True
+    assert event["preannounce_url"] is None
+    assert event["url"].startswith("/local/doorbell.mp3")
+    await asyncio.sleep(0)
+    assert not call.done()
+    played = await panel.send(
+        {
+            "type": "panel_assistant/voice_played",
+            "session": panel.token,
+            "announce_id": event["announce_id"],
+        },
+    )
+    assert played["success"]
+    async with asyncio.timeout(5):
+        await call
+
+
 async def test_an_announcement_fails_when_its_session_ends(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,

@@ -1764,7 +1764,10 @@ async def test_post_one_release_uses_native_version_code_without_feed_diagnostic
     delivery: SimpleNamespace,
 ) -> None:
     """A newer version label cannot permit a lower Android build number."""
-    candidate = feed_release_artifact(replace(_build(772), version_name="1.1.0"))
+    candidate = replace(
+        feed_release_artifact(replace(_build(772), version_name="1.1.0")),
+        tag="v1.1.0",
+    )
     entity, client = _entity(
         hass, version="1.0.0", with_feed=False, installed_code=None
     )
@@ -1774,7 +1777,8 @@ async def test_post_one_release_uses_native_version_code_without_feed_diagnostic
         health=replace(snapshot.health, version_code=800),
     )
     entity._offer.release = StableReleaseCoordinator(hass)
-    entity._offer.release._candidates[candidate.tag, LEGACY_PACKAGE_ID] = candidate
+    entity._offer.release._candidates[candidate.tag, PACKAGE_ID] = candidate
+    assert entity._offer.release.candidates_for(PACKAGE_ID) == (candidate,)
     assert entity.latest_version == entity.installed_version
     with pytest.raises(HomeAssistantError) as caught:
         await entity.async_install(None, False)
@@ -1782,6 +1786,14 @@ async def test_post_one_release_uses_native_version_code_without_feed_diagnostic
     client.async_backup_panel.assert_not_awaited()
     client.async_stage_apk.assert_not_awaited()
     delivery.download.assert_not_awaited()
+    client.async_get_version_code.assert_not_awaited()
+
+    entity.coordinator.data = replace(
+        snapshot,
+        health=replace(snapshot.health, version_code=771),
+    )
+    assert entity.latest_version == "1.1.0"
+    client.async_get_version_code.assert_not_awaited()
 
 
 def _refuse_committed_install(client: SimpleNamespace, reason: str) -> None:

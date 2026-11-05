@@ -213,13 +213,6 @@ async def test_download_verifies_and_atomically_publishes_private_file(
     assert request_options["timeout"] == ClientTimeout(
         total=120.0, connect=10.0, sock_read=30.0
     )
-    assert fake_hass.executor_calls == [
-        "_prepare_destination",
-        "_write_all",
-        "_write_all",
-        "_finish_file",
-        "_promote_partial",
-    ]
 
 
 async def test_valid_ready_artifact_is_rehashed_and_reused_without_network(

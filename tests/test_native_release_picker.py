@@ -315,23 +315,24 @@ async def test_setup_wizard_opens_and_the_flow_connects_when_setup_is_done(hass)
     assert setup.await_count == 2
 
 
-async def test_a_panel_that_cannot_report_setup_connects_as_before(hass):
-    """An older panel without the setup report is treated as set up."""
+async def test_a_panel_that_cannot_report_setup_is_offered_its_setup(hass):
+    """A failed setup read cannot advertise a new panel as set up."""
     with (
         patch(
             f"{_FLOW}.HaPaneldClient.async_get_health", AsyncMock(return_value=HEALTH)
         ),
         patch(
-            f"{_FLOW}.HaPaneldClient.async_get_setup_complete",
+            f"{_FLOW}.HaPaneldClient.async_get_setup_state",
             AsyncMock(side_effect=CannotConnectError),
-        ),
+        ) as setup,
     ):
         form = await _start_step(hass, "add_panel")
         found = await hass.config_entries.flow.async_configure(
             form["flow_id"], {CONF_ADDRESS: "panel.local:8889"}
         )
-    assert found["step_id"] == "found_panel"
-    assert found["menu_options"] == ["connect_found", "add_panel"]
+    setup.assert_awaited_once()
+    assert found["step_id"] == "found_unconfigured"
+    assert found["menu_options"] == ["panel_setup", "add_panel"]
 
 
 @pytest.mark.parametrize(

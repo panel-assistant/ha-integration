@@ -1,5 +1,6 @@
 """Provider work belongs to an owner-started app bundle and its one retry Repair."""
 
+import asyncio
 import json
 from types import SimpleNamespace
 from typing import Any
@@ -14,7 +15,9 @@ from homeassistant.setup import async_setup_component
 
 from custom_components.panel_assistant.client import (
     CannotConnectError,
+    HaPaneldClient,
     InvalidResponseError,
+    normalize_address,
 )
 from custom_components.panel_assistant.const import (
     CONF_TRANSPORT_USER_ID,
@@ -54,6 +57,45 @@ def status(value: dict[str, Any]) -> Any:
     return parse_status_response(
         json.dumps({"warnings": [], "capabilities": [], "webview": value})
     )
+
+
+@pytest.mark.parametrize("accepted_status", [200, 202, 409])
+async def test_first_install_provider_uses_the_real_http_contract(
+    socket_enabled: None, accepted_status: int
+) -> None:
+    from aiohttp import ClientSession, web
+    from aiohttp.test_utils import TestServer
+
+    requests: list[tuple[str, Any]] = []
+
+    async def observe(_request: web.Request) -> web.Response:
+        requests.append(("GET", None))
+        return web.json_response(
+            observation("installed", eligible=False)
+            if len(requests) > 1
+            else observation()
+        )
+
+    async def install(request: web.Request) -> web.Response:
+        requests.append(("POST", dict(await request.post())))
+        return web.json_response(observation("downloading"), status=accepted_status)
+
+    app = web.Application()
+    app.router.add_get("/api/v1/webview", observe)
+    app.router.add_post("/api/v1/webview", install)
+    async with TestServer(app, host="127.0.0.1") as server, ClientSession() as session:
+        client = HaPaneldClient(session, normalize_address(f"127.0.0.1:{server.port}"))
+        async with asyncio.timeout(5):
+            await async_provision_webview(client, "pa-install-owner")
+
+    assert requests == [
+        ("GET", None),
+        (
+            "POST",
+            {"request_id": "pa-install-owner", "artifact_sha256": "c" * 64},
+        ),
+        ("GET", None),
+    ]
 
 
 @pytest.mark.parametrize(

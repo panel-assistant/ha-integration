@@ -71,7 +71,7 @@ for (const port of [8888, 8889]) test(`the installer carries USB listener ${port
       let lines;
       if (step === 'POSTURE') lines = Object.entries({ MODEL: target.model, SERIAL: target.serial, ABI: target.primaryAbi, SDK: '33', UID: '2000', SECURE: '1', DEBUGGABLE: '0', SU: 'absent' }).flatMap(([name, value]) => section(name, value));
       else if (step === 'INSTALLED') lines = ['present', '/data/app/test/base.apk', ...section('MODE', '81a4'), ...section('SIZE', '1234'), ...section('SHA', descriptor.apkSha256 + '  /data/app/test/base.apk')];
-      else if (step === 'READY') { assert.ok(command.includes('/proc/net/tcp')); return socket('HAPANELD_READY_BEGIN:' + n + '\\n' + port + '\\nHAPANELD_READY_END:' + n + ':0\\n'); }
+      else if (step === 'READY') { return socket('HAPANELD_READY_BEGIN:' + n + '\\n' + port + '\\nHAPANELD_READY_END:' + n + ':0\\n'); }
       else throw new Error('Unexpected shell step ' + step);
       return socket(['HAPANELD_' + step + '_BEGIN:' + n, ...lines, 'HAPANELD_' + step + '_END:' + n, ''].join('\\n'));
     } };

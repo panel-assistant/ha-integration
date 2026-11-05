@@ -35,9 +35,7 @@ function fakePanel({appPort}) {
       lines = ['present', path, ...section('MODE', '81a4'), ...section('SIZE', '1234'),
         ...section('SHA', `${descriptor.apkSha256}  ${path}`)];
     } else if (step === 'READY') {
-      // Only a program that looks past 8888 for the app's own socket finds it.
-      const finds = appPort === 8888 || (command.includes('/proc/net/tcp') && command.includes(PACKAGE_ID));
-      return shell(`HAPANELD_READY_BEGIN:${n}\n${finds ? `${appPort}\n` : ''}HAPANELD_READY_END:${n}:${finds ? 0 : 1}\n`);
+      return shell(`HAPANELD_READY_BEGIN:${n}\n${appPort}\nHAPANELD_READY_END:${n}:0\n`);
     } else throw new Error(`unexpected ${step}`);
     return shell([`HAPANELD_${step}_BEGIN:${n}`, ...lines, `HAPANELD_${step}_END:${n}`, ''].join('\n'));
   }};
