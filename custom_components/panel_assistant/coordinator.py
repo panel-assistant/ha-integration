@@ -836,7 +836,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             )
         )
         if not candidates:
-            if session is not None:
+            if session is not None and report:
                 self._report_or_withhold(
                     entry,
                     ISSUE_PANEL_ADDRESS_UNREACHABLE,
