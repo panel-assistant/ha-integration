@@ -127,7 +127,9 @@ async def _room(
         return True
 
     everything = [*players, *([elsewhere] if elsewhere else [])]
-    mock_integration(hass, MockModule("test", async_setup_entry=setup_entry))
+    mock_integration(
+        hass, MockModule("test", async_setup_entry=setup_entry), built_in=False
+    )
     mock_platform(hass, "test.config_flow", None)
     setup_test_component_platform(
         hass, "media_player", everything, from_config_entry=True
@@ -248,6 +250,7 @@ async def test_a_recreated_player_keeps_its_volume_after_the_turn(
         MockModule(
             "test", async_setup_entry=setup_entry, async_unload_entry=unload_entry
         ),
+        built_in=False,
     )
     mock_platform(hass, "test.config_flow", None)
     platform = setup_test_component_platform(
