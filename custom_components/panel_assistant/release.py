@@ -112,6 +112,20 @@ class ReleaseResolutionError(Exception):
     """Raised when a selected release cannot be authenticated exactly."""
 
 
+class ReleaseTooLargeError(ReleaseResolutionError):
+    """Raised when a response is over its byte bound.
+
+    size is the exact byte count when Content-Length gave it, else None for a
+    streamed body that merely passed the limit.
+    """
+
+    def __init__(self, limit: int, size: int | None = None) -> None:
+        # No message: release-catalogue callers append str(err) only when it is set.
+        super().__init__()
+        self.limit = limit
+        self.size = size
+
+
 class ReleaseDownloadError(ReleaseResolutionError):
     """Raised when release data could not be downloaded at all."""
 
@@ -488,7 +502,7 @@ async def _async_fetch_bounded(
 
                     content_length = response.content_length
                     if content_length is not None and content_length > maximum_bytes:
-                        raise ReleaseResolutionError
+                        raise ReleaseTooLargeError(maximum_bytes, content_length)
 
                     body = bytearray()
                     async for chunk in response.content.iter_chunked(maximum_bytes + 1):
@@ -496,7 +510,7 @@ async def _async_fetch_bounded(
                             raise ReleaseResolutionError
                         body.extend(chunk)
                         if len(body) > maximum_bytes:
-                            raise ReleaseResolutionError
+                            raise ReleaseTooLargeError(maximum_bytes)
                     return bytes(body)
     except ReleaseResolutionError:
         raise

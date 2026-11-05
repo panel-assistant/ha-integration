@@ -16,6 +16,7 @@ from .app_identity import PACKAGE_ID
 from .build_feed import (
     BuildFeed,
     BuildFeedError,
+    BuildFeedTooLargeError,
     FeedBuild,
     async_download_build,
     async_fetch_build_feed,
@@ -129,6 +130,8 @@ class BuildFeedCoordinator(DataUpdateCoordinator[BuildFeed]):
         try:
             session = async_get_clientsession(self.hass)
             feed = await async_fetch_build_feed(session, self.feed_url)
+        except BuildFeedTooLargeError as err:
+            raise UpdateFailed(str(err)) from err
         except BuildFeedError as err:
             raise UpdateFailed("The build feed could not be authenticated") from err
         current_hashes = {build.apk_sha256 for build in feed.builds}
