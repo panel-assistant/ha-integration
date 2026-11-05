@@ -1,14 +1,14 @@
 match:
   - {text: "mostra la pagina delle telecamere", command: show_page, page: telecamere}
   - {text: "mostrami la dashboard energia", command: show_page, page: energia}
-  - {text: "fammi vedere la vista del soggiorno", command: show_page, page: soggiorno}
+  - {text: "voglio vedere la vista del soggiorno", command: show_page, page: soggiorno}
   - {text: "mostra la dashboard principale", command: show_page, page: principale}
   - {text: "voglio vedere la scheda dei sensori", command: show_page, page: sensori}
   - {text: "vai alla dashboard cucina", command: show_page, page: cucina}
   - {text: "torna alla dashboard home", command: show_page, page: home}
   - {text: "vai alla pagina di sicurezza", command: show_page, page: sicurezza}
   - {text: "visualizza la pagina delle telecamere", command: show_page, page: telecamere}
-  - {text: "fammi vedere la dashboard delle luci", command: show_page, page: luci}
+  - {text: "voglio vedere la dashboard delle luci", command: show_page, page: luci}
   - {text: "torna alla pagina di prima", command: show_page, page: prima}
   - {text: "torna alla dashboard precedente", command: show_page, page: precedente}
   - {text: "mostra la pagina delle telecamere sul pannello cucina", command: show_page, page: telecamere, panel: pannello cucina}
@@ -37,7 +37,6 @@ match:
   - {text: "torna alla pagina precedente sul pannello cucina", command: back, panel: pannello cucina}
   - {text: "svegliati", command: screen_wake}
   - {text: "sveglia lo schermo", command: screen_wake}
-  - {text: "riattiva il display", command: screen_wake}
   - {text: "sveglia il pannello", command: screen_wake}
   - {text: "sveglia il pannello cucina", command: screen_wake, panel: pannello cucina}
   - {text: "vai a dormire", command: screen_sleep}
@@ -76,6 +75,7 @@ miss:
   - "ricarica"
   - "mostra le impostazioni"
   - "ricarica la dashboard"
+  - "riattiva il display"
 builtin:
   screen_off: "spegni lo schermo"
   screen_on: "accendi lo schermo"
