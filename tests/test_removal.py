@@ -194,6 +194,7 @@ class FakePanel:
         #: The recorded original home screen a 409 names, when set.
         self.original_home: Any = None
         self.hand_back_extra: dict[str, Any] = {}
+        self.vendor_brightness: str | None = None
         self.hand_back_requests = 0
         #: Raise after the shell ran, as a dropped connection would.
         self.drop_after: str | None = None
@@ -280,6 +281,11 @@ class FakePanel:
                     "adopted": [],
                     "outstanding": [],
                     "home_handed_to": "com.eWeLinkControlPanel",
+                    **(
+                        {"vendor_brightness": self.vendor_brightness}
+                        if self.vendor_brightness
+                        else {}
+                    ),
                 }
             )
         if mode == "lie":
@@ -2109,3 +2115,114 @@ async def test_selected_home_adb_rechecks_identity_before_mutation(
     assert fake.hand_back_requests == 1
     assert fake.read()["events"] == []
     assert PACKAGE_ID in fake.installed
+
+
+@pytest.mark.parametrize("hand_back", ["hand", "unconfirmed"])
+@pytest.mark.parametrize("outcome", ["unrestored", "invalid"])
+async def test_vendor_brightness_failure_preserves_app_and_retry_restores(
+    hass: HomeAssistant,
+    panel: tuple[FakePanel, TestServer],
+    outcome: str,
+    hand_back: str,
+) -> None:
+    """A HOME acknowledgement cannot discard an unrestored vendor baseline."""
+    fake, server = panel
+    fake.vendor_brightness = outcome
+    fake.hand_back = hand_back
+    fake.hand_back_extra = {
+        "vendor_brightness": outcome,
+        "home_target": PORTAL_HOME,
+    }
+    entry = _entry(hass, server)
+    result = await _remove(hass, entry)
+    assert result.get("errors") == {"base": "removal_home_not_handed"}
+    assert fake.installed == [PACKAGE_ID]
+    assert not any(event.startswith("uninstall") for event in fake.read()["events"])
+    fake.vendor_brightness = "restored"
+    fake.hand_back = "hand"
+    result = await _remove(hass, entry)
+    assert result.get("errors") is None
+    assert fake.installed == []
+
+
+async def test_unknown_historical_vendor_brightness_is_disclosed_without_guessing(
+    hass: HomeAssistant,
+    panel: tuple[FakePanel, TestServer],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    fake, server = panel
+    fake.vendor_brightness = "unknown"
+    result = await _remove(hass, _entry(hass, server))
+    assert result.get("errors") is None
+    assert (
+        "original vendor automatic brightness setting was not recorded" in caplog.text
+    )
+    assert fake.installed == []
+
+
+@pytest.mark.parametrize(
+    "home", ["cloud.shelly.stargate/.Home", "com.teslacoilsw.launcher/.Home"]
+)
+async def test_silent_shelly_app_keeps_brightness_custody_until_it_answers(
+    hass: HomeAssistant,
+    panel: tuple[FakePanel, TestServer],
+    home: str,
+) -> None:
+    fake, server = panel
+    fake.hand_back = 503
+    fake.set(
+        home=home,
+        installed=[PACKAGE_ID, "cloud.shelly.stargate"],
+    )
+    entry = _entry(hass, server)
+    result = await _remove(hass, entry)
+    assert result.get("errors") == {"base": "removal_app_unreachable"}
+    assert PACKAGE_ID in fake.installed
+    assert fake.read()["events"] == []
+    fake.hand_back = "hand"
+    fake.vendor_brightness = "restored"
+    result = await _remove(hass, entry)
+    assert result.get("errors") is None
+    assert PACKAGE_ID not in fake.installed
+
+
+@pytest.mark.parametrize("outcome", ["unrestored", "restored", "unknown"])
+async def test_local_session_validates_vendor_brightness_before_home_acknowledgement(
+    hass: HomeAssistant,
+    hass_ws_client: Any,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    outcome: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from custom_components.panel_assistant import local_adb
+    from custom_components.panel_assistant.client import HandBackRefusedError
+
+    from .test_local_adb import _panel
+    from .test_transport import _receive
+
+    entry, session = await _panel(
+        hass, hass_ws_client, hass_read_only_user, hass_read_only_access_token
+    )
+    handing_back = asyncio.create_task(local_adb.async_hand_back_home(hass, entry))
+    while True:
+        message = await _receive(session.client)
+        if message.get("type") == "event":
+            event = message["event"]
+            break
+    assert event["op"] == "hand_back_home"
+    await session.answer(
+        event["command_id"],
+        "applied",
+        result={
+            "home_handed_to": "cloud.shelly.stargate",
+            "vendor_brightness": outcome,
+        },
+    )
+    if outcome == "unrestored":
+        with pytest.raises(HandBackRefusedError, match="vendor-brightness-unrestored"):
+            await handing_back
+    else:
+        await handing_back
+    if outcome == "unknown":
+        assert "was not recorded" in caplog.text

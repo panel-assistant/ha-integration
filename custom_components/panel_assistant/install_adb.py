@@ -117,6 +117,7 @@ from .release import (
     install_descriptor_valid,
 )
 from .vendor_provisioning import (
+    SHELLY_LAUNCHER,
     UNREAD_SETUP_WARNING,
     VENDOR_HOME_COMMAND,
     ShellySetup,
@@ -1483,6 +1484,7 @@ class MoveObservation:
     #: The vendor's own firmware number (``ro.build.display.id``), or None
     #: when the panel reports none a help page could match.
     firmware: str | None = None
+    shelly_installed: bool = False
 
 
 #: The old app's APK that Panel Assistant 0.9.0's move kept on a panel while
@@ -1558,7 +1560,11 @@ def _move_command(nonce: str, step: MoveStep, home_target: str | None = None) ->
                 f'else case "$packages" in "package:{package}") '
                 f'echo installed:{package} ;; "") ;; '
                 "*) echo observation-failed ;; esac; fi"
-                for package in (LEGACY_PACKAGE_ID, PACKAGE_ID)
+                for package in (
+                    LEGACY_PACKAGE_ID,
+                    PACKAGE_ID,
+                    SHELLY_LAUNCHER,
+                )
             ),
             (
                 f'hp_home="$({_HOME_QUERY})"; '
@@ -1589,7 +1595,7 @@ def _parse_move(body: bytes, nonce: str) -> MoveObservation:
     if (
         status_code != 0
         or len(homes) != 1
-        or not installed <= {LEGACY_PACKAGE_ID, PACKAGE_ID}
+        or not installed <= {LEGACY_PACKAGE_ID, PACKAGE_ID, SHELLY_LAUNCHER}
         or len(firmwares) > 1
         or len(homes) + len(installed) + len(firmwares) != len(lines)
     ):
@@ -1597,6 +1603,7 @@ def _parse_move(body: bytes, nonce: str) -> MoveObservation:
     home = homes[0].removeprefix("home:").strip()
     package, slash, _activity = home.partition("/")
     return MoveObservation(
+        shelly_installed=SHELLY_LAUNCHER in installed,
         legacy_installed=LEGACY_PACKAGE_ID in installed,
         successor_installed=PACKAGE_ID in installed,
         # The system chooser and an empty answer are not a HOME.
