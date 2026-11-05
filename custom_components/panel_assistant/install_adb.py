@@ -97,7 +97,7 @@ from .app_identity import (
     PACKAGE_ID,
     RELEASE_DEVICE_ADMIN_RECEIVER,
 )
-from .client import PanelAddress
+from .client import HandBackRefusedError, PanelAddress
 from .display_provisioning import (
     DisplayResponseError,
     DisplayResult,
@@ -1469,6 +1469,7 @@ class MoveStep(StrEnum):
     OBSERVE = "OBSERVE"
     REMOVE_APP = "REMOVE_APP"
     VENDOR_HOME = "VENDOR_HOME"
+    HAND_BACK_HOME = "HAND_BACK_HOME"
 
 
 @dataclass(frozen=True, slots=True)
@@ -1535,12 +1536,18 @@ _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
 }
 
 
-def _move_command(nonce: str, step: MoveStep) -> str:
+def _move_command(nonce: str, step: MoveStep, home_target: str | None = None) -> str:
+    actions = _MOVE_ACTIONS.get(step, ())
+    if step is MoveStep.HAND_BACK_HOME:
+        # The app chose this enabled component after clearing HOME ownership.
+        # Re-read the exact component: a different activity in the same package
+        # does not prove that the selected home screen took the role.
+        actions = (f"cmd package set-home-activity {home_target}",)
     quiet = ">/dev/null 2>&1"
     return "; ".join(
         (
             f"echo HAPANELD_MOVE_BEGIN:{nonce}",
-            *(f"{action} {quiet}" for action in _MOVE_ACTIONS[step]),
+            *(f"{action} {quiet}" for action in actions),
             # An empty `pm path` also means PM failed. Require a successful
             # enumeration and its exact filtered result before accepting absence.
             # Capture stderr too: some Android versions print service errors
@@ -1553,7 +1560,15 @@ def _move_command(nonce: str, step: MoveStep) -> str:
                 "*) echo observation-failed ;; esac; fi"
                 for package in (LEGACY_PACKAGE_ID, PACKAGE_ID)
             ),
-            f'echo "home:$({_HOME_QUERY})"',
+            (
+                f'hp_home="$({_HOME_QUERY})"; '
+                'case "${hp_home#*/}" in .*) '
+                'hp_home="${hp_home%/*}/${hp_home%/*}${hp_home#*/}" ;; esac; '
+                f'[ "$hp_home" = "{home_target}" ] || echo observation-failed; '
+                'echo "home:$hp_home"'
+                if step is MoveStep.HAND_BACK_HOME
+                else f'echo "home:$({_HOME_QUERY})"'
+            ),
             'echo "firmware:$(getprop ro.build.display.id 2>/dev/null)"',
             f"echo HAPANELD_MOVE_END:{nonce}:0",
         )
@@ -1597,10 +1612,20 @@ def _firmware(value: str) -> str | None:
 
 
 async def async_move_step(
-    target: AdbInstallTarget, signer: PythonRSASigner | None, step: MoveStep
+    target: AdbInstallTarget,
+    signer: PythonRSASigner | None,
+    step: MoveStep,
+    *,
+    home_target: str | None = None,
 ) -> MoveObservation:
     """Run one removal step on the pinned panel and observe its result."""
     _validate_target(target)
+    if step is MoveStep.HAND_BACK_HOME:
+        # Validate again at the shell boundary, including callers other than removal.
+        selected = HandBackRefusedError.from_not_handed({"home_target": home_target})
+        if selected.home_target is None:
+            raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE)
+        home_target = selected.home_target
     device: AdbDeviceAsync | None = None
     mutation_started = False
     try:
@@ -1625,7 +1650,7 @@ async def async_move_step(
             return _parse_move(
                 await _async_shell(
                     device,
-                    _move_command(nonce, step),
+                    _move_command(nonce, step, home_target),
                     read_timeout=_INSTALL_READ_TIMEOUT_SECONDS,
                     transport_timeout=_INSTALL_TIMEOUT_SECONDS,
                 ),

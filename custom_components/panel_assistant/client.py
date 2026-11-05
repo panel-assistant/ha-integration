@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 from aiohttp import ClientError, ClientSession, ClientTimeout
 from yarl import URL
 
+from .app_identity import LEGACY_PACKAGE_ID, PACKAGE_ID
 from .const import (
     APK_COMMIT_PATH,
     APK_DISCARD_PATH,
@@ -134,10 +135,36 @@ class HandBackRefusedError(UpdateRejectedError):
     recorded original home screen an ``original-home-missing`` refusal names.
     """
 
-    def __init__(self, code: str, launcher: str | None = None) -> None:
+    def __init__(
+        self, code: str, launcher: str | None = None, home_target: str | None = None
+    ) -> None:
         super().__init__(code)
         self.code = code
         self.launcher = launcher
+        self.home_target = home_target
+
+    @classmethod
+    def from_not_handed(cls, result: dict[str, Any]) -> HandBackRefusedError:
+        """Carry only the app's exact safe component to the shell actuator."""
+        if "home_target" not in result:
+            return cls("not-handed")
+        component = result["home_target"]
+        if (
+            not isinstance(component, str)
+            or re.fullmatch(
+                r"[A-Za-z_][A-Za-z_0-9]*(?:\.[A-Za-z_][A-Za-z_0-9]*)+"
+                r"/\.?[A-Za-z_][A-Za-z_0-9.]*",
+                component,
+            )
+            is None
+            or component.split("/")[0]
+            in {PACKAGE_ID, LEGACY_PACKAGE_ID, "com.android.settings", "android"}
+        ):
+            return cls("unsafe-home-target")
+        package, _, activity = component.partition("/")
+        if activity.startswith("."):
+            component = f"{package}/{package}{activity}"
+        return cls("not-handed", home_target=component)
 
     @classmethod
     def from_refusal(cls, code: Any, original_home: Any) -> HandBackRefusedError:
@@ -923,12 +950,13 @@ class HaPaneldClient:
             )
         if status != 200:
             raise UpdateRejectedError if 400 <= status < 500 else CannotConnectError
-        handed_to = _load_json_object(body).get("home_handed_to")
+        result = _load_json_object(body)
+        handed_to = result.get("home_handed_to")
         if (
             not isinstance(handed_to, str)
             or _PACKAGE_NAME_PATTERN.fullmatch(handed_to) is None
         ):
-            raise HandBackRefusedError("not-handed")
+            raise HandBackRefusedError.from_not_handed(result)
         return handed_to
 
     async def async_stage_apk(self, apk: bytes) -> StagedApk:
