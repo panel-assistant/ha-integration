@@ -9,6 +9,7 @@ would hear.
 
 import asyncio
 import base64
+import contextlib
 import gc
 import math
 from array import array
@@ -18,12 +19,12 @@ from io import BytesIO
 from typing import Any
 from unittest.mock import patch
 
-import aiosendspin.server.connection as server_connection
 import av
 import pytest
 from aiohttp import WSMessage, WSMsgType, web
 from aiosendspin.client import SendspinClient
 from aiosendspin.client.connection import SendspinConnection as ClientConnection
+from aiosendspin.models.core import DeviceInfo
 from aiosendspin.models.player import ClientHelloPlayerSupport, SupportedAudioFormat
 from aiosendspin.models.types import AudioCodec, Roles
 from aiosendspin.noise import (
@@ -335,6 +336,7 @@ class Speaker:
     identity: Identity = field(default_factory=Identity.generate)
     rate: int = NATIVE_RATE
     channels: int = 1
+    device_info: DeviceInfo | None = None
     streams: list[Heard] = field(default_factory=list)
     ends: int = 0
     client: SendspinClient | None = None
@@ -365,6 +367,7 @@ class Speaker:
             [Roles.PLAYER],
             session=_Dialler(socket),  # type: ignore[arg-type]
             pairing_store=store,
+            device_info=self.device_info,
             player_support=ClientHelloPlayerSupport(
                 supported_formats=[
                     SupportedAudioFormat(
@@ -817,18 +820,16 @@ async def test_a_player_whose_first_state_is_late_still_streams(
     """A first client/state after the server's deadline still gets the stream.
 
     sendspin-cpp sends a player's first client/state only once its first time
-    burst completes, which a busy session can push past aiosendspin's deadline.
-    The deadline (5 s in aiosendspin 10.0.0) is shortened here, and the player
-    holds its first state past it.
+    burst completes, which a busy session can push past the 5 s that strict
+    aiosendspin 10.0.0 allowed. The player holds its first state past that.
     """
-    monkeypatch.setattr(server_connection, "_CLIENT_STATE_TIMEOUT_S", 0.2)
     send_state = ClientConnection._send_full_client_state
     held: list[ClientConnection] = []
 
     async def late(self: ClientConnection) -> None:
         if not held:
             held.append(self)
-            await asyncio.sleep(0.6)
+            await asyncio.sleep(5.5)
         await send_state(self)
 
     monkeypatch.setattr(ClientConnection, "_send_full_client_state", late)
@@ -1048,6 +1049,30 @@ async def test_a_stranger_with_no_key_from_hello_cannot_play(
     async with asyncio.timeout(5):
         await call
     assert stranger.streams == []
+
+
+@LINGERING
+async def test_a_player_breaking_the_protocol_is_refused(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    wires: list[tuple[Wire, Speaker]],
+) -> None:
+    """A keyed player whose hello breaks the spec is not admitted."""
+    panel, wire, speaker = await _voice_panel(
+        hass, hass_ws_client, hass_read_only_access_token, wires, connect=False
+    )
+    # The spec asks for lowercase, colon-separated form.
+    speaker.device_info = DeviceInfo(mac_address="AA-BB-CC-DD-EE-FF")
+    # Refused, the player's connect fails or stalls; either way it never joins.
+    with contextlib.suppress(Exception):
+        async with asyncio.timeout(1):
+            await speaker.connect(wire, panel.result[CAPABILITY])
+
+    voice_stream = async_get_voice_stream(hass)
+    assert voice_stream is not None
+    assert voice_stream.server.get_client(speaker.client_id) is None
 
 
 @LINGERING
