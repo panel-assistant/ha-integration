@@ -1,15 +1,15 @@
 """Core lifecycle notices travel through authenticated production sessions."""
 
 import asyncio
-from collections.abc import AsyncGenerator
 from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from aiohttp import WSMsgType, web
+from aiohttp import WSMsgType
 from aiohttp._websocket.writer import WebSocketWriter
+from homeassistant.components.websocket_api.connection import ActiveConnection
 from homeassistant.const import EVENT_CALL_SERVICE, EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import CoreState, HomeAssistant
 from homeassistant.util import dt as dt_util
@@ -24,23 +24,10 @@ from .test_transport import (
     _hello,
     _send,
     entry,
+    forced_socket_cleanup,  # noqa: F401
 )
 
-
-@pytest.fixture(autouse=True)
-async def _shutdown_socket_cleanup() -> AsyncGenerator[None]:
-    """Core's forced socket cancellation leaves aiohttp heartbeat timers behind."""
-    sockets: list[web.WebSocketResponse] = []
-    prepare = web.WebSocketResponse.prepare
-
-    async def capture(self: web.WebSocketResponse, request: Any) -> Any:
-        sockets.append(self)
-        return await prepare(self, request)
-
-    with patch.object(web.WebSocketResponse, "prepare", capture):
-        yield
-    for socket in sockets:
-        socket._cancel_heartbeat()
+pytestmark = pytest.mark.usefixtures("forced_socket_cleanup")
 
 
 @pytest.mark.parametrize("failed_sender", [False, True])
@@ -86,8 +73,16 @@ async def test_shutdown_broadcasts_unknown_to_every_authority(
 
         session = async_get_sessions(hass).get(entry.entry_id)
         assert session is not None
-        session.connection.send_message = lambda _message: (_ for _ in ()).throw(
-            RuntimeError("closed writer")
+        # Core 2026.11 keeps the writer behind a read-only send_message method.
+        writer = (
+            "_send_message"
+            if "_send_message" in ActiveConnection.__slots__
+            else "send_message"
+        )
+        setattr(
+            session.connection,
+            writer,
+            lambda _message: (_ for _ in ()).throw(RuntimeError("closed writer")),
         )
     await asyncio.wait_for(hass.async_stop(force=True), 2)
     for client in clients[1:] if failed_sender else clients:
