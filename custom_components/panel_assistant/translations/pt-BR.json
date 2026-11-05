@@ -1925,5 +1925,33 @@
     "progress": {
       "authorize_adb": "Olhe a tela de {panel}: marque **Sempre permitir neste computador** e toque em **Permitir**. O Android pode descrever o Home Assistant como um computador.\n\nO processo continua sozinho quando o painel permitir."
     }
+  },
+  "selector": {
+    "destination": {
+      "options": {
+        "none": "Desativado"
+      }
+    },
+    "app_level": {
+      "options": {
+        "2": "Detalhado",
+        "3": "Depuração",
+        "4": "Informação",
+        "5": "Aviso",
+        "6": "Erro",
+        "7": "Fatal"
+      }
+    },
+    "system_level": {
+      "options": {
+        "0": "Desativado",
+        "2": "Detalhado",
+        "3": "Depuração",
+        "4": "Informação",
+        "5": "Aviso",
+        "6": "Erro",
+        "7": "Fatal"
+      }
+    }
   }
 }

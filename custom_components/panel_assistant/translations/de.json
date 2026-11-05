@@ -1925,5 +1925,33 @@
     "progress": {
       "authorize_adb": "Sieh auf den Bildschirm von {panel}: Setze das Häkchen bei **Immer von diesem Computer aus zulassen** und tippe auf **Zulassen**. Android bezeichnet Home Assistant möglicherweise als Computer.\n\nSobald das Panel es zulässt, geht es von selbst weiter."
     }
+  },
+  "selector": {
+    "destination": {
+      "options": {
+        "none": "Aus"
+      }
+    },
+    "app_level": {
+      "options": {
+        "2": "Ausführlich",
+        "3": "Debug",
+        "4": "Info",
+        "5": "Warnung",
+        "6": "Fehler",
+        "7": "Fatal"
+      }
+    },
+    "system_level": {
+      "options": {
+        "0": "Aus",
+        "2": "Ausführlich",
+        "3": "Debug",
+        "4": "Info",
+        "5": "Warnung",
+        "6": "Fehler",
+        "7": "Fatal"
+      }
+    }
   }
 }

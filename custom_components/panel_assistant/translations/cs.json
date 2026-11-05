@@ -1925,5 +1925,33 @@
     "progress": {
       "authorize_adb": "Podívejte se na obrazovku panelu {panel}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač.\n\nJakmile to panel povolí, bude se pokračovat samo."
     }
+  },
+  "selector": {
+    "destination": {
+      "options": {
+        "none": "Vypnuto"
+      }
+    },
+    "app_level": {
+      "options": {
+        "2": "Podrobné",
+        "3": "Ladění",
+        "4": "Informace",
+        "5": "Varování",
+        "6": "Chyba",
+        "7": "Fatální chyba"
+      }
+    },
+    "system_level": {
+      "options": {
+        "0": "Vypnuto",
+        "2": "Podrobné",
+        "3": "Ladění",
+        "4": "Informace",
+        "5": "Varování",
+        "6": "Chyba",
+        "7": "Fatální chyba"
+      }
+    }
   }
 }

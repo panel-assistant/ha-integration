@@ -87,7 +87,7 @@ async def test_real_catalog_populates_selector_and_caches(
     assert not any(url.endswith(".apk") for url, _ in requests)
     selector = form["data_schema"].schema["release_candidate"]
     assert selector.config["options"] == [
-        {"value": "stable", "label": "v1.3.0-rc2 (recommended)"},
+        {"value": "stable", "label": "v1.3.0-rc2"},
         {"value": "v1.2.3", "label": "v1.2.3"},
     ]
     assert form["errors"] is None

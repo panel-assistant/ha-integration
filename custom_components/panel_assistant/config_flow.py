@@ -393,12 +393,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                     and (not release["prerelease"] or prereleases_allowed())
                     else str(release["tag"])
                 ),
-                label=(
-                    f"{release.get('name', release['tag'])} (recommended)"
-                    if index == 0
-                    and (not release["prerelease"] or prereleases_allowed())
-                    else str(release.get("name", release["tag"]))
-                ),
+                label=str(release.get("name", release["tag"])),
             )
             for index, release in enumerate(releases)
         ]
@@ -2003,10 +1998,7 @@ class HaPaneldOptionsFlow(OptionsFlow):
         choices.extend(
             {
                 "value": f"saved:{did}",
-                "label": (
-                    f"Use saved destination: {sink['host']}:{sink['port']}"
-                    f" ({sink['protocol']})"
-                ),
+                "label": f"{sink['host']}:{sink['port']} ({sink['protocol']})",
             }
             for did, sink in saved.items()
         )
@@ -2027,7 +2019,9 @@ class HaPaneldOptionsFlow(OptionsFlow):
                         "destination", default=defaults["destination"]
                     ): SelectSelector(
                         SelectSelectorConfig(
-                            options=choices, mode=SelectSelectorMode.DROPDOWN
+                            options=choices,
+                            mode=SelectSelectorMode.DROPDOWN,
+                            translation_key="destination",
                         )
                     ),
                     vol.Optional("host", default=defaults["host"]): str,

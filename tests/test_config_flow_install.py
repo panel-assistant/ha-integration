@@ -7,6 +7,7 @@ import pytest
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers.data_entry_flow import FlowManagerIndexView
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.adb_credentials import (
@@ -506,6 +507,7 @@ async def test_install_candidate_readiness_is_non_mutating_until_confirmation(
             {"tag": "v0.9.8-rc1", "prerelease": True},
             {"tag": RELEASE.tag, "prerelease": False},
         ]
+    install_release_catalog.return_value[0]["name"] = "Panel Assistant 0.9.7 (stable)"
     with (
         patch(
             "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
@@ -526,6 +528,19 @@ async def test_install_candidate_readiness_is_non_mutating_until_confirmation(
         )
         assert choose["step_id"] == "choose_version"
         release_mock.assert_not_awaited()
+        fields = FlowManagerIndexView(hass.config_entries.flow)._prepare_result_json(
+            choose
+        )["data_schema"]
+        release_field = next(
+            field for field in fields if field["name"] == "release_candidate"
+        )
+        assert release_field["default"] == "stable"
+        assert [
+            option["label"] for option in release_field["selector"]["select"]["options"]
+        ] == [
+            release.get("name", release["tag"])
+            for release in install_release_catalog.return_value
+        ]
         # An omitted choice takes the recommended PA-channel release.
         confirm = await hass.config_entries.flow.async_configure(
             choose["flow_id"], choice
