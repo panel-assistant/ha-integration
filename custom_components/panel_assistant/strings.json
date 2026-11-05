@@ -108,7 +108,7 @@
     },
     "progress": {
       "authorize_adb": "Look at the screen of the panel at {address}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer.\n\nThis carries on by itself once the panel allows it.",
-      "installing": "Installing Panel Assistant on {address}. Keep this dialog open; it finishes on its own.\n\nIf you close it, the install keeps running. Add the same address again to finish.",
+      "installing": "Installing Panel Assistant on {address}. Keep this dialog open; it finishes on its own.\n\nIf the panel shows \"Send app for a security check?\" from Google Play Protect, tap one of its buttons on the panel. The install waits until you do. \"Always send unknown apps\" stops it asking again.\n\nIf you close it, the install keeps running. Add the same address again to finish.",
       "updating_webview": "Updating the panel's browser engine on {address}…"
     },
     "error": {
@@ -1053,7 +1053,7 @@
           }
         },
         "progress": {
-          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation. If the panel shows \"Send app for a security check?\" from Google Play Protect, tap one of its buttons on the panel; the retry waits until you do.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1096,7 +1096,7 @@
           }
         },
         "progress": {
-          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation. If the panel shows \"Send app for a security check?\" from Google Play Protect, tap one of its buttons on the panel; the retry waits until you do.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1139,7 +1139,7 @@
           }
         },
         "progress": {
-          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation. If the panel shows \"Send app for a security check?\" from Google Play Protect, tap one of its buttons on the panel; the retry waits until you do.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1182,7 +1182,7 @@
           }
         },
         "progress": {
-          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation. If the panel shows \"Send app for a security check?\" from Google Play Protect, tap one of its buttons on the panel; the retry waits until you do.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1225,7 +1225,7 @@
           }
         },
         "progress": {
-          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation. If the panel shows \"Send app for a security check?\" from Google Play Protect, tap one of its buttons on the panel; the retry waits until you do.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1268,7 +1268,7 @@
           }
         },
         "progress": {
-          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation. If the panel shows \"Send app for a security check?\" from Google Play Protect, tap one of its buttons on the panel; the retry waits until you do.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1311,7 +1311,7 @@
           }
         },
         "progress": {
-          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation. If the panel shows \"Send app for a security check?\" from Google Play Protect, tap one of its buttons on the panel; the retry waits until you do.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1354,7 +1354,7 @@
           }
         },
         "progress": {
-          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation. If the panel shows \"Send app for a security check?\" from Google Play Protect, tap one of its buttons on the panel; the retry waits until you do.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1397,7 +1397,7 @@
           }
         },
         "progress": {
-          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation. If the panel shows \"Send app for a security check?\" from Google Play Protect, tap one of its buttons on the panel; the retry waits until you do.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1440,7 +1440,7 @@
           }
         },
         "progress": {
-          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation. If the panel shows \"Send app for a security check?\" from Google Play Protect, tap one of its buttons on the panel; the retry waits until you do.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1488,7 +1488,7 @@
           }
         },
         "progress": {
-          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})",
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation. If the panel shows \"Send app for a security check?\" from Google Play Protect, tap one of its buttons on the panel; the retry waits until you do.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})",
           "authorize_adb": "Android approval on {panel} is still needed.\n\nTo fix:\n1. Read the [ADB approval steps]({approval_url}).\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n\nThis continues automatically after approval.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
@@ -1553,7 +1553,7 @@
           }
         },
         "progress": {
-          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})",
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation. If the panel shows \"Send app for a security check?\" from Google Play Protect, tap one of its buttons on the panel; the retry waits until you do.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})",
           "authorize_adb": "Android approval on {panel} is still needed.\n\nTo fix:\n1. Read the [ADB approval steps]({approval_url}).\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n\nThis continues automatically after approval.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
@@ -1612,7 +1612,7 @@
           }
         },
         "progress": {
-          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation. If the panel shows \"Send app for a security check?\" from Google Play Protect, tap one of its buttons on the panel; the retry waits until you do.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
           "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
@@ -1697,7 +1697,7 @@
           }
         },
         "progress": {
-          "retrying": "Home Assistant is checking the panel and retrying the saved operation.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})",
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation. If the panel shows \"Send app for a security check?\" from Google Play Protect, tap one of its buttons on the panel; the retry waits until you do.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})",
           "authorize_adb": "Android approval on {panel} is still needed.\n\nTo fix:\n1. Read the [ADB approval steps]({approval_url}).\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n\nThis continues automatically after approval.\n\n[Learn more]({learn_more_url})"
         },
         "error": {
