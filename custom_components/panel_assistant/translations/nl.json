@@ -1921,5 +1921,33 @@
     "progress": {
       "authorize_adb": "Kijk naar het scherm van {panel}: vink **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**. Android kan Home Assistant een computer noemen.\n\nDit gaat vanzelf verder zodra het paneel het toestaat."
     }
+  },
+  "selector": {
+    "destination": {
+      "options": {
+        "none": "Uit"
+      }
+    },
+    "app_level": {
+      "options": {
+        "2": "Uitgebreid",
+        "3": "Debug",
+        "4": "Info",
+        "5": "Waarschuwing",
+        "6": "Fout",
+        "7": "Fataal"
+      }
+    },
+    "system_level": {
+      "options": {
+        "0": "Uit",
+        "2": "Uitgebreid",
+        "3": "Debug",
+        "4": "Info",
+        "5": "Waarschuwing",
+        "6": "Fout",
+        "7": "Fataal"
+      }
+    }
   }
 }

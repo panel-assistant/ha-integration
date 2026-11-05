@@ -1921,5 +1921,33 @@
     "progress": {
       "authorize_adb": "Look at the screen of {panel}: tick **Always allow from this computer**, then tap **Allow**. Android may call Home Assistant a computer.\n\nThis carries on by itself once the panel allows it."
     }
+  },
+  "selector": {
+    "destination": {
+      "options": {
+        "none": "Off"
+      }
+    },
+    "app_level": {
+      "options": {
+        "2": "Verbose",
+        "3": "Debug",
+        "4": "Info",
+        "5": "Warning",
+        "6": "Error",
+        "7": "Fatal"
+      }
+    },
+    "system_level": {
+      "options": {
+        "0": "Off",
+        "2": "Verbose",
+        "3": "Debug",
+        "4": "Info",
+        "5": "Warning",
+        "6": "Error",
+        "7": "Fatal"
+      }
+    }
   }
 }

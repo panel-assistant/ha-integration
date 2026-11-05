@@ -2,8 +2,10 @@
 
 import pytest
 import voluptuous as vol
+import voluptuous_serialize
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import config_validation as cv
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from tests.test_transport import DID, WsClientFactory, _hello, _send
@@ -27,6 +29,17 @@ async def test_log_options_are_fleet_wide(
         "system_level": 0,
         "also_home_assistant": False,
     }
+    rendered = voluptuous_serialize.convert(
+        form["data_schema"], custom_serializer=cv.custom_serializer
+    )
+    destination = next(field for field in rendered if field["name"] == "destination")
+    assert destination["selector"]["select"].get("translation_key") == "destination"
+    # HA's legacy numeric select translates by field name and returns integer keys.
+    for name, expected_default in (("app_level", 5), ("system_level", 0)):
+        level = next(field for field in rendered if field["name"] == name)
+        assert level["type"] == "select"
+        assert level["default"] == expected_default
+        assert all(type(value) is int for value, _label in level["options"])
     before = dict(entry.options)
     saved = await hass.config_entries.options.async_configure(
         opened["flow_id"],
@@ -97,6 +110,13 @@ async def test_saved_destination_is_offered_and_adopted_only_explicitly(
     opened = await hass.config_entries.options.async_init(entry.entry_id)
     form = await hass.config_entries.options.async_configure(
         opened["flow_id"], {"next_step_id": "panel_logs"}
+    )
+    rendered = voluptuous_serialize.convert(
+        form["data_schema"], custom_serializer=cv.custom_serializer
+    )
+    destination = next(field for field in rendered if field["name"] == "destination")
+    assert {"value": f"saved:{DID}", "label": "saved.local:5514 (udp)"} in (
+        destination["selector"]["select"]["options"]
     )
     values = form["data_schema"]({"destination": f"saved:{DID}"})
     assert router.policy["destination"] is None

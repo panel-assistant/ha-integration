@@ -1921,5 +1921,33 @@
     "progress": {
       "authorize_adb": "Guarda lo schermo di {panel}: seleziona **Consenti sempre da questo computer**, poi tocca **Consenti**. Android potrebbe descrivere Home Assistant come un computer.\n\nL'operazione prosegue da sola quando il pannello lo consente."
     }
+  },
+  "selector": {
+    "destination": {
+      "options": {
+        "none": "Disattivato"
+      }
+    },
+    "app_level": {
+      "options": {
+        "2": "Dettagliato",
+        "3": "Debug",
+        "4": "Informazioni",
+        "5": "Avviso",
+        "6": "Errore",
+        "7": "Fatale"
+      }
+    },
+    "system_level": {
+      "options": {
+        "0": "Disattivato",
+        "2": "Dettagliato",
+        "3": "Debug",
+        "4": "Informazioni",
+        "5": "Avviso",
+        "6": "Errore",
+        "7": "Fatale"
+      }
+    }
   }
 }

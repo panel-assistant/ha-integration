@@ -1921,5 +1921,33 @@
     "progress": {
       "authorize_adb": "Spójrz na ekran panelu {panel}: zaznacz **Zawsze zezwalaj z tego komputera**, a potem dotknij **Zezwól**. Android może nazywać Home Assistant komputerem.\n\nGdy panel na to zezwoli, proces będzie kontynuowany sam."
     }
+  },
+  "selector": {
+    "destination": {
+      "options": {
+        "none": "Wyłączone"
+      }
+    },
+    "app_level": {
+      "options": {
+        "2": "Szczegółowe",
+        "3": "Debugowanie",
+        "4": "Informacje",
+        "5": "Ostrzeżenie",
+        "6": "Błąd",
+        "7": "Krytyczne"
+      }
+    },
+    "system_level": {
+      "options": {
+        "0": "Wyłączone",
+        "2": "Szczegółowe",
+        "3": "Debugowanie",
+        "4": "Informacje",
+        "5": "Ostrzeżenie",
+        "6": "Błąd",
+        "7": "Krytyczne"
+      }
+    }
   }
 }

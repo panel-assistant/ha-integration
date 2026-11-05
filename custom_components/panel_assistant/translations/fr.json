@@ -1921,5 +1921,33 @@
     "progress": {
       "authorize_adb": "Regardez l’écran de {panel} : cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**. Android peut décrire Home Assistant comme un ordinateur.\n\nL'opération se poursuivra d'elle-même dès que le panneau l'aura autorisé."
     }
+  },
+  "selector": {
+    "destination": {
+      "options": {
+        "none": "Désactivé"
+      }
+    },
+    "app_level": {
+      "options": {
+        "2": "Détaillé",
+        "3": "Débogage",
+        "4": "Information",
+        "5": "Avertissement",
+        "6": "Erreur",
+        "7": "Fatal"
+      }
+    },
+    "system_level": {
+      "options": {
+        "0": "Désactivé",
+        "2": "Détaillé",
+        "3": "Débogage",
+        "4": "Information",
+        "5": "Avertissement",
+        "6": "Erreur",
+        "7": "Fatal"
+      }
+    }
   }
 }
