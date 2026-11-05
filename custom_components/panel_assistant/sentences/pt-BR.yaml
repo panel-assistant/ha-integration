@@ -83,20 +83,16 @@ commands:
     sentences:
       - "[um pouco] mais alto [por favor]"
       - "(fale|fala) [um pouco] mais alto [por favor]"
-      - "(aumente|aumenta) o som [por favor]"
       - "som mais alto"
       - "mais alto (no|na) {panel}"
       - "(fale|fala) mais alto (no|na) {panel}"
-      - "(aumente|aumenta) o som (do|da|no|na) {panel}"
   volume_down:
     sentences:
       - "[um pouco] mais baixo [por favor]"
       - "(fale|fala) [um pouco] mais baixo [por favor]"
-      - "(diminua|diminui|abaixe|abaixa) o som [por favor]"
       - "som mais baixo"
       - "mais baixo (no|na) {panel}"
       - "(fale|fala) mais baixo (no|na) {panel}"
-      - "(diminua|diminui|abaixe|abaixa) o som (do|da|no|na) {panel}"
 home_pages: [inicial, principal, início, home]
 back_pages: [anterior]
 panel_words: [painel]

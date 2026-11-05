@@ -37,6 +37,7 @@ Pairs with the 1.0.0 panel app, which each panel is offered as an update.
 
 ### Changed
 
+- **A few Italian, Polish and Brazilian Portuguese voice phrasings are left to Home Assistant.** Where Home Assistant 2026.11's own commands use the same words, such as "głośniej" and "ciszej" for media volume or "fammi vedere" for media search, Panel Assistant no longer answers them, so the two never compete for one request. Each panel command keeps its other phrasings.
 - **Repairs show how to fix the problem.** Every Repair has short, numbered steps, a link to the setting or instructions you need, and a Learn more link, translated into every supported language. A failed update's Repair includes the panel's recent warning and error log lines in its support report, and Try again tells you when the panel is still busy instead of recording a new failure.
 - **A new panel finishes its own setup before it is added.** After a USB or network install, the panel keeps its own launcher while you go through its setup. Once that is finished, Panel Assistant adds it as the Home Assistant account it signed in with, without asking you to confirm, makes the panel app the home screen and grants the camera and microphone where the panel has them; every update and repair sets the home screen again. If a panel that already has an account later signs in as a different one, Panel Assistant still asks before it switches.
 - **A reinstalled panel rejoins its existing entry.** When the panel app is reinstalled from scratch, even at a new address, Panel Assistant recognises the panel and keeps its entities, entity IDs and history, and the install offer says which entry it rejoins.
@@ -52,6 +53,7 @@ Pairs with the 1.0.0 panel app, which each panel is offered as an update.
 
 ### Fixed
 
+- **Panel cameras work on Home Assistant 2026.11.** A panel's camera, which is off until you turn it on, is no longer left out with an error when Home Assistant starts, and reloading or removing a panel no longer fails on it.
 - **Installs and updates no longer stall on some rooted panels.** This applies over the network and with the USB installer.
 - **A panel signed in as a local-only user is given only local addresses.** It is no longer given your external or Home Assistant Cloud address, so it cannot fall back to a route Home Assistant refuses.
 - **Synchronised speech is sturdier.** Announcements and spoken replies fall back to playing on each panel independently when preparing synchronised speech takes too long, recover, with the 1.0.0 panel app, when the audio connection closes without replaying interrupted speech, and keep a busy panel in step with the others instead of dropping it.

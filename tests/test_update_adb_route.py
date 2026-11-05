@@ -7,6 +7,7 @@ from dataclasses import replace
 from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from zipfile import ZipFile
 
@@ -291,14 +292,27 @@ async def test_a_route_answer_for_a_changed_panel_is_not_adopted(
     assert "update_unavailable_reason" not in (entity.extra_state_attributes or {})
 
 
+def _durable_store_writes() -> Any:
+    """Undo the HA pytest fixture's Store write mock to exercise the file path."""
+    if hasattr(storage.Store, "_write_data"):
+
+        async def write_data(store: storage.Store, data: dict[str, object]) -> None:
+            await store.hass.async_add_executor_job(store._write_data, data)
+
+        return patch.object(storage.Store, "_async_write_data", write_data)
+
+    # Core 2026.11 moved file writes into _FileStoreIO, which the fixture swaps
+    # for a dictionary-backed subclass that keeps the real _write.
+    async def write(io: Any, mode: str, json_data: str | bytes) -> None:
+        await io._hass.async_add_executor_job(io._write, mode, json_data)
+
+    return patch.object(storage._FileStoreIO, "async_write", write)
+
+
 async def test_existing_keyless_shelly_offers_and_installs_from_ha(
     route: SimpleNamespace, monkeypatch: pytest.MonkeyPatch, hass: HomeAssistant
 ) -> None:
     """An existing entry can use open ADB without prior HA key provisioning."""
-
-    # The HA pytest fixture mocks Store writes; exercise the durable file path.
-    async def write_data(store: storage.Store, data: dict[str, object]) -> None:
-        await store.hass.async_add_executor_job(store._write_data, data)
 
     monkeypatch.setattr(
         update_route,
@@ -333,7 +347,7 @@ async def test_existing_keyless_shelly_offers_and_installs_from_ha(
     assert not await hass.async_add_executor_job(key_path.exists)
     route.probe_target.return_value = route.probe
     route.probe_target.reset_mock()
-    with patch.object(storage.Store, "_async_write_data", write_data):
+    with _durable_store_writes():
         route.entity._handle_coordinator_update()
         await hass.async_block_till_done()
     assert route.entity.latest_version == "0.9.7-rc4 build 772"

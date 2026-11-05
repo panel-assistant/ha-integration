@@ -1,45 +1,44 @@
 match:
-  - {text: "pokaż stronę kamery", command: show_page, page: kamery}
-  - {text: "pokaż mi pulpit energia", command: show_page, page: energia}
+  - {text: "wyświetl stronę kamery", command: show_page, page: kamery}
+  - {text: "wyświetl mi pulpit energia", command: show_page, page: energia}
   - {text: "wyświetl widok salon", command: show_page, page: salon}
   - {text: "przejdź do widoku salon", command: show_page, page: salon}
   - {text: "przejdź do strony głównej", command: show_page, page: głównej}
-  - {text: "pokaż stronę główną", command: show_page, page: główną}
+  - {text: "wyświetl stronę główną", command: show_page, page: główną}
   - {text: "przejdź na stronę główną", command: show_page, page: główną}
   - {text: "przejdź na widok salon", command: show_page, page: salon}
-  - {text: "pokaż pulpit główny", command: show_page, page: główny}
+  - {text: "wyświetl pulpit główny", command: show_page, page: główny}
   - {text: "przejdź do pulpitu głównego", command: show_page, page: głównego}
-  - {text: "pokaż widok domowy", command: show_page, page: domowy}
-  - {text: "pokaż stronę o nazwie kamery", command: show_page, page: kamery}
+  - {text: "wyświetl widok domowy", command: show_page, page: domowy}
+  - {text: "wyświetl stronę o nazwie kamery", command: show_page, page: kamery}
   - {text: "przełącz na widok o nazwie salon", command: show_page, page: salon}
   - {text: "przełącz się na kartę o nazwie energia", command: show_page, page: energia}
   - {text: "przejdź do strony o nazwie salon", command: show_page, page: salon}
   - {text: "przejdź do strony poprzedniej", command: show_page, page: poprzedniej}
-  - {text: "pokaż stronę kamery na panelu kuchnia", command: show_page, page: kamery, panel: kuchnia}
+  - {text: "wyświetl stronę kamery na panelu kuchnia", command: show_page, page: kamery, panel: kuchnia}
   - {text: "przejdź do pulpitu energia na panelu garden display", command: show_page, page: energia, panel: garden display}
-  - {text: "pokaż ustawienia androida", command: android_settings}
+  - {text: "wyświetl ustawienia androida", command: android_settings}
   - {text: "przejdź do ustawień systemu android", command: android_settings}
   - {text: "wyświetl mi ustawienia systemu android", command: android_settings}
-  - {text: "pokaż ustawienia systemu", command: android_settings}
-  - {text: "pokaż ustawienia systemowe", command: android_settings}
-  - {text: "pokaż ustawienia androida na panelu kuchnia", command: android_settings, panel: kuchnia}
-  - {text: "pokaż launcher", command: launcher}
-  - {text: "pokaż launchera", command: launcher}
+  - {text: "wyświetl ustawienia systemu", command: android_settings}
+  - {text: "wyświetl ustawienia systemowe", command: android_settings}
+  - {text: "wyświetl ustawienia androida na panelu kuchnia", command: android_settings, panel: kuchnia}
+  - {text: "wyświetl launcher", command: launcher}
+  - {text: "wyświetl launchera", command: launcher}
   - {text: "przejdź do launchera", command: launcher}
-  - {text: "pokaż ekran domowy androida", command: launcher}
+  - {text: "wyświetl ekran domowy androida", command: launcher}
   - {text: "przejdź na ekran główny androida", command: launcher}
-  - {text: "pokaż ekran główny androida", command: launcher}
-  - {text: "pokaż ekran startowy androida", command: launcher}
-  - {text: "pokaż launcher na panelu kuchnia", command: launcher, panel: kuchnia}
-  - {text: "pokaż ostatnie aplikacje", command: recents}
-  - {text: "pokaż listę otwartych aplikacji", command: recents}
+  - {text: "wyświetl ekran główny androida", command: launcher}
+  - {text: "wyświetl ekran startowy androida", command: launcher}
+  - {text: "wyświetl launcher na panelu kuchnia", command: launcher, panel: kuchnia}
+  - {text: "wyświetl ostatnie aplikacje", command: recents}
+  - {text: "wyświetl listę otwartych aplikacji", command: recents}
   - {text: "wyświetl ostatnio używane aplikacje", command: recents}
-  - {text: "pokaż ostatnie aplikacje na panelu kuchnia", command: recents, panel: kuchnia}
+  - {text: "wyświetl ostatnie aplikacje na panelu kuchnia", command: recents, panel: kuchnia}
   - {text: "wstecz", command: back}
   - {text: "cofnij", command: back}
   - {text: "poprzednia strona", command: back}
   - {text: "przejdź do poprzedniej strony", command: back}
-  - {text: "pokaż poprzedni widok", command: back}
   - {text: "cofnij do poprzedniej strony", command: back}
   - {text: "poprzednia strona na panelu kuchnia", command: back, panel: kuchnia}
   - {text: "obudź się", command: screen_wake}
@@ -53,20 +52,12 @@ match:
   - {text: "przejdź w tryb uśpienia", command: screen_sleep}
   - {text: "uśpij panel kuchnia", command: screen_sleep, panel: kuchnia}
   - {text: "rozjaśnij ekran", command: screen_brighter}
-  - {text: "zwiększ jasność ekranu", command: screen_brighter}
   - {text: "zrób ekran jaśniejszy", command: screen_brighter}
-  - {text: "zwiększ jasność ekranu na panelu kuchnia", command: screen_brighter, panel: kuchnia}
   - {text: "przyciemnij ekran", command: screen_dimmer}
-  - {text: "zmniejsz jasność ekranu", command: screen_dimmer}
   - {text: "zrób ekran ciemniejszy", command: screen_dimmer}
   - {text: "przyciemnij ekran na panelu kuchnia", command: screen_dimmer, panel: kuchnia}
-  - {text: "głośniej", command: volume_up}
-  - {text: "zrób trochę głośniej proszę", command: volume_up}
   - {text: "jest za cicho", command: volume_up}
-  - {text: "głośniej na panelu kuchnia", command: volume_up, panel: kuchnia}
-  - {text: "ciszej", command: volume_down}
   - {text: "jest za głośno", command: volume_down}
-  - {text: "zrób ciszej na panelu kuchnia", command: volume_down, panel: kuchnia}
 miss:
   - "wyłącz ekran"
   - "wróć"
@@ -83,6 +74,15 @@ miss:
   - "podgłośnij"
   - "pokaż kamery"
   - "odśwież pulpit"
+  - "pokaż poprzedni widok"
+  - "zwiększ jasność ekranu"
+  - "zwiększ jasność ekranu na panelu kuchnia"
+  - "zmniejsz jasność ekranu"
+  - "głośniej"
+  - "zrób trochę głośniej proszę"
+  - "głośniej na panelu kuchnia"
+  - "ciszej"
+  - "zrób ciszej na panelu kuchnia"
 builtin:
   screen_off: "wyłącz ekran"
   screen_on: "włącz ekran"

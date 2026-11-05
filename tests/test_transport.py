@@ -10,8 +10,10 @@ from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from aiohttp import WSMsgType, web
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.auth import EVENT_USER_REMOVED
+from homeassistant.components.websocket_api.connection import ActiveConnection
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant, callback
@@ -121,6 +123,17 @@ async def _receive(client: Any) -> dict[str, Any]:
     return message
 
 
+# Core 2026.11 revokes a removed user's tokens, which closes its sockets before
+# Panel Assistant can answer them; older Core left them open for it to refuse.
+CORE_CLOSES_REMOVED_USERS_SOCKETS = hasattr(ActiveConnection, "async_auth_revoked")
+
+
+async def _assert_closed_by_core(client: Any) -> None:
+    message = await client.receive()
+    assert message.type is WSMsgType.CLOSE, message
+    await client.close()
+
+
 async def _send(client: Any, message: dict[str, Any]) -> dict[str, Any]:
     await client.send_json_auto_id(message)
     response: dict[str, Any] = await _receive(client)
@@ -222,7 +235,7 @@ def _registry_digest(hass: HomeAssistant, entry_id: str) -> tuple[list[Any], lis
             for item in er.async_entries_for_config_entry(er.async_get(hass), entry_id)
         ),
         sorted(
-            (sorted(item.identifiers), sorted(item.config_entries))
+            (sorted(item.identifiers), item.config_entry_id)
             for item in dr.async_entries_for_config_entry(dr.async_get(hass), entry_id)
         ),
     )
@@ -238,6 +251,22 @@ def _issue_id(hass: HomeAssistant, entry_id: str) -> str:
     issue = _issue(hass, entry_id)
     assert issue is not None
     return issue.issue_id
+
+
+@pytest.fixture
+async def forced_socket_cleanup() -> AsyncGenerator[None]:
+    """Core's forced socket cancellation leaves aiohttp heartbeat timers behind."""
+    sockets: list[web.WebSocketResponse] = []
+    prepare = web.WebSocketResponse.prepare
+
+    async def capture(self: web.WebSocketResponse, request: Any) -> Any:
+        sockets.append(self)
+        return await prepare(self, request)
+
+    with patch.object(web.WebSocketResponse, "prepare", capture):
+        yield
+    for socket in sockets:
+        socket._cancel_heartbeat()
 
 
 @pytest.fixture
@@ -1574,6 +1603,7 @@ async def test_other_user_cannot_take_over_a_bound_panel(
     assert issue.data["user_id"] == hass_admin_user.id
 
 
+@pytest.mark.usefixtures("forced_socket_cleanup")
 async def test_removed_users_surviving_socket_cannot_reclaim_the_panel(
     hass: HomeAssistant,
     entry: MockConfigEntry,
@@ -1587,11 +1617,14 @@ async def test_removed_users_surviving_socket_cannot_reclaim_the_panel(
 
     await hass.auth.async_remove_user(hass_read_only_user)
     await hass.async_block_till_done()
-    closed = await _receive(client)
-    refused = await _send(client, _hello())
+    if CORE_CLOSES_REMOVED_USERS_SOCKETS:
+        await _assert_closed_by_core(client)
+    else:
+        closed = await _receive(client)
+        refused = await _send(client, _hello())
+        assert closed["event"] == {"kind": "session_closed", "reason": "user_removed"}
+        assert refused["error"]["code"] == "panel_user_mismatch"
 
-    assert closed["event"] == {"kind": "session_closed", "reason": "user_removed"}
-    assert refused["error"]["code"] == "panel_user_mismatch"
     assert CONF_TRANSPORT_USER_ID not in entry.data
     assert async_get_sessions(hass).get(entry.entry_id) is None
     assert _issue(hass, entry.entry_id) is None
@@ -1925,6 +1958,7 @@ async def test_a_recorded_request_goes_stale(
     assert async_binding_request(hass, OTHER_DID) is None
 
 
+@pytest.mark.usefixtures("forced_socket_cleanup")
 async def test_a_removed_users_socket_records_nothing(
     hass: HomeAssistant,
     entry: MockConfigEntry,
@@ -1937,9 +1971,11 @@ async def test_a_removed_users_socket_records_nothing(
     await hass.auth.async_remove_user(hass_read_only_user)
     await hass.async_block_till_done()
 
-    refused = await _send(client, _hello(did=OTHER_DID))
-
-    assert refused["error"]["code"] == "unknown_panel"
+    if CORE_CLOSES_REMOVED_USERS_SOCKETS:
+        await _assert_closed_by_core(client)
+    else:
+        refused = await _send(client, _hello(did=OTHER_DID))
+        assert refused["error"]["code"] == "unknown_panel"
     assert async_binding_request(hass, OTHER_DID) is None
 
 

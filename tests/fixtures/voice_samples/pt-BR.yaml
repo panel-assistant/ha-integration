@@ -70,14 +70,10 @@ match:
   - {text: "mais alto", command: volume_up}
   - {text: "um pouco mais alto por favor", command: volume_up}
   - {text: "fala mais alto", command: volume_up}
-  - {text: "aumenta o som", command: volume_up}
   - {text: "som mais alto", command: volume_up}
   - {text: "mais alto no painel da cozinha", command: volume_up, panel: painel da cozinha}
-  - {text: "aumente o som do painel da cozinha", command: volume_up, panel: painel da cozinha}
   - {text: "mais baixo", command: volume_down}
   - {text: "fale mais baixo", command: volume_down}
-  - {text: "abaixa o som", command: volume_down}
-  - {text: "diminua o som", command: volume_down}
   - {text: "mais baixo no painel da cozinha", command: volume_down, panel: painel da cozinha}
 miss:
   - "desligue a tela"
@@ -109,6 +105,10 @@ miss:
   - "baixa o volume"
   - "sobe o som"
   - "baixa o som"
+  - "aumenta o som"
+  - "aumente o som do painel da cozinha"
+  - "abaixa o som"
+  - "diminua o som"
 builtin:
   screen_off: "desligue a tela"
   screen_on: "ligue a tela"

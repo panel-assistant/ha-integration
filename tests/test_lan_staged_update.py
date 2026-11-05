@@ -1203,6 +1203,7 @@ async def _lan_grant_repair_panel(
             async_setup_entry=AsyncMock(return_value=True),
             async_unload_entry=AsyncMock(return_value=True),
         ),
+        built_in=False,
     )
     entry.mock_state(hass, ConfigEntryState.LOADED)
     assert entity.latest_version == VERSION

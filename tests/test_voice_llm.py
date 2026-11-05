@@ -22,6 +22,16 @@ from .test_transport import WsClientFactory
 from .test_voice_commands import _ready
 
 
+async def _call(api: llm.APIInstance, tool_input: llm.ToolInput) -> Any:
+    """Call a tool as an agent does and return the reply the agent reads.
+
+    Home Assistant 2026.11 wraps a tool's reply in a ``ToolResult``; earlier
+    versions hand the reply over as it is.
+    """
+    result = await api.async_call_tool(tool_input)
+    return getattr(result, "data", result)
+
+
 def _context(device_id: str | None, language: str = "en") -> llm.LLMContext:
     return llm.LLMContext(
         platform="test",
@@ -56,10 +66,11 @@ async def test_an_agent_shows_a_page_on_the_panel_that_heard_it(
         "panel_assistant__recents",
     } <= names
     call = hass.async_create_task(
-        api.async_call_tool(
+        _call(
+            api,
             llm.ToolInput(
                 tool_name="panel_assistant__show_page", tool_args={"page": "Cameras"}
-            )
+            ),
         )
     )
     command = await panel.command()
@@ -83,8 +94,9 @@ async def test_an_agent_opens_settings_and_hears_why_not_away_from_a_panel(
     )
     api = await llm.async_get_api(hass, llm.LLM_API_ASSIST, _context(device_id, "de"))
     call = hass.async_create_task(
-        api.async_call_tool(
-            llm.ToolInput(tool_name="panel_assistant__android_settings", tool_args={})
+        _call(
+            api,
+            llm.ToolInput(tool_name="panel_assistant__android_settings", tool_args={}),
         )
     )
     sent = await panel.command()
@@ -94,8 +106,8 @@ async def test_an_agent_opens_settings_and_hears_why_not_away_from_a_panel(
     assert await call == {"success": True, "speech": german["android_settings"]}
 
     away = await llm.async_get_api(hass, llm.LLM_API_ASSIST, _context(None))
-    result = await away.async_call_tool(
-        llm.ToolInput(tool_name="panel_assistant__launcher", tool_args={})
+    result = await _call(
+        away, llm.ToolInput(tool_name="panel_assistant__launcher", tool_args={})
     )
     english = voice_grammar.load_grammar("en")["responses"]
     assert result == {"success": False, "speech": english["not_a_panel"]}
@@ -142,20 +154,22 @@ async def test_an_agent_names_the_panel_to_act_on(
     name = dr.async_get(hass).async_get(device_id).name
     away = await llm.async_get_api(hass, llm.LLM_API_ASSIST, _context(None))
     english = voice_grammar.load_grammar("en")["responses"]
-    unknown = await away.async_call_tool(
+    unknown = await _call(
+        away,
         llm.ToolInput(
             tool_name="panel_assistant__launcher", tool_args={"panel": "garage"}
-        )
+        ),
     )
     assert unknown == {
         "success": False,
         "speech": english["panel_unknown"].format(panel="garage"),
     }
     call = hass.async_create_task(
-        away.async_call_tool(
+        _call(
+            away,
             llm.ToolInput(
                 tool_name="panel_assistant__launcher", tool_args={"panel": name.upper()}
-            )
+            ),
         )
     )
     sent = await panel.command()
@@ -175,12 +189,13 @@ async def test_bad_arguments_reach_the_agent_as_an_error(
     )
     api = await llm.async_get_api(hass, llm.LLM_API_ASSIST, _context(device_id))
     with pytest.raises(vol.Invalid):
-        await api.async_call_tool(
-            llm.ToolInput(tool_name="panel_assistant__show_page", tool_args={})
+        await _call(
+            api, llm.ToolInput(tool_name="panel_assistant__show_page", tool_args={})
         )
     # A blank name would otherwise match a view with no title.
-    blank = await api.async_call_tool(
-        llm.ToolInput(tool_name="panel_assistant__show_page", tool_args={"page": " "})
+    blank = await _call(
+        api,
+        llm.ToolInput(tool_name="panel_assistant__show_page", tool_args={"page": " "}),
     )
     assert blank["success"] is False
     await panel.nothing_sent()
@@ -219,8 +234,8 @@ async def test_an_agent_acts_only_on_a_panel_exposed_to_it(
         (device_id, {}, english["not_a_panel"]),
     ):
         api = await llm.async_get_api(hass, llm.LLM_API_ASSIST, _context(heard))
-        result = await api.async_call_tool(
-            llm.ToolInput(tool_name="panel_assistant__launcher", tool_args=args)
+        result = await _call(
+            api, llm.ToolInput(tool_name="panel_assistant__launcher", tool_args=args)
         )
         assert result == {"success": False, "speech": reply}
     await panel.nothing_sent()
@@ -273,13 +288,13 @@ async def test_an_agent_counts_only_exposed_namesakes(
         tool_name="panel_assistant__launcher", tool_args={"panel": "Attic"}
     )
     if reply == "launcher":
-        call = hass.async_create_task(api.async_call_tool(args))
+        call = hass.async_create_task(_call(api, args))
         sent = await panel.command()
         assert (sent["channel"], sent["value"]) == ("launcher", None)
         await panel.answer(sent["command_id"], "applied")
         result = await call
     else:
-        result = await api.async_call_tool(args)
+        result = await _call(api, args)
     english = voice_grammar.load_grammar("en")["responses"]
     assert result == {
         "success": reply == "launcher",

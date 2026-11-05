@@ -1,6 +1,7 @@
 """Shared pytest fixtures for ha-paneld."""
 
 from collections.abc import Generator
+from pathlib import Path
 from shutil import copytree, ignore_patterns
 from unittest.mock import AsyncMock
 
@@ -35,13 +36,16 @@ def hass_config_dir(tmp_path_factory: pytest.TempPathFactory) -> str:
     `.storage` files. Stored state left there by earlier runs is not copied.
     """
     path = tmp_path_factory.mktemp("hass_config")
-    copytree(
-        get_test_config_dir(),
-        path,
-        symlinks=True,
-        dirs_exist_ok=True,
-        ignore=ignore_patterns(".storage"),
-    )
+    # pytest-homeassistant (Home Assistant 2026.11) points this at the project's
+    # own tests/testing_config, which this project does not have.
+    if Path(source := get_test_config_dir()).is_dir():
+        copytree(
+            source,
+            path,
+            symlinks=True,
+            dirs_exist_ok=True,
+            ignore=ignore_patterns(".storage"),
+        )
     return str(path)
 
 
