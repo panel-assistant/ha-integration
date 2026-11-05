@@ -945,6 +945,10 @@
         }
       }
     },
+    "panel_restore_interrupted": {
+      "title": "{panel} hat die Wiederherstellung eines Backups nicht abgeschlossen.",
+      "description": "Die Panel-App auf {panel} wurde mitten in der Wiederherstellung eines Backups beendet, daher fehlen möglicherweise einige Einstellungen oder Panel-Zustände aus dem Backup.\n\nSo behebst du das Problem:\n1. Öffne den [Tab Installation]({install_url}) auf der Seite des Panels in der Seitenleiste von Panel Assistant.\n2. Stelle dasselbe Backup erneut wieder her.\n\n[Mehr erfahren]({learn_more_url})"
+    },
     "panel_proximity_setup": {
       "title": "Näherung auf {panel} einrichten.",
       "fix_flow": {

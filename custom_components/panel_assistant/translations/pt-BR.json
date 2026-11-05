@@ -945,6 +945,10 @@
         }
       }
     },
+    "panel_restore_interrupted": {
+      "title": "{panel} não terminou de restaurar um backup.",
+      "description": "O app do painel em {panel} parou no meio da restauração de um backup, então algumas configurações ou estado do painel do backup podem estar faltando.\n\nPara corrigir:\n1. Abra a [aba Instalar]({install_url}) na página do painel na barra lateral do Panel Assistant.\n2. Restaure o mesmo backup novamente.\n\n[Saiba mais]({learn_more_url})"
+    },
     "panel_proximity_setup": {
       "title": "Configurar a proximidade em {panel}.",
       "fix_flow": {

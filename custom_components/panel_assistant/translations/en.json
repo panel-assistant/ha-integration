@@ -945,6 +945,10 @@
         }
       }
     },
+    "panel_restore_interrupted": {
+      "title": "{panel} did not finish restoring a backup.",
+      "description": "The panel app on {panel} stopped part way through restoring a backup, so some settings or panel state from the backup may be missing.\n\nTo fix:\n1. Open the [Install tab]({install_url}) on the panel's page in the Panel Assistant sidebar.\n2. Restore the same backup again.\n\n[Learn more]({learn_more_url})"
+    },
     "panel_proximity_setup": {
       "title": "Set up proximity on {panel}.",
       "fix_flow": {

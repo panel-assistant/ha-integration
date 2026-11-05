@@ -65,6 +65,7 @@ from .removed_panels import (
 from .repairs_microphone import async_delete_microphone_issue
 from .repairs_removal import async_dismiss_removal_notification
 from .repairs_restart import async_setup_restart_check
+from .repairs_restore import async_reconcile_restore_issue
 from .repairs_upgrade import (
     async_evaluate_app_too_old,
     async_evaluate_old_app,
@@ -311,6 +312,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     clear_foreign_ha_warning()
     entry.async_on_unload(coordinator.async_add_listener(clear_foreign_ha_warning))
     entry.async_on_unload(lambda: async_clear_foreign_ha_issue(hass, entry.entry_id))
+
+    def reconcile_restore_issue() -> None:
+        async_reconcile_restore_issue(hass, entry, update_coordinator.data)
+
+    reconcile_restore_issue()
+    entry.async_on_unload(
+        update_coordinator.async_add_listener(reconcile_restore_issue)
+    )
     await hass.config_entries.async_forward_entry_setups(entry, platforms)
     if satellite_known(hass, entry):
         await async_load_voice(hass, entry, platforms)

@@ -945,6 +945,10 @@
         }
       }
     },
+    "panel_restore_interrupted": {
+      "title": "{panel} heeft het terugzetten van een back-up niet afgerond.",
+      "description": "De paneel-app op {panel} stopte halverwege het terugzetten van een back-up, dus sommige instellingen of paneelstatus uit de back-up kunnen ontbreken.\n\nOm dit op te lossen:\n1. Open het [tabblad Installeren]({install_url}) op de pagina van het paneel in de Panel Assistant-zijbalk.\n2. Zet dezelfde back-up opnieuw terug.\n\n[Meer informatie]({learn_more_url})"
+    },
     "panel_proximity_setup": {
       "title": "Stel nabijheid in op {panel}.",
       "fix_flow": {
