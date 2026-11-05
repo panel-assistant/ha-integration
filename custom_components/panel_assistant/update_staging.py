@@ -45,7 +45,12 @@ from .panel_backup import PanelBackupInvalidError, async_store_panel_backup
 from .release import _RELEASE_SIGNER_CERTIFICATE_SHA256, ReleaseArtifact
 from .session_carrier import SessionCarrier, UpdateCarrier
 from .update_errors import UPDATE_LOGGER as _LOGGER
-from .update_errors import _update_error, _UpdateRefusalError, _verification_error
+from .update_errors import (
+    _KeyedUpdateRefusalError,
+    _update_error,
+    _UpdateRefusalError,
+    _verification_error,
+)
 from .update_offer import UpdateOffer
 from .update_panel_install import _retry_unstarted_install
 from .update_progress import UpdateProgress
@@ -183,7 +188,7 @@ class BuildDelivery:
                 "update_busy", "The panel is busy with another operation"
             ) from err
         except UpdateApprovalRequiredError as err:
-            raise _update_error(
+            raise _KeyedUpdateRefusalError(
                 "update_approval_required",
                 "Approve this update on the panel, then try again",
             ) from err
@@ -235,7 +240,7 @@ class BuildDelivery:
                 await self._carrier(hass).async_backup_panel(),
             )
         except UpdateApprovalRequiredError as err:
-            raise _update_error(
+            raise _KeyedUpdateRefusalError(
                 "update_approval_required",
                 "Approve this update on the panel, then try again",
             ) from err
@@ -243,11 +248,11 @@ class BuildDelivery:
             # The archive was unreadable, so nothing here is a backup. Refuse
             # the upgrade rather than replace the app that still holds the
             # only copy of this panel's settings.
-            raise _update_error(
+            raise _KeyedUpdateRefusalError(
                 "panel_backup_failed", "The panel could not be backed up first"
             ) from err
         except (HaPaneldError, OSError) as err:
-            raise _update_error(
+            raise _KeyedUpdateRefusalError(
                 "panel_backup_failed", "The panel could not be backed up first"
             ) from err
 
