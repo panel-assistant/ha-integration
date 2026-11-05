@@ -2,11 +2,13 @@
 
 import asyncio
 import logging
+import sys
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.components.camera import (
+    Camera,
     CameraEntityFeature,
     StreamType,
     async_get_image,
@@ -457,8 +459,11 @@ async def test_camera_rejects_still_and_stream_creation_from_an_old_owner(
         await finish.wait()
         return DynamicStreamSettings()
 
-    with patch(
-        "homeassistant.components.camera.get_dynamic_camera_stream_settings",
+    # Patched where the camera base class looks it up: its own module, which
+    # Home Assistant 2026.11 moved from the package to camera.entity.
+    with patch.object(
+        sys.modules[Camera.__module__],
+        "get_dynamic_camera_stream_settings",
         side_effect=settings,
     ):
         pending = asyncio.create_task(camera.async_camera_image())
