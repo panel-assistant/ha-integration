@@ -1,5 +1,6 @@
 """Native translation loading without changing machine state or entity identity."""
 
+import json
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -227,113 +228,26 @@ async def test_native_status_and_exception_translations(
     )
 
 
-@pytest.mark.parametrize(
-    ("language", "labels"),
-    [
-        ("en", ["Off", "Verbose", "Debug", "Info", "Warning", "Error", "Fatal"]),
-        (
-            "cs",
-            [
-                "Vypnuto",
-                "Podrobné",
-                "Ladění",
-                "Informace",
-                "Varování",
-                "Chyba",
-                "Fatální",
-            ],
-        ),
-        ("de", ["Aus", "Ausführlich", "Debug", "Info", "Warnung", "Fehler", "Fatal"]),
-        (
-            "es",
-            [
-                "Desactivado",
-                "Detallado",
-                "Depuración",
-                "Información",
-                "Advertencia",
-                "Error",
-                "Fatal",
-            ],
-        ),
-        (
-            "fr",
-            [
-                "Désactivé",
-                "Détaillé",
-                "Débogage",
-                "Information",
-                "Avertissement",
-                "Erreur",
-                "Fatal",
-            ],
-        ),
-        (
-            "it",
-            [
-                "Disattivato",
-                "Dettagliato",
-                "Debug",
-                "Informazioni",
-                "Avviso",
-                "Errore",
-                "Fatale",
-            ],
-        ),
-        (
-            "nl",
-            ["Uit", "Uitgebreid", "Debug", "Info", "Waarschuwing", "Fout", "Fataal"],
-        ),
-        (
-            "pl",
-            [
-                "Wyłączone",
-                "Szczegółowe",
-                "Debugowanie",
-                "Informacje",
-                "Ostrzeżenie",
-                "Błąd",
-                "Krytyczne",
-            ],
-        ),
-        (
-            "pt-BR",
-            [
-                "Desativado",
-                "Detalhado",
-                "Depuração",
-                "Informação",
-                "Aviso",
-                "Erro",
-                "Fatal",
-            ],
-        ),
-        (
-            "uk",
-            [
-                "Вимкнено",
-                "Докладно",
-                "Налагодження",
-                "Інформація",
-                "Попередження",
-                "Помилка",
-                "Фатальна помилка",
-            ],
-        ),
-        ("zh-Hans", ["关闭", "详细", "调试", "信息", "警告", "错误", "致命"]),
-    ],
-)
+@pytest.mark.parametrize("language", TRANSLATION_SAMPLES)
 async def test_native_log_selectors_use_requested_user_language(
-    hass: HomeAssistant, language: str, labels: list[str]
+    hass: HomeAssistant, language: str
 ) -> None:
     """The requested user locale applies while the server stays English."""
     hass.config.language = "en"
     assert await async_setup_component(hass, DOMAIN, {})
     messages = await async_get_translations(hass, language, "selector", {DOMAIN})
+    catalogue = json.loads((TRANSLATIONS / f"{language}.json").read_text())
     prefix = f"component.{DOMAIN}.selector"
-    assert messages.get(f"{prefix}.destination.options.none") == labels[0]
-    assert messages.get(f"{prefix}.system_level.options.0") == labels[0]
-    for value, expected in enumerate(labels[1:], 2):
-        assert messages.get(f"{prefix}.app_level.options.{value}") == expected
-        assert messages.get(f"{prefix}.system_level.options.{value}") == expected
+    expected = {
+        f"{prefix}.{selector}.options.{value}": label
+        for selector, definition in catalogue.get("selector", {}).items()
+        for value, label in definition["options"].items()
+    }
+    assert len(expected) == 14
+    assert {key: messages.get(key) for key in expected} == expected
+    if language == "de":
+        english = await async_get_translations(hass, "en", "selector", {DOMAIN})
+        # A distinct localized sentinel catches fallback to the server language.
+        assert messages[f"{prefix}.destination.options.none"] == "Aus"
+        assert english[f"{prefix}.destination.options.none"] == "Off"
     assert hass.config.language == "en"
