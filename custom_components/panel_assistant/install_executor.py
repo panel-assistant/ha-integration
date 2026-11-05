@@ -1012,10 +1012,14 @@ class InstallExecutor:
                         setup_state = await async_offer_ha_url(self._hass, panel)
                         # A rootless panel gets its recommended display and
                         # text size at setup, and only then: a reinstall over
-                        # a set-up panel keeps the size its owner chose. A
-                        # completed refusal is optional; an interrupted
+                        # a set-up panel, or unreadable setup state, keeps
+                        # the size its owner chose. A completed refusal
+                        # is optional; an interrupted
                         # command cannot become acceptance.
-                        if setup_state != "setup_complete":
+                        if setup_state not in {
+                            "setup_complete",
+                            "setup_state_unreadable",
+                        }:
                             try:
                                 await self._async_offer_display_sizing(
                                     receipt, execution, panel
