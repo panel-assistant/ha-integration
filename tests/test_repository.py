@@ -178,6 +178,7 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
             "intent",
             "lovelace",
         ],
+        "categories": ["ai_voice.voice_assistants", "sensors.motion_presence"],
         "config_flow": True,
         "dependencies": [
             "http",
@@ -579,11 +580,11 @@ async def test_runtime_harness_health_fixture_uses_production_grammar(
         await hass.async_add_executor_job(server.__exit__)
 
 
-def test_readme_links_to_hacs_and_panel_preparation() -> None:
+def test_readme_links_to_the_marketplace_and_panel_preparation() -> None:
     """The short introduction retains the links needed to try the integration."""
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert (
-        "https://my.home-assistant.io/redirect/hacs_repository/"
+        "https://my.home-assistant.io/redirect/marketplace_repository/"
         "?owner=panel-assistant&repository=ha-integration&category=integration"
     ) in readme
     assert "https://github.com/panel-assistant/ha-integration" in readme

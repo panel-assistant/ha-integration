@@ -8,6 +8,7 @@
     "intent",
     "lovelace"
   ],
+  "categories": ["ai_voice.voice_assistants", "sensors.motion_presence"],
   "codeowners": ["@maxlyth"],
   "config_flow": true,
   "dependencies": ["http", "media_source", "panel_custom", "stream", "websocket_api"],

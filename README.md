@@ -11,7 +11,7 @@
   <a href="https://panel-assistant.io/go/discord"><img src="https://img.shields.io/badge/Discord-join-5865F2.svg" alt="Panel Assistant on Discord"></a>
 </p>
 <p align="center">
-  <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Custom-41BDF5.svg" alt="HACS custom repository"></a>
+  <a href="https://my.home-assistant.io/redirect/marketplace_repository/?owner=panel-assistant&repository=ha-integration&category=integration"><img src="https://img.shields.io/badge/Marketplace-Custom-41BDF5.svg" alt="Marketplace custom repository"></a>
   <a href="https://github.com/panel-assistant/ha-integration/actions/workflows/hacs.yml"><img src="https://img.shields.io/github/actions/workflow/status/panel-assistant/ha-integration/hacs.yml?branch=main&label=HACS%20validation" alt="HACS validation"></a>
   <img src="https://img.shields.io/badge/Home%20Assistant-2026.8.3%2B-18BCF2.svg" alt="Home Assistant 2026.8.3 or newer">
 </p>
@@ -36,19 +36,19 @@ This repository is the Home Assistant integration. The panel app it installs is 
 
 ## Install the integration
 
-You need Home Assistant 2026.8.3 or newer and [HACS](https://hacs.xyz/).
+You need Home Assistant 2026.8.3 or newer. On Home Assistant 2026.11 or newer, Panel Assistant comes from the Marketplace, which is built in; on older versions it comes from [HACS](https://hacs.xyz/).
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=panel-assistant&repository=ha-integration&category=integration)
+[![Open your Home Assistant instance and open a repository inside the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=panel-assistant&repository=ha-integration&category=integration)
 
-That button opens this repository in the HACS on your own Home Assistant, ready to download. If you would rather do it by hand:
+That button opens this repository in the Marketplace on your own Home Assistant, or in HACS on an older one. If you would rather do it by hand:
 
-1. In HACS, add `https://github.com/panel-assistant/ha-integration` as a custom repository with the category **Integration**.
-2. Download **Panel Assistant**, then restart Home Assistant.
+1. Open **Settings**, **Marketplace**, choose **Add from link** and enter `https://github.com/panel-assistant/ha-integration` (the Marketplace asks you to connect a GitHub account first). In HACS, add the same address as a custom repository with the category **Integration**.
+2. Download **Panel Assistant**. HACS then asks for a restart of Home Assistant.
 3. Go to **Settings**, **Devices and services**, **Add integration**, and choose **Panel Assistant**.
 
 [![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=panel_assistant)
 
-HACS offers the latest release. To try new versions before they are released, open **Settings**, **Devices and services**, **HACS**, choose the **Panel Assistant** device, and turn on its **Pre-release** switch (it is under **Diagnostic** and disabled until you enable it).
+The Marketplace and HACS offer the latest release. To try new versions before they are released, turn on **Pre-release** for Panel Assistant.
 
 ## Add a panel
 
