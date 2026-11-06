@@ -230,3 +230,129 @@ async def test_panel_confirmation_timeout_ends_the_extended_wait_immediately(
     assert finished_at <= clock.seconds <= finished_at + 2
     assert reason in str(wait.record.await_args.args[4])
     wait.record.assert_awaited_once()
+
+
+@pytest.mark.parametrize("reason", ["home_resolver", "other_home"])
+async def test_installed_rendered_update_retains_blocked_home_at_timeout(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    confirmation_clock: SimpleNamespace,
+    caplog: pytest.LogCaptureFixture,
+    reason: str,
+) -> None:
+    """Install cannot finish on a rendered dashboard without intended HOME."""
+    wait = _waiting_update(
+        hass, monkeypatch, confirmation_clock, lambda _: None, installed_at=0
+    )
+    wait.client.async_get_status.return_value = PanelStatus(
+        warning_count=0,
+        capability_count=0,
+        home_ui={"state": "blocked", "reason": reason, "evidence": "home_resolve"},
+        renderer={"mode": "builtin", "state": "rendered"},
+    )
+    with pytest.raises(HomeAssistantError) as caught:
+        await wait.entity.async_install(None, backup=False)
+    assert caught.value.translation_key == "update_not_complete"
+    assert confirmation_clock.seconds == 240
+    wait.client.async_get_status.assert_any_await(home_proof=True)
+    assert "Update completion timed out" in caplog.text
+    assert f"observed_package={PACKAGE_ID}" in caplog.text
+    assert "observed_build=2000" in caplog.text
+    assert "observed_code=772" in caplog.text
+    assert "requested_code=772" in caplog.text
+    assert f"home_reason={reason}" in caplog.text
+    assert "home_state=blocked" in caplog.text
+    assert "home_evidence=home_resolve" in caplog.text
+
+
+async def test_installed_update_finishes_after_fresh_intended_home_recovery(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    confirmation_clock: SimpleNamespace,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A later fresh ready proof completes the same accepted Install."""
+    wait = _waiting_update(
+        hass, monkeypatch, confirmation_clock, lambda _: None, installed_at=0
+    )
+
+    async def proof(*, home_proof: bool = False) -> PanelStatus:
+        assert home_proof
+        ready = confirmation_clock.seconds >= 6
+        return PanelStatus(
+            warning_count=0,
+            capability_count=0,
+            home_ui={
+                "state": "ready" if ready else "blocked",
+                "reason": "dashboard" if ready else "home_resolver",
+                "evidence": "home_resolve",
+            },
+            renderer={"mode": "builtin", "state": "rendered"},
+        )
+
+    wait.client.async_get_status.side_effect = proof
+    await wait.entity.async_install(None, backup=False)
+    assert confirmation_clock.seconds == 6
+    wait.record.assert_not_awaited()
+    assert "Update completion timed out" not in caplog.text
+
+
+@pytest.mark.parametrize("observed_first", [False, True])
+async def test_timeout_distinguishes_failed_home_probe_from_last_observation(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    confirmation_clock: SimpleNamespace,
+    caplog: pytest.LogCaptureFixture,
+    observed_first: bool,
+) -> None:
+    """A later failed proof does not erase or invent the last HOME observation."""
+    from custom_components.panel_assistant.client import CannotConnectError
+
+    wait = _waiting_update(
+        hass, monkeypatch, confirmation_clock, lambda _: None, installed_at=0
+    )
+
+    async def proof(*, home_proof: bool = False) -> PanelStatus:
+        assert home_proof
+        if observed_first and confirmation_clock.seconds == 0:
+            return PanelStatus(
+                warning_count=0,
+                capability_count=0,
+                home_ui={
+                    "state": "blocked",
+                    "reason": "home_resolver",
+                    "evidence": "home_resolve",
+                },
+            )
+        raise CannotConnectError
+
+    wait.client.async_get_status.side_effect = proof
+    with pytest.raises(HomeAssistantError):
+        await wait.entity.async_install(None, backup=False)
+    assert "home_probe=unavailable" in caplog.text
+    assert (
+        "home_reason=home_resolver" if observed_first else "home_reason=None"
+    ) in caplog.text
+    assert "observed_code=772" in caplog.text
+
+
+async def test_timeout_does_not_present_cached_health_as_observed_running_build(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    confirmation_clock: SimpleNamespace,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Without a successful health read, cached metadata is no running proof."""
+    wait = _waiting_update(hass, monkeypatch, confirmation_clock, lambda _: None)
+
+    async def failed_refresh_after_commit(*_args: object, **_kwargs: object) -> None:
+        wait.entity.coordinator.last_update_success = False
+        wait.entity.coordinator.reachable = True
+
+    wait.client.async_commit_apk.side_effect = failed_refresh_after_commit
+    with pytest.raises(HomeAssistantError):
+        await wait.entity.async_install(None, backup=False)
+    assert "health_available=False" in caplog.text
+    assert "observed_package=None" in caplog.text
+    assert "observed_build=None" in caplog.text
+    assert "home_probe=not_requested" in caplog.text
