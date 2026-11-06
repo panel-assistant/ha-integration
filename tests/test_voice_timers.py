@@ -333,7 +333,13 @@ async def test_a_later_timer_takes_over_the_ring_and_stop_ends_it(
         await _timer(hass, device_id, name="tea", seconds=2)
         # The first rings until the second finishes and takes over.
         while (event := await _announcement(panel))["message"] == "eggs":
+            eggs = event
             await _played(panel, event)
+        assert event["message"] == "tea"
+        # A late stop for the first ring's sound leaves the second ringing.
+        await _played(panel, eggs, outcome="stopped")
+        await _played(panel, event)
+        event = await _announcement(panel)
         assert event["message"] == "tea"
         await _played(panel, event, outcome="stopped")
         await asyncio.sleep(0.3)

@@ -131,6 +131,8 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         # Set when the owner stops the timer ringing now, and the task ringing it.
         self._ring_stopped: asyncio.Event | None = None
         self._ring_task: asyncio.Task[None] | None = None
+        # The announcements this ring sent; only their stop answers it.
+        self._ring_ids: set[str] = set()
         # The players this panel turns down while it holds a conversation.
         self._duck: RoomDuck
 
@@ -214,6 +216,7 @@ class PanelAssistSatellite(AssistSatelliteEntity):
             if self._ring_task is not None:
                 self._ring_task.cancel()
             self._ring_stopped = asyncio.Event()
+            self._ring_ids = set()
             self._ring_task = self.hass.async_create_background_task(
                 self._async_ring(timer, self._ring_stopped),
                 f"{self.entity_id}_timer_finished",
@@ -531,10 +534,9 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         """The panel finished playing an announcement, or a turn's reply."""
         if (
             outcome == OUTCOME_STOPPED
-            and announce_id is not None
+            and announce_id in self._ring_ids
             and self._ring_stopped is not None
         ):
-            # Only a ring plays while a timer rings.
             self._ring_stopped.set()
         if announce_id is None:
             # A streamed reply was finished at drain; a panel may still say so.
@@ -569,6 +571,8 @@ class PanelAssistSatellite(AssistSatelliteEntity):
                 translation_domain=DOMAIN, translation_key="voice_assistant_off"
             )
         announce_id = secrets.token_urlsafe(12)
+        if self._ring_task is not None and asyncio.current_task() is self._ring_task:
+            self._ring_ids.add(announce_id)
         future: asyncio.Future[bool] = self.hass.loop.create_future()
         self._announcements[announce_id] = (session.token, future)
         preannounce = announcement.preannounce_media_id
