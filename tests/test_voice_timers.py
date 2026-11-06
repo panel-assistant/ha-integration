@@ -71,15 +71,24 @@ async def _nothing_announced(panel: Panel) -> list[dict[str, Any]]:
     return events
 
 
-async def _played(panel: Panel, event: dict[str, Any]) -> None:
-    played = await panel.send(
-        {
-            "type": "panel_assistant/voice_played",
-            "session": panel.token,
-            "announce_id": event["announce_id"],
-        }
-    )
+async def _played(
+    panel: Panel, event: dict[str, Any], outcome: str | None = None
+) -> None:
+    message = {
+        "type": "panel_assistant/voice_played",
+        "session": panel.token,
+        "announce_id": event["announce_id"],
+    }
+    if outcome is not None:
+        message["outcome"] = outcome
+    played = await panel.send(message)
     assert played["success"], played
+
+
+@pytest.fixture(autouse=True)
+def _no_ring_pause() -> Any:
+    with patch("custom_components.panel_assistant.assist_satellite.RING_PAUSE", 0.1):
+        yield
 
 
 async def test_a_timer_set_at_the_panel_rings_it_when_it_finishes(
@@ -97,7 +106,7 @@ async def test_a_timer_set_at_the_panel_rings_it_when_it_finishes(
     assert event["url"].startswith("/panel_assistant/usb/timer_finished.flac")
     assert event["preannounce_url"] is None
     assert event["listen_after"] is False
-    await _played(panel, event)
+    await _played(panel, event, outcome="stopped")
     await hass.async_block_till_done()
     assert hass.states.get(entity_id).state == "idle"
 
@@ -129,7 +138,7 @@ async def test_a_named_timer_rings_then_says_its_name(
         "/panel_assistant/usb/timer_finished.flac"
     )
     assert event["url"].startswith("/api/tts_proxy/t.mp3")
-    await _played(panel, event)
+    await _played(panel, event, outcome="stopped")
 
 
 async def test_a_cancelled_timer_does_not_ring(
@@ -240,4 +249,131 @@ async def test_a_ring_waiting_on_a_turn_is_dropped_when_voice_turns_off(
                 await hass.async_block_till_done()
 
     events.extend(await _nothing_announced(panel))
+    assert all(event.get("kind") != "voice_announce" for event in events), events
+
+
+async def test_a_finished_timer_rings_again_until_the_panel_stops_it(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+) -> None:
+    panel, entity_id = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    await _timer(hass, _device(hass, entity_id))
+
+    first = await _announcement(panel)
+    await _played(panel, first)
+    second = await _announcement(panel)
+    # The same sound, its signature made afresh.
+    assert second["url"].split("?")[0] == first["url"].split("?")[0]
+    assert second["announce_id"] != first["announce_id"]
+    await _played(panel, second, outcome="stopped")
+    # Past the pause before another ring.
+    await asyncio.sleep(0.3)
+    await _nothing_announced(panel)
+    assert hass.states.get(entity_id).state == "idle"
+
+
+async def test_a_ring_stops_after_its_time_is_up(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+) -> None:
+    panel, entity_id = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    with patch("custom_components.panel_assistant.assist_satellite.RING_FOR", 0):
+        await _timer(hass, _device(hass, entity_id))
+        await _played(panel, await _announcement(panel))
+        await asyncio.sleep(0.3)
+    await _nothing_announced(panel)
+
+
+async def test_a_reply_stopped_while_no_timer_rings_changes_nothing(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+) -> None:
+    """An older or newer panel's outcome on an ordinary reply is accepted."""
+    panel, _ = await _ready(hass, hass_ws_client, hass_read_only_access_token, entry)
+    played = await panel.send(
+        {
+            "type": "panel_assistant/voice_played",
+            "session": panel.token,
+            "outcome": "stopped",
+        }
+    )
+    assert played["success"], played
+
+
+async def test_a_later_timer_takes_over_the_ring_and_stop_ends_it(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+) -> None:
+    panel, entity_id = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    device_id = _device(hass, entity_id)
+    stream = SimpleNamespace(
+        token="t", url="/api/tts_proxy/t.mp3", async_set_message=lambda _: None
+    )
+    tts = "homeassistant.components.assist_satellite.entity.tts"
+    with (
+        patch(f"{tts}.async_resolve_engine", return_value="tts.test"),
+        patch(f"{tts}.async_create_stream", return_value=stream),
+        patch(f"{tts}.generate_media_source_id", return_value="media-source://t"),
+    ):
+        await _timer(hass, device_id, name="eggs")
+        await _timer(hass, device_id, name="tea", seconds=2)
+        # The first rings until the second finishes and takes over.
+        while (event := await _announcement(panel))["message"] == "eggs":
+            eggs = event
+            await _played(panel, event)
+        assert event["message"] == "tea"
+        # A late stop for the first ring's sound leaves the second ringing.
+        await _played(panel, eggs, outcome="stopped")
+        await _played(panel, event)
+        event = await _announcement(panel)
+        assert event["message"] == "tea"
+        await _played(panel, event, outcome="stopped")
+        await asyncio.sleep(0.3)
+        await _nothing_announced(panel)
+
+
+async def test_speaking_to_the_panel_answers_a_ringing_timer(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+) -> None:
+    panel, entity_id = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    started = asyncio.Event()
+
+    async def listening(hass: HomeAssistant, **kwargs: Any) -> None:
+        started.set()
+        await asyncio.Event().wait()
+
+    with (
+        patch("custom_components.panel_assistant.assist_satellite.RING_PAUSE", 1.0),
+        patch(
+            "homeassistant.components.assist_satellite.entity.async_pipeline_from_audio_stream",
+            listening,
+        ),
+    ):
+        await _timer(hass, _device(hass, entity_id))
+        await _played(panel, await _announcement(panel))
+        await _run(panel, "hey_jarvis")
+        async with asyncio.timeout(5):
+            await started.wait()
+        await asyncio.sleep(1.3)
+        events = await _nothing_announced(panel)
     assert all(event.get("kind") != "voice_announce" for event in events), events
