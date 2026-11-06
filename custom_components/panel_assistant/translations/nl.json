@@ -998,7 +998,7 @@
         "step": {
           "confirm_restart": {
             "title": "Home Assistant herstarten",
-            "description": "Home Assistant draait nog op Panel Assistant {loaded}, dus de geïnstalleerde build {installed} is nog niet actief.\n\nOm dit op te lossen:\n1. Bekijk zo nodig [Panel Assistant]({integration_url}) en kom daarna hier terug.\n2. Selecteer Verzenden om Home Assistant nu opnieuw te starten.\n\n[Meer informatie]({learn_more_url})"
+            "description": "Home Assistant voert nog Panel Assistant {loaded} uit, dus de geïnstalleerde build {installed} is nog niet actief.\n\nOm dit op te lossen:\n1. Bekijk zo nodig [Panel Assistant]({integration_url}) en kom daarna hier terug.\n2. Selecteer Verzenden om Home Assistant nu opnieuw te starten.\n\n[Meer informatie]({learn_more_url})"
           }
         }
       }
