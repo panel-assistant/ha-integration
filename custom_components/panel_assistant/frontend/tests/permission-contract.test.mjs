@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
-import {existsSync, mkdtempSync, readFileSync} from 'node:fs';
+import {existsSync, mkdtempSync, readFileSync, writeFileSync, rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {buildPermissionRead, parsePermissionRead,
@@ -114,6 +114,67 @@ test('real shell grant program is scoped, preserves other services and gates not
   const again = executeGrant(33, `${other}:${ACCESSIBILITY_SERVICE}`);
   parsePermissionGrant(again.stdout, nonce);
   assert.ok(!again.stderr.includes('enabled_accessibility_services'));
+});
+
+test('USB Companion grants retain the previous launcher through install and repair', () => {
+  const previous = 'com.android.launcher3/com.android.launcher3.Launcher';
+  for (const restore of [false, true]) {
+    const dir = mkdtempSync(join(tmpdir(), 'companion-home-'));
+    try {
+      writeFileSync(join(dir, 'home'), restore ? homeComponentFor(NEW_CLASSES) : previous);
+      const program = `settings() { if [ "$1" = get ]; then echo null; fi; }
+pm() { :; }
+appops() { :; }
+am() { case "$*" in
+  *"operation dashboard_home_policy"*) if [ "$(cat "$HP_DIR/home")" = '${previous}' ]; then
+    echo 'Broadcast completed: result=2, data="panel-assistant-home-retained"'; else
+    echo 'Broadcast completed: result=3, data="panel-assistant-home-restore:${previous}"'; fi ;;
+  *"operation restore_previous_home_shell_lock_eligibility"*)
+    echo 'Broadcast completed: result=1, data="panel-assistant-home-restore-shell-locked"' ;;
+  *"operation acknowledge_retained_home"*) touch "$HP_DIR/ack" ;;
+  *"operation setup_eligibility"*) echo 'Broadcast completed: result=1, data="panel-assistant-setup-eligible"' ;;
+esac; }
+cmd() { case "$1 $2" in
+  'package resolve-activity') cat "$HP_DIR/home" ;;
+  'package set-home-activity') echo "$3" >> "$HP_DIR/calls"; printf '%s' "$3" > "$HP_DIR/home" ;;
+esac; }
+${buildPermissionGrant(nonce, 33, 'null', PACKAGE_ID, NEW_CLASSES).replace('9</system', '9<"$HP_DIR"')}`;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const result = spawnSync('/bin/sh', ['-c', program], {encoding: 'utf8', env: {...process.env, HP_DIR: dir}});
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(readFileSync(join(dir, 'home'), 'utf8'), previous);
+        assert.equal(parsePermissionGrant(result.stdout, nonce), 'retained');
+      }
+      assert.equal(existsSync(join(dir, 'ack')), restore);
+      assert.equal(existsSync(join(dir, 'calls')) ? readFileSync(join(dir, 'calls'), 'utf8') : '', restore ? `${previous}\n` : '');
+    } finally { rmSync(dir, {recursive: true, force: true}); }
+  }
+});
+
+test('USB HOME ownership is rechecked after setup eligibility', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'home-recheck-'));
+  try {
+    const program = `settings() { if [ "$1" = get ]; then echo null; fi; }
+pm() { :; }
+appops() { :; }
+dumpsys() { echo 'PreservePreviousHomeReceiver'; }
+am() { case "$*" in
+  *"operation dashboard_home_policy"*) if [ -e "$HP_DIR/changed" ]; then
+    echo 'Broadcast completed: result=2, data="panel-assistant-home-retained"'; else
+    echo 'Broadcast completed: result=1, data="panel-assistant-home-builtin"'; fi ;;
+  *"operation setup_eligibility"*) touch "$HP_DIR/changed"
+    echo 'Broadcast completed: result=1, data="panel-assistant-setup-eligible"' ;;
+esac; }
+cmd() { case "$1 $2" in
+  'package resolve-activity') echo 'com.android.launcher3/.Launcher' ;;
+  'package set-home-activity') touch "$HP_DIR/claimed" ;;
+esac; }
+${buildPermissionGrant(nonce, 33, 'null', PACKAGE_ID, NEW_CLASSES)}`;
+    const result = spawnSync('/bin/sh', ['-c', program], {encoding: 'utf8', env: {...process.env, HP_DIR: dir}});
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(parsePermissionGrant(result.stdout, nonce), 'deferred');
+    assert.equal(existsSync(join(dir, 'claimed')), false);
+  } finally { rmSync(dir, {recursive: true, force: true}); }
 });
 
 // Android lists each active admin by its short name, as a Meta Portal printed it.

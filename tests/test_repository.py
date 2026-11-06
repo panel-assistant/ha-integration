@@ -848,6 +848,8 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
         "homeQuery: p.HOME_QUERY, labels: h.APP_LABELS,"
         "runtime: p.RUNTIME_GRANTS,"
         "outcomes: h.CHOOSER_OUTCOMES,"
+        "setupClaims: Object.fromEntries(Object.keys(a.HOME_COMPONENTS)"
+        ".map(c => [c, p.buildSetupHomeClaim(c.split('/')[0], c)])),"
         "claims: Object.fromEntries(Object.keys(a.HOME_COMPONENTS)"
         ".map(c => [c, h.buildHomeClaim(c)])),"
         "grants: Object.fromEntries(Object.keys(a.HOME_COMPONENTS).map(c => [c,"
@@ -881,9 +883,13 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
     assert javascript["outcomes"] == list(home_chooser.CHOOSER_OUTCOMES)
     assert set(javascript["claims"]) == set(app_identity.HOME_COMPONENTS)
     for launch, claim in javascript["claims"].items():
+        assert javascript["setupClaims"][
+            launch
+        ] == adb_protocol._setup_home_claim_command(launch.partition("/")[0], launch)
         assert claim == home_chooser.home_claim_command(launch)
-        assert claim in javascript["grants"][launch]
-        assert claim in adb_protocol._permission_grant_command(
+        setup_claim = javascript["setupClaims"][launch]
+        assert setup_claim in javascript["grants"][launch]
+        assert setup_claim in adb_protocol._permission_grant_command(
             "0" * 32, launch.partition("/")[0], launch
         )
     # Neither install program can claim admin before first setup completes.

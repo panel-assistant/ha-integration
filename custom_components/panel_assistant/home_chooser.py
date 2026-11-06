@@ -39,6 +39,7 @@ CHOOSER_DUMP: Final = "/data/local/tmp/panel-assistant-home-chooser.xml"
 #: Every word the program leaves in ``hp_chooser``.
 CHOOSER_OUTCOMES: Final = (
     "deferred",  # First setup has not authorized ownership yet.
+    "retained",  # The external renderer keeps its valid Android HOME.
     "kept",  # HOME was already the dashboard; nothing was sent.
     "set",  # set-home-activity took.
     "tapped",  # the chooser offered this app and Always was pressed.

@@ -681,6 +681,89 @@ def device_admin_claim_command(package_id: str) -> str:
 
 
 def _setup_home_claim_command(
+    package_id: str,
+    launch_component: str,
+    *,
+    deferred_setup: bool = False,
+    pending_restore: bool = False,
+) -> str:
+    """Ask the configured renderer before claiming or restoring Android HOME."""
+    if deferred_setup:
+        return _setup_builtin_home_claim_command(
+            package_id, launch_component, deferred_setup=True
+        )
+    receiver = (
+        f"{package_id}/io.panelassistant.android.platform.PreservePreviousHomeReceiver"
+    )
+    pending = " --ez pending_setup true" if pending_restore else ""
+    builtin = 'Broadcast completed: result=1, data="panel-assistant-home-builtin"'
+    retained = 'Broadcast completed: result=2, data="panel-assistant-home-retained"'
+    restore = "panel-assistant-home-restore:"
+    locked = (
+        "Broadcast completed: result=1, "
+        'data="panel-assistant-home-restore-shell-locked"'
+    )
+    # The app validates the recorded component against enabled HOME activities.
+    # Revalidate that same target under shared custody immediately before the
+    # shell actuator; a stale policy reply must not undo a later owner choice.
+    restoration = (
+        "hp_chooser=$({ hp_chooser=deferred; "
+        "if flock -xn 0 <&9 && [ -d /proc/self/fd/9 ]; then "
+        "hp_lock_identity=$(stat -Lc '%d:%i' /proc/self/fd/0 <&9) && "
+        f"hp_restore=$(am broadcast --include-stopped-packages -n {receiver} "
+        f"--es operation restore_previous_home_shell_lock_eligibility{pending} "
+        '--es home_lock_identity "$hp_lock_identity" '
+        '--es previous_home_component "$hp_previous" 2>/dev/null) && '
+        f"if printf '%s\\n' \"$hp_restore\" | grep -Fxq '{locked}'; then "
+        'cmd package set-home-activity "$hp_previous" <&9 >/dev/null 2>&1; '
+        f'hp_home="$({_HOME_QUERY.replace("cmd ", "cmd <&9 ", 1)})"; '
+        'case "${hp_home#*/}" in .*) '
+        'hp_home="${hp_home%/*}/${hp_home%/*}${hp_home#*/}" ;; esac; '
+        'if [ "$hp_home" = "$hp_previous" ]; then '
+        f"am broadcast --include-stopped-packages -n {receiver} "
+        f"--es operation acknowledge_retained_home{pending} "
+        '--es previous_home_component "$hp_previous" >/dev/null 2>&1; '
+        "hp_chooser=retained; fi; fi; fi; "
+        "printf '%s\\n' \"$hp_chooser\"; } "
+        f"9<{_HOME_LOCK_DIRECTORY} 2>/dev/null) || hp_chooser=deferred"
+    )
+    claim = (
+        "hp_chooser=deferred"
+        if pending_restore
+        else _setup_builtin_home_claim_command(package_id, launch_component)
+    )
+    fallback = (
+        ""
+        if pending_restore
+        else (
+            'if [ "$hp_chooser" = deferred ] && [ "$hp_builtin" -eq 0 ] && '
+            '[ -z "$hp_previous" ] && '
+            f"{receiver_absence_check(package_id)}; then hp_builtin=1; fi; "
+        )
+    )
+    return (
+        f"hp_policy=$(am broadcast --include-stopped-packages -n {receiver} "
+        f"--es operation dashboard_home_policy{pending} 2>/dev/null); "
+        "hp_policy_status=$?; "
+        "hp_chooser=deferred; hp_builtin=0; hp_previous=; "
+        'if [ "$hp_policy_status" -eq 0 ] && '
+        f"printf '%s\\n' \"$hp_policy\" | grep -Fxq '{builtin}'; then hp_builtin=1; "
+        'elif [ "$hp_policy_status" -eq 0 ] && '
+        f"printf '%s\\n' \"$hp_policy\" | grep -Fxq '{retained}'; "
+        "then hp_chooser=retained; "
+        'elif [ "$hp_policy_status" -eq 0 ]; then '
+        "hp_previous=$(printf '%s\\n' \"$hp_policy\" | "
+        f"sed -n 's/^Broadcast completed: result=3, data=\"{restore}"
+        "\\([A-Za-z][A-Za-z0-9_.]*\\/[A-Za-z.][A-Za-z0-9_.$]*\\)\"$/\\1/p'); "
+        'if [ -n "$hp_previous" ] && ! printf \'%s\\n\' "$hp_previous" | '
+        f"grep -q '[[:space:]]'; then {restoration}; "
+        "fi; fi; "
+        f"{fallback}"
+        f'if [ "$hp_builtin" -eq 1 ]; then {claim}; fi'
+    )
+
+
+def _setup_builtin_home_claim_command(
     package_id: str, launch_component: str, *, deferred_setup: bool = False
 ) -> str:
     """Separate automatic pending setup authority from explicit installer repair."""
@@ -690,6 +773,13 @@ def _setup_home_claim_command(
     if deferred_setup:
         claimed = (
             'Broadcast completed: result=1, data="panel-assistant-pending-home-claimed"'
+        )
+        retained = (
+            "Broadcast completed: result=1, "
+            'data="panel-assistant-pending-home-retained"'
+        )
+        restore = (
+            'Broadcast completed: result=3, data="panel-assistant-pending-home-restore"'
         )
         shell = (
             'Broadcast completed: result=2, data="panel-assistant-pending-home-shell"'
@@ -730,6 +820,13 @@ def _setup_home_claim_command(
             'if [ "$hp_setup_status" -eq 0 ]; then '
             f"if printf '%s\\n' \"$hp_setup\" | grep -Fxq '{claimed}'; "
             "then hp_chooser=set; "
+            f"elif printf '%s\\n' \"$hp_setup\" | grep -Fxq '{retained}'; "
+            "then hp_chooser=retained; "
+            f"elif printf '%s\\n' \"$hp_setup\" | grep -Fxq '{restore}'; then "
+            + _setup_home_claim_command(
+                package_id, launch_component, pending_restore=True
+            )
+            + "; "
             f"elif printf '%s\\n' \"$hp_setup\" | grep -Fxq '{shell}'; then "
             + locked_claim
             + "; fi; fi"
@@ -744,7 +841,17 @@ def _setup_home_claim_command(
         + receiver_absence_check(package_id)
         + "; then hp_eligible=1; fi; fi; "
         'if [ "$hp_eligible" -eq 1 ]; then '
-        + home_claim_command(launch_component)
+        + home_claim_command(
+            launch_component,
+            claim_allowed=(
+                f"hp_policy=$(am broadcast --include-stopped-packages -n {receiver} "
+                "--es operation dashboard_home_policy 2>/dev/null) && "
+                "{ printf '%s\\n' \"$hp_policy\" | "
+                "grep -Fxq 'Broadcast completed: result=1, "
+                'data="panel-assistant-home-builtin"\' '
+                f"|| {{ {receiver_absence_check(package_id)}; }}; }}"
+            ),
+        )
         # Only native verified HOME readback clears pending intent. If the
         # acknowledgement fails, the live health flag retains retry custody.
         + f"; am broadcast --include-stopped-packages -n {receiver} "
@@ -778,9 +885,10 @@ def _permission_grant_command(
     performs the conditional claim, while shell-only panels hold the shared
     handback lock and recheck intent before HOME and any delayed chooser tap.
 
-    The build's dashboard is made the panel's HOME whenever HOME resolves to
-    anything else: Android forgets a preferred HOME when the set of packages
-    changes, so every install, update and repair asserts it again. Where the
+    Only the built-in renderer claims the build's dashboard as HOME. External
+    renderers retain a valid launcher or restore the recorded previous HOME.
+    Android forgets a preferred HOME when the set of packages changes, so
+    built-in installs, updates and repairs assert it again. Where the
     firmware only preselects it in Android's chooser, the chooser's Always is
     pressed (``home_chooser``). The custom-support probe is read last, for the
     vendor setup that follows (``vendor_provisioning``).

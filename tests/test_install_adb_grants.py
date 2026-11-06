@@ -11,11 +11,17 @@ from collections.abc import AsyncIterator
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 
-from custom_components.panel_assistant import adb_protocol, app_identity, install_adb
+from custom_components.panel_assistant import (
+    adb_protocol,
+    app_identity,
+    home_chooser,
+    install_adb,
+)
 from custom_components.panel_assistant.adb_protocol import (
     AdbInstallTarget,
     AdbRootMode,
@@ -27,6 +33,7 @@ from custom_components.panel_assistant.app_identity import (
 )
 from custom_components.panel_assistant.install_adb import async_launch_installed_app
 from custom_components.panel_assistant.release import InstallDescriptor
+from custom_components.panel_assistant.vendor_provisioning import META_PORTAL_DEVICES
 
 from .install_adb_fakes import (
     _ACCESSIBILITY_SERVICES,
@@ -67,10 +74,47 @@ handback_after_home_authority() {
 }
 am() {
   case "$*" in
+    *"operation dashboard_home_policy"*)
+      if [ -f "$STATE/home_ack" ] &&
+          case "$*" in *"pending_setup true"*) true ;; *) false ;; esac; then
+        echo 'Broadcast completed: result=0'
+      elif [ -f "$STATE/home.policy" ]; then cat "$STATE/home.policy"
+      elif [ -f "$STATE/receiver.absent" ]; then echo 'Broadcast completed: result=0'
+      else echo 'Broadcast completed: result=1,' \
+        'data="panel-assistant-home-builtin"'; fi ;;
+    *"operation restore_previous_home_shell_lock_eligibility"*)
+      handback_after_home_authority handback.before.restore.lock
+      if [ -f "$STATE/disappear.before.restore.lock" ]; then
+        touch "$STATE/receiver.absent"
+        rm -f "$STATE/home.policy"
+        echo 'Broadcast completed: result=0'; return
+      fi
+      if [ ! -f "$STATE/revoke.home.restore" ] &&
+          { [ ! -f "$STATE/home_ack" ] ||
+            case "$*" in *"pending_setup true"*) false ;; *) true ;; esac; }; then
+        echo 'Broadcast completed: result=1,' \
+          'data="panel-assistant-home-restore-shell-locked"'
+      else echo 'Broadcast completed: result=0'; fi ;;
+    *"operation acknowledge_retained_home"*)
+      touch "$STATE/retained.home_ack" "$STATE/home_ack"
+      echo 'Broadcast completed: result=2,' \
+        'data="panel-assistant-home-retained"' > "$STATE/home.policy"
+      echo 'Broadcast completed: result=1' ;;
     *"operation claim_pending_home"*)
       if [ -f "$STATE/incomplete.setup" ] || [ -f "$STATE/home_ack" ] ||
           [ -f "$STATE/legacy.receiver" ] || [ -f "$STATE/receiver.absent" ]; then
         echo "Broadcast completed: result=0"
+      elif [ -f "$STATE/home.policy" ]; then
+        case "$(cat "$STATE/home.policy")" in
+          *panel-assistant-home-retained*)
+            touch "$STATE/home_ack"
+            echo 'Broadcast completed: result=1,' \
+              'data="panel-assistant-pending-home-retained"' ;;
+          *)
+            handback_after_home_authority handback.after.restore.offer
+            echo 'Broadcast completed: result=3,' \
+              'data="panel-assistant-pending-home-restore"' ;;
+        esac
       elif [ -f "$STATE/native.home" ]; then
         while [ "$#" -ge 3 ]; do
           if [ "$1 $2" = "--es home_component" ]; then
@@ -120,6 +164,8 @@ am() {
       elif [ -f "$STATE/incomplete.setup" ]; then echo "Broadcast completed: result=0"
       else
         handback_after_home_authority
+        if [ -f "$STATE/race.home.policy" ]; then
+          mv "$STATE/race.home.policy" "$STATE/home.policy"; fi
         echo 'Broadcast completed: result=1, data="panel-assistant-setup-eligible"'
       fi ;;
     *"operation acknowledge_home"*)
@@ -201,6 +247,8 @@ input() {
 uiautomator() {
   if [ -f "$STATE/chooser.shown" ]; then
     cp "$STATE/chooser.xml" "$2"
+    if [ -f "$STATE/chooser.home.policy" ]; then
+      mv "$STATE/chooser.home.policy" "$STATE/home.policy"; fi
     handback_after_home_authority handback.during.chooser
     if [ -f "$STATE/native.recover.during.chooser" ]; then
       touch "$STATE/native.home"
@@ -668,6 +716,201 @@ async def test_explicit_install_and_update_repair_home_without_pending_setup(
         )
         == 1
     )
+
+
+@pytest.mark.parametrize(
+    "operation", ["install_launch", "update_repair", "pending_setup"]
+)
+@pytest.mark.parametrize(
+    "initial_home",
+    [
+        "com.android.launcher3/.Launcher",
+        "io.homeassistant.companion.android/.LauncherAlias",
+        f"{PACKAGE_ID}/.DashboardActivity",
+    ],
+)
+async def test_companion_install_and_repair_retain_previous_home(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    successor_descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    operation: str,
+    initial_home: str,
+) -> None:
+    previous = "com.android.launcher3/com.android.launcher3.Launcher"
+    vendor_setup = AsyncMock(return_value=None)
+    monkeypatch.setattr(install_adb, "_async_vendor_setup", vendor_setup)
+    (tmp_path / "prop.ro.product.device").write_text(META_PORTAL_DEVICES[0])
+    (tmp_path / "home").write_text(initial_home + "\n")
+    restoring = initial_home.startswith(PACKAGE_ID)
+    policy = (
+        f'Broadcast completed: result=3, data="panel-assistant-home-restore:{previous}"'
+        if restoring
+        else 'Broadcast completed: result=2, data="panel-assistant-home-retained"'
+    )
+    (tmp_path / "home.policy").write_text(policy + "\n")
+    installed = replace(
+        successor_descriptor,
+        launch_component=LAUNCH_COMPONENTS[successor_descriptor.package_id][-1],
+    )
+    for _ in range(2):
+        fake = _RoutingFakeDevice(tmp_path)
+        _install_fakes(monkeypatch, [fake])
+        if operation == "pending_setup":
+            chooser = await install_adb._async_repair_app_permissions(
+                fake,
+                target,
+                installed.package_id,
+                installed.launch_component,
+                deferred_setup=True,
+            )
+            assert chooser == (
+                "deferred" if (tmp_path / "completed.pending").exists() else "retained"
+            )
+            (tmp_path / "completed.pending").touch()
+        elif operation == "update_repair":
+            await install_adb.async_repair_installed_app_permissions(
+                target, signer, installed, expected_root_mode=AdbRootMode.ROOTLESS
+            )
+        else:
+            result = await install_adb.async_start_installed_app(
+                target,
+                signer,
+                installed,
+                expected_root_mode=AdbRootMode.ROOTLESS,
+            )
+            assert result.outcome is LaunchOutcome.STARTED
+            assert result.home_chooser == "retained"
+        assert _panel_value(tmp_path, "home") == (
+            "com.android.launcher3/.Launcher" if restoring else initial_home
+        )
+        assert _panel_value(tmp_path, f"appop.{PACKAGE_ID}.WRITE_SETTINGS") == "allow"
+    calls = (tmp_path / "calls").read_text()
+    assert "set-home-activity io.panelassistant.android/" not in calls
+    assert calls.count("set-home-activity") == int(restoring)
+    assert "its home screen" not in caplog.text
+    assert vendor_setup.await_count == (0 if operation == "pending_setup" else 2)
+
+
+@pytest.mark.parametrize(
+    "failure", ["unknown", "malformed", "revoked", "locked", "refused", "disappeared"]
+)
+async def test_unproved_companion_home_policy_never_claims_builtin_home(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    successor_descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    failure: str,
+) -> None:
+    current = f"{PACKAGE_ID}/.DashboardActivity"
+    previous = "com.android.launcher3/com.android.launcher3.Launcher"
+    (tmp_path / "home").write_text(current + "\n")
+    policy = (
+        f'Broadcast completed: result=3, data="panel-assistant-home-restore:{previous}"'
+    )
+    if failure == "unknown":
+        policy = "Broadcast completed: result=0"
+    elif failure == "malformed":
+        policy = policy.replace(previous, previous + "; touch unexpected")
+    else:
+        (
+            tmp_path
+            / {
+                "disappeared": "disappear.before.restore.lock",
+                "revoked": "revoke.home.restore",
+                "locked": "flock.unavailable",
+                "refused": "refuse.home",
+            }[failure]
+        ).touch()
+    (tmp_path / "home.policy").write_text(policy + "\n")
+    fake = _RoutingFakeDevice(tmp_path)
+    _install_fakes(monkeypatch, [fake])
+    result = await install_adb.async_start_installed_app(
+        target,
+        signer,
+        successor_descriptor,
+        expected_root_mode=AdbRootMode.ROOTLESS,
+    )
+    assert result.outcome is LaunchOutcome.STARTED
+    assert result.home_chooser == "deferred"
+    assert _panel_value(tmp_path, "home") == current
+    assert not (tmp_path / "retained.home_ack").exists()
+    calls = (tmp_path / "calls").read_text()
+    assert "set-home-activity io.panelassistant.android/" not in calls
+    assert calls.count("set-home-activity") == int(failure == "refused")
+
+
+@pytest.mark.parametrize("boundary", ["after.restore.offer", "before.restore.lock"])
+async def test_pending_companion_restore_cannot_restart_setup_after_handback(
+    monkeypatch: pytest.MonkeyPatch,
+    target: AdbInstallTarget,  # noqa: F811
+    tmp_path: Path,
+    boundary: str,
+) -> None:
+    vendor_setup = AsyncMock()
+    monkeypatch.setattr(install_adb, "_async_vendor_setup", vendor_setup)
+    (tmp_path / "prop.ro.product.device").write_text(META_PORTAL_DEVICES[0])
+    current = f"{PACKAGE_ID}/.DashboardActivity"
+    previous = "com.android.launcher3/com.android.launcher3.Launcher"
+    owner_home = "com.vendor.launcher/.Home"
+    (tmp_path / "home").write_text(current + "\n")
+    (tmp_path / "home.policy").write_text(
+        "Broadcast completed: result=3, "
+        f'data="panel-assistant-home-restore:{previous}"\n'
+    )
+    (tmp_path / f"handback.{boundary}").write_text(owner_home + "\n")
+    chooser = await install_adb._async_repair_app_permissions(
+        _RoutingFakeDevice(tmp_path),
+        target,
+        PACKAGE_ID,
+        LAUNCH_COMPONENTS[PACKAGE_ID][-1],
+        deferred_setup=True,
+    )
+    assert chooser == "deferred"
+    assert _panel_value(tmp_path, "home") == owner_home
+    assert "set-home-activity" not in (tmp_path / "calls").read_text()
+    vendor_setup.assert_not_awaited()
+
+
+@pytest.mark.parametrize("boundary", ["eligibility", "chooser"])
+async def test_explicit_home_claim_rechecks_a_changed_renderer(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    successor_descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    boundary: str,
+) -> None:
+    current = "com.vendor.launcher/.Home"
+    policy_file = "race.home.policy"
+    if boundary == "chooser":
+        monkeypatch.setattr(
+            home_chooser, "CHOOSER_DUMP", str(tmp_path / "chooser-dump")
+        )
+        current = "android/com.android.internal.app.ResolverActivity"
+        policy_file = "chooser.home.policy"
+        (tmp_path / "refuse.home").touch()
+        (tmp_path / "chooser.xml").write_text(
+            (Path(__file__).parent / "fixtures" / "portal_home_chooser.xml").read_text()
+        )
+        (tmp_path / "chooser.tap").write_text("817 623")
+        (tmp_path / "chooser.home").write_text(f"{PACKAGE_ID}/.DashboardActivity\n")
+    (tmp_path / "home").write_text(current + "\n")
+    (tmp_path / policy_file).write_text(
+        'Broadcast completed: result=2, data="panel-assistant-home-retained"\n'
+    )
+    _install_fakes(monkeypatch, [_RoutingFakeDevice(tmp_path)])
+    result = await install_adb.async_start_installed_app(
+        target, signer, successor_descriptor, expected_root_mode=AdbRootMode.ROOTLESS
+    )
+    assert result.home_chooser == "deferred"
+    assert _panel_value(tmp_path, "home") == current
+    calls = (tmp_path / "calls").read_text()
+    assert calls.count("set-home-activity") == int(boundary == "chooser")
+    assert "input tap" not in calls
 
 
 @pytest.mark.parametrize("identity", list(_CLASS_SETS))

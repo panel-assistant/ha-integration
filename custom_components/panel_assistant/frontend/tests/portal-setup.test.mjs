@@ -17,6 +17,9 @@ import {META_CONTROL_CENTER, META_RESTORE_RECORD, META_SCREENSAVER_COMPONENTS,
 const STAND_IN = String.raw`
 am() {
   case "$*" in
+    *"operation dashboard_home_policy"*)
+      if [ -f "$STATE/incomplete.setup" ] || [ -f "$STATE/legacy.receiver" ]; then echo "Broadcast completed: result=0"
+      else echo 'Broadcast completed: result=1, data="panel-assistant-home-builtin"'; fi ;;
     *"operation setup_eligibility"*)
       if [ -f "$STATE/legacy.receiver" ]; then echo "Broadcast completed: result=1"
       elif [ -f "$STATE/incomplete.setup" ]; then echo "Broadcast completed: result=0"

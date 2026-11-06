@@ -25,7 +25,10 @@ export function permissionPanel({badTarget = false, badApk = false, badRead = fa
   const execute = program => {
     const result = spawnSync('/bin/sh', ['-c', `
 pm() { echo "pm $*" >&3; }
-am() { echo "am $*" >&3; if [ "$1" = broadcast ]; then echo 'Broadcast completed: result=1, data="panel-assistant-setup-eligible"'; else echo 'Status: ok'; fi; }
+am() { echo "am $*" >&3; case "$*" in
+  *"operation dashboard_home_policy"*) echo 'Broadcast completed: result=1, data="panel-assistant-home-builtin"' ;;
+  *"broadcast"*) echo 'Broadcast completed: result=1, data="panel-assistant-setup-eligible"' ;;
+  *) echo 'Status: ok' ;; esac; }
 settings() { echo "settings $*" >&3; if [ "$1" = get ]; then echo 'com.other/.Reader'; fi; }
 appops() { echo "appops $*" >&3; ${failGrant ? 'return 1' : ':'}; }
 cmd() { echo "cmd $*" >&3; echo '${homeComponentFor(launchComponent)}'; }
