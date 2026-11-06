@@ -176,6 +176,8 @@ async def test_setup_entry_diagnostics_unload_reload(hass: HomeAssistant) -> Non
     health_mock = AsyncMock(
         side_effect=[
             DISCOVERY_HEALTH,
+            DISCOVERY_HEALTH,
+            replace(BETA_HEALTH, discovery_id=DISCOVERY_HEALTH.discovery_id),
             replace(BETA_HEALTH, discovery_id=DISCOVERY_HEALTH.discovery_id),
         ]
     )
@@ -261,7 +263,8 @@ async def test_setup_entry_diagnostics_unload_reload(hass: HomeAssistant) -> Non
         assert diagnostics["health"]["build"] == HEALTH.build
         assert diagnostics["status"] == STATUS.as_dict()
         assert diagnostics["status_error"] is None
-        assert health_mock.await_count == 1
+        # Health and the independent operation observation each prove identity.
+        assert health_mock.await_count == 2
         assert status_mock.await_count == 1
 
         assert await hass.config_entries.async_unload(entry.entry_id)
@@ -290,7 +293,7 @@ async def test_setup_entry_diagnostics_unload_reload(hass: HomeAssistant) -> Non
             )
         )
 
-    assert health_mock.await_count == 2
+    assert health_mock.await_count == 4
     assert status_mock.await_count == 2
     assert operation_mock.await_count == 2
     assert resume_mock.await_count == 2

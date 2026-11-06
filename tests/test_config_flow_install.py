@@ -201,8 +201,8 @@ async def test_install_existing_panel_requires_confirmation(
     assert result["title"] == "alpha"
     assert result["data"] == {CONF_ADDRESS: "panel.local"}
     assert result["result"].unique_id is None
-    # Entry setup performs the third health refresh after the two flow checks.
-    assert health_mock.await_count == 3
+    # Entry setup checks health and operation ownership after the two flow checks.
+    assert health_mock.await_count == 4
 
 
 async def test_install_existing_panel_rechecks_health_before_create(

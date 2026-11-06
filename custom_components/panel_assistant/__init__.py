@@ -244,7 +244,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
             translation_placeholders={"panel": panel_display_name(hass, entry)},
         )
     ir.async_delete_issue(hass, DOMAIN, needs_090_issue_id(entry.entry_id))
-    update_coordinator = PanelUpdateCoordinator(hass, client)
+    update_coordinator = PanelUpdateCoordinator(hass, client, entry.entry_id)
     await update_coordinator.async_config_entry_first_refresh()
 
     if coordinator.data is not None:
@@ -314,7 +314,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     entry.async_on_unload(lambda: async_clear_foreign_ha_issue(hass, entry.entry_id))
 
     def reconcile_restore_issue() -> None:
-        async_reconcile_restore_issue(hass, entry, update_coordinator.data)
+        async_reconcile_restore_issue(hass, entry, update_coordinator.restore_snapshot)
 
     reconcile_restore_issue()
     entry.async_on_unload(
