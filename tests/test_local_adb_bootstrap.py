@@ -10,6 +10,11 @@ import pytest
 from custom_components.panel_assistant import local_adb_bootstrap as bootstrap
 from custom_components.panel_assistant.adb_protocol import InstallAdbError
 
+# Panels own these files as root or the shell user; the private CI runs as root.
+needs_root = pytest.mark.skipif(
+    os.geteuid() != 0, reason="needs root to own files as the panel does"
+)
+
 
 @pytest.mark.parametrize("invalid", ["path", "hash", "build", "extra"])
 def test_prepare_refuses_unconstrained_bootstrap_metadata(invalid: str) -> None:
@@ -30,6 +35,7 @@ def test_prepare_refuses_unconstrained_bootstrap_metadata(invalid: str) -> None:
         bootstrap.prepared_asset(result)
 
 
+@needs_root
 @pytest.mark.parametrize(
     "damage", ["none", "digest", "symlink", "writable-parent", "source-owner"]
 )
