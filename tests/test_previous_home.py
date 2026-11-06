@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shlex
 import subprocess
 from pathlib import Path
@@ -13,6 +14,11 @@ from custom_components.panel_assistant.adb_protocol import _install_command
 from custom_components.panel_assistant.previous_home import (
     snapshot_previous_home,
     transfer_previous_home,
+)
+
+# Panels own these files as root or the shell user; the private CI runs as root.
+needs_root = pytest.mark.skipif(
+    os.geteuid() != 0, reason="needs root to own files as the panel does"
 )
 
 
@@ -54,6 +60,7 @@ def _shell(
     return result.stdout
 
 
+@needs_root
 def test_install_records_original_component_before_install_can_clear_home(
     tmp_path: Path,
 ) -> None:
@@ -69,6 +76,7 @@ def test_install_records_original_component_before_install_can_clear_home(
     assert not Path(apk + ".previous-home").exists()
 
 
+@needs_root
 def test_failed_transfer_keeps_original_for_retry(tmp_path: Path) -> None:
     apk = str(tmp_path / "install.apk")
     output = _shell(
@@ -86,6 +94,7 @@ def test_failed_transfer_keeps_original_for_retry(tmp_path: Path) -> None:
     ) == 2
 
 
+@needs_root
 def test_capture_retry_never_replaces_existing_original(tmp_path: Path) -> None:
     apk = str(tmp_path / "install.apk")
     record = Path(apk + ".previous-home")
@@ -154,6 +163,7 @@ def test_snapshot_never_records_a_home_that_cannot_be_handed_back(
     assert Path(apk + ".previous-home").read_text() == "none\n"
 
 
+@needs_root
 def test_usb_install_preserves_original_home_before_install_can_clear_it(
     tmp_path: Path,
 ) -> None:
@@ -186,6 +196,7 @@ def test_usb_install_preserves_original_home_before_install_can_clear_it(
     assert not Path(str(apk) + ".previous-home").exists()
 
 
+@needs_root
 def test_cancelled_job_discards_only_its_snapshot(tmp_path: Path) -> None:
     from custom_components.panel_assistant.previous_home import discard_previous_home
 
@@ -198,6 +209,7 @@ def test_cancelled_job_discards_only_its_snapshot(tmp_path: Path) -> None:
     assert unrelated.read_text() == "keep"
 
 
+@needs_root
 def test_usb_retry_cannot_launch_before_original_home_is_durable(
     tmp_path: Path,
 ) -> None:
@@ -234,6 +246,7 @@ def test_usb_retry_cannot_launch_before_original_home_is_durable(
     assert Path(apk + ".previous-home").exists()
 
 
+@needs_root
 @pytest.mark.parametrize(
     "query_response,query_status,package_status,legacy",
     [
