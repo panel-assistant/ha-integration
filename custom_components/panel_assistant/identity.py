@@ -157,10 +157,15 @@ def _prior_installation(hass: HomeAssistant, entry: ConfigEntry, did: str) -> bo
         }
         if panel_ids != {f"ha-paneld-{record.get('panel_id')}"}:
             return False
+        # Stored MQTT ids may refer to a composite from before Core split devices.
+        owner_ids: set[str | None] = {
+            part.config_entry_id
+            for part in registry.async_get_devices_for_composite_device_id(device_id)
+        } or {device.config_entry_id}
         for other in hass.config_entries.async_entries(DOMAIN):
             if other.entry_id == entry.entry_id:
                 continue
-            if other.entry_id in device.config_entries:
+            if other.entry_id in owner_ids:
                 return False
             other_record = other.data.get(CONF_CUTOVER, {})
             if isinstance(other_record, dict) and any(
