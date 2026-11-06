@@ -1827,6 +1827,25 @@
     "dashboard_unfiltered": {
       "title": "{panel} mostra la plancia senza filtro delle entità",
       "description": "{panel} ha aperto la plancia con tutte le entità perché non è riuscito a preparare in tempo il filtro delle entità. Continua a provare e torna da solo alla plancia filtrata.\n\nPer risolvere:\n1. Apri le [impostazioni delle entità]({entities_url}) di {panel} per vedere cosa sta aspettando.\n2. Se chiede una decisione o un nuovo accesso, segui i passaggi indicati."
+    },
+    "panel_root_lost": {
+      "title": "{panel} ha perso l’accesso root",
+      "fix_flow": {
+        "step": {
+          "confirm_restart": {
+            "title": "Riavvia {panel}",
+            "description": "{panel} aveva accesso root dall’ultimo avvio, ma root ha smesso di rispondere. Il riavvio del pannello lo ripristina.\n\nPer risolvere:\n1. Leggi le [istruzioni per il riavvio]({learn_more_url}).\n2. Seleziona Invia per riavviare subito il pannello. Il blocco schermo verrà verificato nuovamente prima del riavvio.\n\n[Ulteriori informazioni]({learn_more_url})"
+          }
+        },
+        "abort": {
+          "restart_unavailable": "{panel} aveva accesso root dall’ultimo avvio, ma root ha smesso di rispondere. Il riavvio del pannello lo ripristina. Il riavvio non è disponibile perché è impostato un blocco schermo, il suo stato è sconosciuto o il pannello non può ricevere comandi. Dopo il riavvio qualcuno potrebbe dover sbloccare {panel} di persona.\n\nPer risolvere:\n1. Leggi le [istruzioni per il riavvio]({learn_more_url}).\n2. Riavvia il pannello solo se qualcuno può sbloccarlo se necessario.\n\n[Ulteriori informazioni]({learn_more_url})",
+          "root_unreadable": "Impossibile leggere uno stato root aggiornato. Nessun comando di riavvio è stato inviato.\n\nPer risolvere:\n1. Leggi le [istruzioni per il riavvio]({learn_more_url}).\n2. Riprova questa riparazione quando il pannello sarà disponibile.\n\n[Ulteriori informazioni]({learn_more_url})",
+          "panel_busy": "Un’altra operazione sta utilizzando {panel}. Nessun comando di riavvio è stato inviato.\n\nPer risolvere:\n1. Leggi le [istruzioni per il riavvio]({learn_more_url}).\n2. Riprova questa riparazione quando il pannello sarà disponibile.\n\n[Ulteriori informazioni]({learn_more_url})",
+          "restart_failed": "Impossibile confermare il riavvio. Controlla {panel} prima di riprovare.\n\nPer risolvere:\n1. Leggi le [istruzioni per il riavvio]({learn_more_url}).\n2. Riavvia il pannello solo se qualcuno può sbloccarlo se necessario.\n\n[Ulteriori informazioni]({learn_more_url})",
+          "entry_removed": "Questo pannello non è più configurato in Home Assistant.\n\nPer risolvere:\n1. Leggi le [istruzioni per il riavvio]({learn_more_url}).\n2. Riprova questa riparazione quando il pannello sarà disponibile.\n\n[Ulteriori informazioni]({learn_more_url})",
+          "restart_started": "Il comando di riavvio è stato accettato. Questo avviso scomparirà quando {panel} segnalerà che l’accesso root è stato ripristinato.\n\nPer risolvere:\n1. Leggi le [istruzioni per il riavvio]({learn_more_url}).\n2. Riprova questa riparazione quando il pannello sarà disponibile.\n\n[Ulteriori informazioni]({learn_more_url})"
+        }
+      }
     }
   },
   "options": {

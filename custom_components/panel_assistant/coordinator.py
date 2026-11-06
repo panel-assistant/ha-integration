@@ -48,6 +48,7 @@ from .identity import accept_health, is_installation, reinstalled
 from .repairs_entity_hold import async_reconcile_entity_hold_issue
 from .repairs_permission import async_reconcile_permission_issue
 from .repairs_proximity import async_reconcile_proximity_issue
+from .repairs_root import async_reconcile_root_issue
 from .repairs_webview import async_reconcile_webview_issue
 from .status import PanelStatus, parse_status_response
 from .transport_protocol import ERR_PANEL_UNAVAILABLE, MANAGE_SNAPSHOT
@@ -598,6 +599,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             async_reconcile_permission_issue(self.hass, entry, status)
             async_reconcile_proximity_issue(self.hass, entry, status)
             async_reconcile_entity_hold_issue(self.hass, entry, status)
+            async_reconcile_root_issue(self.hass, entry, status)
             await async_reconcile_webview_issue(self.hass, entry, status)
         return PanelSnapshot(health=health, status=status, status_error=None)
 
@@ -726,6 +728,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             async_reconcile_permission_issue(self.hass, entry, status)
             async_reconcile_proximity_issue(self.hass, entry, status)
             async_reconcile_entity_hold_issue(self.hass, entry, status)
+            async_reconcile_root_issue(self.hass, entry, status)
             await async_reconcile_webview_issue(self.hass, entry, status)
         return PanelSnapshot(health=health, status=status, status_error=None)
 

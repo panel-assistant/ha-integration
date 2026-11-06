@@ -1827,6 +1827,25 @@
     "dashboard_unfiltered": {
       "title": "{panel} zeigt sein Dashboard ohne Entitätsfilter",
       "description": "{panel} hat sein Dashboard mit allen Entitäten geöffnet, weil der Entitätsfilter nicht rechtzeitig fertig wurde. Es versucht es weiter und wechselt von selbst zum gefilterten Dashboard zurück.\n\nSo behebst du das Problem:\n1. Öffne die [Entitätseinstellungen]({entities_url}) für {panel}, um zu sehen, worauf es wartet.\n2. Wenn dort eine Entscheidung oder eine neue Anmeldung verlangt wird, folge den Schritten dort."
+    },
+    "panel_root_lost": {
+      "title": "{panel} hat den Root-Zugriff verloren",
+      "fix_flow": {
+        "step": {
+          "confirm_restart": {
+            "title": "{panel} neu starten",
+            "description": "{panel} hatte seit dem letzten Start Root-Zugriff, aber Root antwortet nicht mehr. Ein Neustart des Panels stellt ihn wieder her.\n\nSo behebst du das Problem:\n1. Lies die [Hinweise zum Neustart]({learn_more_url}).\n2. Wähle Senden, um das Panel jetzt neu zu starten. Die Bildschirmsperre wird zuvor erneut geprüft.\n\n[Mehr erfahren]({learn_more_url})"
+          }
+        },
+        "abort": {
+          "restart_unavailable": "{panel} hatte seit dem letzten Start Root-Zugriff, aber Root antwortet nicht mehr. Ein Neustart des Panels stellt ihn wieder her. Ein Neustart ist nicht verfügbar, weil eine Bildschirmsperre eingerichtet ist, ihr Zustand unbekannt ist oder das Panel keine Befehle empfangen kann. Nach dem Neustart muss möglicherweise jemand {panel} vor Ort entsperren.\n\nSo behebst du das Problem:\n1. Lies die [Hinweise zum Neustart]({learn_more_url}).\n2. Starte das Panel nur neu, wenn es bei Bedarf jemand entsperren kann.\n\n[Mehr erfahren]({learn_more_url})",
+          "root_unreadable": "Ein aktueller Root-Status konnte nicht gelesen werden. Es wurde kein Neustart gesendet.\n\nSo behebst du das Problem:\n1. Lies die [Hinweise zum Neustart]({learn_more_url}).\n2. Versuche diese Reparatur erneut, sobald das Panel verfügbar ist.\n\n[Mehr erfahren]({learn_more_url})",
+          "panel_busy": "Ein anderer Vorgang verwendet {panel}. Es wurde kein Neustart gesendet.\n\nSo behebst du das Problem:\n1. Lies die [Hinweise zum Neustart]({learn_more_url}).\n2. Versuche diese Reparatur erneut, sobald das Panel verfügbar ist.\n\n[Mehr erfahren]({learn_more_url})",
+          "restart_failed": "Der Neustart konnte nicht bestätigt werden. Prüfe {panel} vor einem weiteren Versuch.\n\nSo behebst du das Problem:\n1. Lies die [Hinweise zum Neustart]({learn_more_url}).\n2. Starte das Panel nur neu, wenn es bei Bedarf jemand entsperren kann.\n\n[Mehr erfahren]({learn_more_url})",
+          "entry_removed": "Dieses Panel ist nicht mehr in Home Assistant eingerichtet.\n\nSo behebst du das Problem:\n1. Lies die [Hinweise zum Neustart]({learn_more_url}).\n2. Versuche diese Reparatur erneut, sobald das Panel verfügbar ist.\n\n[Mehr erfahren]({learn_more_url})",
+          "restart_started": "Der Neustartbefehl wurde angenommen. Diese Warnung verschwindet, sobald {panel} wieder Root-Zugriff meldet.\n\nSo behebst du das Problem:\n1. Lies die [Hinweise zum Neustart]({learn_more_url}).\n2. Versuche diese Reparatur erneut, sobald das Panel verfügbar ist.\n\n[Mehr erfahren]({learn_more_url})"
+        }
+      }
     }
   },
   "options": {

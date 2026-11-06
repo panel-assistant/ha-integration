@@ -1827,6 +1827,25 @@
     "dashboard_unfiltered": {
       "title": "{panel} pokazuje pulpit bez filtrowania encji",
       "description": "{panel} otworzył pulpit ze wszystkimi encjami, ponieważ nie zdążył przygotować filtra encji. Nadal próbuje i sam wróci do przefiltrowanego pulpitu.\n\nAby rozwiązać problem:\n1. Otwórz [ustawienia encji]({entities_url}) dla {panel}, aby zobaczyć, na co czeka.\n2. Jeśli prosi o decyzję lub ponowne zalogowanie, wykonaj podane tam kroki."
+    },
+    "panel_root_lost": {
+      "title": "Panel {panel} utracił dostęp root",
+      "fix_flow": {
+        "step": {
+          "confirm_restart": {
+            "title": "Uruchom ponownie {panel}",
+            "description": "Panel {panel} miał dostęp root od ostatniego uruchomienia, ale root przestał odpowiadać. Ponowne uruchomienie panelu przywróci ten dostęp.\n\nAby naprawić:\n1. Przeczytaj [wskazówki dotyczące ponownego uruchomienia]({learn_more_url}).\n2. Wybierz Wyślij, aby teraz uruchomić panel ponownie. Blokada ekranu zostanie najpierw ponownie sprawdzona.\n\n[Dowiedz się więcej]({learn_more_url})"
+          }
+        },
+        "abort": {
+          "restart_unavailable": "Panel {panel} miał dostęp root od ostatniego uruchomienia, ale root przestał odpowiadać. Ponowne uruchomienie panelu przywróci ten dostęp. Ponowne uruchomienie jest niedostępne, ponieważ ustawiono blokadę ekranu, jej stan jest nieznany lub panel nie może odbierać poleceń. Po restarcie ktoś może być zmuszony odblokować {panel} na miejscu.\n\nAby naprawić:\n1. Przeczytaj [wskazówki dotyczące ponownego uruchomienia]({learn_more_url}).\n2. Uruchom panel ponownie tylko wtedy, gdy ktoś może go w razie potrzeby odblokować.\n\n[Dowiedz się więcej]({learn_more_url})",
+          "root_unreadable": "Nie udało się odczytać aktualnego stanu root. Nie wysłano polecenia ponownego uruchomienia.\n\nAby naprawić:\n1. Przeczytaj [wskazówki dotyczące ponownego uruchomienia]({learn_more_url}).\n2. Spróbuj ponownie wykonać tę naprawę, gdy panel będzie dostępny.\n\n[Dowiedz się więcej]({learn_more_url})",
+          "panel_busy": "Inna operacja używa panelu {panel}. Nie wysłano polecenia ponownego uruchomienia.\n\nAby naprawić:\n1. Przeczytaj [wskazówki dotyczące ponownego uruchomienia]({learn_more_url}).\n2. Spróbuj ponownie wykonać tę naprawę, gdy panel będzie dostępny.\n\n[Dowiedz się więcej]({learn_more_url})",
+          "restart_failed": "Nie udało się potwierdzić ponownego uruchomienia. Sprawdź {panel} przed kolejną próbą.\n\nAby naprawić:\n1. Przeczytaj [wskazówki dotyczące ponownego uruchomienia]({learn_more_url}).\n2. Uruchom panel ponownie tylko wtedy, gdy ktoś może go w razie potrzeby odblokować.\n\n[Dowiedz się więcej]({learn_more_url})",
+          "entry_removed": "Ten panel nie jest już skonfigurowany w Home Assistant.\n\nAby naprawić:\n1. Przeczytaj [wskazówki dotyczące ponownego uruchomienia]({learn_more_url}).\n2. Spróbuj ponownie wykonać tę naprawę, gdy panel będzie dostępny.\n\n[Dowiedz się więcej]({learn_more_url})",
+          "restart_started": "Polecenie ponownego uruchomienia zostało przyjęte. Ostrzeżenie zniknie, gdy panel {panel} zgłosi przywrócenie dostępu root.\n\nAby naprawić:\n1. Przeczytaj [wskazówki dotyczące ponownego uruchomienia]({learn_more_url}).\n2. Spróbuj ponownie wykonać tę naprawę, gdy panel będzie dostępny.\n\n[Dowiedz się więcej]({learn_more_url})"
+        }
+      }
     }
   },
   "options": {

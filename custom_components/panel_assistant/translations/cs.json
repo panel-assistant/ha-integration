@@ -1827,6 +1827,25 @@
     "dashboard_unfiltered": {
       "title": "{panel} zobrazuje řídicí panel bez filtrování entit",
       "description": "{panel} otevřel ovládací panel se všemi entitami, protože nestihl včas připravit filtr entit. Dál to zkouší a k filtrovanému ovládacímu panelu se vrátí sám.\n\nPostup opravy:\n1. Otevřete [nastavení entit]({entities_url}) pro {panel} a podívejte se, na co čeká.\n2. Pokud žádá rozhodnutí nebo nové přihlášení, postupujte tam podle uvedených kroků."
+    },
+    "panel_root_lost": {
+      "title": "Panel {panel} ztratil přístup root",
+      "fix_flow": {
+        "step": {
+          "confirm_restart": {
+            "title": "Restartovat {panel}",
+            "description": "Panel {panel} měl od posledního spuštění přístup root, ale root přestal odpovídat. Restart panelu jej obnoví.\n\nPostup opravy:\n1. Přečtěte si [pokyny k restartu]({learn_more_url}).\n2. Panel restartujete tlačítkem Odeslat. Nejprve se znovu ověří zámek obrazovky.\n\n[Další informace]({learn_more_url})"
+          }
+        },
+        "abort": {
+          "restart_unavailable": "Panel {panel} měl od posledního spuštění přístup root, ale root přestal odpovídat. Restart panelu jej obnoví. Restart není dostupný, protože je nastaven zámek obrazovky, jeho stav není znám nebo panel nemůže přijímat příkazy. Po restartu může být nutné panel {panel} osobně odemknout.\n\nPostup opravy:\n1. Přečtěte si [pokyny k restartu]({learn_more_url}).\n2. Panel restartujte pouze tehdy, když jej někdo může v případě potřeby odemknout.\n\n[Další informace]({learn_more_url})",
+          "root_unreadable": "Nepodařilo se načíst čerstvý stav root. Příkaz k restartu nebyl odeslán.\n\nPostup opravy:\n1. Přečtěte si [pokyny k restartu]({learn_more_url}).\n2. Zkuste tuto opravu znovu, až bude panel dostupný.\n\n[Další informace]({learn_more_url})",
+          "panel_busy": "Panel {panel} používá jiná operace. Příkaz k restartu nebyl odeslán.\n\nPostup opravy:\n1. Přečtěte si [pokyny k restartu]({learn_more_url}).\n2. Zkuste tuto opravu znovu, až bude panel dostupný.\n\n[Další informace]({learn_more_url})",
+          "restart_failed": "Restart se nepodařilo potvrdit. Před dalším pokusem zkontrolujte {panel}.\n\nPostup opravy:\n1. Přečtěte si [pokyny k restartu]({learn_more_url}).\n2. Panel restartujte pouze tehdy, když jej někdo může v případě potřeby odemknout.\n\n[Další informace]({learn_more_url})",
+          "entry_removed": "Tento panel již není nastaven v Home Assistantu.\n\nPostup opravy:\n1. Přečtěte si [pokyny k restartu]({learn_more_url}).\n2. Zkuste tuto opravu znovu, až bude panel dostupný.\n\n[Další informace]({learn_more_url})",
+          "restart_started": "Příkaz k restartu byl přijat. Varování zmizí, až panel {panel} oznámí obnovení přístupu root.\n\nPostup opravy:\n1. Přečtěte si [pokyny k restartu]({learn_more_url}).\n2. Zkuste tuto opravu znovu, až bude panel dostupný.\n\n[Další informace]({learn_more_url})"
+        }
+      }
     }
   },
   "options": {

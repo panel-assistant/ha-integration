@@ -1827,6 +1827,25 @@
     "dashboard_unfiltered": {
       "title": "{panel} shows its dashboard without entity filtering",
       "description": "{panel} opened its dashboard with all entities because it could not finish preparing its entity filter in time. It keeps trying and returns to the filtered dashboard on its own.\n\nTo fix:\n1. Open [entity settings]({entities_url}) for {panel} to see what it is waiting for.\n2. If it asks for a decision or a new sign-in, follow its steps there."
+    },
+    "panel_root_lost": {
+      "title": "{panel} lost root access",
+      "fix_flow": {
+        "step": {
+          "confirm_restart": {
+            "title": "Restart {panel}",
+            "description": "{panel} had root access earlier in this boot, but root has stopped answering. A panel restart restores it.\n\nTo fix:\n1. Read the [restart guidance]({learn_more_url}).\n2. Select Submit to restart the panel now. Its screen lock will be checked again first.\n\n[Learn more]({learn_more_url})"
+          }
+        },
+        "abort": {
+          "restart_unavailable": "{panel} had root access earlier in this boot, but root has stopped answering. A panel restart restores it. Restart is unavailable because a screen lock is set, its state is unknown, or the panel cannot receive commands. Restarting could require someone to unlock {panel} physically.\n\nTo fix:\n1. Read the [restart guidance]({learn_more_url}).\n2. Restart the panel only when someone can unlock it if needed.\n\n[Learn more]({learn_more_url})",
+          "root_unreadable": "A fresh root status could not be read. No restart was sent.\n\nTo fix:\n1. Read the [restart guidance]({learn_more_url}).\n2. Try this Repair again when the panel is available.\n\n[Learn more]({learn_more_url})",
+          "panel_busy": "Another operation is using {panel}. No restart was sent.\n\nTo fix:\n1. Read the [restart guidance]({learn_more_url}).\n2. Try this Repair again when the panel is available.\n\n[Learn more]({learn_more_url})",
+          "restart_failed": "The restart could not be confirmed. Check {panel} before trying again.\n\nTo fix:\n1. Read the [restart guidance]({learn_more_url}).\n2. Restart the panel only when someone can unlock it if needed.\n\n[Learn more]({learn_more_url})",
+          "entry_removed": "This panel is no longer set up in Home Assistant.\n\nTo fix:\n1. Read the [restart guidance]({learn_more_url}).\n2. Try this Repair again when the panel is available.\n\n[Learn more]({learn_more_url})",
+          "restart_started": "The restart command was accepted. This warning will clear when {panel} reports that root is restored.\n\nTo fix:\n1. Read the [restart guidance]({learn_more_url}).\n2. Try this Repair again when the panel is available.\n\n[Learn more]({learn_more_url})"
+        }
+      }
     }
   },
   "options": {

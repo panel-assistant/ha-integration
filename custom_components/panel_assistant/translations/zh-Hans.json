@@ -1827,6 +1827,25 @@
     "dashboard_unfiltered": {
       "title": "{panel} 正在显示未经实体筛选的仪表盘",
       "description": "{panel} 未能及时准备好实体筛选器，因此以全部实体打开了仪表盘。它会继续尝试，并自动回到筛选后的仪表盘。\n\n解决方法：\n1. 打开 {panel} 的[实体设置]({entities_url})，查看它在等待什么。\n2. 如果需要做出决定或重新登录，请按照其中的步骤操作。"
+    },
+    "panel_root_lost": {
+      "title": "{panel} 已失去 root 权限",
+      "fix_flow": {
+        "step": {
+          "confirm_restart": {
+            "title": "重启 {panel}",
+            "description": "{panel} 在本次开机后曾拥有 root 权限，但 root 已停止响应。重启面板可恢复此权限。\n\n修复方法:\n1. 阅读[重启指南]({learn_more_url})。\n2. 选择提交以立即重启面板。系统会先再次检查屏幕锁。\n\n[了解更多]({learn_more_url})"
+          }
+        },
+        "abort": {
+          "restart_unavailable": "{panel} 在本次开机后曾拥有 root 权限，但 root 已停止响应。重启面板可恢复此权限。 由于已设置屏幕锁、屏幕锁状态未知或面板无法接收命令，无法远程重启。重启后可能需要有人到现场解锁 {panel}。\n\n修复方法:\n1. 阅读[重启指南]({learn_more_url})。\n2. 仅在有人能按需解锁面板时重启。\n\n[了解更多]({learn_more_url})",
+          "root_unreadable": "无法读取最新的 root 状态。未发送重启命令。\n\n修复方法:\n1. 阅读[重启指南]({learn_more_url})。\n2. 面板可用后，请再次尝试此修复。\n\n[了解更多]({learn_more_url})",
+          "panel_busy": "另一项操作正在使用 {panel}。未发送重启命令。\n\n修复方法:\n1. 阅读[重启指南]({learn_more_url})。\n2. 面板可用后，请再次尝试此修复。\n\n[了解更多]({learn_more_url})",
+          "restart_failed": "无法确认重启结果。请检查 {panel} 后再试。\n\n修复方法:\n1. 阅读[重启指南]({learn_more_url})。\n2. 仅在有人能按需解锁面板时重启。\n\n[了解更多]({learn_more_url})",
+          "entry_removed": "此面板已不再配置于 Home Assistant 中。\n\n修复方法:\n1. 阅读[重启指南]({learn_more_url})。\n2. 面板可用后，请再次尝试此修复。\n\n[了解更多]({learn_more_url})",
+          "restart_started": "重启命令已被接受。当 {panel} 报告 root 权限已恢复时，此警告将消失。\n\n修复方法:\n1. 阅读[重启指南]({learn_more_url})。\n2. 面板可用后，请再次尝试此修复。\n\n[了解更多]({learn_more_url})"
+        }
+      }
     }
   },
   "options": {
