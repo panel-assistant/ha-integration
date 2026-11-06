@@ -99,6 +99,9 @@ class PanelUpdateCoordinator(DataUpdateCoordinator[PanelUpdateSnapshot]):
             health = await self.client.async_get_health()
         except HaPaneldError:
             return None
+        except Exception:  # A failed identity proof must not fail entry setup.
+            _LOGGER.debug("Health for the restore Repair owner failed", exc_info=True)
+            return None
         if (
             not owner.current(self.hass, self.client)
             or getattr(entry, "runtime_data", None) is not runtime

@@ -1842,7 +1842,7 @@
           "root_unreadable": "Nepodařilo se načíst čerstvý stav root. Příkaz k restartu nebyl odeslán.\n\nPostup opravy:\n1. Přečtěte si [pokyny k restartu]({learn_more_url}).\n2. Zkuste tuto opravu znovu, až bude panel dostupný.\n\n[Další informace]({learn_more_url})",
           "panel_busy": "Panel {panel} používá jiná operace. Příkaz k restartu nebyl odeslán.\n\nPostup opravy:\n1. Přečtěte si [pokyny k restartu]({learn_more_url}).\n2. Zkuste tuto opravu znovu, až bude panel dostupný.\n\n[Další informace]({learn_more_url})",
           "restart_failed": "Restart se nepodařilo potvrdit. Před dalším pokusem zkontrolujte {panel}.\n\nPostup opravy:\n1. Přečtěte si [pokyny k restartu]({learn_more_url}).\n2. Panel restartujte pouze tehdy, když jej někdo může v případě potřeby odemknout.\n\n[Další informace]({learn_more_url})",
-          "entry_removed": "Tento panel již není nastaven v Home Assistantu.\n\nPostup opravy:\n1. Přečtěte si [pokyny k restartu]({learn_more_url}).\n2. Zkuste tuto opravu znovu, až bude panel dostupný.\n\n[Další informace]({learn_more_url})",
+          "entry_removed": "Tento panel již není nastaven v Home Assistant.\n\nPostup opravy:\n1. Přečtěte si [pokyny k restartu]({learn_more_url}).\n2. Zkuste tuto opravu znovu, až bude panel dostupný.\n\n[Další informace]({learn_more_url})",
           "restart_started": "Příkaz k restartu byl přijat. Varování zmizí, až panel {panel} oznámí obnovení přístupu root.\n\nPostup opravy:\n1. Přečtěte si [pokyny k restartu]({learn_more_url}).\n2. Zkuste tuto opravu znovu, až bude panel dostupný.\n\n[Další informace]({learn_more_url})"
         }
       }
