@@ -23,6 +23,7 @@ from .client import (
     CannotConnectError,
     HaPaneldError,
     InvalidResponseError,
+    PanelHealth,
     PanelInstallStatus,
     UpdateRejectedError,
     _version_key,
@@ -31,10 +32,10 @@ from .coordinator import HaPaneldDataUpdateCoordinator
 from .device import panel_display_name
 from .release import ReleaseArtifact
 from .session_carrier import UpdateCarrier
-from .status import home_ui_allows
+from .status import PanelStatus, home_ui_allows
 from .transport_sessions import async_get_sessions
 from .update_coordinator import PanelUpdateCoordinator
-from .update_errors import _update_error, refusal_error
+from .update_errors import UPDATE_LOGGER, _update_error, refusal_error
 
 _ANDROID_DOWNLOAD_MAX_SECONDS = 10 * 60
 _ANDROID_CONFIRMATION_MAX_SECONDS = 5 * 60
@@ -50,6 +51,49 @@ _UPDATE_TIMEOUT_SECONDS = (
 )
 _UPDATE_RECHECK_SECONDS = 2
 _TERMINAL_STATUS_GRACE_SECONDS = 60
+
+
+@dataclass
+class _CompletionObservation:
+    """Last successful reads, separate from whether the latest read succeeded."""
+
+    health: PanelHealth | None = None
+    health_available: bool = False
+    home: PanelStatus | None = None
+    home_probe: str = "not_requested"
+
+    def log_timeout(
+        self,
+        entry_id: str,
+        *,
+        package: str | None = None,
+        version: str | None = None,
+        build: str | None = None,
+        code: int | None = None,
+    ) -> None:
+        health = self.health
+        home = self.home.home_ui if self.home is not None else None
+        UPDATE_LOGGER.warning(
+            "Update completion timed out: entry=%s requested_package=%s "
+            "requested_version=%s requested_build=%s requested_code=%s "
+            "health_available=%s observed_package=%s observed_version=%s "
+            "observed_build=%s observed_code=%s home_probe=%s "
+            "home_state=%s home_reason=%s home_evidence=%s",
+            entry_id,
+            package,
+            version,
+            build,
+            code,
+            self.health_available,
+            health.package if health else None,
+            health.version if health else None,
+            health.build if health else None,
+            health.version_code if health else None,
+            self.home_probe,
+            home.get("state") if home else None,
+            home.get("reason") if home else None,
+            home.get("evidence") if home else None,
+        )
 
 
 @dataclass
@@ -251,10 +295,16 @@ class UpdateProgress:
         terminal_status_deadline: float | None = None
         status = None
         verified = False
+        observation = _CompletionObservation()
         while asyncio.get_running_loop().time() < deadline:
             await coordinator.async_request_refresh()
             self.hold_through_restart(hass)
             snapshot = coordinator.data
+            observation.health_available = (
+                coordinator.reachable and coordinator.last_update_success
+            )
+            if observation.health_available and snapshot is not None:
+                observation.health = snapshot.health
             verified = (
                 snapshot is not None
                 and starting_health is not None
@@ -281,6 +331,10 @@ class UpdateProgress:
                     home = await coordinator.client.async_get_status(home_proof=True)
                 except HaPaneldError:
                     home = None
+                    observation.home_probe = "unavailable"
+                else:
+                    observation.home = home
+                    observation.home_probe = "observed"
                 if home is not None and home_ui_allows(home):
                     await self._update_coordinator.async_request_refresh()
                     return True
@@ -313,6 +367,7 @@ class UpdateProgress:
                 if asyncio.get_running_loop().time() >= terminal_status_deadline:
                     return False
             await asyncio.sleep(_UPDATE_RECHECK_SECONDS)
+        observation.log_timeout(self._entry_id)
         if not verified and not (
             status is not None and status.component == "ha-paneld" and status.running
         ):
@@ -349,10 +404,16 @@ class UpdateProgress:
         )
         # Retain the first prompt observation; later polls cannot renew it.
         confirmation_deadline: float | None = None
+        observation = _CompletionObservation()
         while loop.time() < deadline:
             await coordinator.async_request_refresh()
             self.hold_through_restart(hass)
             health = coordinator.data.health if coordinator.data else None
+            observation.health_available = coordinator.last_update_success and (
+                session or coordinator.reachable
+            )
+            if observation.health_available and health is not None:
+                observation.health = health
             if (
                 (
                     # Over the session, the snapshot the session read answers.
@@ -386,6 +447,10 @@ class UpdateProgress:
                         status = await panel.async_get_status(home_proof=True)
                     except HaPaneldError:
                         status = None
+                        observation.home_probe = "unavailable"
+                    else:
+                        observation.home = status
+                        observation.home_probe = "observed"
                     if status is not None and home_ui_allows(status):
                         if code is not None:
                             return code, (health.version, health.build)
@@ -408,4 +473,11 @@ class UpdateProgress:
                     if confirmation_deadline is not None:
                         deadline = max(deadline, confirmation_deadline)
             await asyncio.sleep(_UPDATE_RECHECK_SECONDS)
+        observation.log_timeout(
+            self._entry_id,
+            package=package_id,
+            version=artifact.version,
+            build=artifact.tag,
+            code=build.version_code if build else None,
+        )
         raise _update_error("update_not_complete", "The panel update did not complete")

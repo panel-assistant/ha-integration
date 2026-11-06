@@ -534,3 +534,76 @@ def test_an_update_home_assistant_sent_also_says_to_tap(hass: HomeAssistant) -> 
     )
 
     assert entity.release_summary == "Tap Install on the panel to finish the update."
+
+
+@pytest.mark.parametrize("recovers", [False, True])
+async def test_reload_observer_requires_fresh_home_and_retains_timeout_reason(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    recovers: bool,
+) -> None:
+    """Recovered panel-owned updates keep the same HOME completion contract."""
+    entity, client = _entity(
+        hass, operation=PanelInstallStatus(running=True, component="ha-paneld")
+    )
+    clock = SimpleNamespace(seconds=0)
+
+    async def advance(seconds: float) -> None:
+        clock.seconds += seconds
+
+    monkeypatch.setattr(
+        update_progress,
+        "asyncio",
+        SimpleNamespace(
+            get_running_loop=lambda: SimpleNamespace(time=lambda: clock.seconds),
+            sleep=advance,
+        ),
+    )
+    monkeypatch.setattr(update_progress, "_UPDATE_TIMEOUT_SECONDS", 10)
+
+    async def refresh() -> None:
+        entity.coordinator.data = replace(
+            entity.coordinator.data,
+            health=replace(entity.coordinator.data.health, version="0.9.10"),
+        )
+        entity.coordinator.reachable = True
+        entity.coordinator.last_update_success = True
+
+    entity.coordinator.async_request_refresh = AsyncMock(side_effect=refresh)
+    entity._update_coordinator.async_request_refresh = AsyncMock()
+
+    async def proof(*, home_proof: bool = False) -> PanelStatus:
+        assert home_proof
+        ready = recovers and clock.seconds >= 4
+        return PanelStatus(
+            warning_count=0,
+            capability_count=0,
+            home_ui={
+                "state": "ready" if ready else "blocked",
+                "reason": "dashboard" if ready else "home_resolver",
+                "evidence": "home_resolve",
+            },
+            renderer={"mode": "builtin", "state": "rendered"},
+        )
+
+    client.async_get_status.side_effect = proof
+    failure = AsyncMock()
+    monkeypatch.setattr(panel_update, "async_record_update_failure", failure)
+    entity._handle_update_coordinator_update()
+    observer = entity._observer_task
+    assert observer is not None
+    result = await asyncio.gather(observer, return_exceptions=True)
+    if recovers:
+        assert result == [None]
+        assert clock.seconds == 4
+        failure.assert_not_awaited()
+        assert "Update completion timed out" not in caplog.text
+    else:
+        assert isinstance(result[0], HomeAssistantError)
+        _assert_translated(result[0], "update_not_complete")
+        assert clock.seconds == 10
+        assert "home_reason=home_resolver" in caplog.text
+        assert "observed_version=0.9.10" in caplog.text
+        assert "requested_version=None" in caplog.text
+        failure.assert_awaited_once()
