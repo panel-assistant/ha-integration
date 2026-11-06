@@ -32,6 +32,7 @@ from pytest_homeassistant_custom_component.common import (
 
 from custom_components.panel_assistant.voice_stream import async_get_voice_stream
 
+from .test_native import panel_patches
 from .test_transport import OTHER_DID, WsClientFactory, _receive
 from .test_voice import (  # noqa: F401  (fixtures)
     FakePipeline,
@@ -45,7 +46,9 @@ from .test_voice import (  # noqa: F401  (fixtures)
     pipeline,
 )
 from .test_voice_stream import (  # noqa: F401  (fixtures)
+    CLIPS,
     LINGERING,
+    _clip,
     _ClipView,
     _fetched,
     _second_entry,
@@ -124,7 +127,9 @@ async def _room(
         return True
 
     everything = [*players, *([elsewhere] if elsewhere else [])]
-    mock_integration(hass, MockModule("test", async_setup_entry=setup_entry))
+    mock_integration(
+        hass, MockModule("test", async_setup_entry=setup_entry), built_in=False
+    )
     mock_platform(hass, "test.config_flow", None)
     setup_test_component_platform(
         hass, "media_player", everything, from_config_entry=True
@@ -190,6 +195,126 @@ async def test_the_rooms_player_is_turned_down_for_the_turn_and_back_exactly(
     assert hass.states.get(satellite).state == "idle"
     assert speaker.level == LEVEL
     assert len(speaker.changes) == 2
+
+
+@pytest.mark.parametrize("absence", ["disabled", "reload"])
+@pytest.mark.parametrize("owner_level", [None, 0.8])
+async def test_a_recreated_player_keeps_its_volume_after_the_turn(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,  # noqa: F811
+    pipeline: FakePipeline,  # noqa: F811
+    absence: str,
+    owner_level: float | None,
+) -> None:
+    panel, satellite = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    # The physical speaker retains its level independently of its HA entity.
+    device_level = LEVEL
+    changes: list[float | bool] = []
+    instances: list[Player] = []
+    loaded_levels: list[float] = []
+
+    class RetainedPlayer(Player):
+        def __init__(self) -> None:
+            super().__init__("speaker")
+            self._attr_volume_level = device_level
+            loaded_levels.append(device_level)
+            self.changes = changes
+
+        async def async_set_volume_level(self, volume: float) -> None:
+            nonlocal device_level
+            await super().async_set_volume_level(volume)
+            device_level = self._attr_volume_level
+
+    async def setup_entry(hass: HomeAssistant, test_entry: ConfigEntry) -> bool:
+        await hass.config_entries.async_forward_entry_setups(
+            test_entry, ["media_player"]
+        )
+        return True
+
+    async def unload_entry(hass: HomeAssistant, test_entry: ConfigEntry) -> bool:
+        return await hass.config_entries.async_unload_platforms(
+            test_entry, ["media_player"]
+        )
+
+    async def setup_players(hass, test_entry, async_add_entities) -> None:
+        speaker = RetainedPlayer()
+        instances.append(speaker)
+        async_add_entities([speaker])
+
+    mock_integration(
+        hass,
+        MockModule(
+            "test", async_setup_entry=setup_entry, async_unload_entry=unload_entry
+        ),
+        built_in=False,
+    )
+    mock_platform(hass, "test.config_flow", None)
+    platform = setup_test_component_platform(
+        hass, "media_player", [], from_config_entry=True
+    )
+    platform.async_setup_entry = setup_players
+    player_entry = MockConfigEntry(domain="test")
+    player_entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(player_entry.entry_id)
+    await hass.async_block_till_done()
+    entity_id = instances[0].entity_id
+    registry = er.async_get(hass)
+    office = ar.async_get(hass).async_create("Office")
+    device_id = registry.async_get(satellite).device_id
+    dr.async_get(hass).async_update_device(device_id, area_id=office.id)
+    registry.async_update_entity(entity_id, area_id=office.id)
+    _reply(pipeline, follow_up=False)
+
+    await _turn(panel)
+    await hass.async_block_till_done()
+    ducked_level = device_level
+    assert ducked_level < LEVEL
+    if absence == "disabled":
+        registry.async_update_entity(
+            entity_id, disabled_by=er.RegistryEntryDisabler.USER
+        )
+        await hass.async_block_till_done()
+        assert hass.states.get(entity_id) is None
+    else:
+        assert await hass.config_entries.async_unload(player_entry.entry_id)
+        await hass.async_block_till_done()
+        assert hass.states.get(entity_id).state == "unavailable"
+    await _played(hass, panel)
+    assert hass.states.get(satellite).state == "idle"
+    assert changes == [LEVEL * 0.3]
+    assert device_level == ducked_level
+    if owner_level is not None:
+        device_level = owner_level
+
+    if absence == "disabled":
+        registry.async_update_entity(entity_id, disabled_by=None)
+        await hass.async_block_till_done()
+        assert len(instances) == 1
+        # Core recreates enabled entities by reloading their entry after 30 seconds.
+        with panel_patches():
+            async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=31))
+            await hass.async_block_till_done()
+    else:
+        assert await hass.config_entries.async_setup(player_entry.entry_id)
+    await hass.async_block_till_done()
+    assert len(instances) == 2
+    assert instances[1].entity_id == entity_id
+    assert instances[1] is not instances[0]
+    assert loaded_levels == [
+        LEVEL,
+        ducked_level if owner_level is None else owner_level,
+    ]
+    assert instances[1].level == (LEVEL if owner_level is None else owner_level)
+    assert changes == ([LEVEL * 0.3, LEVEL] if owner_level is None else [LEVEL * 0.3])
+    # Later metadata updates must not restore the old volume again.
+    instances[1]._attr_media_title = "Next track"
+    instances[1].async_write_ha_state()
+    await hass.async_block_till_done()
+    assert changes == ([LEVEL * 0.3, LEVEL] if owner_level is None else [LEVEL * 0.3])
 
 
 async def test_only_sounding_players_in_the_area_are_touched_and_a_tv_is_muted(
@@ -776,8 +901,11 @@ async def test_session_loss_settles_streamed_reply_and_restores_room(
     wires,  # noqa: F811
     follow_up,
     loss,
+    monkeypatch,
 ):
     """A streamed reply cut off by its session settles then, not at its drain."""
+    # Still playing when the newer turn starts, a few ms in; asserted below.
+    monkeypatch.setitem(CLIPS, "long", _clip(1.5))
     token = hass_read_only_access_token
     panel, wire, _ = await _voice_panel(hass, hass_ws_client, token, wires)
     satellite = _satellite(hass, entry)
@@ -814,6 +942,7 @@ async def test_session_loss_settles_streamed_reply_and_restores_room(
     assert speaker.level < LEVEL
     # The cut-off stream ends later and cannot end the newer turn.
     voice_stream = async_get_voice_stream(hass)
+    assert voice_stream._playing, "the cut-off stream must outlast this point"
     await _until(lambda: not voice_stream._playing, 15)
     await hass.async_block_till_done()
     assert hass.states.get(satellite).state == "responding"

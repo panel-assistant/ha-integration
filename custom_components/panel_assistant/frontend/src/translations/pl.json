@@ -56,7 +56,7 @@
     "downloading": "Przygotowywanie aplikacji…",
     "verifying": "Przygotowywanie aplikacji…",
     "verified": "Kontynuuj w nowym oknie.",
-    "installed": "Panel Assistant jest zainstalowany. Dokończ konfigurację panelu w oknie instalatora, a następnie zamknij tę kartę.",
+    "installed": "Aplikacja Panel Assistant jest zainstalowana. Dokończ konfigurację panelu w otwartym przez ciebie oknie instalacji, a następnie zamknij tę kartę.",
     "cancelled": "Anulowano.",
     "popup_blocked": "Przeglądarka zablokowała nowe okno. Zezwól na wyskakujące okna dla tej strony, a potem naciśnij Kontynuuj.",
     "invalid_request": "Najpierw wybierz wersję.",
@@ -77,7 +77,7 @@
     "confirmHeading": "Gotowe do instalacji",
     "confirmBody": "To zainstaluje aplikację i ustawi ją jako ekran główny panelu. Pozostałe aplikacje pozostaną nietknięte.",
     "install": "Zainstaluj",
-    "restartedDifferentVersion": "Wcześniejsza próba instalacji używała innego wydania. Ta próba została odłożona na bok.",
+    "restartedDifferentVersion": "Wcześniejsza próba instalacji używała innej wersji. Ta próba została odłożona na bok.",
     "alreadyInstalledHeading": "Już zainstalowano",
     "alreadyInstalledBody": "Ta wersja jest już na twoim panelu. Kontynuuj, aby dokończyć konfigurację; nic nie zostanie skopiowane ani zainstalowane ponownie.",
     "continueSetup": "Kontynuuj",
@@ -88,6 +88,9 @@
     "stepStarting": "Uruchamianie aplikacji…",
     "stepPermissions": "Zapewnianie aplikacji warunków do działania…",
     "stepOpening": "Otwieranie konfiguracji panelu…",
+    "stepWebView": "Aktualizowanie silnika przeglądarki panelu…",
+    "stepWebViewUpdated": "Silnik przeglądarki panelu jest aktualny.",
+    "stepWebViewKept": "Silnik przeglądarki panelu pozostawiono bez zmian.",
     "keepConnected": "Zostaw kabel podłączony do zakończenia.",
     "doneHeading": "Zainstalowano",
     "doneOpening": "Przechodzenie do konfiguracji panelu…",
@@ -113,6 +116,7 @@
   },
   "errors": {
     "installErrorGeneric": "Coś poszło nie tak. Zostaw panel podłączony i naciśnij Spróbuj ponownie.",
+    "installErrorUsbBusy": "Inna aplikacja używa połączenia USB. Zamknij inne aplikacje korzystające z połączenia USB panelu, a następnie naciśnij Spróbuj ponownie.",
     "installErrorBusy": "Panel jest zajęty inną instalacją. Poczekaj minutę, a potem spróbuj ponownie.",
     "installErrorStorage": "Przeglądarka nie mogła zapisać postępu. Zezwól tej stronie na zapisywanie danych, a potem spróbuj ponownie.",
     "installErrorTarget": "Podłączono inny panel. Podłącz ten sam panel co wcześniej i spróbuj ponownie.",
@@ -140,7 +144,7 @@
     "cause": "Przyczyna",
     "failedCheck": "Nieudane sprawdzenie",
     "error": "Błąd",
-    "release": "Wydanie",
+    "release": "Wersja",
     "panel": "Panel",
     "copied": "Skopiowano",
     "savedProgress": "Zapisany postęp",
@@ -155,6 +159,7 @@
     "networkAdb": "ADB przez sieć",
     "copiedDetail": "Wysłano {bytes} bajtów; oczekiwanie na potwierdzenie panelu",
     "none": "brak",
-    "setupMissing": "nie znaleziono; konfiguracja trwa dalej na panelu"
+    "setupMissing": "nie znaleziono; konfiguracja trwa dalej na panelu",
+    "webview": "WebView"
   }
 }

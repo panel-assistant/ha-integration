@@ -8,10 +8,11 @@ on:
 permissions:
   contents: read
 
-# A superseded push should stop burning a runner. Runs on main are never
-# cancelled, because main's timings are what the CI budget measures.
+# Branch and PR updates supersede their predecessors. Main checks belong to a
+# commit, so later pushes cannot evict a release cut even while it is pending.
+# Tags, manual trials and schedules each retain their own independent run.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.sha || (github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/'))) && 'latest' || github.run_id }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:

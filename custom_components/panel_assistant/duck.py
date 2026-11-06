@@ -252,10 +252,7 @@ class RoomDuck:
                 return
             if restoring and held.level is not None:
                 state = self._hass.states.get(entity_id)
-                if (
-                    state is not None
-                    and ATTR_MEDIA_VOLUME_LEVEL not in state.attributes
-                ):
+                if state is None or ATTR_MEDIA_VOLUME_LEVEL not in state.attributes:
                     self._await_level(entity_id, held)
                     return
                 if not self._untouched(entity_id, held):

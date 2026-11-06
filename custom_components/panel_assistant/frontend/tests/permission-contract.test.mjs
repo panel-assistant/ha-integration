@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
-import {existsSync, mkdtempSync, readFileSync} from 'node:fs';
+import {existsSync, mkdtempSync, readFileSync, writeFileSync, rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {buildPermissionRead, parsePermissionRead,
@@ -37,7 +37,6 @@ test('permission observation is nonce-bound and rejects malformed accessibility 
     frame('READ', [other, other]), frame('READ', [other]) + 'extra', frame('READ', [other]).replace(other, '\x00')]) {
     assert.throws(() => parsePermissionRead(invalid, nonce));
   }
-  assert.ok(buildPermissionRead(nonce).includes('settings get secure'));
   assert.throws(() => buildPermissionRead('bad'));
 });
 
@@ -61,8 +60,32 @@ test('readback requires every grant and exact preservation; no generic completio
     assert.throws(() => parsePermissionVerification(invalid, nonce, 33, other, PACKAGE_ID, OLD_CLASSES));
   }
   assert.throws(() => parsePermissionVerification(verified(), nonce, 101, other, PACKAGE_ID, OLD_CLASSES));
-  assert.match(buildPermissionVerification(nonce, 33, PACKAGE_ID, OLD_CLASSES), /dumpsys package io.panelassistant.android /);
-  assert.ok(!buildPermissionVerification(nonce, 32, PACKAGE_ID, OLD_CLASSES).includes('POST_NOTIFICATIONS'));
+});
+
+// A panel whose package manager knows only `installed`: Android below 13 has
+// no notification permission, so its dump carries no such line.
+function executeVerification(sdk, installed = PACKAGE_ID) {
+  const program = `settings() { case "$3" in enabled_accessibility_services) echo '${other}:${ACCESSIBILITY_SERVICE}' ;; *) echo 1 ;; esac; }
+appops() { if [ "$2" = '${installed}' ]; then echo "$3: allow"; else echo 'No operations.'; fi; }
+dumpsys() { [ "$2" = '${installed}' ] || { echo "Unable to find package: $2"; return 0; }
+  ${sdk >= 33 ? "echo '      android.permission.POST_NOTIFICATIONS: granted=true, flags=[ USER_SET]'" : ':'}
+  for p in CAMERA RECORD_AUDIO WRITE_SECURE_SETTINGS; do echo "      android.permission.$p: granted=true"; done; }
+pm() { printf 'feature:android.hardware.camera.any\\nfeature:android.hardware.microphone\\n'; }
+cmd() { echo '${homeComponentFor(OLD_CLASSES)}'; }
+getprop() { echo generic; }
+${buildPermissionVerification(nonce, sdk, PACKAGE_ID, OLD_CLASSES)}`;
+  return spawnSync('/bin/sh', ['-c', program], {encoding: 'utf8'}).stdout;
+}
+
+test("the executed verification reads this app's own grants, notifications only from Android 13", () => {
+  for (const sdk of [32, 33]) {
+    assert.deepEqual(parsePermissionVerification(executeVerification(sdk), nonce, sdk, other, PACKAGE_ID, OLD_CLASSES),
+      {permissionsVerified: true, notificationsRequired: sdk >= 33, camera: 'granted', microphone: 'granted',
+        secureSettings: 'granted', home: true, device: 'generic'}, `sdk ${sdk}`);
+    // Another app's grants never count as this one's.
+    assert.throws(() => parsePermissionVerification(executeVerification(sdk, 'com.example.other'),
+      nonce, sdk, other, PACKAGE_ID, OLD_CLASSES), /permissions_unverified/);
+  }
 });
 
 function executeGrant(sdk, existing, {live = existing, rejectAppops = false} = {}) {
@@ -93,6 +116,67 @@ test('real shell grant program is scoped, preserves other services and gates not
   assert.ok(!again.stderr.includes('enabled_accessibility_services'));
 });
 
+test('USB Companion grants retain the previous launcher through install and repair', () => {
+  const previous = 'com.android.launcher3/com.android.launcher3.Launcher';
+  for (const restore of [false, true]) {
+    const dir = mkdtempSync(join(tmpdir(), 'companion-home-'));
+    try {
+      writeFileSync(join(dir, 'home'), restore ? homeComponentFor(NEW_CLASSES) : previous);
+      const program = `settings() { if [ "$1" = get ]; then echo null; fi; }
+pm() { :; }
+appops() { :; }
+am() { case "$*" in
+  *"operation dashboard_home_policy"*) if [ "$(cat "$HP_DIR/home")" = '${previous}' ]; then
+    echo 'Broadcast completed: result=2, data="panel-assistant-home-retained"'; else
+    echo 'Broadcast completed: result=3, data="panel-assistant-home-restore:${previous}"'; fi ;;
+  *"operation restore_previous_home_shell_lock_eligibility"*)
+    echo 'Broadcast completed: result=1, data="panel-assistant-home-restore-shell-locked"' ;;
+  *"operation acknowledge_retained_home"*) touch "$HP_DIR/ack" ;;
+  *"operation setup_eligibility"*) echo 'Broadcast completed: result=1, data="panel-assistant-setup-eligible"' ;;
+esac; }
+cmd() { case "$1 $2" in
+  'package resolve-activity') cat "$HP_DIR/home" ;;
+  'package set-home-activity') echo "$3" >> "$HP_DIR/calls"; printf '%s' "$3" > "$HP_DIR/home" ;;
+esac; }
+${buildPermissionGrant(nonce, 33, 'null', PACKAGE_ID, NEW_CLASSES).replace('9</system', '9<"$HP_DIR"')}`;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const result = spawnSync('/bin/sh', ['-c', program], {encoding: 'utf8', env: {...process.env, HP_DIR: dir}});
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(readFileSync(join(dir, 'home'), 'utf8'), previous);
+        assert.equal(parsePermissionGrant(result.stdout, nonce), 'retained');
+      }
+      assert.equal(existsSync(join(dir, 'ack')), restore);
+      assert.equal(existsSync(join(dir, 'calls')) ? readFileSync(join(dir, 'calls'), 'utf8') : '', restore ? `${previous}\n` : '');
+    } finally { rmSync(dir, {recursive: true, force: true}); }
+  }
+});
+
+test('USB HOME ownership is rechecked after setup eligibility', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'home-recheck-'));
+  try {
+    const program = `settings() { if [ "$1" = get ]; then echo null; fi; }
+pm() { :; }
+appops() { :; }
+dumpsys() { echo 'PreservePreviousHomeReceiver'; }
+am() { case "$*" in
+  *"operation dashboard_home_policy"*) if [ -e "$HP_DIR/changed" ]; then
+    echo 'Broadcast completed: result=2, data="panel-assistant-home-retained"'; else
+    echo 'Broadcast completed: result=1, data="panel-assistant-home-builtin"'; fi ;;
+  *"operation setup_eligibility"*) touch "$HP_DIR/changed"
+    echo 'Broadcast completed: result=1, data="panel-assistant-setup-eligible"' ;;
+esac; }
+cmd() { case "$1 $2" in
+  'package resolve-activity') echo 'com.android.launcher3/.Launcher' ;;
+  'package set-home-activity') touch "$HP_DIR/claimed" ;;
+esac; }
+${buildPermissionGrant(nonce, 33, 'null', PACKAGE_ID, NEW_CLASSES)}`;
+    const result = spawnSync('/bin/sh', ['-c', program], {encoding: 'utf8', env: {...process.env, HP_DIR: dir}});
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(parsePermissionGrant(result.stdout, nonce), 'deferred');
+    assert.equal(existsSync(join(dir, 'claimed')), false);
+  } finally { rmSync(dir, {recursive: true, force: true}); }
+});
+
 // Android lists each active admin by its short name, as a Meta Portal printed it.
 function executeAdminGrant(adminActive, packageId = PACKAGE_ID, launchComponent = NEW_CLASSES) {
   const dir = mkdtempSync(join(tmpdir(), 'admin-'));
@@ -111,13 +195,14 @@ ${buildPermissionGrant(nonce, 33, 'null', packageId, launchComponent)}`;
   return {...result, calls: existsSync(calls) ? readFileSync(calls, 'utf8') : '', active: existsSync(join(dir, 'admin'))};
 }
 
-test('the app is made a device admin unless it already is, whichever classes it carries', () => {
+test('USB installation leaves fresh admin inactive and preserves existing admin', () => {
   for (const launchComponent of [OLD_CLASSES, NEW_CLASSES]) {
     const fresh = executeAdminGrant(false, PACKAGE_ID, launchComponent);
-    assert.equal(fresh.active, true);
-    assert.equal(fresh.calls,
-      'dpm set-active-admin io.panelassistant.android/io.panelassistant.android.platform.PanelDeviceAdminReceiver\n');
-    assert.equal(executeAdminGrant(true, PACKAGE_ID, launchComponent).calls, '');
+    assert.equal(fresh.active, false);
+    assert.equal(fresh.calls, '');
+    const existing = executeAdminGrant(true, PACKAGE_ID, launchComponent);
+    assert.equal(existing.active, true);
+    assert.equal(existing.calls, '');
   }
 });
 
@@ -138,18 +223,6 @@ test('a build with old classes is granted through its own fully qualified compon
   assert.equal(expectedServices('', PACKAGE_ID, OLD_CLASSES), service);
   assert.ok(!expectedServices('', PACKAGE_ID, OLD_CLASSES).includes('/.input.'));
   assert.equal(expectedServices(other, PACKAGE_ID, OLD_CLASSES), `${other}:${service}`);
-
-  const grant = buildPermissionGrant(nonce, 33, other, PACKAGE_ID, OLD_CLASSES);
-  assert.ok(grant.includes(`pm grant ${PACKAGE_ID} android.permission.POST_NOTIFICATIONS`));
-  assert.ok(grant.includes(`appops set ${PACKAGE_ID} WRITE_SETTINGS allow`));
-  assert.ok(grant.includes(`settings put secure enabled_accessibility_services '${other}:${service}'`));
-  assert.ok(!grant.includes(`appops set ${LEGACY_PACKAGE_ID} `));
-
-  const verify = buildPermissionVerification(nonce, 33, PACKAGE_ID, OLD_CLASSES);
-  assert.ok(verify.includes(`appops get ${PACKAGE_ID} SYSTEM_ALERT_WINDOW`));
-  assert.ok(grant.includes(`appops set ${PACKAGE_ID} REQUEST_INSTALL_PACKAGES allow`));
-  assert.ok(verify.includes(`appops get ${PACKAGE_ID} REQUEST_INSTALL_PACKAGES`));
-  assert.ok(verify.includes(`dumpsys package ${PACKAGE_ID} |`));
 });
 
 test('a service already enabled in either spelling is kept, and the old app is never granted', () => {

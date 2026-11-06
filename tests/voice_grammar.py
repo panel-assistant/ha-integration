@@ -13,7 +13,10 @@ and for every locale at once, whether that can happen:
   of our own sentences when its name, area and floor slots may be any text?
   A match only counts when the built-in template contributes at least one
   literal word, so a bare ``{name}`` template (a script or scene said by name)
-  does not count against every phrase.
+  does not count against every phrase. Words between two free slots do not
+  count either: ``{name} in {area}`` is a scene said by name and area, and its
+  "in" would otherwise find a sentence in every phrase with a preposition or,
+  spaces ignored, an "in" inside a word ("sett-in-gs").
 
 Both are intersections of the two grammars' finite automata (hassil's own
 ``fst`` compilation), compared character by character with spaces ignored, so
@@ -132,9 +135,42 @@ class _Automaton:
         # state -> [(label, to)], label "" for epsilon, SLOT, or one character;
         # multi-character words become chains of fresh states.
         self.arcs: dict[Any, list[tuple[Any, Any]]] = {}
+        self._moves: dict[Any, tuple[dict[Any, list[Any]], list[Any], bool]] = {}
         for state, arcs in fst.arcs.items():
             for arc in arcs:
                 self._add_word(state, arc.in_label, arc.to_state)
+
+    def moves(self, state: Any) -> tuple[dict[Any, list[Any]], list[Any], bool]:
+        """What ``state`` can do once its epsilon arcs are followed.
+
+        Its labelled arcs (by label), the wildcard arcs it can enter, and
+        whether it can end there: the arcs of every state its epsilon arcs
+        reach, so a search never stops on a state that only passes through.
+        """
+        found = self._moves.get(state)
+        if found is None:
+            sym: dict[Any, list[Any]] = {}
+            wild: list[Any] = []
+            final = False
+            seen = {state}
+            stack = [state]
+            while stack:
+                here = stack.pop()
+                final = final or here in self.final
+                for label, to in self.arcs.get(here, ()):
+                    if label == "":
+                        if to not in seen:
+                            seen.add(to)
+                            stack.append(to)
+                    elif label is _WILD:
+                        if to not in wild:
+                            wild.append(to)
+                    else:
+                        targets = sym.setdefault(label, [])
+                        if to not in targets:
+                            targets.append(to)
+            found = self._moves[state] = (sym, wild, final)
+        return found
 
     def _add_word(self, state: Any, word: str, to: Any) -> None:
         out = self.arcs.setdefault(state, [])
@@ -165,74 +201,98 @@ class _Automaton:
             prev = nxt
 
 
+# What a left (built-in) path's literal words have earned; see ``claimed``.
+_NONE, _PENDING, _COUNTED, _GLUE = "none", "pending", "counted", "glue"
+
+
+def _after_free_slot(earned: str) -> str:
+    """Entering or staying in a free slot: words pending since the last one
+    were glue between two free slots."""
+    return _GLUE if earned in (_NONE, _PENDING, _GLUE) else _COUNTED
+
+
+def _after_symbol(earned: str, literal: bool) -> str:
+    """One left symbol that is not a free slot: a word, or a number."""
+    if not literal:
+        # A number after the words: they did not sit between two free slots.
+        return _COUNTED if earned is _PENDING else earned
+    # Before any free slot a word counts at once; after one it waits.
+    return _COUNTED if earned in (_NONE, _COUNTED) else _PENDING
+
+
 def _intersect(
     left: _Automaton, right: _Automaton, require_left_literal: bool
 ) -> str | None:
     """Shortest common string, or None. ``_WILD`` consumes one or more symbols.
 
-    A wildcard arc loops: entering it consumes one symbol and stays "inside"
-    until it chooses to leave, so the state carries an inside flag per side.
+    A wildcard arc loops: entering it consumes one symbol and stays "inside",
+    where it may consume more or leave at no cost, so the state carries an
+    inside flag per side. Epsilon arcs are followed inside ``moves``, so every
+    step of the search consumes one symbol on both sides, and each side's
+    labelled arcs are grouped by label, so a pair of states meets only on the
+    labels both offer.
     """
-    start = (left.start, False, right.start, False, False)
-    seen = {start}
-    queue: deque[tuple[tuple[Any, ...], str]] = deque([(start, "")])
+    # The last element is what the left side's literals have earned so far:
+    # COUNTED, or PENDING for words after a free slot, which count only if no
+    # other free slot follows them.
+    start = (left.start, False, right.start, False, _NONE)
+    # state -> (previous state, character), to spell the example on success.
+    parent: dict[tuple[Any, ...], tuple[Any, str] | None] = {start: None}
+    queue: deque[tuple[Any, ...]] = deque([start])
 
-    def moves(auto: _Automaton, state: Any, inside: bool):
-        """(label, to_state, to_inside, literal) moves, label None = epsilon."""
-        if inside:
-            yield (None, state, False, False)  # leave the wildcard
-        for label, to in auto.arcs.get(state, ()):
-            if label == "":
-                yield (None, to, False, False)
-            elif label is _WILD:
-                yield (_WILD, to, True, False)
-            else:
-                yield (label, to, False, label not in (SLOT, OPAQUE))
+    def spell(state: tuple[Any, ...]) -> str:
+        chars = []
+        while (step := parent[state]) is not None:
+            state, char = step
+            chars.append(char)
+        return "".join(reversed(chars))
 
     while queue:
-        (ls, lin, rs, rin, lit), text = queue.popleft()
+        node = queue.popleft()
+        ls, lin, rs, rin, lit = node
+        lsym, lwild, lfinal = left.moves(ls)
+        rsym, rwild, rfinal = right.moves(rs)
         if (
-            ls in left.final
-            and rs in right.final
-            and not lin
-            and not rin
-            and (lit or not require_left_literal)
+            lfinal
+            and rfinal
+            and (lit in (_COUNTED, _PENDING) or not require_left_literal)
         ):
-            return text
-        nexts = []
-        for llabel, lto, lto_in, _ in moves(left, ls, lin):
-            if llabel is None:
-                nexts.append(((lto, lto_in, rs, rin, lit), text))
-        for rlabel, rto, rto_in, _ in moves(right, rs, rin):
-            if rlabel is None:
-                nexts.append(((ls, lin, rto, rto_in, lit), text))
-        # Inside a wildcard a side may consume any symbol without moving.
-        lsym = list(moves(left, ls, lin)) + ([(_WILD, ls, True, False)] if lin else [])
-        rsym = list(moves(right, rs, rin)) + ([(_WILD, rs, True, False)] if rin else [])
-        for llabel, lto, lto_in, llit in lsym:
-            if llabel is None:
+            return spell(node)
+        nexts: list[tuple[tuple[Any, ...], str]] = []
+        # Wildcard moves: enter a wildcard arc, or consume one more symbol inside.
+        lw = [*lwild, ls] if lin else lwild
+        rw = [*rwild, rs] if rin else rwild
+        wild_lit = _after_free_slot(lit)
+        for lto in lw:
+            for rto in rw:
+                nexts.append(((lto, True, rto, True, wild_lit), "…"))
+            for label, targets in rsym.items():
+                char = "…" if label in (SLOT, OPAQUE) else label
+                for rto in targets:
+                    nexts.append(((lto, True, rto, False, wild_lit), char))
+        if rw:
+            for label, targets in lsym.items():
+                literal = label not in (SLOT, OPAQUE)
+                char = label if literal else "…"
+                earned = _after_symbol(lit, literal)
+                for lto in targets:
+                    for rto in rw:
+                        nexts.append(((lto, False, rto, True, earned), char))
+        for label in lsym if len(lsym) <= len(rsym) else rsym:
+            rtargets = rsym.get(label)
+            ltargets = lsym.get(label)
+            if not rtargets or not ltargets:
                 continue
-            for rlabel, rto, rto_in, _ in rsym:
-                if rlabel is None:
-                    continue
-                if llabel is _WILD and rlabel is _WILD:
-                    char = SLOT
-                elif llabel is _WILD:
-                    char = rlabel
-                elif rlabel is _WILD or llabel == rlabel:
-                    char = llabel
-                else:
-                    continue
-                nexts.append(
-                    (
-                        (lto, lto_in, rto, rto_in, lit or llit),
-                        text + ("…" if char in (SLOT, OPAQUE) else char),
-                    )
-                )
-        for state, new_text in nexts:
-            if state not in seen:
-                seen.add(state)
-                queue.append((state, new_text))
+            literal = label not in (SLOT, OPAQUE)
+            char = label if literal else "…"
+            earned = _after_symbol(lit, literal)
+            for lto in ltargets:
+                for rto in rtargets:
+                    nexts.append(((lto, False, rto, False, earned), char))
+        for state, char in nexts:
+            if state not in parent:
+                parent[state] = (node, char)
+                queue.append(state)
     return None
 
 

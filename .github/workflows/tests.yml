@@ -8,10 +8,11 @@ on:
 permissions:
   contents: read
 
-# A superseded push should stop burning a runner. Runs on main are never
-# cancelled, because main's timings are what the CI budget measures.
+# Branch and PR updates supersede their predecessors. Main checks belong to a
+# commit, so later pushes cannot evict a release cut even while it is pending.
+# Tags, manual trials and schedules each retain their own independent run.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.sha || (github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/'))) && 'latest' || github.run_id }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
@@ -42,7 +43,7 @@ jobs:
         run: .github/scripts/already_passed.sh
 
   tests:
-    name: Home Assistant ${{ matrix.home-assistant }}
+    name: Home Assistant ${{ matrix.home-assistant }} · ${{ matrix.shard }}/2
     needs: gate
     if: needs.gate.outputs.run == 'true'
     # Blacksmith trial (2026-10-16): push and dispatch runs use Blacksmith while the Actions variable
@@ -51,11 +52,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Each version's suite runs as two halves on two runners, which keeps the
+        # check near five minutes; --shard takes every second test in turn.
+        shard: [1, 2]
+        # The oldest supported release and the newest. From 2026.11 Home Assistant
+        # publishes its own test package; the custom-component one stops at 2026.10.
+        home-assistant: ["2026.8.3", "2026.11.0"]
         include:
           - home-assistant: "2026.8.3"
-            fixture: "0.13.357"
-          - home-assistant: "2026.9.0"
-            fixture: "0.13.363"
+            fixture: "pytest-homeassistant-custom-component==0.13.357"
+            types: true
+          # Types are checked against the oldest release only: 2026.11 types its
+          # forms with probatio, which 2026.8 does not have, where the code uses
+          # voluptuous, which both releases still accept at run time.
+          - home-assistant: "2026.11.0"
+            fixture: "pytest-homeassistant==2026.11.0"
+            types: false
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -81,8 +93,10 @@ jobs:
         run: |
           python -m venv "$VENV"
           "$VENV/bin/python" -m pip install -e ".[test]"
-          if [ "$FIXTURE" != "0.13.357" ]; then
-            "$VENV/bin/python" -m pip install --upgrade "pytest-homeassistant-custom-component==$FIXTURE"
+          # The two test packages supply the same fixtures; only one may be installed.
+          if [ "$FIXTURE" != "pytest-homeassistant-custom-component==0.13.357" ]; then
+            "$VENV/bin/python" -m pip uninstall -y pytest-homeassistant-custom-component
+            "$VENV/bin/python" -m pip install "$FIXTURE"
           fi
           frontend_requirement=$("$VENV/bin/python" -c 'import json, pathlib, homeassistant; path = pathlib.Path(homeassistant.__file__).parent / "components/frontend/manifest.json"; print(json.loads(path.read_text())["requirements"][0])')
           "$VENV/bin/python" -m pip install "$frontend_requirement"
@@ -107,13 +121,15 @@ jobs:
         run: |
           python -m pip check
           python -c "import importlib.metadata as m, os; assert m.version('homeassistant') == os.environ['EXPECTED_HA']"
-          python -c "import importlib.metadata as m, os; assert m.version('pytest-homeassistant-custom-component') == os.environ['FIXTURE']"
+          python -c "import importlib.metadata as m, os; name, version = os.environ['FIXTURE'].split('=='); assert m.version(name) == version"
+          python -c "import importlib.metadata as m; installed = [n for n in ('pytest-homeassistant', 'pytest-homeassistant-custom-component') if any(d.name == n for d in m.distributions())]; assert len(installed) == 1, installed"
           python -c "import sys; assert sys.prefix.endswith('ci-venv'), sys.prefix"
       - name: Run lint and formatting checks
         run: ruff check . && ruff format --check .
       # Restore-keys on purpose: an exact hit is rare because the key moves with
       # the sources, but even a stale cache saves mypy re-analysing Home Assistant.
       - name: Restore the type-check cache
+        if: matrix.types
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .mypy_cache
@@ -121,10 +137,12 @@ jobs:
           restore-keys: |
             mypy-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-ha${{ matrix.home-assistant }}-
       - name: Run type checks
+        if: matrix.types
         run: mypy custom_components/panel_assistant
       - name: Run tests
-        run: python -m pytest -n auto
+        run: python -m pytest -n auto --timeout=300 --shard ${{ matrix.shard }}/2
       - name: Prove restart and replay safety in real Core processes
+        if: matrix.shard == 1
         run: >-
           python tests/runtime/core_negative_harness.py
           --hass "$(command -v hass)"

@@ -95,7 +95,6 @@ async def test_idempotent_no_entries_and_exact_public_bytes(endpoint, hass):
     assert response.headers["Cache-Control"] == "no-store"
     assert response.headers["X-Content-Type-Options"] == "nosniff"
     assert not endpoint.leased
-    assert not endpoint.service._requests
 
 
 @pytest.mark.parametrize(
@@ -238,12 +237,6 @@ async def test_stream_holds_admission_and_lease_through_eof(endpoint, monkeypatc
     entered = asyncio.Event()
     release = asyncio.Event()
     original = delivery.web.StreamResponse.write_eof
-    writes = []
-    original_write = delivery.web.StreamResponse.write
-
-    async def write(response, data):
-        writes.append(len(data))
-        await original_write(response, data)
 
     async def eof(response, data=b""):
         if response.content_type == "application/vnd.android.package-archive":
@@ -252,19 +245,29 @@ async def test_stream_holds_admission_and_lease_through_eof(endpoint, monkeypatc
         await original(response, data)
 
     monkeypatch.setattr(delivery.web.StreamResponse, "write_eof", eof)
-    monkeypatch.setattr(delivery.web.StreamResponse, "write", write)
-    apk = b"x" * (delivery._CHUNK_SIZE * 2 + 1)
+    apk = b"x" * 131_073
     monkeypatch.setattr(
         delivery, "async_read_browser_artifact", AsyncMock(return_value=apk)
     )
     response = await endpoint.client.get(f"{URL}/{BUNDLE_ID}/apk")
     await entered.wait()
     assert endpoint.leased
-    assert len(endpoint.service._requests) == 1
-    assert writes == [delivery._CHUNK_SIZE, delivery._CHUNK_SIZE, 1]
-    release.set()
+    try:
+        # One slot is occupied by the still-streaming response. Exercise the
+        # other slot through the same admission context the HTTP views use.
+        async with endpoint.service.async_admit():
+            refused = await endpoint.client.post(URL, json={})
+            assert refused.status == 503
+            assert await refused.json() == {"error": "browser_release_busy"}
+    finally:
+        release.set()
     assert await response.read() == apk
     await asyncio.sleep(0)
+    assert not endpoint.leased
+    # Both slots become available after the streaming request finishes.
+    async with endpoint.service.async_admit():
+        accepted = await endpoint.client.post(URL, json={})
+        assert accepted.status == 200
 
 
 async def test_read_timeout_and_request_cancellation(endpoint, monkeypatch):
@@ -284,7 +287,6 @@ async def test_read_timeout_and_request_cancellation(endpoint, monkeypatch):
     assert await response.json() == {"error": "browser_release_download_failed"}
     assert cancelled.is_set()
     assert not endpoint.leased
-    assert not endpoint.service._requests
 
 
 async def test_send_timeout_closes_committed_stream(endpoint, monkeypatch):
@@ -300,7 +302,6 @@ async def test_send_timeout_closes_committed_stream(endpoint, monkeypatch):
     with pytest.raises(ClientPayloadError):
         await response.read()
     assert not endpoint.leased
-    assert not endpoint.service._requests
 
 
 async def test_stop_listener_cancels_actual_prepare_before_cache_close(endpoint, hass):
@@ -321,14 +322,14 @@ async def test_stop_listener_cancels_actual_prepare_before_cache_close(endpoint,
     await started.wait()
     hass.bus.async_fire(EVENT_HOMEASSISTANT_STOP)
     await cleanup_started.wait()
-    assert endpoint.service._closed
+    refused = await endpoint.client.post(URL, json={})
+    assert refused.status == 503
+    assert await refused.json() == {"error": "browser_release_closed"}
     endpoint.service.cache.async_close.assert_not_awaited()
-    assert len(endpoint.service._requests) == 1
     cleanup_release.set()
     await hass.async_block_till_done()
     await asyncio.gather(request, return_exceptions=True)
     endpoint.service.cache.async_close.assert_awaited_once()
-    assert not endpoint.service._requests
 
 
 async def test_cleanup_failure_after_eof_does_not_send_second_response(
@@ -346,7 +347,6 @@ async def test_cleanup_failure_after_eof_does_not_send_second_response(
     assert response.status == 200
     assert await response.read() == b"apk"
     error_response.assert_not_called()
-    assert not endpoint.service._requests
 
 
 async def test_a_feed_build_is_handed_over_as_the_exact_signed_feed(endpoint):
@@ -392,7 +392,6 @@ async def test_catalogue_deadline_releases_admission_and_retry_succeeds(
     monkeypatch.setattr(delivery, "async_list_install_choices", stalled)
     response = await endpoint.client.get("/api/panel_assistant/usb/releases")
     assert response.status == 503
-    assert not endpoint.service._requests
     monkeypatch.setattr(
         delivery,
         "async_list_install_choices",
@@ -419,8 +418,16 @@ async def test_signed_catalogue_beyond_fifteen_seconds_is_delivered(
     client = authenticated_session(key, [("v1.0.0", (5, 5))])
     monkeypatch.setattr(catalog, "async_get_clientsession", lambda _: client)
 
+    # Each answer takes two seconds of loop time without a real wait: the loop's
+    # clock jumps, so a timeout on it expires just as it would in real time.
+    real_time = hass.loop.time
+    skipped = 0.0
+    monkeypatch.setattr(hass.loop, "time", lambda: real_time() + skipped)
+
     async def delayed_enter(self):
-        await asyncio.sleep(2)
+        nonlocal skipped
+        skipped += 2
+        await asyncio.sleep(0)
         return self
 
     monkeypatch.setattr(FakeResponse, "__aenter__", delayed_enter)
@@ -431,4 +438,6 @@ async def test_signed_catalogue_beyond_fifteen_seconds_is_delivered(
         {"tag": "v1.0.0", "prerelease": False}
     ]
     assert hass.loop.time() - started > 15
-    assert len(client.requests) == 9
+    # The project site's catalogue is asked first, then GitHub's.
+    assert client.requests[0][0] == str(catalog._SITE_RELEASES_URL)
+    assert len(client.requests) == 10

@@ -726,6 +726,7 @@ async def test_vendor_announcement_of_an_added_panel_raises_no_card(
 
 
 def test_manifest_browses_each_vendor_service_by_its_profile_name() -> None:
+    # Source-text reason: Core reads discovery selectors from the shipped manifest.
     """Home Assistant starts the vendor flow only for a matcher in the manifest."""
     manifest = json.loads(
         (

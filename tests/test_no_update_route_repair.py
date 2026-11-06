@@ -1,5 +1,7 @@
 """A panel that cannot be updated says so, and the link it offers leaks nothing."""
 
+from dataclasses import replace
+from unittest.mock import AsyncMock
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -8,15 +10,19 @@ from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.provisioning import (
+    InstallTargetProbe,
+    InstallTargetState,
+)
 from custom_components.panel_assistant.repairs_update_route import (
     async_reconcile_update_route_issue,
-    help_parameters,
     no_update_route_issue_id,
 )
 from custom_components.panel_assistant.status import (
     PanelDevice,
     PanelStatus,
 )
+from tests.test_update_adb_route import route as route
 
 
 def _status(**overrides) -> PanelStatus:
@@ -37,44 +43,49 @@ def _status(**overrides) -> PanelStatus:
     return PanelStatus(**fields)
 
 
-def test_help_parameters_describe_the_hardware() -> None:
-    parameters = help_parameters(_status())
-    assert parameters["make"] == "Shelly"
-    assert parameters["model"] == "Jenna"
-    assert parameters["hw"] == "rk30board"
-    assert "app" not in parameters
-    # Separates "never had a route" from "route withdrawn" for the page.
-    assert parameters["cap"] == "none"
-
-
-def test_help_parameters_never_carry_an_identity() -> None:
-    """The browser opens this against a public site, so nothing identifying goes."""
-    parameters = help_parameters(_status())
-    leaked = {"Study display", "Study"}
-    assert leaked.isdisjoint(set(parameters.values()))
-    assert not {"name", "area"} & set(parameters)
-
-
-def test_help_parameters_survive_a_panel_that_reports_nothing() -> None:
-    """Older panels send no device block, so the page must still be reachable."""
-    assert help_parameters(None) == {}
-    assert "make" not in help_parameters(_status(panel_assistant_device=None))
-
-
-@pytest.mark.asyncio
-async def test_learn_more_url_routes_on_what_the_panel_reported(
-    hass: HomeAssistant,
+@pytest.mark.parametrize("reported", ["hardware", "no_device", "no_status"])
+async def test_route_loss_offers_a_hardware_help_url_without_panel_identity(
+    hass: HomeAssistant, route, reported: str
 ) -> None:
-    entry = MockConfigEntry(domain=DOMAIN, data={}, title="Study display")
+    """The entity's Repair sends hardware facts, never identity, to the public site."""
+    entry = MockConfigEntry(
+        domain=DOMAIN, entry_id="entry-id", data={}, title="Study display"
+    )
     entry.add_to_hass(hass)
-    async_reconcile_update_route_issue(hass, entry, has_route=False, status=_status())
-    registry = ir.async_get(hass)
-    issue = registry.async_get_issue(DOMAIN, no_update_route_issue_id(entry.entry_id))
+    status = (
+        None
+        if reported == "no_status"
+        else _status(panel_assistant_device=None)
+        if reported == "no_device"
+        else _status()
+    )
+    route.entity.coordinator.data = replace(
+        route.entity.coordinator.data, status=status
+    )
+    route.client.async_get_legacy_install_capability = AsyncMock(return_value=False)
+    route.probe_target.return_value = InstallTargetProbe(
+        state=InstallTargetState.ADB_UNAUTHORIZED
+    )
+
+    await route.entity._async_refresh_route()
+
+    issue = ir.async_get(hass).async_get_issue(
+        DOMAIN, no_update_route_issue_id(entry.entry_id)
+    )
+    assert issue is not None
     query = parse_qs(urlparse(issue.learn_more_url).query)
-    assert query["model"] == ["Jenna"]
-    assert query["cap"] == ["none"]
-    # help_url stamps the integration itself so an older install can be routed.
+    if reported == "hardware":
+        assert {key: query.get(key) for key in ("make", "model", "hw", "cap")} == {
+            "make": ["Shelly"],
+            "model": ["Jenna"],
+            "hw": ["rk30board"],
+            "cap": ["none"],
+        }
+    else:
+        assert not {"make", "model", "hw"} & query.keys()
+    # The integration version routes older installs without identifying the panel.
     assert "v" in query and "build" in query
+    assert not {"name", "area", "app"} & query.keys()
     assert "Study" not in issue.learn_more_url
 
 

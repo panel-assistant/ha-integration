@@ -86,6 +86,25 @@ def test_parse_health_fixture() -> None:
     assert health.ha_state == "normal"
 
 
+@pytest.mark.parametrize(
+    "token, expected",
+    [
+        ("", False),
+        ("setup_complete=0", False),
+        ("setup_complete=1", True),
+        ("setup_complete=true", False),
+        ("setup_complete=2", False),
+    ],
+)
+def test_health_requires_explicit_durable_setup_completion(
+    token: str, expected: bool
+) -> None:
+    health = parse_health_response(
+        f"ha-paneld 1.2.3 panel=test build=1234 cfg=0123abcd {token}".strip()
+    )
+    assert health.setup_complete is expected
+
+
 def test_restart_health_token_is_bounded_optional_status() -> None:
     base = "ha-paneld 1.2.3 panel=test build=1234 cfg=0123abcd"
     assert parse_health_response(
@@ -349,13 +368,20 @@ async def test_client_maps_network_failure() -> None:
         await client.async_get_health()
 
 
-async def test_client_rejects_oversized_response() -> None:
-    """The client refuses responses beyond the Android readiness bound."""
-    client = HaPaneldClient(  # type: ignore[arg-type]
-        _session(body=b"x" * 513), normalize_address("panel.local")
-    )
+async def test_client_rejects_oversized_response_without_reading_the_rest() -> None:
+    """A streamed health response stops at the cap, before parsing or draining it."""
+    padding = " x=" + "y" * (MAX_HEALTH_RESPONSE_BYTES - len(LONGEST_HEALTH) - 3)
+    at_bound = (LONGEST_HEALTH[:-1] + padding + "\n").encode()
+    assert len(at_bound) == MAX_HEALTH_RESPONSE_BYTES
+    accepted = await _client(_session(body=at_bound)).async_get_health()
+    assert accepted.panel_id == "p" * 63
+
+    response = FakeResponse(body=[at_bound, b"y", b"unread remainder"])
+    client = _client(FakeSession(response))
     with pytest.raises(InvalidResponseError):
         await client.async_get_health()
+
+    assert response.content.yielded_chunks == 2
 
 
 @pytest.mark.parametrize(
@@ -799,6 +825,21 @@ async def test_client_requests_fresh_home_proof_only_when_asked() -> None:
     assert str(url) == "http://panel.local:8888/api/v1/status?home_proof=1"
 
 
+async def test_client_asks_for_the_setup_screen_only_with_a_home_proof() -> None:
+    """A fresh panel may prove its setup screen instead of owned HOME."""
+    body = b'{"warnings":[],"capabilities":[]}'
+    session = _session(body=body)
+    client = HaPaneldClient(session, normalize_address("panel.local"))  # type: ignore[arg-type]
+
+    await client.async_get_status(home_proof=True, setup_foreground=True)
+    await client.async_get_status(setup_foreground=True)
+
+    assert [str(url) for url, _ in session.requests] == [
+        "http://panel.local:8888/api/v1/status?home_proof=1&setup_foreground=1",
+        "http://panel.local:8888/api/v1/status",
+    ]
+
+
 @pytest.mark.parametrize(
     "home_ui",
     [
@@ -825,23 +866,29 @@ async def test_client_rejects_invalid_status_utf8() -> None:
         await client.async_get_status()
 
 
-async def test_client_rejects_oversized_valid_status_document() -> None:
-    """A valid additive document beyond 64 KiB is rejected by the body guard."""
+async def test_client_rejects_oversized_valid_status_document_without_draining() -> (
+    None
+):
+    """An additive JSON document stops at the body cap instead of being drained."""
     assert MAX_STATUS_RESPONSE_BYTES == 64 * 1024
-    body = json.dumps(
-        {
-            "warnings": [],
-            "capabilities": [],
-            "future": "x" * MAX_STATUS_RESPONSE_BYTES,
-        }
-    ).encode()
-    assert len(body) > MAX_STATUS_RESPONSE_BYTES
-    client = HaPaneldClient(  # type: ignore[arg-type]
-        _session(body=body), normalize_address("panel.local")
+    prefix = b'{"warnings":[],"capabilities":[],"future":"'
+    suffix = b'"}'
+    at_bound = (
+        prefix + b"x" * (MAX_STATUS_RESPONSE_BYTES - len(prefix + suffix)) + suffix
     )
+    assert len(at_bound) == MAX_STATUS_RESPONSE_BYTES
+    accepted = await _client(_session(body=at_bound)).async_get_status()
+    assert accepted.warning_count == 0
+    assert accepted.capability_count == 0
 
+    # Adding JSON whitespace preserves validity, so refusal cannot be attributed
+    # to a malformed response. The third chunk must never be requested.
+    response = FakeResponse(body=[at_bound, b" ", b"unread remainder"])
+    client = _client(FakeSession(response))
     with pytest.raises(InvalidResponseError):
         await client.async_get_status()
+
+    assert response.content.yielded_chunks == 2
 
 
 # --- maintainer build feed: diagnostics, backup, staged upload ---------------
@@ -1123,3 +1170,21 @@ async def test_health_read_remembers_the_actual_http_peer(socket_enabled: None) 
         client = HaPaneldClient(session, normalize_address(f"127.0.0.1:{server.port}"))
         await client.async_get_health()
         assert client.health_peer == (str(client.health_url), "127.0.0.1")
+
+
+@pytest.mark.parametrize(
+    "token, expected",
+    [
+        ("", False),
+        ("home_pending=0", False),
+        ("home_pending=1", True),
+        ("home_pending=true", False),
+    ],
+)
+def test_health_requires_explicit_pending_home_intent(
+    token: str, expected: bool
+) -> None:
+    health = parse_health_response(
+        f"ha-paneld 1.2.3 panel=test build=1234 cfg=0123abcd {token}".strip()
+    )
+    assert health.home_pending is expected

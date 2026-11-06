@@ -101,11 +101,11 @@ function renderedJourney(scenario, locale = 'de', realCatalogue = false) {
     const stubs = {
       '@yume-chan/adb': 'export const AdbCommand = {}; export class AdbTcpIpService {}; export class Adb { disconnected = new Promise(() => {}); close() {} }; export const AdbDaemonTransport = { authenticate: async () => { globalThis.calls.authenticate++; return {}; } };',
       '@yume-chan/adb-credential-web': 'export default class Store {}',
-      '@yume-chan/adb-daemon-webusb': 'export class AdbDaemonWebUsbDeviceManager { constructor() {} requestDevice() { globalThis.calls.chooser++; return Promise.resolve({ raw: { close() {} }, serial: "panel", connect: async () => ({}) }); } }',
+      '@yume-chan/adb-daemon-webusb': 'export class AdbDaemonWebUsbDevice { static DeviceBusyError = class extends Error {}; } export class AdbDaemonWebUsbDeviceManager { constructor() {} requestDevice() { globalThis.calls.chooser++; return Promise.resolve({ raw: { close() {} }, serial: "panel", connect: async () => ({}) }); } }',
       'usb-bounds.mjs': 'export const boundedUsb = value => value;',
       'session-target.mjs': 'export const inspectSessionTarget = async () => ({ serial: "RAW_SERIAL" });',
       'job-store.mjs': 'export const openJobStore = async () => ({ close() {} });',
-      'usb-transaction-ports.mjs': 'export function createUsbTransactionPorts(options) { globalThis.portOptions = options; return {}; }',
+      'usb-transaction-ports.mjs': 'export function createUsbTransactionPorts(options) { globalThis.portOptions = options; return { appPort: () => 8888 }; }',
       'install-controller.mjs': 'export function createInstallController(options) { globalThis.controllerOptions = options; return { preview: async () => { globalThis.calls.preview++; return '+JSON.stringify({receipt:null,adopt:scenario==='adopt',discarded:scenario==='adopt'?{reason:'RAW_REASON'}:null})+'; }, install: async () => { globalThis.calls.install++; return new Promise((resolve, reject) => { globalThis.installResolve = resolve; globalThis.installReject = reject; }); }, completeSetup: async () => { globalThis.settlementStarted = true; if (globalThis.settlementHold) return new Promise(resolve => { globalThis.settlementResolve = resolve; }); return {}; } }; }',
       'release-handoff.mjs': 'export const handoffOptions = () => ({}); export const requestPanelAssistantKey = async () => null; export const receiveReleaseHandoff = () => ({ cancel() {}, completion: Promise.resolve({ release: { descriptor: { versionName: "1.2.3", versionCode: 42 } }, authenticate: async () => ({}) }) }); export const requestSetupHandover = async () => {}; export const handOverThenOpen = async (url, options) => { globalThis.calls.handover++; options.support("Setup handover", "RAW_OUTCOME"); await options.beforeOpen(); options.open(url); };',
       'panel-address.mjs': 'export const readSetupUrl = async () => null;',
@@ -135,7 +135,7 @@ function renderedJourney(scenario, locale = 'de', realCatalogue = false) {
       assert.equal(node('step-confirm').hidden, false);
       assert.equal(node('step-confirm:child').textContent, 'Already installed');
       assert.equal(node('install').textContent, 'Continue');
-      assert.match(node('confirm-body').textContent, /different release.*already on your panel/);
+      assert.match(node('confirm-body').textContent, /different version.*already on your panel/);
     }
     const before = { ...calls };
     globalThis.location.search = '?lang=' + targetLanguage; handlers.get('popstate')();
@@ -176,7 +176,7 @@ function renderedJourney(scenario, locale = 'de', realCatalogue = false) {
       assert.match(node('support-log').textContent, /shell_timeout/);
       assert.deepEqual(calls, errorBefore);
     } else {
-    installResolve({ permissions: { raw: 'RAW_PERMISSION' } });
+    installResolve({ receipt: {id: 'b'.repeat(32)}, permissions: { raw: 'RAW_PERMISSION' } });
     if (scenario === 'settlement_interrupted') {
       await tick(); await tick();
       assert.equal(globalThis.settlementStarted, true);
@@ -274,11 +274,11 @@ function cableTimer(leg) {
     const stubs = {
       '@yume-chan/adb': 'export class Adb { disconnected = new Promise(() => {}); close() {} }; export const AdbDaemonTransport = { authenticate: () => { globalThis.calls.authenticate++; return globalThis.authenticated; } };',
       '@yume-chan/adb-credential-web': 'export default class Store {}',
-      '@yume-chan/adb-daemon-webusb': 'export class AdbDaemonWebUsbDeviceManager { requestDevice() { return Promise.resolve({ raw: { close() {} }, serial: "panel", connect: async () => ({}) }); } }',
+      '@yume-chan/adb-daemon-webusb': 'export class AdbDaemonWebUsbDevice { static DeviceBusyError = class extends Error {}; } export class AdbDaemonWebUsbDeviceManager { requestDevice() { return Promise.resolve({ raw: { close() {} }, serial: "panel", connect: async () => ({}) }); } }',
       'usb-bounds.mjs': 'export const boundedUsb = value => value;',
       'session-target.mjs': leg === 'allow' ? 'export const inspectSessionTarget = async () => ({ serial: "panel" });' : 'export const inspectSessionTarget = () => new Promise(() => {});',
       'job-store.mjs': 'export const openJobStore = async () => ({ close() {} });',
-      'usb-transaction-ports.mjs': 'export function createUsbTransactionPorts() { return {}; }',
+      'usb-transaction-ports.mjs': 'export function createUsbTransactionPorts() { return { appPort: () => 8888 }; }',
       'install-controller.mjs': 'export function createInstallController() { return { preview: async () => { globalThis.calls.preview++; return { receipt: null, adopt: false, discarded: null }; } }; }',
       'release-handoff.mjs': 'export const requestPanelAssistantKey = async () => null; export const handoffOptions = () => ({}); export const receiveReleaseHandoff = () => ({ cancel() {}, completion: Promise.resolve({ release: { descriptor: { versionName: "1.2.3", versionCode: 42 } }, authenticate: async () => ({}) }) }); export const requestSetupHandover = async () => {}; export const handOverThenOpen = async () => {};',
       'panel-address.mjs': 'export const readSetupUrl = async () => null;',

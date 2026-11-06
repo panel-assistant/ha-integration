@@ -394,6 +394,9 @@ class InstallJobReceipt:
     consumed_entry_id: str | None = None
     failure_stage: InstallPhase | None = None
     result_subcode: str | None = None
+    #: The app's last launch found HOME's claim deferred until first setup, so
+    #: its setup screen may stand in for owned HOME. Older receipts lack it.
+    home_claim_deferred: bool = False
 
     @property
     def is_terminal(self) -> bool:
@@ -649,7 +652,13 @@ def _parse_receipt(value: object) -> InstallJobReceipt:
         "result_code",
         "consumed_entry_id",
     }
-    if not isinstance(value, dict) or value.keys() != old_keys:
+    if (
+        not isinstance(value, dict)
+        or value.keys() - {"home_claim_deferred"} != old_keys
+    ):
+        raise InstallJobStoreError
+    home_claim_deferred = value.get("home_claim_deferred", False)
+    if not isinstance(home_claim_deferred, bool):
         raise InstallJobStoreError
     job_id = _safe_text(value["job_id"], 32)
     plan_sha256 = _safe_text(value["plan_sha256"], 64)
@@ -709,6 +718,7 @@ def _parse_receipt(value: object) -> InstallJobReceipt:
         health_checked_at=health,
         result_code=result,
         consumed_entry_id=entry_id,
+        home_claim_deferred=home_claim_deferred,
     )
     _validate_receipt_invariants(receipt)
     return receipt
@@ -828,6 +838,9 @@ def _serialize_receipt(receipt: InstallJobReceipt) -> dict[str, Any]:
     # Failure details remain separate from the primary receipt Store.
     data.pop("failure_stage")
     data.pop("result_subcode")
+    # Written only when set, so every other receipt keeps its older shape.
+    if not receipt.home_claim_deferred:
+        data.pop("home_claim_deferred")
     data["phase"] = receipt.phase.value
     data["artifact"]["supported_abis"] = list(receipt.artifact.supported_abis)
     data["result_code"] = (

@@ -8,6 +8,7 @@ from dataclasses import asdict, replace
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -17,6 +18,7 @@ from custom_components.panel_assistant import (
     install_adb,
     install_executor,
     install_jobs,
+    webview,
 )
 from custom_components.panel_assistant.adb_protocol import (
     AdbInstallTarget,
@@ -84,6 +86,103 @@ def seed_crash_partial(path: Path) -> None:
     path.parent.chmod(0o700)
     path.write_bytes(b"interrupted download")
     path.chmod(0o600)
+
+
+@pytest.mark.parametrize("lost_reply", [False, True])
+async def test_optional_webview_attempt_never_prevents_app_setup(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, lost_reply: bool
+) -> None:
+    """A safely deferred provider or lost reply still completes app installation."""
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    harness = Harness(monkeypatch)
+    observed = AsyncMock(
+        return_value={
+            "schema": 1,
+            "supported": True,
+            "eligible": True,
+            "candidate": {"sha256": "c" * 64},
+            "transaction": None,
+        }
+    )
+    submitted = AsyncMock(
+        return_value={
+            "schema": 1,
+            "supported": True,
+            "eligible": True,
+            "candidate": {"sha256": "c" * 64},
+            "transaction": {"state": "deferred", "reason": "no_privileged_route"},
+        }
+    )
+    if lost_reply:
+        submitted.side_effect = CannotConnectError
+    monkeypatch.setattr(
+        install_executor.HaPaneldClient, "async_get_webview", observed, raising=False
+    )
+    monkeypatch.setattr(
+        install_executor.HaPaneldClient,
+        "async_install_webview",
+        submitted,
+        raising=False,
+    )
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
+    assert harness.setup_state is not None
+    assert submitted.await_count == 1
+    assert submitted.await_args.args == (f"pa-install-{receipt.job_id}", "c" * 64)
+
+
+class _NoPauseAsyncio:
+    """asyncio as a module sees it, except that a pause returns at once."""
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(asyncio, name)
+
+    @staticmethod
+    async def sleep(_seconds: float) -> None:
+        await asyncio.sleep(0)
+
+
+@pytest.mark.parametrize("active", ["downloading", "verified", "installing"])
+async def test_webview_install_rebind_only_reobserves_before_app_setup(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, active: str
+) -> None:
+    """A known active provider update can restart native HTTP, without a second POST."""
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    Harness(monkeypatch)
+    initial = {
+        "schema": 1,
+        "supported": True,
+        "eligible": True,
+        "candidate": {"sha256": "c" * 64},
+        "transaction": None,
+    }
+    installed = {
+        **initial,
+        "eligible": False,
+        "reason": "current",
+        "transaction": {"state": "installed"},
+    }
+    observed = AsyncMock(side_effect=[initial, CannotConnectError, installed])
+    submitted = AsyncMock(return_value={**initial, "transaction": {"state": active}})
+    # The one-second pause between progress reads passes at once.
+    monkeypatch.setattr(webview, "asyncio", _NoPauseAsyncio())
+    monkeypatch.setattr(
+        install_executor.HaPaneldClient, "async_get_webview", observed, raising=False
+    )
+    monkeypatch.setattr(
+        install_executor.HaPaneldClient,
+        "async_install_webview",
+        submitted,
+        raising=False,
+    )
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+    assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
+    assert observed.await_count == 3
+    assert submitted.await_count == 1
 
 
 async def seed_attempt_ceiling(
@@ -214,6 +313,9 @@ async def test_happy_path_stops_unclaimed_and_binds_every_operation(
     assert harness.events.count("stage") == 1
     assert harness.events.count("install") == 1
     assert harness.events.count("launch") == 1
+    # A launch retry recovers the marker belonging to the staged APK, whose
+    # remote slot is deliberately different from the durable receipt id.
+    assert harness.launch_previous_home_job_ids == [harness.stage_arguments[0][3]]
     assert harness.events.count("remote_cleanup:install_succeeded") == 1
     assert harness.events == [
         "credential",
@@ -2038,18 +2140,6 @@ async def test_version_mismatch_never_becomes_healthy_or_creates_entry(
     add_entry.assert_not_awaited()
 
 
-async def test_receipt_reconstruction_always_supplies_authenticated_descriptor(
-    hass: HomeAssistant,
-) -> None:
-    """The executor accepts only an already authenticated durable receipt."""
-    manager = InstallJobManager(hass)
-    receipt = await create_job(manager)
-
-    frozen = install_executor._frozen_execution(receipt)
-
-    assert frozen.release.descriptor is not None
-
-
 async def test_durable_cancel_after_stage_uses_cleanup_barrier_then_cancels(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -2378,3 +2468,29 @@ async def test_resume_hook_quarantines_but_does_not_resume_ambiguous_phase(
     assert "stage" not in harness.events
     assert "install" not in harness.events
     assert "launch" not in harness.events
+
+
+async def test_a_dialog_waiting_for_the_webview_step_is_woken_while_it_runs(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The wait ends as the engine step starts; the job then finishes as before."""
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    Harness(monkeypatch)
+    release = asyncio.Event()
+
+    async def _blocked(*_args: object, **_kwargs: object) -> None:
+        await release.wait()
+
+    monkeypatch.setattr(
+        install_executor.HaPaneldClient, "async_get_webview", _blocked, raising=False
+    )
+    executor = InstallExecutor(hass, manager)
+
+    await executor.async_wait(receipt.job_id, until_webview=True)
+    assert executor.is_updating_webview(receipt.job_id)
+    release.set()
+    completed = await executor.async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
+    assert not executor.is_updating_webview(receipt.job_id)

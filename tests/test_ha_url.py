@@ -149,29 +149,29 @@ async def test_plain_http_core_still_offers_its_detected_address(
     assert async_panel_facing_url(hass) == "http://192.0.2.50:8123"
 
 
-async def test_neither_a_cloud_nor_an_external_url_is_reachable_from_this_call(
-    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("remote", ["external", "cloud"])
+async def test_remote_urls_are_not_handed_over_when_no_local_url_is_available(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, remote: str
 ) -> None:
-    """Both remote doors are shut at the call, which is the only place they can be.
-
-    A cloud or external URL is reachable only through ``get_url``'s own
-    branches, so asserting the arguments is what proves neither can be returned;
-    no downstream check would catch one. Routing a wall panel's dashboard out of
-    the building to reach a server inside it is the shared defect.
-    """
-    captured: dict[str, Any] = {}
-
-    def _fake_get_url(_hass: HomeAssistant, **kwargs: Any) -> str:
-        captured.update(kwargs)
-        return "http://192.0.2.5:8123"
-
-    monkeypatch.setattr(
-        "custom_components.panel_assistant.ha_url.get_url", _fake_get_url
+    """Real Core URL selection leaves a panel asking for its local address."""
+    await _set_urls(
+        hass,
+        internal=None,
+        external="https://ha.example.com" if remote == "external" else None,
     )
-    async_panel_facing_url(hass)
-    assert captured["allow_cloud"] is False
-    assert captured["allow_external"] is False
-    assert captured["allow_internal"] is True
+    hass.config.api = _core_api(local_ip="192.0.2.50", use_ssl=True)
+    if remote == "cloud":
+        hass.config.components.add("cloud")
+        monkeypatch.setattr(
+            "homeassistant.components.cloud.async_remote_ui_url",
+            lambda _hass: "https://panel.ui.nabu.casa",
+        )
+    panel = _FakePanel(PanelSetupState(complete=False, accepts_handover=True))
+
+    outcome = await async_offer_ha_url(hass, panel)  # type: ignore[arg-type]
+
+    assert outcome == "handed_over_without_url"
+    assert panel.handed_over == [None]
 
 
 async def test_no_url_at_all_is_an_ordinary_outcome_not_an_error(
@@ -279,7 +279,8 @@ async def test_a_refused_handover_never_raises(hass: HomeAssistant) -> None:
     await _set_urls(hass, internal="http://192.0.2.5:8123", external=None)
     panel = _FakePanel(PanelSetupState(complete=False, accepts_handover=True))
     panel.hand_over_error = CannotConnectError()
-    await async_offer_ha_url(hass, panel)  # type: ignore[arg-type]
+    outcome = await async_offer_ha_url(hass, panel)  # type: ignore[arg-type]
+    assert outcome == "handover_refused"
     assert panel.handed_over == []
 
 
@@ -363,7 +364,14 @@ async def test_the_panel_owns_the_verdict_so_a_refusal_is_not_a_delivery_failure
         return 200, b'{"verified":false,"reason":"unreachable"}'
 
     client._async_post_bounded = _fake_post  # type: ignore[assignment,method-assign]
-    await client.async_hand_over_ha_url("http://172.17.0.2:8123")
+    client._async_get_bounded = AsyncMock(
+        return_value=b'{"complete":false,"handover":{"supported":true}}'
+    )
+    await _set_urls(hass, internal="http://172.17.0.2:8123", external=None)
+
+    outcome = await async_offer_ha_url(hass, client)
+
+    assert outcome == "handed_over"
 
 
 async def test_a_panel_that_rejects_the_write_is_reported_as_unreachable(

@@ -69,3 +69,29 @@ async def test_release_authentication_failure_log_includes_cause(
 
     assert coordinator.last_update_success is False
     assert detail in caplog.text
+
+
+async def test_diagnostics_download_for_unloaded_entry_is_reduced_report(
+    hass: HomeAssistant, hass_client
+) -> None:
+    """A download while the entry is not loaded answers a reduced report, not 500."""
+    from homeassistant.setup import async_setup_component
+
+    assert await async_setup_component(hass, "diagnostics", {})
+    assert await async_setup_component(hass, DOMAIN, {})
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Example display",
+        data={"address": "192.0.2.1"},
+    )
+    entry.add_to_hass(hass)
+    client = await hass_client()
+
+    response = await client.get(f"/api/diagnostics/config_entry/{entry.entry_id}")
+
+    assert response.status == 200
+    data = (await response.json())["data"]
+    assert data["state"] == "not_loaded"
+    assert data["entry"]["address"] == "**REDACTED**"
+    assert data["health"] is None
+    assert data["status"] is None

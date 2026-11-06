@@ -8,6 +8,7 @@
     "intent",
     "lovelace"
   ],
+  "categories": ["ai_voice.voice_assistants", "sensors.motion_presence"],
   "codeowners": ["@maxlyth"],
   "config_flow": true,
   "dependencies": ["http", "media_source", "panel_custom", "stream", "websocket_api"],
@@ -15,8 +16,8 @@
   "integration_type": "device",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/panel-assistant/ha-integration/issues",
-  "requirements": ["adb-shell[async]>=0.4.4", "aiosendspin[server]==10.0.0"],
-  "version": "1.0.0-rc1",
+  "requirements": ["adb-shell[async]>=0.4.4", "aiosendspin[server]==10.3.0"],
+  "version": "1.0.0",
   "zeroconf": [
     "_adb._tcp.local.",
     "_ha-paneld._tcp.local.",

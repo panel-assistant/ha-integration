@@ -14,16 +14,19 @@ export const APP_LABELS = Object.freeze({
   [PACKAGE_ID]: Object.freeze(['Panel Assistant', 'ha-paneld']),
 });
 export const CHOOSER_DUMP = '/data/local/tmp/panel-assistant-home-chooser.xml';
-export const CHOOSER_OUTCOMES = Object.freeze(['kept', 'set', 'tapped', 'other_app', 'no_button', 'other_home']);
+export const CHOOSER_OUTCOMES = Object.freeze(['deferred', 'retained', 'kept', 'set', 'tapped', 'other_app', 'no_button', 'other_home']);
 
 const QUIET = '>/dev/null 2>&1';
 const ALWAYS = 'resource-id="android:id/button_always"';
 
-export function buildHomeClaim(launchComponent) {
+export function buildHomeClaim(launchComponent, claimAllowed = null) {
   const homes = homeComponentsFor(launchComponent).map(name => `'${name}'`).join('|');
   const dashboard = homeComponentFor(launchComponent);
   const labels = APP_LABELS[launchComponent.split('/')[0]].map(label => `*'${label}'*`).join('|');
   const dump = CHOOSER_DUMP;
+  let tap = 'input tap $(((hp_l+hp_r)/2)) $(((hp_t+hp_b)/2)) ' +
+    `${QUIET}; hp_chooser=tapped; sleep 1`;
+  if (claimAllowed !== null) tap = `if ${claimAllowed}; then ${tap}; else hp_chooser=deferred; fi`;
   const chooser = [
     'hp_chooser=no_button',
     `input keyevent 3 ${QUIET}`,
@@ -49,16 +52,16 @@ export function buildHomeClaim(launchComponent) {
       'hp_l=${hp_box%% *}; hp_box=${hp_box#* }; hp_t=${hp_box%% *}; ' +
       'hp_box=${hp_box#* }; hp_r=${hp_box%% *}; hp_b=${hp_box#* }; ' +
       'if [ "$hp_r" -gt "$hp_l" ] && [ "$hp_b" -gt "$hp_t" ]; then ' +
-      'input tap $(((hp_l+hp_r)/2)) $(((hp_t+hp_b)/2)) ' +
-      `${QUIET}; hp_chooser=tapped; sleep 1; fi ;; ` +
+      `${tap}; fi ;; ` +
       '*) hp_chooser=other_app ;; esac; fi',
     'if [ "$hp_chooser" != tapped ]; then ' +
       'case "$hp_ui" in *\'resource-id="android:id/button_\'*) ' +
       `input keyevent 4 ${QUIET} ;; esac; fi`,
   ].join('; ');
-  return `case "$(${HOME_QUERY})" in ${homes}) hp_chooser=kept ;; ` +
-    `*) cmd package set-home-activity ${dashboard} ${QUIET}; ` +
+  let claim = `cmd package set-home-activity ${dashboard} ${QUIET}; ` +
     `case "$(${HOME_QUERY})" in ${homes}) hp_chooser=set ;; ` +
     `android/*) ${chooser} ;; ` +
-    '*) hp_chooser=other_home ;; esac ;; esac';
+    '*) hp_chooser=other_home ;; esac';
+  if (claimAllowed !== null) claim = `if ${claimAllowed}; then ${claim}; else hp_chooser=deferred; fi`;
+  return `case "$(${HOME_QUERY})" in ${homes}) hp_chooser=kept ;; *) ${claim} ;; esac`;
 }

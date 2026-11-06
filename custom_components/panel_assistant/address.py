@@ -34,9 +34,6 @@ ISSUE_PANEL_ADDRESS_UNREACHABLE: Final = "panel_address_unreachable"
 # The panel is connected from another address, but a health read there did
 # not answer as this panel, so the stored address was left alone.
 ISSUE_PANEL_ADDRESS_UNVERIFIED: Final = "panel_address_unverified"
-ADDRESS_ISSUES: Final = frozenset(
-    {ISSUE_PANEL_ADDRESS_UNREACHABLE, ISSUE_PANEL_ADDRESS_UNVERIFIED}
-)
 
 
 def address_issue_id(entry_id: str) -> str:
@@ -47,9 +44,8 @@ def address_issue_id(entry_id: str) -> str:
 def session_candidate(remote: str | None, stored: PanelAddress) -> PanelAddress | None:
     """Return the address a session's peer suggests polling, if it is one.
 
-    The port is the stored one: the session says where the panel is, not which
-    port its web server listens on. A peer that is not a usable literal address
-    (a proxy hostname, a scoped link-local address) or that is a public one
+    The caller supplies the listener port. A peer that is not a usable literal
+    address (a proxy hostname, a scoped link-local address) or that is a public one
     yields nothing, so nothing is ever adopted outside the networks a panel
     lives on; a panel reached over a tailnet or carrier-grade NAT is on one.
     """
@@ -79,16 +75,23 @@ def session_candidate(remote: str | None, stored: PanelAddress) -> PanelAddress 
 
 
 def session_candidates(
-    remote: str | None, stored: PanelAddress, reported: tuple[str, ...] = ()
+    remote: str | None,
+    stored: PanelAddress,
+    reported: tuple[str, ...] = (),
+    http_port: int | None = None,
 ) -> tuple[PanelAddress, ...]:
     """Prefer the panel's interface addresses over a possible NAT/proxy peer."""
-    return tuple(
+    listener = PanelAddress(stored.host, http_port or stored.port)
+    candidates = tuple(
         dict.fromkeys(
             candidate
             for host in (*reported, remote)
-            if (candidate := session_candidate(host, stored)) is not None
+            if (candidate := session_candidate(host, listener)) is not None
         )
     )
+    if listener != stored:
+        return (listener, *candidates)
+    return candidates
 
 
 async def async_probe_addresses(

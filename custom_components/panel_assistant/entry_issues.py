@@ -12,6 +12,7 @@ from homeassistant.helpers import issue_registry as ir
 from .const import DOMAIN, help_url
 from .repairs_failure import (
     async_delete_issue_and_report,
+    async_restore_update_failure,
     async_update_failure_entry_ids,
     panel_failure_issue_id,
 )
@@ -43,6 +44,8 @@ async def async_reconcile_issues(hass: HomeAssistant) -> None:
     for entry_id in named:
         if hass.config_entries.async_get_entry(entry_id) is None:
             await async_delete_entry_issues(hass, entry_id)
+        else:
+            await async_restore_update_failure(hass, entry_id)
     # These issues can outlive the observation that raised them (for example,
     # the retired volume entity no longer exists). An upgrade must refresh
     # their presentation without retrying an operation or changing its record.

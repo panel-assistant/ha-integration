@@ -238,6 +238,11 @@ class _GitHub:
 
     def get(self, url: URL, **_kwargs: Any) -> FakeResponse:
         self.requests.append(str(url))
+        if (
+            str(url) == "https://panel-assistant.io/releases/v1.json"
+            and str(url) not in self._responses
+        ):
+            return _Response(404, b"", url)
         return self._responses[str(url)]
 
     @property
@@ -311,6 +316,10 @@ async def _entity(
     package: str | None = PACKAGE_ID,
 ) -> tuple[HaPaneldUpdateEntity, SimpleNamespace]:
     """A panel on 0.9.9 whose app restarts into 0.9.10 once an install starts."""
+    # Provider bundle coverage drives real bound entries in test_webview_bundle.
+    monkeypatch.setattr(
+        panel_update, "async_update_webview", AsyncMock(return_value=None)
+    )
     monkeypatch.setattr(feed_coordinator, "async_get_clientsession", lambda _h: github)
     monkeypatch.setattr(update_staging, "async_get_clientsession", lambda _h: github)
     monkeypatch.setattr(panel_update.asyncio, "sleep", AsyncMock())
@@ -838,8 +847,8 @@ async def test_a_refused_release_listing_names_githubs_answer(
     await release_check.async_refresh()
 
     assert not release_check.last_update_success
-    assert "could not be authenticated: HTTP 403" in str(release_check.last_exception)
-    assert "could not be authenticated: HTTP 403" in caplog.text
+    assert "GitHub failed (HTTP 403)" in str(release_check.last_exception)
+    assert "GitHub failed (HTTP 403)" in caplog.text
 
 
 async def test_a_panel_older_than_lan_updates_is_never_offered_what_it_cannot_take(
@@ -1194,6 +1203,7 @@ async def _lan_grant_repair_panel(
             async_setup_entry=AsyncMock(return_value=True),
             async_unload_entry=AsyncMock(return_value=True),
         ),
+        built_in=False,
     )
     entry.mock_state(hass, ConfigEntryState.LOADED)
     assert entity.latest_version == VERSION
@@ -1648,7 +1658,15 @@ async def test_a_panel_withdrawn_during_the_update_gets_no_grant_repair(
 
 
 @pytest.mark.parametrize(
-    "panel_state", ["stopped", "no-adb", "session", "answering", "other-build"]
+    "panel_state",
+    [
+        "stopped",
+        "no-adb",
+        "session",
+        "answering",
+        "other-build",
+        "returns-during-recovery",
+    ],
 )
 async def test_an_app_that_never_comes_back_after_an_update_is_started_and_reported(
     hass: HomeAssistant,
@@ -1693,6 +1711,19 @@ async def test_an_app_that_never_comes_back_after_an_update_is_started_and_repor
             android_sdk=None,
         )
 
+    if panel_state == "returns-during-recovery":
+        from custom_components.panel_assistant.adb_protocol import (
+            InstallAdbError,
+            InstallAdbErrorCode,
+        )
+
+        async def returned(*_args: Any) -> Any:
+            entity.coordinator.data = _snapshot(VERSION, "2000", PACKAGE_ID)
+            entity.coordinator.reachable = True
+            raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE)
+
+        monkeypatch.setattr(update_route, "async_probe_adb_target", returned)
+
     def launched() -> int:
         return sum(
             "am start" in command
@@ -1704,14 +1735,24 @@ async def test_an_app_that_never_comes_back_after_an_update_is_started_and_repor
         # Installed, then nothing answers until something starts the app.
         if client.async_commit_apk.await_count and not launched():
             # An answering panel stays on its old build instead.
-            entity.coordinator.reachable = panel_state == "answering"
+            entity.coordinator.reachable = panel_state == "answering" or (
+                panel_state == "returns-during-recovery"
+                and entity.coordinator.data.health.version == VERSION
+            )
         elif launched():
             entity.coordinator.data = _snapshot(VERSION, "2000", PACKAGE_ID)
             entity.coordinator.reachable = True
 
     entity.coordinator.async_request_refresh = AsyncMock(side_effect=refresh)  # type: ignore[method-assign]
 
-    if panel_state == "stopped":
+    if panel_state == "returns-during-recovery":
+        await entity.async_install(None, False)
+        assert entity.installed_version == VERSION
+        assert launched() == 0
+        assert not any(
+            "did not start again" in record.getMessage() for record in caplog.records
+        )
+    elif panel_state == "stopped":
         await entity.async_install(None, False)
         assert entity.installed_version == VERSION
         assert launched() == 1
@@ -1738,3 +1779,51 @@ async def test_an_app_that_never_comes_back_after_an_update_is_started_and_repor
         )
     await hass.async_block_till_done(wait_background_tasks=True)
     assert entity.in_progress is False
+
+
+@pytest.mark.parametrize("incomplete_response", [False, True])
+async def test_staged_update_repairs_grants_locally_without_an_adb_key(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    signer: PythonRSASigner,  # noqa: F811
+    tmp_path: Path,
+    incomplete_response: bool,
+) -> None:
+    from custom_components.panel_assistant import local_adb
+    from custom_components.panel_assistant.adb_protocol import AdbInstallTarget
+
+    panel = await _lan_grant_repair_panel(hass, monkeypatch, key, signer, tmp_path)
+    panel.entity.coordinator._entry_id = panel.entry.entry_id
+    monkeypatch.setattr(update_panel_install, "_PERMISSION_REPAIR_RETRY_SECONDS", 0)
+    if incomplete_response:
+        original_shell = panel.devices[1].streaming_shell
+        unreadable = True
+
+        async def shell(command: str, **kwargs: Any) -> AsyncIterator[bytes]:
+            nonlocal unreadable
+            if unreadable:
+                unreadable = False
+                yield b"incomplete package-manager response\n"
+                return
+            async for packet in original_shell(command, **kwargs):
+                yield packet
+
+        monkeypatch.setattr(panel.devices[1], "streaming_shell", shell)
+    local = AdbInstallTarget(
+        panel.client.address,
+        "SERIAL-1",
+        "Test Panel",
+        "arm64-v8a",
+        34,
+        local_shell=panel.devices[1],
+    )
+    monkeypatch.setattr(local_adb, "async_target", AsyncMock(return_value=local))
+    panel.key_load.side_effect = AdbCredentialMissingError
+    await panel.entity.async_install(None, False)
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert _panel_value(tmp_path, "accessibility_enabled") == "1"
+    assert panel.entity.installed_version == VERSION
+    panel.key_load.assert_not_awaited()
+    panel.probe.assert_not_awaited()

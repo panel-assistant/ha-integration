@@ -53,6 +53,17 @@ def refusal_error(panel: str, refusal: UpdateRejectedError) -> _UpdateRefusalErr
     return _UpdateRefusalError(panel, reason or None)
 
 
+class _KeyedUpdateRefusalError(_UpdateRefusalError):
+    """An expected refusal the owner resolves, keyed like ``_update_error``."""
+
+    def __init__(self, translation_key: str, fallback: str) -> None:
+        HTTPBadRequest.__init__(self, text=fallback)
+        self._message = fallback
+        self.translation_domain = DOMAIN
+        self.translation_key = translation_key
+        self.translation_placeholders = None
+
+
 def _update_error(translation_key: str, fallback: str) -> HomeAssistantError:
     """Return a localized update-action error with a useful log fallback."""
     return HomeAssistantError(

@@ -1321,6 +1321,14 @@ async def test_transition_metadata_and_failure_codes_are_phase_specific(
             InstallPhase.AUTHORIZING,
             actual_apk_bytes=artifact().apk_size,
         )
+    # Only a launch's HOME claim, entering health, may relax the HOME proof.
+    with pytest.raises(InstallJobTransitionError):
+        await manager.async_transition(
+            receipt.job_id,
+            receipt.revision,
+            InstallPhase.AUTHORIZING,
+            home_claim_deferred=True,
+        )
     receipt = await manager.async_transition(
         receipt.job_id, receipt.revision, InstallPhase.AUTHORIZING
     )

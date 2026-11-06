@@ -151,7 +151,6 @@ class NativeCamera(NativeEntity, Camera):
         if (stream := self.stream) is not None:
             self.stream = None
             self.hass.async_create_task(self._async_stop_stream(stream))
-        self._cache.clear()
 
     @callback
     def handle_observation(self) -> None:
@@ -182,5 +181,4 @@ class NativeCamera(NativeEntity, Camera):
         if (stream := self.stream) is not None:
             self.stream = None
             await self._async_stop_stream(stream)
-        self._cache.clear()
         await super().async_will_remove_from_hass()

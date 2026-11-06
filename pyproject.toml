@@ -15,7 +15,7 @@ dependencies = []
 [project.optional-dependencies]
 test = [
   "adb-shell[async]==0.4.4",
-  "aiosendspin[server]==10.0.0",
+  "aiosendspin[server]==10.3.0",
   "mypy==2.3.0",
   "pytest==9.0.3",
   "pytest-cov==7.1.0",
@@ -30,7 +30,9 @@ testpaths = ["tests"]
 # Home Assistant's test plugin overrides aiohttp_client so late integrations can still register
 # HTTP views. pytest-aiohttp defines the same fixture, and whichever plugin loads last wins, so
 # a fresh environment could pick the wrong one and fail with "frozen router". Turn it off.
-addopts = ["--strict-markers", "-p", "no:aiohttp"]
+# Home Assistant 2026.11 aliases httpx to httpx2 on import; respx's plugin imports
+# httpx before that and makes the alias fail. The suite does not use respx.
+addopts = ["--strict-markers", "-p", "no:aiohttp", "-p", "no:respx"]
 
 [tool.ruff]
 target-version = "py314"

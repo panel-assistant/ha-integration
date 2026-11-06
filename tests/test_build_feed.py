@@ -10,6 +10,7 @@ from dataclasses import replace
 from functools import partial
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from aiohttp import ClientConnectionError
@@ -463,17 +464,6 @@ def test_build_count_cap_refuses_one_more_than_the_limit(
         parse_build_feed(over_limit, sign(over_limit), FEED_URL)
 
 
-def test_more_than_500_builds_is_refused(sign: Callable[[bytes], bytes]) -> None:
-    """At the real limits 501 builds are refused; the byte cap binds first."""
-    assert build_feed._MAX_FEED_BUILDS == 500
-    builds = [_build_entry(code) for code in range(1, 502)]
-    body = _canonical(_feed(builds))
-    assert len(body) > build_feed._MAX_FEED_BYTES
-
-    with pytest.raises(BuildFeedError):
-        parse_build_feed(body, sign(body), FEED_URL)
-
-
 def test_feed_over_256_kib_is_refused_even_when_signed_and_valid(
     sign: Callable[[bytes], bytes],
 ) -> None:
@@ -891,3 +881,128 @@ async def test_fetch_refuses_unproven_protocol_companion(
     )
     with pytest.raises(BuildFeedError):
         await async_fetch_build_feed(session, FEED_URL)  # type: ignore[arg-type]
+
+
+# --- feed over the read limit ----------------------------------------------
+
+_LIMIT = build_feed._MAX_FEED_BYTES
+_AUTH_MESSAGE = "The build feed could not be authenticated"
+
+
+async def _refresh_failure(hass: Any, session: Any) -> str:
+    """Run one coordinator refresh over the real feed reader; return its error."""
+    from homeassistant.helpers.update_coordinator import UpdateFailed
+
+    from custom_components.panel_assistant.feed_coordinator import (
+        BuildFeedCoordinator,
+    )
+
+    coordinator = BuildFeedCoordinator(hass, FEED_URL)
+    with (
+        patch(
+            "custom_components.panel_assistant.feed_coordinator.async_get_clientsession",
+            return_value=session,
+        ),
+        pytest.raises(UpdateFailed) as caught,
+    ):
+        await coordinator._async_update_data()
+    return str(caught.value)
+
+
+async def test_feed_with_content_length_over_the_limit_names_size_and_limit(
+    hass: Any,
+) -> None:
+    """A declared length over the limit is reported with both numbers."""
+    size = _LIMIT + 1
+    response = FakeResponse(200, b"x", FEED_URL, declared_length=size)
+    session = _FakeSession({str(FEED_URL): response})
+
+    with pytest.raises(BuildFeedError) as caught:
+        await async_fetch_build_feed(session, FEED_URL)  # type: ignore[arg-type]
+    expected = "The build feed is too large: 262145 bytes, over the 262144-byte limit"
+    assert str(caught.value) == expected
+    assert [url for url, _ in session.requests] == [str(FEED_URL)]
+    assert response.content.yielded_chunks == 0  # refused before reading the body
+
+    session = _FakeSession({str(FEED_URL): response})
+    assert await _refresh_failure(hass, session) == expected
+
+
+async def test_streamed_feed_over_the_limit_says_more_than_the_limit(
+    hass: Any,
+) -> None:
+    """With no Content-Length the size is unknown and the message says so."""
+    response = FakeResponse(200, b"x" * (_LIMIT + 1), FEED_URL)
+    session = _FakeSession({str(FEED_URL): response})
+
+    with pytest.raises(BuildFeedError) as caught:
+        await async_fetch_build_feed(session, FEED_URL)  # type: ignore[arg-type]
+    expected = "The build feed is too large: more than 262144 bytes (the limit)"
+    assert str(caught.value) == expected
+    assert response.content.yielded_chunks == 1  # the body was streamed
+
+    response = FakeResponse(200, b"x" * (_LIMIT + 1), FEED_URL)
+    session = _FakeSession({str(FEED_URL): response})
+    assert await _refresh_failure(hass, session) == expected
+
+
+def test_parse_over_the_limit_reports_the_exact_length() -> None:
+    """The parser's own length check uses the same message with the body size."""
+    with pytest.raises(BuildFeedError) as caught:
+        parse_build_feed(b"x" * (_LIMIT + 7), b"", FEED_URL)
+    assert str(caught.value) == (
+        "The build feed is too large: 262151 bytes, over the 262144-byte limit"
+    )
+
+
+async def test_feed_exactly_at_the_limit_is_not_too_large(hass: Any) -> None:
+    """A body of exactly the limit passes the size bound and fails on its signature."""
+    body = b"x" * _LIMIT
+    response = FakeResponse(200, body, FEED_URL, declared_length=_LIMIT)
+    session = _FakeSession(
+        {
+            str(FEED_URL): response,
+            str(SIGNATURE_URL): FakeResponse(200, b"bad", SIGNATURE_URL),
+        }
+    )
+
+    with pytest.raises(BuildFeedError) as caught:
+        await async_fetch_build_feed(session, FEED_URL)  # type: ignore[arg-type]
+    assert not isinstance(caught.value, build_feed.BuildFeedTooLargeError)
+    assert response.content.yielded_chunks == 1  # the full body was read
+    assert [url for url, _ in session.requests] == [str(FEED_URL), str(SIGNATURE_URL)]
+
+
+async def test_bad_signature_feed_still_says_could_not_be_authenticated(
+    hass: Any, sign: Callable[[bytes], bytes]
+) -> None:
+    """The old message survives for an ordinary, in-bounds authentication failure."""
+    body = _canonical(_feed())
+    session = _FakeSession(
+        {
+            str(FEED_URL): FakeResponse(200, body, FEED_URL),
+            str(SIGNATURE_URL): FakeResponse(
+                200, bytes(len(sign(body))), SIGNATURE_URL
+            ),
+        }
+    )
+
+    assert await _refresh_failure(hass, session) == _AUTH_MESSAGE
+    assert [url for url, _ in session.requests] == [str(FEED_URL), str(SIGNATURE_URL)]
+
+
+async def test_oversized_release_response_keeps_the_empty_catalogue_message() -> None:
+    """Release-catalogue callers append str(err) only when set; keep it empty."""
+    response = FakeResponse(200, b"x", FEED_URL, declared_length=_LIMIT + 1)
+    session = _FakeSession({str(FEED_URL): response})
+
+    with pytest.raises(release.ReleaseTooLargeError) as caught:
+        await release._async_fetch_bounded(
+            session,  # type: ignore[arg-type]
+            FEED_URL,
+            _LIMIT,
+            allow_release_redirects=False,
+            headers={},
+        )
+    assert str(caught.value) == ""
+    assert (caught.value.limit, caught.value.size) == (_LIMIT, _LIMIT + 1)

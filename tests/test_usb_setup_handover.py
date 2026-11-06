@@ -9,7 +9,10 @@ panel's HTTP client, so what the panel would receive is what is asserted.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+from dataclasses import replace
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -127,22 +130,24 @@ async def test_a_usb_installed_panel_gets_the_handover_every_install_path_sends(
     status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
     assert status == 200
     assert body["outcome"] == "handed_over"
-    assert panel.hosts == ["192.168.1.20:8888"]
+    assert body["registration"] == "pending"
+    assert panel.hosts == ["192.168.1.20:8888"] * 2
     assert panel.posted == ["http://192.168.1.5:8123"]
 
 
 async def test_a_usb_installed_panel_is_added_to_panel_assistant_once(
     endpoint: Any, hass: HomeAssistant
 ) -> None:
-    """Without its entry the app loops on an unknown-panel refusal.
-
-    The network install adds its panel when the app answers; the USB install's
-    handover does the same, and a second handover adds nothing more.
-    """
+    """Unfinished setup stays pending; completed setup gets exactly one entry."""
     panel = _Panel(PanelSetupState(complete=False, accepts_handover=True))
 
     status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
 
+    assert status == 200
+    assert body["registration"] == "pending"
+    assert not hass.config_entries.async_entries(DOMAIN)
+    panel.state = PanelSetupState(complete=True, accepts_handover=True)
+    status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
     assert status == 200
     assert body["registration"] == "added"
     entries = hass.config_entries.async_entries(DOMAIN)
@@ -238,16 +243,66 @@ async def test_the_usb_installer_dialog_finishes_when_the_panel_is_added(
         ).add_to_hass(hass)
     waiting = await _open_usb_dialog(endpoint)
     not_pressed = await _open_usb_dialog(endpoint, press=False)
-    panel = _Panel(PanelSetupState(complete=False, accepts_handover=True))
+    panel = _Panel(PanelSetupState(complete=True, accepts_handover=True))
 
     _status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
 
     assert body["registration"] == ("already_configured" if added_by_hand else "added")
     finished = await (await endpoint.get(f"{_FLOWS}/{waiting}")).json()
     assert (finished["type"], finished["reason"]) == ("abort", "usb_installed")
+    # The installer window has become the panel's setup page by now.
+    root = Path(__file__).parents[1] / "custom_components" / DOMAIN
+    english = json.loads((root / "translations" / "en.json").read_text())
+    assert english == json.loads((root / "strings.json").read_text())
+    assert "installer window" not in english["config"]["abort"]["usb_installed"]
     # A dialog whose installer was never opened has nothing to finish.
     untouched = await (await endpoint.get(f"{_FLOWS}/{not_pressed}")).json()
     assert (untouched["type"], untouched["step_id"]) == ("form", "install_usb")
+
+
+@pytest.mark.parametrize("ignored", [False, True], ids=["new", "ignored"])
+async def test_usb_dialog_finishes_when_the_pending_wizard_completes(
+    endpoint: Any, hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, ignored: bool
+) -> None:
+    """Completing the existing wizard closes the waiting USB tab too."""
+    monkeypatch.setattr(
+        "custom_components.panel_assistant.config_flow._SETUP_POLL_SECONDS", 0.01
+    )
+    assert await async_setup_component(hass, "config", {})
+    if ignored:
+        MockConfigEntry(
+            domain=DOMAIN,
+            source="ignore",
+            unique_id=_HEALTH.discovery_id,
+            data={},
+        ).add_to_hass(hass)
+    waiting = await _open_usb_dialog(endpoint)
+    panel = _Panel(PanelSetupState(complete=False, accepts_handover=True))
+    _status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+    assert body["registration"] == "pending"
+    assert all(
+        entry.source == "ignore" for entry in hass.config_entries.async_entries(DOMAIN)
+    )
+    still = await (await endpoint.get(f"{_FLOWS}/{waiting}")).json()
+    assert still["type"] == "external"
+    panel.state = PanelSetupState(complete=True, accepts_handover=True)
+    state, hand = _patched(panel)
+    finished = still
+    with state, hand:
+        try:
+            async with asyncio.timeout(5):
+                while True:
+                    finished = await (await endpoint.get(f"{_FLOWS}/{waiting}")).json()
+                    if finished["type"] == "abort":
+                        break
+                    await asyncio.sleep(0.01)
+        except TimeoutError:
+            pass
+    assert len(hass.config_entries.async_entries(DOMAIN)) == 1
+    assert hass.config_entries.async_entries(DOMAIN)[0].source != "ignore"
+    assert finished["type"] == "abort", "USB installer dialog did not finish"
+    assert (finished["type"], finished["reason"]) == ("abort", "usb_installed")
+    assert panel.posted == ["http://192.168.1.5:8123"]
 
 
 async def test_the_usb_dialog_keeps_waiting_when_the_panel_was_not_added(
@@ -359,26 +414,24 @@ async def test_an_unreachable_panel_is_reported_not_raised(
     assert "not_panel" in lines[0]
 
 
-async def test_a_panel_that_answers_late_still_gets_its_handover_and_entry(
+async def test_a_panel_that_answers_late_gets_its_handover_while_setup_stays_pending(
     endpoint: Any, hass: HomeAssistant, caplog: Any
 ) -> None:
     """The installer relays the handover while the app it started is coming up.
 
     Its first reads are refused; the handover keeps asking, then gives the panel
-    Home Assistant's address and adds it, as the network install does.
+    Home Assistant's address and keeps registration pending until setup is done.
     """
     panel = _Panel(PanelSetupState(complete=False, accepts_handover=True), refusals=3)
     with caplog.at_level(logging.INFO, logger=delivery.__name__):
         status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
     assert status == 200
     assert body["outcome"] == "handed_over"
-    assert body["registration"] == "added"
+    assert body["registration"] == "pending"
     assert panel.posted == ["http://192.168.1.5:8123"]
-    assert [
-        entry.data["address"] for entry in hass.config_entries.async_entries(DOMAIN)
-    ] == ["192.168.1.20"]
+    assert not hass.config_entries.async_entries(DOMAIN)
     assert any(
-        "handed_over" in record.getMessage() and "added" in record.getMessage()
+        "handed_over" in record.getMessage() and "pending" in record.getMessage()
         for record in caplog.records
         if record.name == delivery.__name__ and record.levelno == logging.INFO
     )
@@ -492,6 +545,14 @@ async def test_usb_registration_replaces_an_ignored_discovery(
     ):
         status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
     assert status == 200
+    assert body["registration"] == "pending"
+    assert hass.config_entries.async_entries(DOMAIN) == [ignored]
+    panel.state = PanelSetupState(complete=True, accepts_handover=True)
+    with patch(
+        "custom_components.panel_assistant.browser_delivery.async_read_recommended_sizing",
+        AsyncMock(return_value=None),
+    ):
+        status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
     assert body["registration"] == "added"
     entries = hass.config_entries.async_entries(DOMAIN)
     assert len(entries) == 1
@@ -550,6 +611,14 @@ async def test_a_slow_entry_setup_never_holds_the_handover_past_its_deadline(
         return True
 
     panel = _Panel(PanelSetupState(complete=False, accepts_handover=True), refusals=2)
+    hand_over = panel.hand_over
+
+    async def _complete_setup(client: HaPaneldClient, ha_url: str | None) -> None:
+        await hand_over(client, ha_url)
+        # The owner finishes the wizard before registration rechecks readiness.
+        panel.state = replace(panel.state, complete=True)
+
+    panel.hand_over = _complete_setup
     recommends = AsyncMock(
         return_value={
             "recommended": {"density": 216, "font_scale": 1.0},
@@ -586,3 +655,91 @@ async def test_a_slow_entry_setup_never_holds_the_handover_past_its_deadline(
     assert len(lines) == 2
     assert "registration: in_progress" in lines[0]
     assert "finished: added" in lines[1]
+
+
+@pytest.mark.parametrize("known_by", ["entry", "discovery"])
+async def test_handover_accepts_only_the_specific_panels_known_custom_port(
+    endpoint: Any, hass: HomeAssistant, known_by: str
+) -> None:
+    """A custom port belongs to its held panel address, never another LAN host."""
+    address = "192.168.1.20:9999"
+    if known_by == "entry":
+        MockConfigEntry(
+            domain=DOMAIN, data={"address": address}, unique_id=_HEALTH.discovery_id
+        ).add_to_hass(hass)
+    else:
+        from homeassistant.config_entries import SOURCE_ZEROCONF
+        from homeassistant.data_entry_flow import FlowResultType
+
+        from .config_flow_helpers import _zeroconf_info
+
+        card = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": SOURCE_ZEROCONF},
+            data=_zeroconf_info(
+                host="192.168.1.20", port=9999, discovery_id=_HEALTH.discovery_id
+            ),
+        )
+        assert card["type"] is FlowResultType.FORM
+        # A card's editable add-panel form updates its presentation address
+        # before the new endpoint has answered; that text grants no access.
+        progress = hass.config_entries.flow.async_get(card["flow_id"])
+        progress["context"]["title_placeholders"]["address"] = "192.168.1.21:9999"
+    panel = _Panel(PanelSetupState(complete=False, accepts_handover=True))
+    for refused in ("192.168.1.21:9999", "192.168.1.20:9998"):
+        status, _ = await _post(endpoint, panel, {"address": refused})
+        assert status == 400
+    assert panel.hosts == []
+    with patch(f"{_CLIENT}.async_get_display", AsyncMock(return_value={})):
+        status, body = await _post(endpoint, panel, {"address": address})
+    assert status == 200
+    assert body["outcome"] == "handed_over"
+    # New-panel registration rechecks setup readiness; every read must stay on
+    # the endpoint whose custom port this panel actually advertised.
+    assert panel.hosts and set(panel.hosts) == {address}
+
+
+@pytest.mark.parametrize(
+    "setup", ["unreadable", "complete", "incomplete", "refused", "unsupported"]
+)
+async def test_usb_adoption_offers_sizing_only_for_observed_incomplete_setup(
+    endpoint: Any, panel_health: AsyncMock, setup: str
+) -> None:
+    """An answering display cannot turn unknown setup into sizing permission."""
+    panel = _Panel(
+        CannotConnectError()
+        if setup == "unreadable"
+        else PanelSetupState(
+            complete=setup == "complete", accepts_handover=setup != "unsupported"
+        )
+    )
+    if setup == "refused":
+        panel.post_error = CannotConnectError()
+    recommendation = {"density": 216, "font_scale": 1.0}
+    with patch(
+        f"{_CLIENT}.async_get_display",
+        AsyncMock(
+            return_value={"recommended": recommendation, "privileged_sizing": False}
+        ),
+    ):
+        status, body = await _post(endpoint, panel, {"address": "192.168.1.20"})
+
+    assert status == 200
+    assert panel.hosts
+    assert panel_health.await_count >= 1
+    assert body["display"] == (
+        None if setup in {"unreadable", "complete"} else recommendation
+    )
+    assert (
+        body["outcome"]
+        == {
+            "unreadable": "setup_state_unreadable",
+            "complete": "setup_complete",
+            "incomplete": "handed_over",
+            "refused": "handover_refused",
+            "unsupported": "handover_unsupported",
+        }[setup]
+    )
+    assert panel.posted == (
+        ["http://192.168.1.5:8123"] if setup == "incomplete" else []
+    )

@@ -8,7 +8,8 @@ is the signal that the panel is gone.
 
 Everything a panel sends is untrusted. Each message is validated and bounded
 (see ``transport_protocol.py``) before anything is stored. Established-session
-handlers perform no I/O. A moved legacy panel must complete bounded health
+handlers schedule bounded log delivery without blocking the socket. A moved
+legacy panel must complete bounded health
 verification before its hello can grant a session.
 
 This integration owns every panel's entities: the panel reports its state
@@ -25,9 +26,11 @@ Repairs issue that an unconfirmed ``hello`` raises (see
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import secrets
 from collections.abc import Collection, Container
+from contextlib import suppress
 from functools import partial
 from typing import Any, Final
 
@@ -87,6 +90,7 @@ from .transport_protocol import (
     OUTCOME_PENDING_APPROVAL,
     REASON_USER_REMOVED,
     REPORT_EVENT_SCHEMA,
+    REPORT_LOG_SCHEMA,
     REPORT_STATE_SCHEMA,
     RESTART_NOTICE_SCHEMA,
     STATE_KNOWN,
@@ -360,7 +364,76 @@ def ws_hello(
                 "An administrator has not confirmed this user for this panel.",
             )
             return
-    _accept_hello(hass, connection, msg, entry, high)
+    if "local_adb" in msg["capabilities"] and "management" in msg["capabilities"]:
+        task = hass.async_create_task(
+            _accept_local_hello(hass, connection, msg, entry, high), eager_start=False
+        )
+        cancel = task.cancel
+        connection.subscriptions[msg["id"]] = cancel
+
+        def finished(_task: asyncio.Task[None]) -> None:
+            if connection.subscriptions.get(msg["id"]) is cancel:
+                connection.subscriptions.pop(msg["id"])
+
+        task.add_done_callback(finished)
+    else:
+        _accept_hello(hass, connection, msg, entry, high)
+
+
+async def _accept_local_hello(
+    hass: HomeAssistant,
+    connection: ActiveConnection,
+    msg: dict[str, Any],
+    entry: ConfigEntry,
+    high: int,
+) -> None:
+    """Read install custody before granting a capability that can close ADB."""
+    from .install_jobs import async_get_install_job_manager
+
+    # Registering the pending subscription precedes this task's first turn.
+    # Core can now cancel it on socket teardown or explicit unsubscribe.
+    pending = connection.subscriptions.get(msg["id"])
+    if pending is None:
+        return
+    allowed = False
+    try:
+        async with asyncio.timeout(10):
+            manager = await async_get_install_job_manager(hass)
+            jobs = await manager.async_list()
+        address = entry.data.get("address")
+        allowed = not any(
+            not receipt.is_terminal
+            and address in (receipt.target.address, receipt.target.pinned_address)
+            for receipt in jobs
+        )
+    except Exception:
+        _LOGGER.debug(
+            "Local panel commands deferred while install custody is unreadable"
+        )
+    # The bounded store read may yield. Admission is still this exact loaded
+    # entry and binding when the grant is made, never the earlier snapshot.
+    from .identity import CONF_IDENTITY_PENDING, is_installation
+
+    if connection.subscriptions.get(msg["id"]) is not pending:
+        return
+    try:
+        current = _entry_for_did(hass, msg["did"])
+    except SharedPanelIdentityError:
+        current = None
+    if (
+        current is not entry
+        or entry.data.get(CONF_IDENTITY_PENDING) is not None
+        or (high >= 3 and not is_installation(entry))
+        or entry.data.get(CONF_TRANSPORT_USER_ID) != connection.user.id
+        or getattr(
+            getattr(getattr(entry, "runtime_data", None), "coordinator", None),
+            "identity_mismatch",
+            False,
+        )
+    ):
+        connection.send_error(msg["id"], ERR_UNKNOWN_PANEL, "Panel admission changed.")
+        return
+    _accept_hello(hass, connection, msg, entry, high, local_adb_allowed=allowed)
 
 
 @callback
@@ -411,6 +484,8 @@ def _accept_hello(
     msg: dict[str, Any],
     entry: ConfigEntry,
     high: int,
+    *,
+    local_adb_allowed: bool = True,
 ) -> None:
     """Grant a session only after synchronous admission or completed address proof."""
     did = msg["did"]
@@ -421,6 +496,8 @@ def _accept_hello(
     # Every capability this integration implements that the panel offered.
     offered = frozenset(msg["capabilities"])
     capabilities = KNOWN_CAPABILITIES.intersection(offered)
+    if "management" not in capabilities or not local_adb_allowed:
+        capabilities -= {"local_adb"}
     voice_stream = async_get_voice_stream(hass)
     stream_client_id = (msg.get("voice_stream_session") or {}).get("client_id")
     if stream_client_id is None or voice_stream is None:
@@ -475,8 +552,10 @@ def _accept_hello(
         opened_at=dt_util.utcnow(),
         remote=connection.remote if isinstance(connection.remote, str) else None,
         addresses=tuple(msg.get("addresses", ())),
+        http_port=msg.get("http_port"),
         unknown_channels=unknown,
         prerelease_panel_builds=prereleases_allowed(entry),
+        local_adb_deferred=not local_adb_allowed,
     )
     result: dict[str, Any] = {
         "protocol": high,
@@ -491,7 +570,7 @@ def _accept_hello(
         "connection": {
             "instance_id": hass.data[DOMAIN][DATA_INSTANCE_ID],
             "user_id": user_id,
-            "urls": async_connection_urls(hass),
+            "urls": async_connection_urls(hass, connection.user),
         },
         # Unknown descriptors are accepted too, but render nothing.
         "channels": {"accepted": len(descriptors), "unknown": sorted(unknown)},
@@ -504,6 +583,23 @@ def _accept_hello(
         result["voice_stream_session"] = voice_stream.grant(
             stream_client_id, entry.entry_id
         )
+    if "logs" in capabilities:
+        from .panel_logs import async_get_log_router, validate_policy
+
+        session.app_package = msg["app"].get("package", session.app_package)
+        session.log_sources = async_get_log_router(hass).sources()
+        result["logs"] = {"sources": dict(session.log_sources)}
+        saved_sink = msg.get("logs", {}).get("saved_sink")
+        if saved_sink and saved_sink["enabled"]:
+            with suppress(vol.Invalid):
+                session.saved_log_sink = validate_policy(
+                    {
+                        "destination": {
+                            key: saved_sink[key] for key in ("protocol", "host", "port")
+                        },
+                        "sources": {},
+                    }
+                )["destination"]
     async_get_sessions(hass).open(session)
     if session.voice_stream_client_id is not None:
         assert voice_stream is not None
@@ -519,6 +615,21 @@ def _send_event(
     connection: ActiveConnection, subscription_id: int, event: dict[str, Any]
 ) -> None:
     connection.send_message(event_message(subscription_id, event))
+
+
+@callback
+@websocket_command(REPORT_LOG_SCHEMA)
+def ws_report_log(
+    hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Admit one log batch on its authenticated current session."""
+    from .panel_logs import async_get_log_router
+
+    session = async_get_sessions(hass).for_request(msg["session"], connection)
+    if session is None:
+        connection.send_error(msg["id"], ERR_SESSION_UNKNOWN, "No such session.")
+        return
+    async_get_log_router(hass).accept(session, msg)
 
 
 @callback
@@ -729,6 +840,7 @@ def async_setup_transport(hass: HomeAssistant) -> None:
     async_get_sessions(hass)
     websocket_api.async_register_command(hass, ws_hello)
     websocket_api.async_register_command(hass, ws_report_state)
+    websocket_api.async_register_command(hass, ws_report_log)
     websocket_api.async_register_command(hass, ws_restart_notice)
     websocket_api.async_register_command(hass, ws_report_event)
     websocket_api.async_register_command(hass, ws_command_result)

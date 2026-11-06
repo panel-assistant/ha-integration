@@ -353,7 +353,11 @@ async def test_known_hostname_panel_is_not_offered_as_unconnected(
 async def test_found_panel_setup_menu_asks_only_for_user_steps(
     hass, monkeypatch, complete, needs_user
 ):
-    """Render proof does not open the wizard; old responses retain their meaning."""
+    """A new panel is offered its wizard until it reports setup complete.
+
+    needs_user no longer lets an incomplete panel skip the wizard: a new panel
+    gets no entry until its own setup has finished.
+    """
     document = {"complete": complete}
     if needs_user is not None:
         document["needs_user"] = needs_user
@@ -375,7 +379,7 @@ async def test_found_panel_setup_menu_asks_only_for_user_steps(
         result = await hass.config_entries.flow.async_configure(
             form["flow_id"], {CONF_ADDRESS: _NEW + ":9999"}
         )
-    needs_wizard = not complete if needs_user is None else needs_user
+    needs_wizard = not complete
     assert result["step_id"] == (
         "found_unconfigured" if needs_wizard else "found_panel"
     )
@@ -529,7 +533,8 @@ async def test_explicit_add_of_live_clone_preserves_original_history(
         else:
             status, body = await _post(
                 endpoint,
-                _Panel(PanelSetupState(complete=False, accepts_handover=True)),
+                # A new panel gets its entry only once its own setup is done.
+                _Panel(PanelSetupState(complete=True, accepts_handover=True)),
                 {"address": _NEW},
             )
             assert status == 200
@@ -552,3 +557,82 @@ async def test_devices_joining_the_network_start_no_panel_assistant_flow(hass):
 
     assert any(matcher["domain"] != DOMAIN for matcher in matchers)
     assert [matcher for matcher in matchers if matcher["domain"] == DOMAIN] == []
+
+
+@pytest.mark.parametrize(
+    ("host", "port", "stored"),
+    [
+        ("192.168.1.23", 1024, "192.168.1.23:1024"),
+        ("192.168.1.23", 9999, "192.168.1.23:9999"),
+        ("fd00::23", 65535, "[fd00::23]:65535"),
+    ],
+)
+async def test_discovery_adopts_the_verified_advertised_port(hass, host, port, stored):
+    """Both health checks and the adopted entry use the app's SRV endpoint."""
+    endpoints = []
+
+    async def health(client):
+        endpoints.append(client.address.stored_value)
+        return DISCOVERY_HEALTH
+
+    with (
+        patch.object(HaPaneldClient, "async_get_health", health),
+        patch("custom_components.panel_assistant.async_setup_entry", return_value=True),
+    ):
+        card = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=_zeroconf_info(host=host, port=port),
+        )
+        assert card["type"] is FlowResultType.FORM
+        assert card["description_placeholders"]["address"] == stored
+        result = await hass.config_entries.flow.async_configure(card["flow_id"], {})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_ADDRESS] == stored
+    assert endpoints == [stored, stored]
+
+
+@pytest.mark.parametrize("port", [None, True, 0, 1023, 65536, "9999", 9999.0])
+async def test_discovery_refuses_invalid_srv_ports_before_contact(hass, port):
+    """Malformed or privileged service ports never trigger a panel request."""
+    with patch.object(HaPaneldClient, "async_get_health", AsyncMock()) as health:
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=_zeroconf_info(port=port),
+        )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "invalid_discovery"
+    health.assert_not_awaited()
+
+
+@pytest.mark.parametrize("held", ["offline", "reachable", "connected"])
+async def test_discovery_updates_the_verified_port_even_while_old_port_answers(
+    hass, hass_read_only_user, hass_ws_client, hass_read_only_access_token, held
+):
+    """A same-host listener change follows the panel's verified SRV port."""
+    entry = await _load(hass, hass_read_only_user.id, unique_id=DID, address=_NEW)
+    if held == "offline":
+        await _poll(hass, entry, {_NEW: CannotConnectError()})
+    elif held == "connected":
+        client = await hass_ws_client(hass, hass_read_only_access_token)
+        assert (await _send(client, _hello()))["success"]
+    with (
+        patch.object(
+            HaPaneldClient,
+            "async_get_health",
+            AsyncMock(return_value=replace(DISCOVERY_HEALTH, discovery_id=DID)),
+        ),
+        patch.object(
+            HaPaneldClient, "async_get_status", AsyncMock(return_value=STATUS)
+        ),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=_zeroconf_info(host=_NEW, port=9999, discovery_id=DID),
+        )
+        await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert entry.data[CONF_ADDRESS] == f"{_NEW}:9999"

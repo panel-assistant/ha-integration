@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import secrets
 import traceback
 from collections.abc import Callable
 from dataclasses import asdict, replace
@@ -14,14 +15,18 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.const import __version__ as ha_version
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.storage import Store
 
 from .build import INTEGRATION_BUILD
 from .build_feed import parse_build_request
 from .client import is_newer_stable_version, is_version_at_least
-from .const import DOMAIN, INTEGRATION_VERSION, help_url
+from .const import CONF_TRANSPORT_USER_ID, DOMAIN, INTEGRATION_VERSION, help_url
 from .device import panel_display_name
+from .transport_protocol import CAPABILITY_UI_SUBSCRIBE, OUTCOME_APPLIED
+from .transport_sessions import async_get_sessions, session_manages
+from .ui_relay import async_manage
 
 if TYPE_CHECKING:
     from .install_receipt import InstallJobReceipt
@@ -31,6 +36,107 @@ ISSUE_ADB_AUTHORIZATION = "adb_update_authorization"
 _STORE_KEY = f"{DOMAIN}.failure_repairs"
 _DATA_KEY = f"{DOMAIN}.failure_repair_store"
 _MAX_EVENTS = 16
+_PANEL_LOG_TIMEOUT = 3.0
+_MAX_PANEL_LOG_BYTES = 16 * 1024
+_LOG_WARNING = re.compile(r"^\d\d-\d\d \d\d:\d\d:\d\d\.\d{3}\s+\d+\s+\d+\s+[WEF]\s")
+
+
+class _PanelLogSnapshot:
+    """One initial logs update, delivered by the existing session relay."""
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        self.backlog: asyncio.Future[list[Any] | None] = hass.loop.create_future()
+
+    def update(self, observations: list[dict[str, Any]]) -> None:
+        for observation in observations:
+            if observation.get("channel") != "logs" or self.backlog.done():
+                continue
+            value = observation.get("value")
+            self.backlog.set_result(
+                value
+                if observation.get("state") == "known" and isinstance(value, list)
+                else None
+            )
+
+    def session_ended(self) -> None:
+        if not self.backlog.done():
+            self.backlog.set_result(None)
+
+
+async def _async_panel_logs(hass: HomeAssistant, entry_id: str) -> dict[str, Any]:
+    unavailable = {
+        "status": "unavailable",
+        "reason": "No panel log lines could be taken.",
+    }
+    session = async_get_sessions(hass).get(entry_id)
+    if session is None:
+        return {
+            **unavailable,
+            "reason": "No panel log lines could be taken: panel not connected.",
+        }
+    if (
+        not session_manages(session)
+        or CAPABILITY_UI_SUBSCRIBE not in session.capabilities
+    ):
+        return unavailable
+    command_id = secrets.token_urlsafe(24)
+    # A separate origin keeps this source and lifetime independent of any Logs page.
+    origin = {"user": session.user_id, "connection": command_id}
+    snapshot = _PanelLogSnapshot(hass)
+    session.ui_relays[command_id] = [snapshot]
+    try:
+        async with asyncio.timeout(_PANEL_LOG_TIMEOUT):
+            outcome, _ = await async_manage(
+                hass,
+                session,
+                "subscribe",
+                {"family": "logs", "source": "app"},
+                origin,
+                command_id=command_id,
+            )
+            if outcome.outcome != OUTCOME_APPLIED:
+                return unavailable
+            backlog = await snapshot.backlog
+        if backlog is None:
+            return unavailable
+        # Keep the newest warnings, bounded even if a panel sends oversized lines.
+        lines: list[str] = []
+        size = 0
+        truncated = len(backlog) > 400
+        for line in reversed(backlog[-400:]):
+            if not isinstance(line, str) or not _LOG_WARNING.match(line):
+                continue
+            encoded = line.encode("utf-8")
+            remaining = _MAX_PANEL_LOG_BYTES - size - bool(lines)
+            if len(encoded) > remaining:
+                truncated = True
+                if not lines:
+                    lines.append(encoded[:remaining].decode("utf-8", errors="ignore"))
+                break
+            lines.append(line)
+            size += len(encoded) + (len(lines) > 1)
+        return {
+            "status": "captured",
+            "lines": list(reversed(lines)),
+            "truncated": truncated,
+        }
+    except HomeAssistantError, TimeoutError:
+        return unavailable
+    finally:
+        session.ui_relays.pop(command_id, None)
+        # The command ID remains the handle even when the subscribe answer was lost.
+        if async_get_sessions(hass).get(entry_id) is session:
+            try:
+                async with asyncio.timeout(_PANEL_LOG_TIMEOUT):
+                    await async_manage(
+                        hass,
+                        session,
+                        "unsubscribe",
+                        {"subscription": command_id},
+                        origin,
+                    )
+            except HomeAssistantError, TimeoutError:
+                pass  # Optional diagnostics must not prevent saving the failure.
 
 
 class RetrySafetyHold(Exception):
@@ -122,9 +228,12 @@ class _FailureStore:
         issue_id: str,
         event: dict[str, Any],
         after_save: Callable[[], None] | None = None,
+        when: Callable[[], bool] | None = None,
     ) -> None:
         async with self.lock:
             records = await self.load()
+            if when is not None and not when():
+                return
             previous = records.get(issue_id, {})
             events = previous.get("events", [])
             if not isinstance(events, list):
@@ -194,12 +303,16 @@ def _issue(
         translation_key = f"{ISSUE_INSTALLER_FAILURE}_{reason}"
     elif kind == "update" and reason == "adb_authorization_required":
         translation_key = "installer_failure_adb_authorization"
+    elif kind == "update" and reason == "update_webview_unfinished":
+        translation_key = f"{ISSUE_INSTALLER_FAILURE}_update_webview"
     elif kind == "update":
         translation_key = f"{ISSUE_INSTALLER_FAILURE}_update"
     elif kind == "retry_hold":
         translation_key = f"{ISSUE_INSTALLER_FAILURE}_retry_hold"
     else:
         translation_key = ISSUE_INSTALLER_FAILURE
+    # The WebView wording shares the update Repair's help page.
+    anchor = translation_key.removesuffix("_webview")
     if translation_key == "installer_failure_adb_authorization" and entry_id:
         ir.async_delete_issue(hass, DOMAIN, adb_authorization_issue_id(entry_id))
     ir.async_create_issue(
@@ -210,11 +323,11 @@ def _issue(
         is_persistent=True,
         severity=ir.IssueSeverity.ERROR,
         translation_key=translation_key,
-        learn_more_url=help_url("repair", issue=translation_key),
+        learn_more_url=help_url("repair", issue=anchor),
         translation_placeholders={
             "panel": panel,
-            "repair_url": help_url("repair", issue=translation_key),
-            "learn_more_url": help_url("repair", issue=translation_key),
+            "repair_url": help_url("repair", issue=anchor),
+            "learn_more_url": help_url("repair", issue=anchor),
             "guide_url": help_url("support-report"),
             "approval_url": help_url("repair", issue="adb_update_authorization"),
         },
@@ -251,6 +364,44 @@ def clear_install_failure(hass: HomeAssistant, receipt: InstallJobReceipt) -> No
     )
 
 
+async def async_record_update_bundle(
+    hass: HomeAssistant,
+    entry_id: str,
+    target_version: str,
+    artifact: dict[str, Any] | None,
+) -> None:
+    """Retain unfinished components before an app restart can interrupt the bundle."""
+    events = await async_failure_events(
+        hass, panel_failure_issue_id(f"update:{entry_id}")
+    )
+    previous = next(
+        (event for event in reversed(events) if event.get("kind") == "update"), None
+    )
+    if previous is not None and isinstance(previous.get("target_version"), str):
+        saved = previous["target_version"]
+        old_code, new_code = (
+            parse_build_request(saved),
+            parse_build_request(target_version),
+        )
+        if (old_code is not None and new_code is not None and old_code > new_code) or (
+            old_code is None and is_newer_stable_version(saved, target_version)
+        ):
+            return
+    entry = hass.config_entries.async_get_entry(entry_id)
+    await async_record_update_failure(
+        hass,
+        entry_id,
+        "",
+        target_version,
+        RuntimeError("The combined app and WebView update is unfinished"),
+        artifact=artifact,
+        webview_pending=bool(entry and entry.data.get(CONF_TRANSPORT_USER_ID)),
+        # A normal update is not a failure: only a startup that finds this
+        # record left behind turns it into the Repair.
+        raise_issue=False,
+    )
+
+
 async def async_record_update_failure(
     hass: HomeAssistant,
     entry_id: str,
@@ -260,6 +411,8 @@ async def async_record_update_failure(
     *,
     artifact: dict[str, Any] | None = None,
     observed_before: tuple[str, int | None] | None = None,
+    webview_pending: bool = False,
+    raise_issue: bool = True,
 ) -> None:
     """Retain the cause that Home Assistant's update toast otherwise loses."""
     entry = hass.config_entries.async_get_entry(entry_id)
@@ -279,14 +432,22 @@ async def async_record_update_failure(
         "target_version": target_version,
         "exception": "".join(traceback.format_exception(error))[-12000:],
     }
+    event["panel_logs"] = await _async_panel_logs(hass, entry_id)
     if artifact is not None:
         event["artifact"] = artifact
     if observed_before is not None:
         event["observed_before"] = list(observed_before)
+    if webview_pending:
+        event["webview_pending"] = True
+    if isinstance(cause := getattr(error, "translation_key", None), str):
+        # A restart restores the same wording from the saved report.
+        event["translation_key"] = cause
     await _failure_store(hass).append(
         issue_id,
         event,
-        lambda: _issue(
+        None
+        if not raise_issue
+        else lambda: _issue(
             hass,
             issue_id,
             panel,
@@ -296,6 +457,8 @@ async def async_record_update_failure(
             if getattr(error, "translation_key", None) == "adb_authorization_required"
             else None,
         ),
+        # An entry removed during the awaits above keeps neither report nor Repair.
+        lambda: hass.config_entries.async_get_entry(entry_id) is entry,
     )
 
 
@@ -335,13 +498,17 @@ async def async_clear_update_failure_if_installed(
     *,
     verified_success: bool = False,
     verified_current_code: int | None = None,
+    is_current: Callable[[], bool] | None = None,
+    webview_completed: bool = False,
 ) -> None:
     """Resolve a saved failure only after this panel reaches its failed build."""
     issue_id = panel_failure_issue_id(f"update:{entry_id}")
-    if ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None:
-        return
+    # A record can exist without its Repair (an update still running, or one
+    # restored at startup), so the record decides, not the registry.
 
     def reached(record: dict[str, Any]) -> bool:
+        if is_current is not None and not is_current():
+            return False
         events = record.get("events", [])
         if not isinstance(events, list):
             return False
@@ -353,6 +520,12 @@ async def async_clear_update_failure_if_installed(
             ),
             None,
         )
+        if (
+            previous is not None
+            and previous.get("webview_pending")
+            and not webview_completed
+        ):
+            return False
         target = previous.get("target_version") if previous is not None else None
         if not isinstance(target, str):
             if previous is None:
@@ -443,7 +616,7 @@ def update_failure_entry_id(issue_id: str, events: list[Any]) -> str | None:
             continue
         entry_id = event.get("entry_id")
         if (
-            event.get("kind") == "update"
+            event.get("kind") in {"update", "retry_hold"}
             and isinstance(entry_id, str)
             and panel_failure_issue_id(f"update:{entry_id}") == issue_id
         ):
@@ -464,35 +637,68 @@ async def async_update_failure_entry_ids(hass: HomeAssistant) -> set[str]:
     return {entry_id for entry_id in named if entry_id is not None}
 
 
+async def async_restore_update_failure(hass: HomeAssistant, entry_id: str) -> None:
+    """Restore a Repair when its report outlived the registry's delayed save."""
+    issue_id = panel_failure_issue_id(f"update:{entry_id}")
+    store = _failure_store(hass)
+    async with store.lock:
+        if ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None:
+            return
+        entry = hass.config_entries.async_get_entry(entry_id)
+        if entry is None:
+            return
+        records = await store.load()
+        events = records.get(issue_id, {}).get("events", [])
+        if (
+            not isinstance(events, list)
+            or update_failure_entry_id(issue_id, events) != entry_id
+        ):
+            return
+        latest = next(
+            (event for event in reversed(events) if isinstance(event, dict)), {}
+        )
+        kind = "retry_hold" if latest.get("kind") == "retry_hold" else "update"
+        reason = str(latest.get("translation_key") or latest.get("reason", ""))
+        _issue(hass, issue_id, panel_display_name(hass, entry), kind, reason, entry_id)
+
+
 async def async_record_retry_hold(
     hass: HomeAssistant, issue_id: str, previous: dict[str, Any], error: Exception
 ) -> None:
     """Keep the repair and show why its latest Retry could not proceed."""
     reason = error.reason if isinstance(error, RetrySafetyHold) else "retry_failed"
     entry_id = previous.get("entry_id")
-    entry = (
-        hass.config_entries.async_get_entry(entry_id)
-        if isinstance(entry_id, str)
-        else None
-    )
+    if not isinstance(entry_id, str):
+        entry_id = None
+    entry = hass.config_entries.async_get_entry(entry_id) if entry_id else None
     panel = (
         panel_display_name(hass, entry)
         if entry is not None
         else str(previous.get("panel", "Panel"))
     )
+    event: dict[str, Any] = {
+        "kind": "retry_hold",
+        "at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "address": previous.get("address"),
+        "panel": panel,
+        "reason": reason,
+        "exception": "".join(traceback.format_exception(error))[-12000:],
+        "previous": previous.get("job_id") or previous.get("entry_id"),
+    }
+    if entry_id is not None:
+        event["entry_id"] = entry_id
     await _failure_store(hass).append(
         issue_id,
-        {
-            "kind": "retry_hold",
-            "at": datetime.now(UTC).isoformat(timespec="seconds"),
-            "address": previous.get("address"),
-            "panel": panel,
-            "reason": reason,
-            "exception": "".join(traceback.format_exception(error))[-12000:],
-            "previous": previous.get("job_id") or previous.get("entry_id"),
-        },
+        event,
+        lambda: _issue(hass, issue_id, panel, "retry_hold", reason),
+        # A panel removed while its Retry ran took its Repair with it; an
+        # update Retry records nothing once its entry is no longer current.
+        None
+        if entry_id is None
+        else lambda: (
+            entry is not None and hass.config_entries.async_get_entry(entry_id) is entry
+        ),
     )
-    _issue(hass, issue_id, panel, "retry_hold", reason)
 
 
 async def async_support_report(hass: HomeAssistant, issue_id: str) -> str:

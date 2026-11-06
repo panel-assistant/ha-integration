@@ -157,10 +157,15 @@ def _prior_installation(hass: HomeAssistant, entry: ConfigEntry, did: str) -> bo
         }
         if panel_ids != {f"ha-paneld-{record.get('panel_id')}"}:
             return False
+        # Stored MQTT ids may refer to a composite from before Core split devices.
+        owner_ids: set[str | None] = {
+            part.config_entry_id
+            for part in registry.async_get_devices_for_composite_device_id(device_id)
+        } or {device.config_entry_id}
         for other in hass.config_entries.async_entries(DOMAIN):
             if other.entry_id == entry.entry_id:
                 continue
-            if other.entry_id in device.config_entries:
+            if other.entry_id in owner_ids:
                 return False
             other_record = other.data.get(CONF_CUTOVER, {})
             if isinstance(other_record, dict) and any(
@@ -522,6 +527,10 @@ def _answers_as_itself(entry: ConfigEntry) -> bool:
 def _adopt_reinstalled(hass: HomeAssistant, entry: ConfigEntry, did: str) -> bool:
     """Take the reinstalled panel's identity, unless an update holds the panel."""
     from .panel_operations import claim_panel_operation, release_panel_operation
+    from .repairs_removal import (
+        async_dismiss_removal_notification,
+        removal_issue_id,
+    )
     from .transport_binding import async_unbind_user
 
     if not claim_panel_operation(hass, entry.entry_id):
@@ -534,6 +543,9 @@ def _adopt_reinstalled(hass: HomeAssistant, entry: ConfigEntry, did: str) -> boo
             return _reject_health(hass, entry)
         # A reinstalled app binds the account it now signs in as, on every route.
         async_unbind_user(hass, entry)
+        # A removal the owner asked for but never confirmed targeted the old app.
+        ir.async_delete_issue(hass, DOMAIN, removal_issue_id(entry.entry_id))
+        async_dismiss_removal_notification(hass, entry.entry_id)
     finally:
         release_panel_operation(hass, entry.entry_id)
     _LOGGER.info(

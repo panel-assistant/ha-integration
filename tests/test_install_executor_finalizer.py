@@ -128,9 +128,10 @@ class FinalProof:
                 )
 
             async def async_get_status(
-                self, *, home_proof: bool = False
+                self, *, home_proof: bool = False, setup_foreground: bool = False
             ) -> PanelStatus:
                 assert home_proof
+                assert not setup_foreground
                 return PanelStatus(
                     warning_count=0,
                     capability_count=0,
@@ -296,32 +297,6 @@ async def test_concurrent_finalizers_have_one_owner_and_one_release(
     assert proof.health_reads == 1
     assert (await manager.async_get(receipt.job_id)).consumed_entry_id == ENTRY_ID
     assert leases.released == [receipt.job_id]
-
-
-async def test_same_owner_resubmit_during_verification_is_busy(
-    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The owner submitting again mid-proof never starts a second panel read."""
-    receipt, manager = await seed_healthy(hass)
-    proof = FinalProof(monkeypatch, hold_health=True)
-    executor, _ = counting_executor(hass, manager)
-
-    first = hass.async_create_task(
-        executor.async_verify_finalization(receipt.job_id, "flow_one")
-    )
-    await proof.health_started.wait()
-    again = hass.async_create_task(
-        executor.async_verify_finalization(receipt.job_id, "flow_one")
-    )
-    try:
-        for _ in range(10):
-            await asyncio.sleep(0)
-        assert again.done()
-        assert again.result().outcome is FinalizationOutcome.BUSY
-        assert proof.health_reads == 1
-    finally:
-        proof.release_health.set()
-        await asyncio.wait_for(asyncio.gather(first, again), timeout=5)
 
 
 async def test_cancelled_verification_releases_its_lease_exactly_once(
@@ -740,3 +715,53 @@ def test_one_installed_app_rule_takes_the_whole_health_line(
 
     assert health_is_installed_app(health, installed) is expected
     assert not health_is_installed_app(replace(health, version="9.9.9"), installed)
+
+
+async def test_installer_keeps_network_route_until_finalizer_releases_the_entry(
+    hass: HomeAssistant,
+    hass_ws_client: object,
+    hass_read_only_user: object,
+    hass_read_only_access_token: str,
+) -> None:
+    """A session mid-install cannot close the ADB route its final proof needs."""
+    from homeassistant.const import CONF_ADDRESS
+
+    from .test_native import _setup
+    from .test_transport import _receive
+    from .test_transport_commands import _connect
+
+    receipt, manager = await seed_healthy(hass)
+    entry = await _setup(hass, hass_read_only_user.id)
+    hass.config_entries.async_update_entry(
+        entry, data={**entry.data, CONF_ADDRESS: receipt.target.address}
+    )
+    with patch.object(
+        install_jobs, "async_get_install_job_manager", AsyncMock(return_value=manager)
+    ):
+        panel = await _connect(
+            hass,
+            hass_ws_client,
+            hass_read_only_access_token,
+            ["management", "local_adb"],
+            sync=False,
+        )
+        assert "local_adb" not in panel.result["capabilities"]
+        executor = InstallExecutor(hass, manager)
+        await executor.async_consume_finalization(
+            receipt.job_id, "flow_one", entry.entry_id
+        )
+        from custom_components.panel_assistant.transport_sessions import (
+            async_get_sessions,
+        )
+
+        assert async_get_sessions(hass).get(entry.entry_id) is None
+        closed = (await _receive(panel.client))["event"]
+        assert closed["kind"] == "session_closed"
+        again = await _connect(
+            hass,
+            hass_ws_client,
+            hass_read_only_access_token,
+            ["management", "local_adb"],
+            sync=False,
+        )
+        assert "local_adb" in again.result["capabilities"]

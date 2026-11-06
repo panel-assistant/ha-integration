@@ -70,6 +70,9 @@ def repairs(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     """Observe the repair API while leaving the update entity real."""
     calls = SimpleNamespace(record=AsyncMock(), clear=AsyncMock())
     monkeypatch.setattr(
+        panel_update, "async_update_webview", AsyncMock(return_value=None)
+    )
+    monkeypatch.setattr(
         panel_update, "async_record_update_failure", calls.record, raising=False
     )
     monkeypatch.setattr(
@@ -471,7 +474,7 @@ async def test_verified_panel_success_clears_previous_repair(
 
     client.async_commit_apk.assert_awaited_once_with("token-1")
     repairs.clear.assert_awaited_once_with(
-        hass, "entry-id", "0.9.10", 102, verified_success=True
+        hass, "entry-id", "0.9.10", 102, verified_success=True, webview_completed=True
     )
     repairs.record.assert_not_awaited()
 
@@ -945,6 +948,7 @@ async def test_update_entity_health_reconciles_failed_build_without_diagnostics(
     entry.add_to_hass(hass)
     entity, client = _entity(hass, feed=True)
     entity._entry_id = entry.entry_id
+    entry.runtime_data = SimpleNamespace(coordinator=entity.coordinator)
     entity.coordinator._entry_id = entry.entry_id
     client.address = "panel.local"
     client.async_get_version_code.side_effect = CannotConnectError
@@ -993,6 +997,7 @@ async def test_staged_update_finishes_on_reported_build_without_diagnostics(
     entry.add_to_hass(hass)
     entity, client = _entity(hass, feed=True)
     entity._entry_id = entry.entry_id
+    entry.runtime_data = SimpleNamespace(coordinator=entity.coordinator)
     client.async_get_version_code.side_effect = CannotConnectError
     monkeypatch.setattr(update_progress, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
     monkeypatch.setattr(update_progress, "_RESTART_HEALTH_GRACE_SECONDS", 0.05)
@@ -1013,7 +1018,7 @@ async def test_staged_update_finishes_on_reported_build_without_diagnostics(
     await entity.async_install(None, backup=False)
 
     client.async_commit_apk.assert_awaited_once_with("token-1")
-    client.async_get_status.assert_awaited_with(home_proof=True)
+    client.async_get_status.assert_any_await(home_proof=True)
     assert entity.installed_version == "0.9.10 build 102"
     assert not entity.in_progress
     issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
@@ -1044,7 +1049,12 @@ async def test_verified_update_clears_orphan_repair_without_saved_report(
     )
 
     await async_clear_update_failure_if_installed(
-        hass, entry.entry_id, "0.9.10", 102, verified_success=True
+        hass,
+        entry.entry_id,
+        "0.9.10",
+        102,
+        verified_success=True,
+        webview_completed=True,
     )
     assert ir.async_get(hass).async_get_issue("panel_assistant", issue_id) is None
 
@@ -1068,6 +1078,7 @@ async def test_installing_older_named_feed_build_keeps_newer_failure_repair(
     )
     entity, _client = _entity(hass, feed=True)
     entity._entry_id = entry.entry_id
+    entry.runtime_data = SimpleNamespace(coordinator=entity.coordinator)
     entity._async_install_route = AsyncMock(
         return_value=(update_route.ROUTE_STAGED, None, None)
     )

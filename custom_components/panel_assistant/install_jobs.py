@@ -1063,6 +1063,7 @@ class InstallJobManager:
         result_code: InstallResultCode | None = None,
         result_subcode: str | None = None,
         consumed_entry_id: str | None = None,
+        home_claim_deferred: bool | None = None,
     ) -> InstallJobReceipt:
         """Advance one receipt with an explicit revision compare-and-swap."""
         if not isinstance(phase, InstallPhase):
@@ -1152,6 +1153,15 @@ class InstallJobManager:
             elif parsed_health is not None:
                 raise InstallJobTransitionError
 
+            # Each launch's HOME claim decides the proof that follows it: the
+            # first enters HEALTH_CHECK, a display-settlement relaunch is
+            # recorded with the health it led to.
+            if home_claim_deferred is not None and phase not in {
+                InstallPhase.HEALTH_CHECK,
+                InstallPhase.HEALTHY_UNCLAIMED,
+            }:
+                raise InstallJobTransitionError
+
             if phase == InstallPhase.CANCELLED:
                 expected_cancel_result = (
                     InstallResultCode.CANCELLED_AFTER_STAGING_CLEANUP
@@ -1215,6 +1225,11 @@ class InstallJobManager:
                     else None
                 ),
                 consumed_entry_id=parsed_entry_id,
+                home_claim_deferred=(
+                    current.home_claim_deferred
+                    if home_claim_deferred is None
+                    else home_claim_deferred
+                ),
             )
             try:
                 _validate_receipt_invariants(updated)

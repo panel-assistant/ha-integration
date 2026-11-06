@@ -20,7 +20,6 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant import (
     _async_reconcile_install_receipt,
-    _async_resume_install_jobs,
     async_reload_entry,
 )
 from custom_components.panel_assistant.app_identity import (
@@ -160,7 +159,8 @@ def _assert_healthy_entry_loaded(hass: HomeAssistant, entry: MockConfigEntry) ->
         for item in er.async_get(hass).entities.values()
         if item.config_entry_id == entry.entry_id
     ]
-    assert len(entities) == 3
+    assert len(entities) == 4
+    assert any(item.unique_id.endswith("_remove_from_panel") for item in entities)
     sensor = next(item for item in entities if item.unique_id.endswith("_status"))
     state = hass.states.get(sensor.entity_id)
     assert state is not None
@@ -176,6 +176,8 @@ async def test_setup_entry_diagnostics_unload_reload(hass: HomeAssistant) -> Non
     health_mock = AsyncMock(
         side_effect=[
             DISCOVERY_HEALTH,
+            DISCOVERY_HEALTH,
+            replace(BETA_HEALTH, discovery_id=DISCOVERY_HEALTH.discovery_id),
             replace(BETA_HEALTH, discovery_id=DISCOVERY_HEALTH.discovery_id),
         ]
     )
@@ -217,7 +219,8 @@ async def test_setup_entry_diagnostics_unload_reload(hass: HomeAssistant) -> Non
         ]
         devices = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
 
-        assert len(entities) == 3
+        assert len(entities) == 4
+        assert any(item.unique_id.endswith("_remove_from_panel") for item in entities)
         assert len(devices) == 1
         sensor = next(item for item in entities if item.unique_id.endswith("_status"))
         update = next(item for item in entities if item.domain == "update")
@@ -260,7 +263,8 @@ async def test_setup_entry_diagnostics_unload_reload(hass: HomeAssistant) -> Non
         assert diagnostics["health"]["build"] == HEALTH.build
         assert diagnostics["status"] == STATUS.as_dict()
         assert diagnostics["status_error"] is None
-        assert health_mock.await_count == 1
+        # Health and the independent operation observation each prove identity.
+        assert health_mock.await_count == 2
         assert status_mock.await_count == 1
 
         assert await hass.config_entries.async_unload(entry.entry_id)
@@ -289,7 +293,7 @@ async def test_setup_entry_diagnostics_unload_reload(hass: HomeAssistant) -> Non
             )
         )
 
-    assert health_mock.await_count == 2
+    assert health_mock.await_count == 4
     assert status_mock.await_count == 2
     assert operation_mock.await_count == 2
     assert resume_mock.await_count == 2
@@ -429,15 +433,23 @@ async def test_setup_contains_unexpected_install_resume_failure(
 async def test_setup_propagates_cancelled_install_resume(
     hass: HomeAssistant,
 ) -> None:
-    """Best-effort containment must not consume task cancellation."""
+    """Cancellation during install resume prevents the entry from loading."""
+    entry = _entry(hass)
     with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=HEALTH),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=STATUS),
+        ),
         patch(
             "custom_components.panel_assistant.async_resume_loaded_install_jobs",
             AsyncMock(side_effect=asyncio.CancelledError),
         ),
-        pytest.raises(asyncio.CancelledError),
     ):
-        await _async_resume_install_jobs(hass)
+        assert not await hass.config_entries.async_setup(entry.entry_id)
 
 
 async def test_setup_propagates_cancelled_install_reconciliation(
@@ -1117,7 +1129,8 @@ async def test_status_failure_does_not_override_health_authority(
         for item in er.async_get(hass).entities.values()
         if item.config_entry_id == entry.entry_id
     ]
-    assert len(entities) == 3
+    assert len(entities) == 4
+    assert any(item.unique_id.endswith("_remove_from_panel") for item in entities)
     sensor = next(item for item in entities if item.unique_id.endswith("_status"))
     state = hass.states.get(sensor.entity_id)
     assert state is not None

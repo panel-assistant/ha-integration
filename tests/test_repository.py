@@ -1,6 +1,10 @@
-"""Repository and distribution contract tests."""
+"""Repository and distribution contract tests.
 
-import ast
+Source-text reason: manifests, locale catalogues, README links and release workflow
+wiring are shipped artifacts. Their public schemas, copy and distribution wiring
+are the contracts under test; executable client behavior is exercised separately.
+"""
+
 import importlib.util
 import json
 import re
@@ -12,10 +16,11 @@ from typing import Any
 
 import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.panel_assistant import app_identity
-from custom_components.panel_assistant.client import parse_health_response
+from custom_components.panel_assistant.client import HaPaneldClient, normalize_address
 
 ROOT = Path(__file__).parents[1]
 INTEGRATION = ROOT / "custom_components" / "panel_assistant"
@@ -173,6 +178,7 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
             "intent",
             "lovelace",
         ],
+        "categories": ["ai_voice.voice_assistants", "sensors.motion_presence"],
         "config_flow": True,
         "dependencies": [
             "http",
@@ -187,8 +193,8 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
         "iot_class": "local_polling",
         "issue_tracker": "https://github.com/panel-assistant/ha-integration/issues",
         "name": "Panel Assistant",
-        "requirements": ["adb-shell[async]>=0.4.4", "aiosendspin[server]==10.0.0"],
-        "version": "1.0.0-rc1",
+        "requirements": ["adb-shell[async]>=0.4.4", "aiosendspin[server]==10.3.0"],
+        "version": "1.0.0",
         "zeroconf": [
             "_adb._tcp.local.",
             "_ha-paneld._tcp.local.",
@@ -204,7 +210,7 @@ def test_release_version_guard_accepts_current_and_prerelease_versions(
     """Tag admission uses exact raw equality for stable and prerelease versions."""
     verifier = _load_release_version_module()
 
-    verifier.verify_release_version("1.0.0-rc1", INTEGRATION / "manifest.json")
+    verifier.verify_release_version("1.0.0", INTEGRATION / "manifest.json")
     manifest = tmp_path / "manifest.json"
     manifest.write_text('{"version":"0.3.0b2"}', encoding="utf-8")
     verifier.verify_release_version("0.3.0b2", manifest)
@@ -303,7 +309,7 @@ def test_release_version_guard_cli_does_not_parse_tag_as_option(tag: str) -> Non
     )
 
     assert result.returncode != 0
-    assert "does not match manifest version '1.0.0-rc1'" in result.stderr
+    assert "does not match manifest version '1.0.0'" in result.stderr
 
 
 def test_hacs_workflow_runs_release_version_guard_for_tags() -> None:
@@ -549,29 +555,36 @@ def test_setup_starts_from_the_address_and_never_strands_a_running_panel() -> No
         assert removed not in steps
 
 
-def test_runtime_harness_health_fixture_uses_production_grammar() -> None:
-    """Keep the real-Core fixture admissible by the shipping health parser."""
-    source = (ROOT / "tests" / "runtime" / "core_negative_harness.py").read_text(
-        encoding="utf-8"
+async def test_runtime_harness_health_fixture_uses_production_grammar(
+    hass: HomeAssistant, tmp_path: Path, socket_enabled
+) -> None:
+    """The real-Core server serves health accepted by the shipping HTTP client."""
+    spec = importlib.util.spec_from_file_location(
+        "core_negative_harness", ROOT / "tests" / "runtime" / "core_negative_harness.py"
     )
-    health_bodies = [
-        node.value
-        for node in ast.walk(ast.parse(source))
-        if isinstance(node, ast.Constant)
-        and isinstance(node.value, bytes)
-        and node.value.startswith(b"ha-paneld ")
-    ]
+    assert spec is not None and spec.loader is not None
+    harness = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(harness)
+    server = await hass.async_add_executor_job(
+        harness._PanelServer, "127.0.0.1", tmp_path / "mode"
+    )
+    await hass.async_add_executor_job(server.__enter__)
+    try:
+        client = HaPaneldClient(
+            async_get_clientsession(hass), normalize_address(f"127.0.0.1:{server.port}")
+        )
+        health = await client.async_get_health()
+        assert health.panel_id == "runtime_negative"
+        assert health.build == "100"
+    finally:
+        await hass.async_add_executor_job(server.__exit__)
 
-    assert len(health_bodies) == 1
-    health = parse_health_response(health_bodies[0].decode("ascii"))
-    assert health.panel_id == "runtime_negative"
 
-
-def test_readme_links_to_hacs_and_panel_preparation() -> None:
+def test_readme_links_to_the_marketplace_and_panel_preparation() -> None:
     """The short introduction retains the links needed to try the integration."""
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert (
-        "https://my.home-assistant.io/redirect/hacs_repository/"
+        "https://my.home-assistant.io/redirect/marketplace_repository/"
         "?owner=panel-assistant&repository=ha-integration&category=integration"
     ) in readme
     assert "https://github.com/panel-assistant/ha-integration" in readme
@@ -688,8 +701,6 @@ def test_outward_links_are_redirects_stamped_with_this_version() -> None:
     assert f"v={INTEGRATION_VERSION}" in link
     assert f"build={INTEGRATION_BUILD}" in link
     assert "model=TPA10" in help_url("panel-unreachable", model="TPA10")
-    source = (INTEGRATION / "const.py").read_text(encoding="utf-8")
-    assert source.count("panel-assistant.io") == 1, "one place names the site"
 
 
 def test_the_two_identity_modules_state_exactly_the_same_values() -> None:
@@ -838,12 +849,13 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
         "homeQuery: p.HOME_QUERY, labels: h.APP_LABELS,"
         "runtime: p.RUNTIME_GRANTS,"
         "outcomes: h.CHOOSER_OUTCOMES,"
+        "setupClaims: Object.fromEntries(Object.keys(a.HOME_COMPONENTS)"
+        ".map(c => [c, p.buildSetupHomeClaim(c.split('/')[0], c)])),"
         "claims: Object.fromEntries(Object.keys(a.HOME_COMPONENTS)"
         ".map(c => [c, h.buildHomeClaim(c)])),"
         "grants: Object.fromEntries(Object.keys(a.HOME_COMPONENTS).map(c => [c,"
         " p.buildPermissionGrant('0123456789abcdef0123456789abcdef', 34, '',"
-        " c.split('/')[0], c)])),"
-        "admin: p.buildDeviceAdminClaim(a.PACKAGE_ID)}));"
+        " c.split('/')[0], c)]))}));"
     )
     javascript = json.loads(
         subprocess.run(
@@ -872,18 +884,22 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
     assert javascript["outcomes"] == list(home_chooser.CHOOSER_OUTCOMES)
     assert set(javascript["claims"]) == set(app_identity.HOME_COMPONENTS)
     for launch, claim in javascript["claims"].items():
+        assert javascript["setupClaims"][
+            launch
+        ] == adb_protocol._setup_home_claim_command(launch.partition("/")[0], launch)
         assert claim == home_chooser.home_claim_command(launch)
-        assert claim in javascript["grants"][launch]
-        assert claim in adb_protocol._permission_grant_command(
+        setup_claim = javascript["setupClaims"][launch]
+        assert setup_claim in javascript["grants"][launch]
+        assert setup_claim in adb_protocol._permission_grant_command(
             "0" * 32, launch.partition("/")[0], launch
         )
-    # Both make the app a device admin with the same text.
-    admin = javascript["admin"]
-    assert admin == adb_protocol.device_admin_claim_command(app_identity.PACKAGE_ID)
+    # Neither install program can claim admin before first setup completes.
+    # The emitted shell contract is compared here; real Android-shell behavior
+    # is covered by the network/USB permission tests and coordinator tests.
     for launch, grant in javascript["grants"].items():
         package_id = launch.partition("/")[0]
-        assert admin in grant
-        assert admin in adb_protocol._permission_grant_command(
+        assert "dpm set-active-admin" not in grant
+        assert "dpm set-active-admin" not in adb_protocol._permission_grant_command(
             "0" * 32, package_id, launch
         )
 

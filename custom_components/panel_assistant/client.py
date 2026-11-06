@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING, Any, NoReturn
@@ -11,11 +12,14 @@ from urllib.parse import urlsplit
 from aiohttp import ClientError, ClientSession, ClientTimeout
 from yarl import URL
 
+from .app_identity import LEGACY_PACKAGE_ID, PACKAGE_ID
 from .const import (
     APK_COMMIT_PATH,
     APK_DISCARD_PATH,
     APK_STAGE_PATH,
+    APK_STAGE_TIMEOUT_SECONDS,
     BACKUP_PATH,
+    BACKUP_TIMEOUT_SECONDS,
     CONFIG_PATH,
     DEFAULT_PORT,
     DEFAULT_TIMEOUT_SECONDS,
@@ -24,6 +28,7 @@ from .const import (
     HEALTH_PATH,
     INSTALL_STATUS_PATH,
     MAX_ANDROID_INTEGER,
+    MAX_BACKUP_BYTES,
     MAX_HEALTH_RESPONSE_BYTES,
     MAX_INSTALL_RESPONSE_BYTES,
     MAX_STATUS_RESPONSE_BYTES,
@@ -127,12 +132,67 @@ class HandBackRefusedError(UpdateRejectedError):
     ``code`` is the panel's own refusal (``no-replacement-home``,
     ``ownership-unreadable``, ``package-state-unknown``), ``not-handed`` for a
     success that did not confirm another launcher took HOME, or ``unsupported``
-    for an app too old to hand it back.
+    for an app too old to hand it back. ``launcher`` is the package of the
+    recorded original home screen an ``original-home-missing`` refusal names.
     """
 
-    def __init__(self, code: str) -> None:
+    def __init__(
+        self, code: str, launcher: str | None = None, home_target: str | None = None
+    ) -> None:
         super().__init__(code)
         self.code = code
+        self.launcher = launcher
+        self.home_target = home_target
+
+    @classmethod
+    def from_not_handed(cls, result: dict[str, Any]) -> HandBackRefusedError:
+        """Carry only the app's exact safe component to the shell actuator."""
+        if "home_target" not in result:
+            return cls("not-handed")
+        component = result["home_target"]
+        if (
+            not isinstance(component, str)
+            or re.fullmatch(
+                r"[A-Za-z_][A-Za-z_0-9]*(?:\.[A-Za-z_][A-Za-z_0-9]*)+"
+                r"/\.?[A-Za-z_][A-Za-z_0-9.]*",
+                component,
+            )
+            is None
+            or component.split("/")[0]
+            in {PACKAGE_ID, LEGACY_PACKAGE_ID, "com.android.settings", "android"}
+        ):
+            return cls("unsafe-home-target")
+        package, _, activity = component.partition("/")
+        if activity.startswith("."):
+            component = f"{package}/{package}{activity}"
+        return cls("not-handed", home_target=component)
+
+    @classmethod
+    def from_refusal(cls, code: Any, original_home: Any) -> HandBackRefusedError:
+        """Read the panel's refusal body, whether HTTP or its session carried it.
+
+        Only the package of a well-formed ``original_home`` component is kept,
+        so a malformed body leaves the launcher unnamed.
+        """
+        launcher = original_home.split("/")[0] if isinstance(original_home, str) else ""
+        return cls(
+            code if isinstance(code, str) else "refused",
+            launcher if _PACKAGE_NAME_PATTERN.fullmatch(launcher) else None,
+        )
+
+
+def check_vendor_brightness_restore(result: dict[str, Any]) -> None:
+    """Keep failures retryable and disclose the limit of pre-record installations."""
+    outcome = result.get("vendor_brightness")
+    if outcome == "unknown":
+        logging.getLogger(__name__).warning(
+            "The original vendor automatic brightness setting was not recorded by "
+            "the previous app; it was left unchanged. If your panel uses vendor "
+            "automatic brightness, check it "
+            "in the vendor settings after removal"
+        )
+    elif outcome is not None and outcome not in ("restored", "untouched"):
+        raise HandBackRefusedError("vendor-brightness-unrestored")
 
 
 def is_valid_discovery_id(value: str) -> bool:
@@ -175,6 +235,10 @@ class PanelHealth:
     # build that speaks protocol 4 or older.
     protocol: tuple[int, int] | None = None
     restart: tuple[str, str, int] | None = None
+    # Durable first-setup completion; absent or malformed never authorizes admin.
+    setup_complete: bool = False
+    # One initial HOME claim remains owned by setup, until native readback/handback.
+    home_pending: bool = False
 
     def as_dict(
         self,
@@ -194,6 +258,9 @@ class PanelInstallStatus:
     awaiting_confirmation: bool = False
     # The finished operation's result line, such as "refused (<reason>)".
     message: str = ""
+    # A finished restore that Android cut short; the app keeps reporting it
+    # until the next destructive operation. Older apps never send it.
+    restore_interrupted: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -353,6 +420,8 @@ def parse_health_response(body: str) -> PanelHealth:
         installation_identity=fields.get("identity") == "install",
         package=package,
         version_code=version_code,
+        setup_complete=fields.get("setup_complete") == "1",
+        home_pending=fields.get("home_pending") == "1",
         protocol=protocol,
         restart=restart,
     )
@@ -452,11 +521,16 @@ def parse_panel_install_status(body: bytes) -> PanelInstallStatus:
         or any(not " " <= character <= "~" for character in message)
     ):
         message = ""
+    result = document.get("result")
+    interrupted = (
+        not running and isinstance(result, dict) and result.get("interrupted") is True
+    )
     return PanelInstallStatus(
         running=running,
         component=component,
         awaiting_confirmation=awaiting,
         message=message,
+        restore_interrupted=interrupted,
     )
 
 
@@ -509,10 +583,6 @@ _MAX_DISPLAY_BYTES = 16 * 1024
 # The panel verifies the address it is handed before answering, with its own
 # bounded probe, so this waits out that probe rather than the default request.
 _HANDOVER_TIMEOUT_SECONDS = 20.0
-_MAX_BACKUP_BYTES = 64 * 1024 * 1024
-_BACKUP_TIMEOUT_SECONDS = 120.0
-# The panel allows 600 s to receive an upload; stop just after it gives up.
-_UPLOAD_TIMEOUT_SECONDS = 630.0
 _DIAG_FIRST_LINE = re.compile(
     rf"ha-paneld diagnostics \u2014 ({VERSION_NAME_BODY}) "
     rf"\(build ({VERSION_CODE_BODY})\)"
@@ -674,14 +744,21 @@ class HaPaneldClient:
         except UnicodeDecodeError as err:
             raise InvalidResponseError from err
 
-    async def async_get_status(self, *, home_proof: bool = False) -> PanelStatus:
-        """Fetch and parse the bounded, privacy-safe status response."""
+    async def async_get_status(
+        self, *, home_proof: bool = False, setup_foreground: bool = False
+    ) -> PanelStatus:
+        """Fetch and parse the bounded, privacy-safe status response.
+
+        ``setup_foreground`` lets a fresh panel prove its setup screen is in
+        front instead of owning HOME; the app honours it only before setup.
+        """
         from .status import parse_status_response
 
+        query = {"home_proof": "1"}
+        if setup_foreground:
+            query["setup_foreground"] = "1"
         body = await self._async_get_bounded(
-            self.status_url.with_query({"home_proof": "1"})
-            if home_proof
-            else self.status_url,
+            self.status_url.with_query(query) if home_proof else self.status_url,
             MAX_STATUS_RESPONSE_BYTES,
         )
         try:
@@ -731,6 +808,26 @@ class HaPaneldClient:
         body = await self._async_get_bounded(
             self.address.base_url.with_path(DISPLAY_PATH), _MAX_DISPLAY_BYTES
         )
+        return _load_json_object(body)
+
+    async def async_get_webview(self) -> dict[str, Any]:
+        """Read the optional panel-owned provider transaction without mutation."""
+        body = await self._async_get_bounded(
+            self.address.base_url.with_path("/api/v1/webview"), 16_384
+        )
+        return _load_json_object(body)
+
+    async def async_install_webview(
+        self, request_id: str, artifact_sha256: str
+    ) -> dict[str, Any]:
+        """Request one core-pinned provider; the panel owns durable execution."""
+        status, body = await self._async_post_bounded(
+            self.address.base_url.with_path("/api/v1/webview"),
+            {"request_id": request_id, "artifact_sha256": artifact_sha256},
+            16_384,
+        )
+        if status not in (200, 202, 409):
+            raise InvalidResponseError
         return _load_json_object(body)
 
     async def async_get_setup_complete(self) -> bool:
@@ -832,8 +929,8 @@ class HaPaneldClient:
         status, body = await self._async_post_bounded(
             self.address.base_url.with_path(BACKUP_PATH),
             {"allow_plaintext": "1", "include_companion": "false"},
-            _MAX_BACKUP_BYTES,
-            _BACKUP_TIMEOUT_SECONDS,
+            MAX_BACKUP_BYTES,
+            BACKUP_TIMEOUT_SECONDS,
         )
         if status == 200 and body:
             return body
@@ -862,16 +959,20 @@ class HaPaneldClient:
         if status in (404, 405):
             raise HandBackRefusedError("unsupported")
         if status == 409:
-            code = _load_json_object(body).get("error")
-            raise HandBackRefusedError(code if isinstance(code, str) else "refused")
+            refusal = _load_json_object(body)
+            raise HandBackRefusedError.from_refusal(
+                refusal.get("error"), refusal.get("original_home")
+            )
         if status != 200:
             raise UpdateRejectedError if 400 <= status < 500 else CannotConnectError
-        handed_to = _load_json_object(body).get("home_handed_to")
+        result = _load_json_object(body)
+        check_vendor_brightness_restore(result)
+        handed_to = result.get("home_handed_to")
         if (
             not isinstance(handed_to, str)
             or _PACKAGE_NAME_PATTERN.fullmatch(handed_to) is None
         ):
-            raise HandBackRefusedError("not-handed")
+            raise HandBackRefusedError.from_not_handed(result)
         return handed_to
 
     async def async_stage_apk(self, apk: bytes) -> StagedApk:
@@ -881,7 +982,7 @@ class HaPaneldClient:
             url,
             apk,
             MAX_INSTALL_RESPONSE_BYTES,
-            _UPLOAD_TIMEOUT_SECONDS,
+            APK_STAGE_TIMEOUT_SECONDS,
         )
         if status == 200:
             return parse_staged_apk(body)

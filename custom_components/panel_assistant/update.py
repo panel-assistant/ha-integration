@@ -17,6 +17,7 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -31,7 +32,7 @@ from .build_feed import (
     parse_build_request,
 )
 from .client import HaPaneldError, UpdateRejectedError, _version_key
-from .const import DOMAIN, update_unique_id
+from .const import CONF_TRANSPORT_USER_ID, DOMAIN, update_unique_id
 from .coordinator import (
     HaPaneldDataUpdateCoordinator,
     PanelCoordinatorEntity,
@@ -49,11 +50,16 @@ from .panel_operations import claim_panel_operation, release_panel_operation
 from .release import ReleaseArtifact, is_feed_build_tag
 from .repairs_failure import (
     async_clear_update_failure_if_installed,
+    async_record_update_bundle,
     async_record_update_failure,
     async_refresh_update_failure_name,
 )
-from .repairs_update_route import async_reconcile_update_route_issue
+from .repairs_update_route import (
+    async_reconcile_update_route_issue,
+    no_update_route_issue_id,
+)
 from .repairs_upgrade import runs_old_app
+from .repairs_webview import async_update_webview
 from .status import PanelCachedUpdate
 from .update_coordinator import PanelUpdateCoordinator
 from .update_errors import (
@@ -84,6 +90,8 @@ _AWAITING_CONFIRMATION_SUMMARY = "Tap Install on the panel to finish the update.
 AWAITING_CONFIRMATION_ATTRIBUTE = "awaiting_confirmation"
 
 _LOGGER = logging.getLogger(__name__)
+# Marks an offer that installs only the WebView on a panel whose app is current.
+WEBVIEW_ONLY_SUFFIX = " + WebView"
 
 
 async def async_setup_entry(
@@ -300,6 +308,13 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         if entry is None:
             return
         snapshot: PanelSnapshot | None = self.coordinator.data
+        if snapshot is not None and runs_old_app(snapshot.health):
+            # The old-app refusal already says what to do; a no-route Repair
+            # beside it would disagree.
+            ir.async_delete_issue(
+                self.hass, DOMAIN, no_update_route_issue_id(self._entry_id)
+            )
+            return
         async_reconcile_update_route_issue(
             self.hass,
             entry,
@@ -596,6 +611,37 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         """Report the installed version when no newer admitted target exists."""
         if (attempt := self._progress.attempt) is not None:
             return attempt.latest
+        latest = self._app_latest_version()
+        if latest is not None and self._webview_only_offer(latest):
+            return f"{latest}{WEBVIEW_ONLY_SUFFIX}"
+        return latest
+
+    def _webview_only_offer(self, app_latest: str | None) -> bool:
+        """The app is current, but the panel offers a WebView it has not installed.
+
+        Covers an owner who updated the app before Panel Assistant itself, so
+        no app update will carry the WebView. Only the owner's Install starts it.
+        """
+        entry = self.hass.config_entries.async_get_entry(self._entry_id)
+        snapshot: PanelSnapshot | None = self.coordinator.data
+        observation = (
+            snapshot.status.webview
+            if snapshot is not None and snapshot.status is not None
+            else None
+        )
+        return (
+            entry is not None
+            and bool(entry.data.get(CONF_TRANSPORT_USER_ID))
+            and app_latest == self._running_version()
+            and observation is not None
+            and observation.supported
+            and observation.eligible
+            and observation.candidate_sha256 is not None
+            and observation.transaction_state is None
+        )
+
+    def _app_latest_version(self) -> str | None:
+        """The newest admitted app, or the installed one."""
         if not self._has_install_route():
             return self.installed_version
         artifact = self._offer.host_release()
@@ -616,6 +662,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         A signed feed build offer compares in the feed's own order instead,
         versionCode first.
         """
+        if latest_version.endswith(WEBVIEW_ONLY_SUFFIX):
+            return latest_version.removesuffix(WEBVIEW_ONLY_SUFFIX) == installed_version
         release = self._offer.host_release()
         latest_name = latest_version.partition(" build ")[0]
         installed_name = installed_version.partition(" build ")[0]
@@ -672,6 +720,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 "This panel still runs the old app: install Panel Assistant 0.9.0 "
                 "first, as its Repair explains",
             )
+        if version in (None, self.latest_version) and self._webview_only_offer(
+            self._app_latest_version()
+        ):
+            await self._async_install_webview_only()
+            return
         try:
             route, adb_target, adb_credential = await self._async_install_route()
         except HomeAssistantError as route_error:
@@ -749,6 +802,12 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             target_version = offer.target_version
             release = self._offer.host_release()
             repair_artifact = release
+        # Only WebView work the panel still holds keeps the Repair past the
+        # target build; a read that failed before any submission does not.
+        webview_pending = False
+        await async_record_update_bundle(
+            self.hass, self._entry_id, target_version, failure_artifact
+        )
         self._progress.begin(self.hass, self.installed_version, self.latest_version)
         self._delivery.session = route == ROUTE_SESSION
         self.async_write_ha_state()
@@ -775,18 +834,22 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     await self._delivery.async_deliver_adb(
                         self.hass, release, adb_target, adb_credential
                     )
-                    await async_clear_update_failure_if_installed(
-                        self.hass,
-                        self._entry_id,
-                        target_version,
-                        None,
-                        verified_success=True,
-                    )
-                    return
                 # The offer is the release Home Assistant authenticated; the
                 # panel no longer fetches one itself.
-                assert release is not None
-                await self._delivery.async_deliver_build(self.hass, release)
+                else:
+                    assert release is not None
+                    await self._delivery.async_deliver_build(self.hass, release)
+            reason = await async_update_webview(
+                self.hass, self._entry_id, allow_legacy=True
+            )
+            # The app is on its new build whatever the WebView step says.
+            self._schedule_permission_repair(route, repair_artifact)
+            if reason not in (None, "webview_download_deferred"):
+                webview_pending = reason == "webview_deferred"
+                raise _update_error(
+                    "update_webview_unfinished",
+                    f"The app is installed; its WebView update is unfinished: {reason}",
+                )
         except UpdateRejectedError as refusal:
             error = refusal_error(self._panel_name(), refusal)
             await async_record_update_failure(
@@ -796,6 +859,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 target_version,
                 error,
                 artifact=failure_artifact,
+                webview_pending=webview_pending,
             )
             raise error from None
         except Exception as err:
@@ -806,44 +870,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 target_version,
                 err,
                 artifact=failure_artifact,
+                webview_pending=webview_pending,
             )
             raise
         else:
-            owner = self.hass.config_entries.async_get_entry(self._entry_id)
-            if (
-                route != ROUTE_ADB
-                and repair_artifact is not None
-                and owner is not None
-                # Only a loaded entry that still runs this entity's coordinator
-                # may own the task. An unload marks the entry unloading before
-                # it awaits anything and drops its runtime data at the end; a
-                # reload brings another coordinator. This check and the
-                # scheduling below share one event-loop step, so a task created
-                # here is always among those the next unload cancels.
-                and owner.state is ConfigEntryState.LOADED
-                and getattr(getattr(owner, "runtime_data", None), "coordinator", None)
-                is self.coordinator
-            ):
-                # Not awaited: the panel already runs the update, and its ADB
-                # may take minutes to answer again. The entry owns the task,
-                # so unloading or removing the panel ends the repair.
-                owner.async_create_background_task(
-                    self.hass,
-                    async_repair_update_permissions(
-                        self.hass,
-                        self.coordinator,
-                        repair_artifact,
-                        admit_adb_target=partial(
-                            async_admit_adb_target,
-                            self.hass,
-                            self._entry_id,
-                            self.coordinator,
-                            panel_name=self._panel_name,
-                        ),
-                        panel_name=self._panel_name,
-                    ),
-                    f"permission repair after updating {owner.title}",
-                )
             await async_clear_update_failure_if_installed(
                 self.hass,
                 self._entry_id,
@@ -852,13 +882,88 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 else release.version
                 if release
                 else target_version,
-                build.version_code if feed is not None else None,
+                repair_artifact.descriptor.version_code
+                if repair_artifact and repair_artifact.descriptor
+                else None,
                 verified_success=True,
+                webview_completed=True,
             )
         finally:
             self._delivery.session = False
             self._progress.end()
             self.async_write_ha_state()
+
+    async def _async_install_webview_only(self) -> None:
+        """Install only the offered WebView on a panel whose app is current."""
+        installed = self._running_version()
+        reason = await async_update_webview(
+            self.hass, self._entry_id, allow_legacy=True
+        )
+        if reason in (None, "webview_download_deferred"):
+            if installed is not None:
+                await async_clear_update_failure_if_installed(
+                    self.hass,
+                    self._entry_id,
+                    installed.partition(" build ")[0],
+                    parse_build_request(installed),
+                    verified_success=True,
+                    webview_completed=True,
+                )
+            await self.coordinator.async_request_refresh()
+            return
+        error = _update_error(
+            "update_webview_unfinished",
+            f"The app is installed; its WebView update is unfinished: {reason}",
+        )
+        await async_record_update_failure(
+            self.hass,
+            self._entry_id,
+            self._panel_name(),
+            installed,
+            error,
+            webview_pending=reason == "webview_deferred",
+        )
+        raise error
+
+    def _schedule_permission_repair(
+        self, route: str, repair_artifact: ReleaseArtifact | None
+    ) -> None:
+        """Restore the panel's permissions after an app delivery succeeded."""
+        owner = self.hass.config_entries.async_get_entry(self._entry_id)
+        if (
+            route != ROUTE_ADB
+            and repair_artifact is not None
+            and owner is not None
+            # Only a loaded entry that still runs this entity's coordinator
+            # may own the task. An unload marks the entry unloading before
+            # it awaits anything and drops its runtime data at the end; a
+            # reload brings another coordinator. This check and the
+            # scheduling below share one event-loop step, so a task created
+            # here is always among those the next unload cancels.
+            and owner.state is ConfigEntryState.LOADED
+            and getattr(getattr(owner, "runtime_data", None), "coordinator", None)
+            is self.coordinator
+        ):
+            # Not awaited: the panel already runs the update, and its ADB
+            # may take minutes to answer again. The entry owns the task,
+            # so unloading or removing the panel ends the repair.
+            owner.async_create_background_task(
+                self.hass,
+                async_repair_update_permissions(
+                    self.hass,
+                    self.coordinator,
+                    repair_artifact,
+                    admit_adb_target=partial(
+                        async_admit_adb_target,
+                        self.hass,
+                        self._entry_id,
+                        self.coordinator,
+                        panel_name=self._panel_name,
+                    ),
+                    panel_name=self._panel_name,
+                ),
+                f"permission repair after updating {owner.title}",
+            )
 
     def _remember_code(self, code: int, key: tuple[str, str]) -> None:
         """Keep the build number a delivery proved, for the version just read."""

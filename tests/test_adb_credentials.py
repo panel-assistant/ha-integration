@@ -625,7 +625,15 @@ async def test_cancelled_durable_reload_invalidates_cached_authority(
     """Cancellation cannot leave an unverified cached signer authoritative."""
     credential = _generate_credential()
     manager = AdbCredentialManager(hass)
-    manager._credential = credential
+    replacement = _generate_credential()
+    with (
+        patch.object(adb_credentials, "_store_presence", return_value=(True, False)),
+        patch.object(
+            adb_credentials, "_read_durable_credential", return_value=credential
+        ),
+    ):
+        cached = await manager.async_get_credential()
+    assert cached.signer.GetPublicKey() == credential.public_key
     read_started = asyncio.Event()
     release_read = threading.Event()
     loop = asyncio.get_running_loop()
@@ -654,7 +662,17 @@ async def test_cancelled_durable_reload_invalidates_cached_authority(
             with pytest.raises(asyncio.CancelledError):
                 await task
 
-        assert manager._credential is None
+        with (
+            patch.object(
+                adb_credentials, "_store_presence", return_value=(True, False)
+            ),
+            patch.object(
+                adb_credentials, "_read_durable_credential", return_value=replacement
+            ),
+        ):
+            current = await manager.async_get_credential()
+        assert current.signer.GetPublicKey() == replacement.public_key
+        assert current.signer.GetPublicKey() != cached.signer.GetPublicKey()
     finally:
         release_read.set()
         if task is not None and not task.done():
@@ -724,26 +742,6 @@ async def test_corrupt_loaded_credential_never_regenerates(
         await AdbCredentialManager(hass).async_get_credential()
 
     generate.assert_not_called()
-
-
-async def test_loaded_credential_is_refused_without_private_file(
-    hass: HomeAssistant,
-) -> None:
-    """Valid key bytes are not enough when their backing file is not private."""
-    store = MagicMock()
-    store.path = "/not/read/by/this/test"
-
-    with (
-        patch.object(adb_credentials, "Store", return_value=store),
-        patch.object(adb_credentials, "_store_presence", return_value=(True, False)),
-        patch.object(
-            adb_credentials,
-            "_read_durable_credential",
-            side_effect=AdbCredentialError,
-        ),
-        pytest.raises(AdbCredentialError),
-    ):
-        await AdbCredentialManager(hass).async_get_credential()
 
 
 async def test_manager_translates_unexpected_store_failure(
@@ -831,26 +829,6 @@ async def test_new_credential_is_refused_when_readback_is_not_exactly_private(
         await AdbCredentialManager(hass).async_get_credential()
 
     initial_store.async_save.assert_awaited_once_with(serialized)
-
-
-def test_store_privacy_check_requires_regular_owner_only_file(tmp_path: Path) -> None:
-    """Credential read-back accepts exactly a regular 0600 file."""
-    credential_path = tmp_path / "credential"
-    credential_path.write_text("secret", encoding="ascii")
-    credential_path.chmod(0o600)
-    assert adb_credentials._store_is_private(str(credential_path))
-
-    hardlink_path = tmp_path / "credential-hardlink"
-    os.link(credential_path, hardlink_path)
-    assert not adb_credentials._store_is_private(str(credential_path))
-    hardlink_path.unlink()
-
-    credential_path.chmod(0o640)
-    assert not adb_credentials._store_is_private(str(credential_path))
-
-    credential_path.chmod(0o600)
-    with patch.object(adb_credentials.os, "geteuid", return_value=os.geteuid() + 1):
-        assert not adb_credentials._store_is_private(str(credential_path))
 
 
 def test_durable_reader_binds_exact_private_store_file(tmp_path: Path) -> None:
@@ -1097,8 +1075,8 @@ def test_durable_reader_rejects_symlink_and_excessive_file(tmp_path: Path) -> No
         adb_credentials._read_durable_credential(str(store_path))
 
 
-def test_store_privacy_check_rejects_symlink(tmp_path: Path) -> None:
-    """A 0600 target cannot make a symlink masquerade as the secret Store file."""
+def test_store_presence_detects_symlink(tmp_path: Path) -> None:
+    """Symlinks remain existing-store evidence and prevent key regeneration."""
     target_path = tmp_path / "target"
     target_path.write_text("secret", encoding="ascii")
     target_path.chmod(0o600)
@@ -1106,7 +1084,6 @@ def test_store_privacy_check_rejects_symlink(tmp_path: Path) -> None:
     link_path.symlink_to(target_path)
 
     assert adb_credentials._store_presence(str(link_path)) == (True, False)
-    assert not adb_credentials._store_is_private(str(link_path))
 
 
 def test_store_presence_detects_exact_and_quarantined_files(tmp_path: Path) -> None:
@@ -1134,18 +1111,6 @@ def test_store_presence_translates_filesystem_failures() -> None:
         pytest.raises(AdbCredentialError),
     ):
         adb_credentials._store_presence("/not/read/by/this/test")
-
-
-def test_store_privacy_translates_missing_or_unreadable_file() -> None:
-    """Missing or unreadable persisted secrets fail closed."""
-    with pytest.raises(AdbCredentialError):
-        adb_credentials._store_is_private("/not/read/by/this/test")
-
-    with (
-        patch.object(Path, "lstat", side_effect=OSError),
-        pytest.raises(AdbCredentialError),
-    ):
-        adb_credentials._store_is_private("/not/read/by/this/test")
 
 
 def _rsa_private_pem(*, key_size: int, public_exponent: int = 65537) -> str:

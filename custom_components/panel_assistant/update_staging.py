@@ -45,7 +45,12 @@ from .panel_backup import PanelBackupInvalidError, async_store_panel_backup
 from .release import _RELEASE_SIGNER_CERTIFICATE_SHA256, ReleaseArtifact
 from .session_carrier import SessionCarrier, UpdateCarrier
 from .update_errors import UPDATE_LOGGER as _LOGGER
-from .update_errors import _update_error, _UpdateRefusalError, _verification_error
+from .update_errors import (
+    _KeyedUpdateRefusalError,
+    _update_error,
+    _UpdateRefusalError,
+    _verification_error,
+)
 from .update_offer import UpdateOffer
 from .update_panel_install import _retry_unstarted_install
 from .update_progress import UpdateProgress
@@ -183,7 +188,7 @@ class BuildDelivery:
                 "update_busy", "The panel is busy with another operation"
             ) from err
         except UpdateApprovalRequiredError as err:
-            raise _update_error(
+            raise _KeyedUpdateRefusalError(
                 "update_approval_required",
                 "Approve this update on the panel, then try again",
             ) from err
@@ -235,7 +240,7 @@ class BuildDelivery:
                 await self._carrier(hass).async_backup_panel(),
             )
         except UpdateApprovalRequiredError as err:
-            raise _update_error(
+            raise _KeyedUpdateRefusalError(
                 "update_approval_required",
                 "Approve this update on the panel, then try again",
             ) from err
@@ -243,11 +248,11 @@ class BuildDelivery:
             # The archive was unreadable, so nothing here is a backup. Refuse
             # the upgrade rather than replace the app that still holds the
             # only copy of this panel's settings.
-            raise _update_error(
+            raise _KeyedUpdateRefusalError(
                 "panel_backup_failed", "The panel could not be backed up first"
             ) from err
         except (HaPaneldError, OSError) as err:
-            raise _update_error(
+            raise _KeyedUpdateRefusalError(
                 "panel_backup_failed", "The panel could not be backed up first"
             ) from err
 
@@ -382,17 +387,22 @@ class BuildDelivery:
                 # A panel that answers, over HTTP or its own session, has its app.
                 or self._coordinator.reachable
                 or self._coordinator.connected
-                or not await async_relaunch_stopped_app(
-                    hass, self._coordinator, artifact, self._panel_name
-                )
             ):
                 raise
-            _LOGGER.warning(
-                "%s installed %s but its app did not start again; "
-                "Panel Assistant started it over ADB",
-                self._panel_name(),
-                artifact.tag,
+            started = await async_relaunch_stopped_app(
+                hass, self._coordinator, artifact, self._panel_name
             )
+            if started:
+                _LOGGER.warning(
+                    "%s installed %s but its app did not start again; "
+                    "Panel Assistant started it over ADB",
+                    self._panel_name(),
+                    artifact.tag,
+                )
+            elif not self._coordinator.available:
+                raise
+            # Independent recovery can outlast the app's own restart. A panel
+            # that returned meanwhile still has to prove this exact build.
             proven = await wait()
         if proven is not None:
             self._record_code(*proven)

@@ -56,7 +56,7 @@
     "downloading": "App voorbereiden…",
     "verifying": "App voorbereiden…",
     "verified": "Ga verder in het nieuwe venster.",
-    "installed": "Panel Assistant is geïnstalleerd. Rond de installatie van het paneel af in het installatievenster en sluit dan dit tabblad.",
+    "installed": "Panel Assistant is geïnstalleerd. Rond het instellen van het paneel af in het venster dat je voor de installatie hebt geopend en sluit daarna dit tabblad.",
     "cancelled": "Geannuleerd.",
     "popup_blocked": "De browser heeft het nieuwe venster geblokkeerd. Sta pop-ups toe voor deze pagina en druk op Doorgaan.",
     "invalid_request": "Kies eerst een versie.",
@@ -77,7 +77,7 @@
     "confirmHeading": "Klaar om te installeren",
     "confirmBody": "Hiermee installeer je de app en maak je die het startscherm van je paneel. Je andere apps worden niet aangeraakt.",
     "install": "Installeren",
-    "restartedDifferentVersion": "Een eerdere installatiepoging gebruikte een andere uitgave. Die poging is terzijde gelegd.",
+    "restartedDifferentVersion": "Een eerdere installatiepoging gebruikte een andere versie. Die poging is terzijde gelegd.",
     "alreadyInstalledHeading": "Al geïnstalleerd",
     "alreadyInstalledBody": "Deze versie staat al op je paneel. Ga door om het instellen af te ronden; er wordt niets gekopieerd of opnieuw geïnstalleerd.",
     "continueSetup": "Doorgaan",
@@ -88,6 +88,9 @@
     "stepStarting": "App starten…",
     "stepPermissions": "De app geven wat die nodig heeft om te werken…",
     "stepOpening": "Paneelconfiguratie openen…",
+    "stepWebView": "De browserengine van het paneel wordt bijgewerkt…",
+    "stepWebViewUpdated": "De browserengine van het paneel is up-to-date.",
+    "stepWebViewKept": "De browserengine van het paneel is ongewijzigd gelaten.",
     "keepConnected": "Laat de kabel aangesloten totdat dit klaar is.",
     "doneHeading": "Geïnstalleerd",
     "doneOpening": "Je wordt naar de paneelconfiguratie geleid…",
@@ -113,6 +116,7 @@
   },
   "errors": {
     "installErrorGeneric": "Er ging iets mis. Laat het paneel aangesloten en druk op Opnieuw proberen.",
+    "installErrorUsbBusy": "Een andere app gebruikt de USB-verbinding. Sluit andere apps die de USB-verbinding van het paneel gebruiken en druk daarna op Opnieuw proberen.",
     "installErrorBusy": "Het paneel is bezig met een andere installatie. Wacht een minuut en probeer het opnieuw.",
     "installErrorStorage": "Deze browser kon de voortgang niet opslaan. Sta toe dat deze site gegevens opslaat en probeer het opnieuw.",
     "installErrorTarget": "Er is een ander paneel aangesloten. Sluit hetzelfde paneel aan en probeer het opnieuw.",
@@ -140,7 +144,7 @@
     "cause": "Oorzaak",
     "failedCheck": "Mislukte controle",
     "error": "Fout",
-    "release": "Uitgave",
+    "release": "Versie",
     "panel": "Paneel",
     "copied": "Gekopieerd",
     "savedProgress": "Opgeslagen voortgang",
@@ -155,6 +159,7 @@
     "networkAdb": "ADB via netwerk",
     "copiedDetail": "{bytes} bytes verstuurd; wachten op bevestiging van het paneel",
     "none": "geen",
-    "setupMissing": "niet gevonden; instellen gaat verder op het paneel"
+    "setupMissing": "niet gevonden; instellen gaat verder op het paneel",
+    "webview": "WebView"
   }
 }

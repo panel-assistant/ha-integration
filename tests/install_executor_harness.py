@@ -38,6 +38,7 @@ from custom_components.panel_assistant.client import (
 )
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.install_adb import (
+    AppLaunch,
     DefiniteCleanupReason,
     StagedApk,
 )
@@ -160,6 +161,7 @@ class Harness:
             ]
         ] = []
         self.health_client_addresses: list[object] = []
+        self.launch_previous_home_job_ids: list[str | None] = []
         self.mutation_barrier_arguments: list[tuple[str, int, InstallPhase]] = []
         self.cleanup_barrier_arguments: list[tuple[str, int, InstallPhase]] = []
         self.credential_calls = 0
@@ -199,6 +201,10 @@ class Harness:
         self.cleanup_error: Exception | None = None
         self.launch_error: Exception | None = None
         self.launch_outcome = LaunchOutcome.STARTED
+        # What each launch reports its HOME claim did, as the grant reads it.
+        self.home_chooser: str | None = "kept"
+        # Whether each fresh HOME proof asked for the setup screen instead.
+        self.setup_foreground_requests: list[bool] = []
         self.health_error: Exception | None = None
         self.display: dict[str, Any] | None = None
         self.health_calls = 0
@@ -266,8 +272,8 @@ class Harness:
         )
         self.monkeypatch.setattr(
             install_executor,
-            "async_launch_installed_app",
-            self.async_launch,
+            "async_start_installed_app",
+            self.async_start,
         )
         self.monkeypatch.setattr(
             install_executor,
@@ -312,10 +318,11 @@ class Harness:
                 )
 
             async def async_get_status(
-                self, *, home_proof: bool = False
+                self, *, home_proof: bool = False, setup_foreground: bool = False
             ) -> PanelStatus:
                 assert home_proof
                 harness.home_proof_calls += 1
+                harness.setup_foreground_requests.append(setup_foreground)
                 return PanelStatus(
                     warning_count=0,
                     capability_count=0,
@@ -567,12 +574,32 @@ class Harness:
         descriptor: InstallDescriptor,
         *,
         expected_root_mode: AdbRootMode,
+        previous_home_job_id: str | None = None,
     ) -> LaunchOutcome:
         self.events.append("launch")
+        self.launch_previous_home_job_ids.append(previous_home_job_id)
         self.launch_arguments.append((target, signer, descriptor, expected_root_mode))
         if self.launch_error is not None:
             raise self.launch_error
         return self.launch_outcome
+
+    async def async_start(
+        self,
+        target: AdbInstallTarget,
+        signer: PythonRSASigner,
+        descriptor: InstallDescriptor,
+        *,
+        expected_root_mode: AdbRootMode,
+        previous_home_job_id: str | None = None,
+    ) -> AppLaunch:
+        outcome = await self.async_launch(
+            target,
+            signer,
+            descriptor,
+            expected_root_mode=expected_root_mode,
+            previous_home_job_id=previous_home_job_id,
+        )
+        return AppLaunch(outcome, self.home_chooser)
 
     async def async_settle_display(
         self,

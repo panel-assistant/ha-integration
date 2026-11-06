@@ -194,10 +194,21 @@ async def test_repair_rechecks_conflicts_and_the_shown_panel(
         "pruned",
         "shared_legacy",
         "previous_legacy",
+        "other_entry",
+        "other_owner",
+        "deleted_other_entry",
+        "deleted_other_owner",
+        "composite_other_entry",
+        "composite_other_owner",
     ],
 )
 async def test_automatic_upgrade_requires_surviving_exclusive_installation_proof(
-    hass, hass_ws_client, hass_read_only_user, hass_read_only_access_token, proof
+    hass,
+    hass_ws_client,
+    hass_read_only_user,
+    hass_read_only_access_token,
+    caplog,
+    proof,
 ):
     from hashlib import sha256
 
@@ -229,7 +240,65 @@ async def test_automatic_upgrade_requires_surviving_exclusive_installation_proof
         },
     }
     hass.config_entries.async_update_entry(entry, data=data)
-    if proof in ("deleted", "deleted_merged", "pruned"):
+    if "other_" in proof:
+        other = MockConfigEntry(
+            domain=DOMAIN,
+            unique_id=OTHER_DID,
+            title="beta",
+            data={CONF_ADDRESS: "other.local"},
+        )
+        other.add_to_hass(hass)
+        device_registry = dr.async_get(hass)
+        if proof.startswith("composite_"):
+            import attr
+            from pytest_homeassistant_custom_component.common import (
+                mock_device_registry,
+            )
+
+            # A stored pre-split MQTT id must still include the secondary owner.
+            composite_id = "c" * 32
+            split_devices = [
+                attr.evolve(
+                    device,
+                    composite_device_id=composite_id,
+                    composite_primary_config_entry=mqtt.entry_id,
+                ),
+                dr.DeviceEntry(
+                    config_entry_id=(
+                        other.entry_id if proof.endswith("owner") else entry.entry_id
+                    ),
+                    identifiers=identifiers,
+                    composite_device_id=composite_id,
+                    composite_primary_config_entry=mqtt.entry_id,
+                ),
+            ]
+            native_devices = dr.async_entries_for_config_entry(
+                device_registry, entry.entry_id
+            )
+            mock_device_registry(
+                hass, {item.id: item for item in [*native_devices, *split_devices]}
+            )
+            hass.config_entries.async_update_entry(
+                entry,
+                data={
+                    **entry.data,
+                    "cutover": {
+                        **entry.data["cutover"],
+                        "entities": {entity.id: {"mqtt_device_id": composite_id}},
+                    },
+                },
+            )
+        elif proof.endswith("owner"):
+            device_registry.async_update_device(
+                device.id, new_config_entry_id=other.entry_id
+            )
+    if proof in (
+        "deleted",
+        "deleted_merged",
+        "pruned",
+        "deleted_other_entry",
+        "deleted_other_owner",
+    ):
         dr.async_get(hass).async_remove_device(device.id)
         if proof == "pruned":
             from freezegun import freeze_time
@@ -265,7 +334,18 @@ async def test_automatic_upgrade_requires_surviving_exclusive_installation_proof
     with patch.object(hass.config_entries, "async_reload", AsyncMock()):
         await _poll(hass, entry, {STORED: health})
         await hass.async_block_till_done()
-    if proof in ("exclusive", "deleted"):
+    assert not any(
+        "accesses `DeviceEntry.config_entries`" in record.getMessage()
+        or "accesses `DeletedDeviceEntry.config_entries`" in record.getMessage()
+        for record in caplog.records
+    )
+    if proof in (
+        "exclusive",
+        "deleted",
+        "other_entry",
+        "deleted_other_entry",
+        "composite_other_entry",
+    ):
         assert entry.unique_id == new_did
         assert registry.async_get(entity.entity_id).id == entity.id
         assert registry.async_get(entity.entity_id).unique_id == f"{new_did}_relay1"

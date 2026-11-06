@@ -1,8 +1,9 @@
 // Fixed, explicitly confirmed post-install grants for the authenticated APK.
 // Nothing here configures MQTT, networking, device ownership or app data.
-import { DEVICE_ADMIN_RECEIVER, OBSOLETE_ACCESSIBILITY_COMPONENTS,
+import { OBSOLETE_ACCESSIBILITY_COMPONENTS,
   accessibilityComponentFor, accessibilityComponentsFor, homeComponentsFor, isLaunchComponent } from './app-identity.mjs';
 import { CHOOSER_OUTCOMES, HOME_QUERY, buildHomeClaim } from './home-chooser.mjs';
+import { receiverAbsenceCheck } from './previous-home.mjs';
 
 // What HOME resolves to now, as the network installer reads it.
 export { HOME_QUERY };
@@ -16,12 +17,54 @@ const listed = feature => `hp_has=; for hp_f in $hp_features; do case "$hp_f" in
 // Lets full screen-off lift a firmware's keep-screen-on-while-plugged-in
 // setting (the Shelly X2i); granted after every install like the network path.
 const SECURE_SETTINGS = 'android.permission.WRITE_SECURE_SETTINGS';
-// Makes the app a device admin, which only locks the screen, unless Android
-// already lists it: the network installer's device_admin_claim_command, as text.
-export function buildDeviceAdminClaim(packageId) {
-  const listed = `${packageId}/${DEVICE_ADMIN_RECEIVER.slice(packageId.length)}:`;
-  return `case "$(dumpsys device_policy 2>/dev/null)" in *"${listed}"*) ;; ` +
-    `*) dpm set-active-admin ${packageId}/${DEVICE_ADMIN_RECEIVER} >/dev/null 2>&1 ;; esac`;
+// The app decides setup eligibility from its canonical store. Old supported
+// apps keep their grant behavior only when a readable package dump proves
+// this receiver absent; a present receiver with an unknown reply defers HOME.
+export function buildSetupHomeClaim(packageId, launchComponent) {
+  const receiver = `${packageId}/io.panelassistant.android.platform.PreservePreviousHomeReceiver`;
+  const builtin = 'Broadcast completed: result=1, data="panel-assistant-home-builtin"';
+  const retained = 'Broadcast completed: result=2, data="panel-assistant-home-retained"';
+  const locked = 'Broadcast completed: result=1, data="panel-assistant-home-restore-shell-locked"';
+  const restoration = `hp_chooser=$({ hp_chooser=deferred; ` +
+    `if flock -xn 0 <&9 && [ -d /proc/self/fd/9 ]; then ` +
+    `hp_lock_identity=$(stat -Lc '%d:%i' /proc/self/fd/0 <&9) && ` +
+    `hp_restore=$(am broadcast --include-stopped-packages -n ${receiver} ` +
+    `--es operation restore_previous_home_shell_lock_eligibility ` +
+    `--es home_lock_identity "$hp_lock_identity" --es previous_home_component "$hp_previous" 2>/dev/null) && ` +
+    `if printf '%s\\n' "$hp_restore" | grep -Fxq '${locked}'; then ` +
+    `cmd package set-home-activity "$hp_previous" <&9 >/dev/null 2>&1; ` +
+    `hp_home="$(${HOME_QUERY.replace('cmd ', 'cmd <&9 ')})"; ` +
+    `case "\${hp_home#*/}" in .*) hp_home="\${hp_home%/*}/\${hp_home%/*}\${hp_home#*/}" ;; esac; ` +
+    `if [ "$hp_home" = "$hp_previous" ]; then ` +
+    `am broadcast --include-stopped-packages -n ${receiver} --es operation acknowledge_retained_home ` +
+    `--es previous_home_component "$hp_previous" >/dev/null 2>&1; ` +
+    `hp_chooser=retained; fi; fi; fi; printf '%s\\n' "$hp_chooser"; } 9</system 2>/dev/null) || hp_chooser=deferred`;
+  return `hp_policy=$(am broadcast --include-stopped-packages -n ${receiver} ` +
+    `--es operation dashboard_home_policy 2>/dev/null); hp_policy_status=$?; hp_chooser=deferred; hp_builtin=0; hp_previous=; ` +
+    `if [ "$hp_policy_status" -eq 0 ] && printf '%s\\n' "$hp_policy" | grep -Fxq '${builtin}'; then hp_builtin=1; ` +
+    `elif [ "$hp_policy_status" -eq 0 ] && printf '%s\\n' "$hp_policy" | grep -Fxq '${retained}'; then hp_chooser=retained; ` +
+    `elif [ "$hp_policy_status" -eq 0 ]; then hp_previous=$(printf '%s\\n' "$hp_policy" | ` +
+    `sed -n 's/^Broadcast completed: result=3, data="panel-assistant-home-restore:\\([A-Za-z][A-Za-z0-9_.]*\\/[A-Za-z.][A-Za-z0-9_.$]*\\)"$/\\1/p'); ` +
+    `if [ -n "$hp_previous" ] && ! printf '%s\\n' "$hp_previous" | grep -q '[[:space:]]'; then ${restoration}; fi; fi; ` +
+    `if [ "$hp_chooser" = deferred ] && [ "$hp_builtin" -eq 0 ] && [ -z "$hp_previous" ] && ${receiverAbsenceCheck(packageId)}; then hp_builtin=1; fi; ` +
+    `if [ "$hp_builtin" -eq 1 ]; then ${buildBuiltinHomeClaim(packageId, launchComponent)}; fi`;
+}
+
+function buildBuiltinHomeClaim(packageId, launchComponent) {
+  const receiver = `${packageId}/io.panelassistant.android.platform.PreservePreviousHomeReceiver`;
+  const eligible = 'Broadcast completed: result=1, data="panel-assistant-setup-eligible"';
+  const allowed = `hp_policy=$(am broadcast --include-stopped-packages -n ${receiver} ` +
+    `--es operation dashboard_home_policy 2>/dev/null) && { printf '%s\\n' "$hp_policy" | ` +
+    `grep -Fxq 'Broadcast completed: result=1, data="panel-assistant-home-builtin"' ` +
+    `|| { ${receiverAbsenceCheck(packageId)}; }; }`;
+  return `hp_setup=$(am broadcast --include-stopped-packages -n ${receiver} --es operation setup_eligibility 2>/dev/null); hp_setup_status=$?; ` +
+    `hp_eligible=0; if [ "$hp_setup_status" -eq 0 ] && printf '%s\\n' "$hp_setup" | grep -Fxq '${eligible}'; then hp_eligible=1; else ` +
+    `if ${receiverAbsenceCheck(packageId)}; then hp_eligible=1; fi; fi; ` +
+    `if [ "$hp_eligible" -eq 1 ]; then ${buildHomeClaim(launchComponent, allowed)}; ` +
+    // Native acknowledges only a fresh verified HOME claim; failure leaves
+    // the pending intent in health for a later completion pass.
+    `am broadcast --include-stopped-packages -n ${receiver} --es operation acknowledge_home >/dev/null 2>&1; ` +
+    `else hp_chooser=deferred; fi`;
 }
 // Every refusal carries the same code; `detail` names the check that refused,
 // for "Details for support" only, so the next failure names its cause.
@@ -111,8 +154,7 @@ hp_features=$(pm list features 2>/dev/null) || hp_features=
 ${RUNTIME_GRANTS.map(([feature, permission]) => `${listed(feature)}
 [ -z "$hp_has" ] || pm grant ${PACKAGE} android.permission.${permission} >/dev/null 2>&1`).join('\n')}
 pm grant ${PACKAGE} ${SECURE_SETTINGS} >/dev/null 2>&1
-${buildDeviceAdminClaim(PACKAGE)}
-${buildHomeClaim(launchComponent)}
+${buildSetupHomeClaim(PACKAGE, launchComponent)}
 echo "home_chooser:$hp_chooser"
 :
 ); echo HAPANELD_PERMISSIONS_GRANT_END:${nonce}:$?`;

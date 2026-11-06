@@ -56,7 +56,7 @@
     "downloading": "Preparando o aplicativo…",
     "verifying": "Preparando o aplicativo…",
     "verified": "Continue na nova janela.",
-    "installed": "O Panel Assistant está instalado. Conclua a configuração do painel na janela do instalador e depois feche esta guia.",
+    "installed": "O Panel Assistant está instalado. Termine de configurar o painel na janela que você abriu para a instalação, depois feche esta aba.",
     "cancelled": "Cancelado.",
     "popup_blocked": "Seu navegador bloqueou a nova janela. Permita pop-ups nesta página e pressione Continuar.",
     "invalid_request": "Escolha uma versão primeiro.",
@@ -88,6 +88,9 @@
     "stepStarting": "Iniciando o aplicativo…",
     "stepPermissions": "Concedendo ao aplicativo o que ele precisa para funcionar…",
     "stepOpening": "Abrindo a configuração do seu painel…",
+    "stepWebView": "Atualizando o mecanismo do navegador do painel…",
+    "stepWebViewUpdated": "O mecanismo do navegador do painel está atualizado.",
+    "stepWebViewKept": "O mecanismo do navegador do painel foi mantido como estava.",
     "keepConnected": "Mantenha o cabo conectado até terminar.",
     "doneHeading": "Instalado",
     "doneOpening": "Levando você à configuração do seu painel…",
@@ -113,6 +116,7 @@
   },
   "errors": {
     "installErrorGeneric": "Algo deu errado. Mantenha o painel conectado e pressione Tentar novamente.",
+    "installErrorUsbBusy": "Outro aplicativo está usando a conexão USB. Feche os outros aplicativos que usam a conexão USB do painel e pressione Tentar novamente.",
     "installErrorBusy": "O painel está ocupado com outra instalação. Aguarde um minuto e tente novamente.",
     "installErrorStorage": "Este navegador não conseguiu salvar o progresso. Permita que este site armazene dados e tente novamente.",
     "installErrorTarget": "Outro painel foi conectado. Conecte o mesmo painel e tente novamente.",
@@ -155,6 +159,7 @@
     "networkAdb": "ADB pela rede",
     "copiedDetail": "{bytes} bytes enviados; aguardando a confirmação do painel",
     "none": "nenhum",
-    "setupMissing": "não encontrado; a configuração continua no painel"
+    "setupMissing": "não encontrado; a configuração continua no painel",
+    "webview": "WebView"
   }
 }

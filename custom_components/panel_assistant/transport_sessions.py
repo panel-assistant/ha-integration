@@ -16,7 +16,7 @@ from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
 
 from homeassistant.components.websocket_api.connection import ActiveConnection
 from homeassistant.components.websocket_api.messages import event_message
@@ -26,6 +26,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util import dt as dt_util
 
+from .app_identity import PACKAGE_ID
 from .const import DOMAIN
 from .transport_protocol import (
     CAPABILITY_COMMANDS,
@@ -47,6 +48,9 @@ from .transport_protocol import (
 )
 from .update_policy import prereleases_allowed
 from .voice_stream import async_get_voice_stream
+
+if TYPE_CHECKING:
+    from .voice import VoiceConfiguration
 
 # Logged under the transport's own name, which predates this module.
 _LOGGER = logging.getLogger(f"{__package__}.transport")
@@ -115,6 +119,7 @@ class PanelSession:
     # adopting it. Never shown: an address identifies a network.
     remote: str | None = field(default=None, repr=False)
     addresses: tuple[str, ...] = field(default=(), repr=False)
+    http_port: int | None = field(default=None, repr=False)
     # Described channels the vendored catalogue does not know. They are
     # accepted and their reports stored, but nothing renders them.
     unknown_channels: frozenset[str] = frozenset()
@@ -137,6 +142,10 @@ class PanelSession:
     ui_relays: dict[str, list[Any]] = field(default_factory=dict)
     # The panel's Sendspin client id, when ``voice_stream_session`` was granted.
     voice_stream_client_id: str | None = None
+    # The log grant and saved offer belong to this accepted session only.
+    log_sources: dict[str, int] = field(default_factory=dict)
+    saved_log_sink: dict[str, Any] | None = None
+    app_package: str = PACKAGE_ID
     # Commands sent and still waited for, by command ID.
     pending: dict[str, PendingCommand] = field(default_factory=dict)
     # Commands whose wait ended without a final outcome, oldest first.
@@ -145,10 +154,14 @@ class PanelSession:
         default_factory=lambda: deque(maxlen=MAX_RECENT_OUTCOMES)
     )
     command_counts: dict[str, int] = field(default_factory=dict)
-    # The panel's own wake words and their pipelines, as it last reported them
-    # (``voice.VoiceConfiguration``). A projection of the panel's settings,
-    # never a second store: it ends with the session.
-    voice: Any = None
+    # The panel's own wake words and their pipelines, as it last reported them.
+    # A projection of the panel's settings, never a second store: it ends with
+    # the session.
+    voice: VoiceConfiguration | None = None
+    # A fresh hello may grant local commands once the install finalizer ends.
+    local_adb_deferred: bool = False
+    # A nonce-framed local read proved the recovery route and physical identity.
+    local_adb_identity: tuple[str, str, str, int] | None = None
 
     def count(self, name: str) -> None:
         """Count one command fact for diagnostics."""
@@ -549,6 +562,9 @@ async def async_manage_outcome(
     session: PanelSession,
     op: str,
     wait_seconds: float,
+    *,
+    approval_seconds: float = 0,
+    wait_for_approval: bool = True,
     **fields: Any,
 ) -> CommandOutcome:
     """Ask one management request and return its final outcome, whatever it is.
@@ -570,6 +586,8 @@ async def async_manage_outcome(
         {"op": op, **fields},
         wait_seconds,
         kind="manage",
+        approval_seconds=approval_seconds,
+        wait_for_approval=wait_for_approval,
     )
 
 
@@ -584,6 +602,7 @@ async def async_deliver(
     command_id: str | None = None,
     deadline_ms: int = COMMAND_DEADLINE_MS,
     approval_seconds: float = 0,
+    wait_for_approval: bool = True,
     on_settled: Callable[[], None] | None = None,
 ) -> CommandOutcome:
     """Send one event on a session once and wait for its final outcome.
@@ -617,7 +636,9 @@ async def async_deliver(
     future = command.future
     try:
         async with asyncio.timeout(wait_seconds) as scope:
-            if approval_seconds:
+            if not wait_for_approval:
+                command.on_interim = lambda: scope.reschedule(hass.loop.time())
+            elif approval_seconds:
                 command.on_interim = lambda: scope.reschedule(
                     hass.loop.time() + approval_seconds + wait_seconds
                 )

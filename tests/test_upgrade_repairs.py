@@ -234,6 +234,29 @@ async def test_a_completed_move_or_an_unknown_panel_id_sets_up(
     assert ir.async_get(hass).issues == {}
 
 
+@pytest.mark.parametrize(
+    ("integration_version", "required_version"),
+    [("1.0.0", "1.0.0"), ("1.0.0-rc2", "1.0.0-rc1")],
+)
+async def test_the_too_old_repair_names_an_app_release_that_still_exists(
+    hass: HomeAssistant,
+    hass_read_only_user: Any,
+    integration_version: str,
+    required_version: str,
+) -> None:
+    """A stable integration names the stable app; promotion deletes the rc."""
+    entry = _entry(hass, hass_read_only_user.id)
+    with patch(
+        "custom_components.panel_assistant.repairs_upgrade.INTEGRATION_VERSION",
+        integration_version,
+    ):
+        await _set_up(hass, entry, OLDER_APP)
+
+    issue = _issue(hass, f"panel_app_too_old_{entry.entry_id}")
+    assert issue is not None
+    assert issue.translation_placeholders["required_version"] == required_version
+
+
 @pytest.mark.parametrize("protocol", [None, (4, 4)])
 async def test_an_older_panel_is_refused_and_told_it_needs_app_1_0_0_preview1(
     hass: HomeAssistant,
@@ -255,7 +278,7 @@ async def test_an_older_panel_is_refused_and_told_it_needs_app_1_0_0_preview1(
     assert {
         "panel": "alpha",
         "version": "0.9.11",
-        "required_version": "1.0.0-rc1",
+        "required_version": "1.0.0",
     }.items() <= issue.translation_placeholders.items()
     response = await _hello_response(
         hass,

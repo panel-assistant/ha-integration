@@ -56,7 +56,7 @@
     "downloading": "Příprava aplikace…",
     "verifying": "Příprava aplikace…",
     "verified": "Pokračujte v novém okně.",
-    "installed": "Panel Assistant je nainstalován. Dokončete nastavení panelu v okně instalátoru a pak tuto kartu zavřete.",
+    "installed": "Panel Assistant je nainstalován. Dokončete nastavení panelu v okně, které jste otevřeli pro instalaci, a poté zavřete tuto kartu.",
     "cancelled": "Zrušeno.",
     "popup_blocked": "Prohlížeč zablokoval nové okno. Povolte pro tuto stránku vyskakovací okna a pak stiskněte Pokračovat.",
     "invalid_request": "Nejprve vyberte verzi.",
@@ -77,7 +77,7 @@
     "confirmHeading": "Připraveno k instalaci",
     "confirmBody": "Tímto nainstalujete aplikaci a nastavíte ji jako domovskou obrazovku panelu. Vašich ostatních aplikací se to nedotkne.",
     "install": "Nainstalovat",
-    "restartedDifferentVersion": "Předchozí pokus o instalaci používal jiné vydání. Ten pokus byl ponechán stranou.",
+    "restartedDifferentVersion": "Předchozí pokus o instalaci používal jinou verzi. Ten pokus byl ponechán stranou.",
     "alreadyInstalledHeading": "Už nainstalováno",
     "alreadyInstalledBody": "Tato verze už na vašem panelu je. Pokračujte a dokončete nastavení; nic se nekopíruje ani znovu neinstaluje.",
     "continueSetup": "Pokračovat",
@@ -88,6 +88,9 @@
     "stepStarting": "Spouštění aplikace…",
     "stepPermissions": "Poskytování toho, co aplikace potřebuje k běhu…",
     "stepOpening": "Otevírání nastavení panelu…",
+    "stepWebView": "Aktualizace jádra prohlížeče panelu…",
+    "stepWebViewUpdated": "Jádro prohlížeče panelu je aktuální.",
+    "stepWebViewKept": "Jádro prohlížeče panelu bylo ponecháno beze změny.",
     "keepConnected": "Nechte kabel připojený, dokud se proces nedokončí.",
     "doneHeading": "Nainstalováno",
     "doneOpening": "Přesměrování na nastavení panelu…",
@@ -109,10 +112,11 @@
     "licenses": "Licence třetích stran",
     "doneAnotherHomeAssistant": "Tento panel je přihlášen k jiné instanci Home Assistant. Chcete-li jej připojit sem, změňte na panelu instanci Home Assistant a přihlaste se.",
     "reconnectedHeading": "Panel Assistant se k panelu znovu dostane",
-    "reconnectedBody": "Aplikace už na panelu je, takže se nic neinstalovalo. Home Assistant ho teď může aktualizovat přes vaši síť."
+    "reconnectedBody": "Aplikace už na panelu je, takže se nic neinstalovalo. Home Assistant ji teď může aktualizovat přes vaši síť."
   },
   "errors": {
     "installErrorGeneric": "Něco se pokazilo. Nechte panel připojený a stiskněte Zkusit znovu.",
+    "installErrorUsbBusy": "Připojení USB používá jiná aplikace. Zavřete ostatní aplikace používající připojení USB panelu a poté stiskněte Zkusit znovu.",
     "installErrorBusy": "Panel je zaneprázdněný jinou instalací. Počkejte minutu a pak to zkuste znovu.",
     "installErrorStorage": "Tento prohlížeč nedokázal uložit průběh. Povolte tomuto webu ukládání dat a pak to zkuste znovu.",
     "installErrorTarget": "Byl připojen jiný panel. Připojte stejný panel a zkuste to znovu.",
@@ -140,7 +144,7 @@
     "cause": "Příčina",
     "failedCheck": "Neúspěšná kontrola",
     "error": "Chyba",
-    "release": "Vydání",
+    "release": "Verze",
     "panel": "Panel",
     "copied": "Zkopírováno",
     "savedProgress": "Uložený průběh",
@@ -155,6 +159,7 @@
     "networkAdb": "ADB přes síť",
     "copiedDetail": "Odesláno {bytes} bajtů; čeká se na potvrzení panelu",
     "none": "žádné",
-    "setupMissing": "nenalezeno; nastavení pokračuje na panelu"
+    "setupMissing": "nenalezeno; nastavení pokračuje na panelu",
+    "webview": "WebView"
   }
 }

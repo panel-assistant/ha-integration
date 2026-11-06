@@ -36,6 +36,7 @@ from custom_components.panel_assistant.client import (
     HaPaneldClient,
     HaPaneldError,
     InvalidResponseError,
+    UpdateApprovalRequiredError,
     UpdateBusyError,
     parse_health_response,
 )
@@ -68,6 +69,7 @@ from .test_lan_staged_update import (  # noqa: F401
 )
 from .test_management import MANAGED, STATUS_BODY, _http_blocked
 from .test_transport import DID, HEALTH, HELLO
+from .test_webview import observation
 
 _real_sleep = asyncio.sleep
 _STATUS = {**json.loads(STATUS_BODY), "install_capability": "api"}
@@ -226,6 +228,9 @@ class FakePanel:
             return True
         elif op == "install.apk.discard":
             answer = ("applied", None, {"ok": True})
+        elif op == "webview.observe":
+            # The successor app reports its WebView provider as already current.
+            answer = ("applied", None, observation(eligible=False))
         else:
             answer = ("refused", "unknown_command", None)
         await self._reply(ws, session, event, answer)
@@ -351,7 +356,8 @@ async def test_an_unreachable_panel_updates_over_its_session(
     assert panel.fetched == APK
     assert panel.ops.index("backup") < panel.ops.index("install.apk")
     assert panel.ops.index("install.apk") < panel.ops.index("install.apk.commit")
-    assert panel.ops[-1] == "status"
+    # After the app, the bundled WebView step observes the provider over the session.
+    assert panel.ops[-2:] == ["status", "webview.observe"]
     # The backup the panel uploaded is stored with its receipt.
     archives = [path for path in _backups(hass) if path.suffix == ".zip"]
     assert len(archives) == 1
@@ -495,6 +501,8 @@ async def test_a_backup_that_is_not_the_one_named_is_refused_and_not_stored(
 
     error = await _refused(entity)
 
+    # An expected refusal, so the REST service call answers 400, not 500.
+    assert isinstance(error, _UpdateRefusalError)
     assert error.translation_key == "panel_backup_failed"
     assert _backups(hass) == []
     assert "install.apk" not in panel.ops
@@ -597,7 +605,25 @@ async def test_a_commit_waiting_for_approval_asks_for_it(
 
     error = await _refused(entity)
 
+    assert isinstance(error, _UpdateRefusalError)
     assert error.translation_key == "update_approval_required"
+
+
+async def test_a_backup_waiting_for_approval_asks_for_it(
+    hass: HomeAssistant, offline: Any
+) -> None:
+    entity, _panel = offline
+    client = MagicMock()
+    client.async_backup_panel = AsyncMock(side_effect=UpdateApprovalRequiredError)
+    client.async_stage_apk = AsyncMock()
+    entity.coordinator.client = client
+    entity.coordinator.reachable = True
+
+    error = await _refused(entity)
+
+    assert isinstance(error, _UpdateRefusalError)
+    assert error.translation_key == "update_approval_required"
+    client.async_stage_apk.assert_not_awaited()
 
 
 async def test_a_refused_commit_maps_like_its_http_status(

@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from functools import partial
 from hashlib import sha256
@@ -57,10 +57,10 @@ from .install_adb import (
     async_cleanup_staged_apk,
     async_install_staged_apk,
     async_installed_artifact_size,
-    async_launch_installed_app,
     async_preflight_install,
     async_settle_vendor_display,
     async_stage_apk,
+    async_start_installed_app,
     async_verify_installed_target,
 )
 from .install_artifacts import (
@@ -257,6 +257,9 @@ class InstallExecutor:
         self._lock = asyncio.Lock()
         self._resume_lock = asyncio.Lock()
         self._tasks: dict[str, asyncio.Task[None]] = {}
+        # Jobs whose worker has reached the browser-engine step, so a waiting
+        # dialog can say so while that step runs.
+        self._webview_steps: dict[str, asyncio.Event] = {}
         self._finalizers: dict[str, _FinalizerLease] = {}
         # A cancelled worker may have been interrupted inside a mutation phase.
         # Never restart it in the same process, whose manager still owns the old
@@ -288,12 +291,38 @@ class InstallExecutor:
             task.add_done_callback(partial(self._worker_done, job_id))
             return task
 
-    async def async_wait(self, job_id: str) -> InstallJobReceipt:
-        """Wait for current progress without giving the caller worker ownership."""
+    async def async_wait(
+        self, job_id: str, *, until_webview: bool = False
+    ) -> InstallJobReceipt:
+        """Wait for current progress without giving the caller worker ownership.
+
+        With ``until_webview`` the wait also ends when the worker starts
+        updating the panel's browser engine, so the dialog can say so.
+        """
         task = await self.async_ensure_job(job_id)
         if task is not None:
-            await asyncio.shield(task)
+            if until_webview:
+                step = self._webview_step(job_id)
+                reached = asyncio.ensure_future(step.wait())
+                try:
+                    await asyncio.wait(
+                        {task, reached}, return_when=asyncio.FIRST_COMPLETED
+                    )
+                finally:
+                    reached.cancel()
+            else:
+                await asyncio.shield(task)
         return await self._manager.async_get(job_id)
+
+    def _webview_step(self, job_id: str) -> asyncio.Event:
+        return self._webview_steps.setdefault(job_id, asyncio.Event())
+
+    def is_updating_webview(self, job_id: str) -> bool:
+        """Whether the job's live worker is in its browser-engine step."""
+        task = self._tasks.get(job_id)
+        return (
+            task is not None and not task.done() and self._webview_step(job_id).is_set()
+        )
 
     async def async_resume_loaded_jobs(self) -> tuple[str, ...]:
         """Resume durable jobs because an existing integration entry loaded us.
@@ -449,6 +478,9 @@ class InstallExecutor:
                     result_code=InstallResultCode.ENTRY_CREATED,
                     consumed_entry_id=entry_id,
                 )
+                from .local_adb import installation_finished
+
+                installation_finished(self._hass, entry_id)
         except Exception:
             _LOGGER.warning("Unable to consume a completed ha-paneld install receipt")
         finally:
@@ -489,6 +521,9 @@ class InstallExecutor:
                     result_code=InstallResultCode.ENTRY_CREATED,
                     consumed_entry_id=entry_id,
                 )
+                from .local_adb import installation_finished
+
+                installation_finished(self._hass, entry_id)
             else:
                 await self._manager.async_transition(
                     job_id,
@@ -559,7 +594,9 @@ class InstallExecutor:
         if not health_is_installed_app(health, receipt.artifact):
             return await self._async_reject_healthy(receipt, "health:identity_mismatch")
         try:
-            status = await panel.async_get_status(home_proof=True)
+            status = await panel.async_get_status(
+                home_proof=True, setup_foreground=receipt.home_claim_deferred
+            )
         except CannotConnectError:
             return FinalizationResult(FinalizationOutcome.RETRY)
         except InvalidResponseError:
@@ -947,7 +984,9 @@ class InstallExecutor:
                     panel = HaPaneldClient(
                         async_get_clientsession(self._hass), execution.pinned.pinned
                     )
-                    health, health_subcode = await self._async_health(execution, panel)
+                    health, health_subcode = await self._async_health(
+                        execution, panel, receipt.home_claim_deferred
+                    )
                     if health is None or not health_is_installed_app(
                         health, receipt.artifact
                     ):
@@ -964,13 +1003,23 @@ class InstallExecutor:
                         # address the installer already knew. Best-effort: an
                         # install that worked must not be failed by a
                         # convenience that did not.
+                        from .webview import async_provision_webview
+
+                        self._webview_step(receipt.job_id).set()
+                        await async_provision_webview(
+                            panel, f"pa-install-{receipt.job_id}"
+                        )
                         setup_state = await async_offer_ha_url(self._hass, panel)
                         # A rootless panel gets its recommended display and
                         # text size at setup, and only then: a reinstall over
-                        # a set-up panel keeps the size its owner chose. A
-                        # completed refusal is optional; an interrupted
+                        # a set-up panel, or unreadable setup state, keeps
+                        # the size its owner chose. A completed refusal
+                        # is optional; an interrupted
                         # command cannot become acceptance.
-                        if setup_state != "setup_complete":
+                        if setup_state not in {
+                            "setup_complete",
+                            "setup_state_unreadable",
+                        }:
                             try:
                                 await self._async_offer_display_sizing(
                                     receipt, execution, panel
@@ -1008,6 +1057,7 @@ class InstallExecutor:
                             receipt,
                             InstallPhase.HEALTHY_UNCLAIMED,
                             health_checked_at=_now_timestamp(),
+                            home_claim_deferred=receipt.home_claim_deferred,
                         )
                 else:
                     raise InstallJobTransitionError
@@ -1173,18 +1223,24 @@ class InstallExecutor:
             credential, receipt = await self._async_mutation_authority(
                 receipt, execution
             )
-            outcome = await async_launch_installed_app(
+            launch = await async_start_installed_app(
                 execution.adb_target,
                 credential.signer,
                 execution.descriptor,
                 expected_root_mode=_root_mode(receipt),
+                previous_home_job_id=_REMOTE_STAGING_SLOT_ID,
             )
-            if outcome is not LaunchOutcome.STARTED:
+            if launch.outcome is not LaunchOutcome.STARTED:
                 return await self._async_recovery(
                     receipt,
                     InstallResultCode.VERIFICATION_REQUIRED,
                     "display_settlement:launch_refused",
                 )
+            # This launch's HOME claim replaces the first one's. It is
+            # persisted with the HEALTHY_UNCLAIMED transition that follows.
+            receipt = replace(
+                receipt, home_claim_deferred=launch.home_chooser == "deferred"
+            )
         except _CancellationObserved as err:
             return err.receipt
         except (AdbCredentialError, InstallAdbError, InstallNetworkError) as err:
@@ -1193,7 +1249,9 @@ class InstallExecutor:
                 InstallResultCode.VERIFICATION_REQUIRED,
                 _result_subcode(err),
             )
-        health, subcode = await self._async_health(execution, panel)
+        health, subcode = await self._async_health(
+            execution, panel, receipt.home_claim_deferred
+        )
         if health is None or not health_is_installed_app(health, receipt.artifact):
             return await self._async_recovery(
                 receipt,
@@ -1371,11 +1429,12 @@ class InstallExecutor:
             credential, receipt = await self._async_mutation_authority(
                 receipt, execution
             )
-            outcome = await async_launch_installed_app(
+            launch = await async_start_installed_app(
                 execution.adb_target,
                 credential.signer,
                 execution.descriptor,
                 expected_root_mode=_root_mode(receipt),
+                previous_home_job_id=_REMOTE_STAGING_SLOT_ID,
             )
         except (AdbCredentialError, InstallNetworkError) as err:
             return await self._async_fail(
@@ -1398,8 +1457,16 @@ class InstallExecutor:
             return await self._async_fail(
                 receipt, InstallResultCode.LAUNCH_FAILED, _result_subcode(err)
             )
+        outcome = launch.outcome
         if outcome is LaunchOutcome.STARTED:
-            return await self._async_transition(receipt, InstallPhase.HEALTH_CHECK)
+            # Only a claim the app deferred until its first setup may let the
+            # setup screen stand in for owned HOME; every other outcome keeps
+            # demanding owned HOME.
+            return await self._async_transition(
+                receipt,
+                InstallPhase.HEALTH_CHECK,
+                home_claim_deferred=launch.home_chooser == "deferred",
+            )
         if outcome is LaunchOutcome.REFUSED:
             return await self._async_fail(
                 receipt, InstallResultCode.LAUNCH_FAILED, "launch:refused"
@@ -1413,7 +1480,10 @@ class InstallExecutor:
         )
 
     async def _async_health(
-        self, execution: _FrozenExecution, client: HaPaneldClient
+        self,
+        execution: _FrozenExecution,
+        client: HaPaneldClient,
+        setup_foreground: bool,
     ) -> tuple[PanelHealth | None, str | None]:
         artifact = execution.descriptor
         attempts = _HEALTH_ATTEMPTS
@@ -1438,7 +1508,9 @@ class InstallExecutor:
                 continue
             if health_is_installed_app(health, artifact):
                 try:
-                    status = await client.async_get_status(home_proof=True)
+                    status = await client.async_get_status(
+                        home_proof=True, setup_foreground=setup_foreground
+                    )
                 except CannotConnectError, InvalidResponseError:
                     failure_subcode = "home_ui:unavailable"
                 else:
@@ -1526,6 +1598,7 @@ class InstallExecutor:
         health_checked_at: str | None = None,
         result_code: InstallResultCode | None = None,
         preflight_root_mode: str | None = None,
+        home_claim_deferred: bool | None = None,
     ) -> InstallJobReceipt:
         try:
             root_mode = (
@@ -1540,6 +1613,7 @@ class InstallExecutor:
                 actual_apk_bytes=actual_apk_bytes,
                 health_checked_at=health_checked_at,
                 result_code=result_code,
+                home_claim_deferred=home_claim_deferred,
                 **root_mode,
             )
         except InstallJobRevisionError:

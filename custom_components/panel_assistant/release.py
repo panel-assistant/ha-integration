@@ -112,6 +112,24 @@ class ReleaseResolutionError(Exception):
     """Raised when a selected release cannot be authenticated exactly."""
 
 
+class ReleaseTooLargeError(ReleaseResolutionError):
+    """Raised when a response is over its byte bound.
+
+    size is the exact byte count when Content-Length gave it, else None for a
+    streamed body that merely passed the limit.
+    """
+
+    def __init__(self, limit: int, size: int | None = None) -> None:
+        # No message: release-catalogue callers append str(err) only when it is set.
+        super().__init__()
+        self.limit = limit
+        self.size = size
+
+
+class ReleaseDownloadError(ReleaseResolutionError):
+    """Raised when release data could not be downloaded at all."""
+
+
 @dataclass(frozen=True, slots=True)
 class InstallDescriptor:
     """Signed installation and compatibility facts for one exact APK."""
@@ -431,14 +449,30 @@ async def _async_fetch_bounded(
     headers: dict[str, str],
     total_seconds: float = _REQUEST_TIMEOUT_SECONDS,
     read_seconds: float = _READ_TIMEOUT_SECONDS,
+    allow_catalog_redirects: bool = False,
 ) -> bytes:
     """Fetch one response under fixed status, redirect, time and byte bounds."""
+
+    def trusted_redirect(target: URL) -> bool:
+        if allow_catalog_redirects:
+            return (
+                target.scheme == "https"
+                and target.host is not None
+                and target.user is None
+                and target.password is None
+                and target.port == 443
+                and not target.fragment
+            )
+        return is_trusted_download_url(target)
+
     current_url = url
     redirects = 0
     try:
         async with asyncio.timeout(total_seconds):
             while True:
-                if allow_release_redirects and not is_trusted_download_url(current_url):
+                if (
+                    allow_release_redirects or allow_catalog_redirects
+                ) and not trusted_redirect(current_url):
                     raise ReleaseResolutionError
 
                 async with session.get(
@@ -451,21 +485,24 @@ async def _async_fetch_bounded(
                         raise ReleaseResolutionError
 
                     if response.status in _REDIRECT_STATUSES:
-                        if not allow_release_redirects or redirects >= _MAX_REDIRECTS:
+                        if (
+                            not (allow_release_redirects or allow_catalog_redirects)
+                            or redirects >= _MAX_REDIRECTS
+                        ):
                             raise ReleaseResolutionError
                         next_url = redirect_target(current_url, response)
-                        if next_url is None or not is_trusted_download_url(next_url):
+                        if next_url is None or not trusted_redirect(next_url):
                             raise ReleaseResolutionError
                         current_url = next_url
                         redirects += 1
                         continue
 
                     if response.status != 200:
-                        raise ReleaseResolutionError(f"HTTP {response.status}")
+                        raise ReleaseDownloadError(f"HTTP {response.status}")
 
                     content_length = response.content_length
                     if content_length is not None and content_length > maximum_bytes:
-                        raise ReleaseResolutionError
+                        raise ReleaseTooLargeError(maximum_bytes, content_length)
 
                     body = bytearray()
                     async for chunk in response.content.iter_chunked(maximum_bytes + 1):
@@ -473,11 +510,13 @@ async def _async_fetch_bounded(
                             raise ReleaseResolutionError
                         body.extend(chunk)
                         if len(body) > maximum_bytes:
-                            raise ReleaseResolutionError
+                            raise ReleaseTooLargeError(maximum_bytes)
                     return bytes(body)
     except ReleaseResolutionError:
         raise
-    except (ClientError, TimeoutError, ValueError) as err:
+    except (ClientError, TimeoutError) as err:
+        raise ReleaseDownloadError from err
+    except ValueError as err:
         raise ReleaseResolutionError from err
 
 
@@ -805,15 +844,19 @@ async def _async_resolve_release(
     url: URL,
     *,
     expected_rc_tag: str | None = None,
+    release_body: bytes | None = None,
 ) -> tuple[ReleaseArtifact, SignedReleaseMetadata | None]:
     """Share identical byte bounds, signatures and descriptor binding for both paths."""
-    release_body = await _async_fetch_bounded(
-        session,
-        url,
-        _MAX_RELEASE_RESPONSE_BYTES,
-        allow_release_redirects=False,
-        headers=_API_HEADERS,
-    )
+    if release_body is None:
+        release_body = await _async_fetch_bounded(
+            session,
+            url,
+            _MAX_RELEASE_RESPONSE_BYTES,
+            allow_release_redirects=False,
+            headers=_API_HEADERS,
+        )
+    if len(release_body) > _MAX_RELEASE_RESPONSE_BYTES:
+        raise ReleaseResolutionError
     tag, apk_name, assets = _parse_release_metadata(
         release_body, expected_rc_tag=expected_rc_tag
     )

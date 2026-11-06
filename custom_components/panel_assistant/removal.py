@@ -21,19 +21,23 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from . import adb_protocol, install_adb, vendor_provisioning
+from . import adb_protocol, install_adb, local_adb, vendor_provisioning
 from .adb_credentials import (
     AdbCredentialError,
-    async_get_adb_credential,
     async_get_durable_adb_credential,
 )
-from .adb_protocol import AdbInstallTarget, InstallAdbError, InstallAdbErrorCode
+from .adb_protocol import (
+    AdbInstallTarget,
+    InstallAdbError,
+    InstallAdbErrorCode,
+)
 from .app_identity import LEGACY_PACKAGE_ID, PACKAGE_ID
 from .client import (
     HandBackRefusedError,
     HaPaneldClient,
     HaPaneldError,
     UpdateApprovalRequiredError,
+    is_valid_discovery_id,
     normalize_address,
 )
 from .install_adb import MoveObservation, MoveStep, async_move_step
@@ -43,6 +47,9 @@ from .provisioning import InstallTargetState, async_probe_install_target
 
 _LOGGER = logging.getLogger(__name__)
 
+#: The physical target bound to the entry when the owner confirms removal.
+CONF_REMOVAL_TARGET: Final = "removal_target"
+
 #: Why a removal stopped; each is an options-flow error with its own text.
 REASON_BUSY: Final = "busy"
 REASON_ADB_UNREACHABLE: Final = "adb_unreachable"
@@ -50,6 +57,8 @@ REASON_ADB_AUTHORIZATION: Final = "adb_authorization"
 REASON_PANEL_CHANGED: Final = "panel_changed"
 REASON_APPROVAL_REQUIRED: Final = "approval_required"
 REASON_NO_REPLACEMENT_HOME: Final = "no_replacement_home"
+REASON_ORIGINAL_HOME_MISSING: Final = "original_home_missing"
+REASON_ORIGINAL_HOME_MISSING_UNNAMED: Final = "original_home_missing_unnamed"
 REASON_OWNERSHIP_UNREADABLE: Final = "ownership_unreadable"
 REASON_PACKAGE_STATE_UNKNOWN: Final = "package_state_unknown"
 REASON_HOME_NOT_HANDED: Final = "home_not_handed"
@@ -59,6 +68,7 @@ REASON_REMOVE_FAILED: Final = "remove_failed"
 
 _HAND_BACK_REASONS: Final = {
     "no-replacement-home": REASON_NO_REPLACEMENT_HOME,
+    "original-home-missing": REASON_ORIGINAL_HOME_MISSING_UNNAMED,
     "ownership-unreadable": REASON_OWNERSHIP_UNREADABLE,
     "package-state-unknown": REASON_PACKAGE_STATE_UNKNOWN,
     "unsupported": REASON_UNSUPPORTED,
@@ -70,11 +80,15 @@ _NOT_A_LAUNCHER: Final = frozenset(
 
 
 class RemovalError(Exception):
-    """A removal stopped; ``reason`` says why and what is still installed."""
+    """A removal stopped; ``reason`` says why and what is still installed.
 
-    def __init__(self, reason: str) -> None:
+    ``placeholders`` fill the reason's text, such as the launcher it names.
+    """
+
+    def __init__(self, reason: str, placeholders: dict[str, str] | None = None) -> None:
         super().__init__(reason)
         self.reason = reason
+        self.placeholders = placeholders or {}
 
 
 async def async_read_firmware(hass: HomeAssistant, entry: ConfigEntry) -> str | None:
@@ -90,6 +104,7 @@ async def async_read_firmware(hass: HomeAssistant, entry: ConfigEntry) -> str | 
 
 async def async_remove_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Remove the app from the entry's panel; return once neither id is left."""
+    _require_entry(hass, entry)
     if not claim_panel_operation(hass, entry.entry_id):
         raise RemovalError(REASON_BUSY)
     try:
@@ -99,14 +114,40 @@ async def async_remove_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 
 async def async_app_target(
-    hass: HomeAssistant, entry: ConfigEntry
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    *,
+    verify_entry: bool = False,
+    force_network: bool = False,
 ) -> tuple[AdbInstallTarget, Any] | None:
     """Reach the panel over ADB; None when Android holds neither app id.
 
     A panel holding only the old app is reached too, so its stray app can go.
     """
+    address = normalize_address(entry.data[CONF_ADDRESS])
+    if not force_network:
+        try:
+            local = await local_adb.async_target(hass, entry, address)
+        except InstallAdbError as err:
+            raise RemovalError(REASON_ADB_UNREACHABLE) from err
+        if local is not None:
+            saved = entry.data.get(CONF_REMOVAL_TARGET)
+            identity = {
+                "did": entry.unique_id,
+                **{
+                    name: getattr(local, name)
+                    for name in ("serial", "model", "primary_abi", "android_sdk")
+                },
+            }
+            if verify_entry:
+                if saved is not None and saved != identity:
+                    raise RemovalError(REASON_PANEL_CHANGED)
+                _require_entry(hass, entry)
+                hass.config_entries.async_update_entry(
+                    entry, data={**entry.data, CONF_REMOVAL_TARGET: identity}
+                )
+            return local, None
     try:
-        await async_get_adb_credential(hass)
         credential = await async_get_durable_adb_credential(hass)
         # An entry whose app is already gone may not have loaded, so the stored
         # address stands in for the running client's.
@@ -122,34 +163,96 @@ async def async_app_target(
     probe = await async_probe_install_target(pinned.pinned, credential.signer)
     if probe.state is InstallTargetState.ADB_UNAUTHORIZED:
         raise RemovalError(REASON_ADB_AUTHORIZATION)
-    if probe.state is InstallTargetState.INSTALL_CANDIDATE:
-        return None
     adb_target = probe.adb_target(pinned.pinned)
     if adb_target is None or probe.state not in {
         InstallTargetState.INSTALLED,
         InstallTargetState.MIGRATION_CANDIDATE,
+        InstallTargetState.INSTALL_CANDIDATE,
     }:
         raise RemovalError(REASON_ADB_UNREACHABLE)
+    saved = entry.data.get(CONF_REMOVAL_TARGET)
+    if (
+        verify_entry
+        and saved is not None
+        and (
+            not isinstance(saved, dict)
+            or saved.get("did") != entry.unique_id
+            or any(
+                saved.get(name) != getattr(probe, name)
+                for name in ("serial", "model", "primary_abi", "android_sdk")
+            )
+        )
+    ):
+        raise RemovalError(REASON_PANEL_CHANGED)
+    if probe.state is InstallTargetState.INSTALL_CANDIDATE:
+        return None
+    if verify_entry:
+        # Bind the shell identity to this entry before HOME or package changes.
+        # Keep it across a restart: the app may already be gone when a retry runs.
+        try:
+            health = await HaPaneldClient(
+                async_get_clientsession(hass), pinned.pinned
+            ).async_get_health()
+        except HaPaneldError as err:
+            if saved is None:
+                raise RemovalError(REASON_APP_UNREACHABLE) from err
+            return adb_target, credential.signer
+        if (
+            entry.unique_id is None
+            or not is_valid_discovery_id(entry.unique_id)
+            or health.discovery_id != entry.unique_id
+            or health.package not in (PACKAGE_ID, LEGACY_PACKAGE_ID)
+        ):
+            raise RemovalError(REASON_PANEL_CHANGED)
+        _require_entry(hass, entry)
+        hass.config_entries.async_update_entry(
+            entry,
+            data={
+                **entry.data,
+                CONF_REMOVAL_TARGET: {
+                    "did": entry.unique_id,
+                    "serial": adb_target.serial,
+                    "model": adb_target.model,
+                    "primary_abi": adb_target.primary_abi,
+                    "android_sdk": adb_target.android_sdk,
+                },
+            },
+        )
     return adb_target, credential.signer
 
 
 async def _async_remove_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    found = await async_app_target(hass, entry)
+    found = await async_app_target(hass, entry, verify_entry=True)
     if found is None:
         return
     observed = await _async_step(found, MoveStep.OBSERVE)
+    _require_entry(hass, entry)
     try:
-        await _client(hass, entry).async_hand_back_home()
+        if found[0].local_shell is not None:
+            await local_adb.async_hand_back_home(hass, entry)
+        else:
+            await HaPaneldClient(
+                async_get_clientsession(hass), found[0].address
+            ).async_hand_back_home()
     except UpdateApprovalRequiredError as err:
         raise RemovalError(REASON_APPROVAL_REQUIRED) from err
     except HandBackRefusedError as err:
         # An app that could not make the vendor's launcher HOME answers
         # without one; the panel's shell still can.
-        if (
+        if err.code == "not-handed" and err.home_target is not None:
+            _require_entry(hass, entry)
+            await _async_step(
+                found, MoveStep.HAND_BACK_HOME, home_target=err.home_target
+            )
+        elif (
             err.code != "not-handed"
             or (await _async_step(found, MoveStep.VENDOR_HOME)).home
             not in vendor_provisioning.VENDOR_HOME_PACKAGES
         ):
+            if err.code == "original-home-missing" and err.launcher is not None:
+                raise RemovalError(
+                    REASON_ORIGINAL_HOME_MISSING, {"launcher": err.launcher}
+                ) from err
             raise RemovalError(
                 _HAND_BACK_REASONS.get(err.code, REASON_HOME_NOT_HANDED)
             ) from err
@@ -157,10 +260,33 @@ async def _async_remove_app(hass: HomeAssistant, entry: ConfigEntry) -> None:
         # An interrupted run may already have handed HOME back and removed the
         # app under one id, which leaves nothing to answer. Only a panel whose
         # HOME is already another launcher goes on without the app.
-        if observed.home is None or observed.home in _NOT_A_LAUNCHER:
+        if (
+            observed.home is None
+            or observed.home in _NOT_A_LAUNCHER
+            # The surviving app owns the original brightness record. HOME alone cannot
+            # prove it was restored; keep the app and its custody until it answers.
+            or observed.shelly_installed
+        ):
             raise RemovalError(REASON_APP_UNREACHABLE) from err
+    _require_entry(hass, entry)
     await _async_restore_vendor_setup(found)
+    _require_entry(hass, entry)
     await _async_restore_display_sizing(found)
+    _require_entry(hass, entry)
+    if found[0].local_shell is not None:
+        try:
+            await local_adb.async_recover(hass, entry)
+            network = await async_app_target(
+                hass, entry, verify_entry=True, force_network=True
+            )
+            if network is None:
+                raise RemovalError(REASON_PANEL_CHANGED)
+            # The surviving route is deliberately detached from the app session.
+            found = network
+            await _async_step(found, MoveStep.OBSERVE)
+        except InstallAdbError as err:
+            raise RemovalError(REASON_ADB_UNREACHABLE) from err
+    _require_entry(hass, entry)
     try:
         removed = await _async_step(found, MoveStep.REMOVE_APP)
     except RemovalError as err:
@@ -216,10 +342,15 @@ def _app_left(observed: MoveObservation) -> bool:
 
 
 async def _async_step(
-    found: tuple[AdbInstallTarget, Any], step: MoveStep
+    found: tuple[AdbInstallTarget, Any],
+    step: MoveStep,
+    *,
+    home_target: str | None = None,
 ) -> MoveObservation:
     target, signer = found
     try:
+        if home_target is not None:
+            return await async_move_step(target, signer, step, home_target=home_target)
         return await async_move_step(target, signer, step)
     except InstallAdbError as err:
         if err.code is InstallAdbErrorCode.AUTHORIZATION_REQUIRED:
@@ -229,11 +360,7 @@ async def _async_step(
         raise RemovalError(REASON_ADB_UNREACHABLE) from err
 
 
-def _client(hass: HomeAssistant, entry: ConfigEntry) -> HaPaneldClient:
-    """The entry's own client, or one at its stored address when not loaded."""
-    client = getattr(getattr(entry, "runtime_data", None), "client", None)
-    if isinstance(client, HaPaneldClient):
-        return client
-    return HaPaneldClient(
-        async_get_clientsession(hass), normalize_address(entry.data[CONF_ADDRESS])
-    )
+def _require_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """A deleted entry withdraws consent before the next panel change."""
+    if hass.config_entries.async_get_entry(entry.entry_id) is not entry:
+        raise RemovalError(REASON_PANEL_CHANGED)

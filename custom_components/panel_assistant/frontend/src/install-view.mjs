@@ -29,6 +29,7 @@ export function installProgress(receiptOrNull) {
 }
 
 const ERRORS = Object.freeze({
+  usb_busy: 'installErrorUsbBusy',
   transaction_busy: 'installErrorBusy',
   job_malformed: 'installErrorStorage',
   job_storage_failed: 'installErrorStorage',

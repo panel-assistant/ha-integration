@@ -1,11 +1,18 @@
 """Shared pytest fixtures for ha-paneld."""
 
 from collections.abc import Generator
+from pathlib import Path
 from shutil import copytree, ignore_patterns
 from unittest.mock import AsyncMock
 
 import pytest
 from pytest_homeassistant_custom_component.common import get_test_config_dir
+
+# Pin the Home Assistant test client whatever order pytest loads its plugins in:
+# pytest-aiohttp's own fixture freezes the router, so views set up later fail.
+from pytest_homeassistant_custom_component.plugins import (  # noqa: F401
+    aiohttp_client,
+)
 
 from custom_components.panel_assistant import (
     browser_panel,
@@ -29,13 +36,16 @@ def hass_config_dir(tmp_path_factory: pytest.TempPathFactory) -> str:
     `.storage` files. Stored state left there by earlier runs is not copied.
     """
     path = tmp_path_factory.mktemp("hass_config")
-    copytree(
-        get_test_config_dir(),
-        path,
-        symlinks=True,
-        dirs_exist_ok=True,
-        ignore=ignore_patterns(".storage"),
-    )
+    # pytest-homeassistant (Home Assistant 2026.11) points this at the project's
+    # own tests/testing_config, which this project does not have.
+    if Path(source := get_test_config_dir()).is_dir():
+        copytree(
+            source,
+            path,
+            symlinks=True,
+            dirs_exist_ok=True,
+            ignore=ignore_patterns(".storage"),
+        )
     return str(path)
 
 
@@ -182,3 +192,32 @@ def _no_saved_foreign_account_unless_served(
             "async_get_configured_ha_url",
             AsyncMock(return_value=None),
         )
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption(
+        "--shard",
+        default=None,
+        help="run one part of the suite, as INDEX/COUNT (1/2 and 2/2 cover every test)",
+    )
+
+
+def pytest_collection_modifyitems(
+    config: pytest.Config, items: list[pytest.Item]
+) -> None:
+    """Keep every COUNT-th test from INDEX, in collection order.
+
+    Taking tests in turn spreads each file and each parametrized test, which
+    is where the slow ones sit, evenly across the parts.
+    """
+    shard = config.getoption("--shard")
+    if not shard:
+        return
+    index, count = (int(part) for part in shard.split("/"))
+    if not 1 <= index <= count:
+        raise pytest.UsageError(f"--shard {shard}: INDEX must be 1 to COUNT")
+    keep = [item for n, item in enumerate(items) if n % count == index - 1]
+    config.hook.pytest_deselected(
+        items=[item for n, item in enumerate(items) if n % count != index - 1]
+    )
+    items[:] = keep

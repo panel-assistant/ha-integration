@@ -3,7 +3,6 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from homeassistant.components.update import async_install as async_core_install
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 
@@ -13,6 +12,14 @@ from custom_components.panel_assistant.client import PanelInstallStatus, UpdateB
 from custom_components.panel_assistant.update_coordinator import PanelUpdateSnapshot
 
 from .test_feed_update import _entity
+
+try:
+    from homeassistant.components.update import async_install as async_core_install
+except ImportError:
+    # Core 2026.11 moved the install service wrapper into update.services.
+    from homeassistant.components.update.services import (
+        _async_install as async_core_install,
+    )
 
 
 @pytest.mark.parametrize("caller", ["core", "entity"])

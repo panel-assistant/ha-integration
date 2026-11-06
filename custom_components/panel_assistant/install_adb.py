@@ -97,7 +97,7 @@ from .app_identity import (
     PACKAGE_ID,
     RELEASE_DEVICE_ADMIN_RECEIVER,
 )
-from .client import PanelAddress
+from .client import HandBackRefusedError, PanelAddress
 from .display_provisioning import (
     DisplayResponseError,
     DisplayResult,
@@ -109,6 +109,7 @@ from .display_provisioning import (
 )
 from .home_chooser import HOME_QUERY as _HOME_QUERY
 from .install_network import is_allowed_install_address
+from .previous_home import transfer_previous_home
 from .release import (
     _MAX_APK_BYTES,
     _SHA256_PATTERN,
@@ -116,6 +117,7 @@ from .release import (
     install_descriptor_valid,
 )
 from .vendor_provisioning import (
+    SHELLY_LAUNCHER,
     UNREAD_SETUP_WARNING,
     VENDOR_HOME_COMMAND,
     ShellySetup,
@@ -184,6 +186,15 @@ class DefiniteCleanupReason(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class AppLaunch:
+    """One launch's outcome and what the HOME claim before it did."""
+
+    outcome: LaunchOutcome
+    #: ``home_chooser.CHOOSER_OUTCOMES``, or None when the grant was unread.
+    home_chooser: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class StagedApk:
     """Exact remote artifact verified after a completed FileSync push."""
 
@@ -211,13 +222,15 @@ def _validate_target(target: AdbInstallTarget) -> None:
         or not isinstance(target.primary_abi, str)
     ):
         raise InstallAdbError(InstallAdbErrorCode.INVALID_REQUEST)
-    try:
-        address = ipaddress.ip_address(target.address.host)
-    except ValueError:
-        raise InstallAdbError(InstallAdbErrorCode.INVALID_REQUEST) from None
+    if target.local_shell is None:
+        try:
+            address = ipaddress.ip_address(target.address.host)
+        except ValueError:
+            raise InstallAdbError(InstallAdbErrorCode.INVALID_REQUEST) from None
+        if not is_allowed_install_address(address):
+            raise InstallAdbError(InstallAdbErrorCode.INVALID_REQUEST)
     if (
-        not is_allowed_install_address(address)
-        or _SERIAL_PATTERN.fullmatch(target.serial) is None
+        _SERIAL_PATTERN.fullmatch(target.serial) is None
         or target.model != target.model.strip()
         or not 1 <= len(target.model) <= 128
         or not target.model.isprintable()
@@ -314,7 +327,7 @@ async def _async_prove_su(
     *,
     admitted: AdbPreflight | None,
     target_package_id: str | None = None,
-) -> None:
+) -> str:
     """Prove delegated root afresh without elevating any mutation command.
 
     ``admitted`` is the preflight this root reading has to agree with, or None
@@ -374,7 +387,7 @@ async def _async_prove_su(
                 expected = admitted.target_installed and owner == target_package_id
                 if values == ["present"] and not expected:
                     raise InstallAdbError(InstallAdbErrorCode.TARGET_NOT_CLEAN)
-        return
+        return prefix
     # No form answering at all means the panel itself is not answering.
     raise InstallAdbError(
         InstallAdbErrorCode.ROOT_STATE_AMBIGUOUS
@@ -1030,8 +1043,13 @@ async def _async_repair_app_permissions(
     target: AdbInstallTarget,
     package_id: str,
     launch_component: str,
-) -> None:
-    """Share observed grant repair between startup and an already-running update."""
+    *,
+    deferred_setup: bool = False,
+) -> str | None:
+    """Repair grants, retaining the caller's authority for HOME acquisition.
+
+    Returns what the HOME claim did (``home_chooser.CHOOSER_OUTCOMES``).
+    """
     nonce = token_hex(16)
     _parse_package_present(
         await _async_shell(
@@ -1064,21 +1082,27 @@ async def _async_repair_app_permissions(
     grant = _parse_permission_grant(
         await _async_shell(
             device,
-            _permission_grant_command(nonce, package_id, launch_component),
+            _permission_grant_command(
+                nonce, package_id, launch_component, deferred_setup=deferred_setup
+            ),
             # Pressing a HOME chooser's Always waits on the panel's UI dump.
             read_timeout=_INSTALL_READ_TIMEOUT_SECONDS,
         ),
         nonce,
         launch_component,
     )
-    if not grant.home:
+    if not grant.home and grant.chooser not in ("deferred", "retained"):
         _LOGGER.warning(
             "The panel did not make %s its home screen (%s). It still runs; "
             "choose it on the panel when Android asks which app to use for Home",
             package_id,
             grant.chooser or "unread",
         )
-    if grant.vendor_setup:
+    if (
+        grant.vendor_setup
+        and grant.chooser != "deferred"
+        and (not deferred_setup or grant.home)
+    ):
         await _async_vendor_setup(device)
     if not grant.granted:
         _LOGGER.warning(
@@ -1093,6 +1117,7 @@ async def _async_repair_app_permissions(
                 for name in grant.missing
             ),
         )
+    return grant.chooser
 
 
 async def _async_vendor_setup(
@@ -1120,7 +1145,7 @@ async def _async_vendor_setup(
 
 async def _async_target_section(
     target: AdbInstallTarget,
-    signer: PythonRSASigner,
+    signer: PythonRSASigner | None,
     command: Callable[[str], str],
     prefix: str,
 ) -> list[str]:
@@ -1128,7 +1153,9 @@ async def _async_target_section(
     _validate_target(target)
     device: AdbDeviceAsync | None = None
     try:
-        async with asyncio.timeout(_LAUNCH_TIMEOUT_SECONDS):
+        async with asyncio.timeout(
+            None if target.local_shell is not None else _LAUNCH_TIMEOUT_SECONDS
+        ):
             device = await _async_connect(target, signer, authorize=False)
             nonce = token_hex(16)
             _parse_identity_root(
@@ -1165,7 +1192,7 @@ async def _async_target_section(
 
 
 async def async_apply_display_sizing(
-    target: AdbInstallTarget, signer: PythonRSASigner, sizing: DisplaySizing
+    target: AdbInstallTarget, signer: PythonRSASigner | None, sizing: DisplaySizing
 ) -> DisplayResult:
     """Apply the profile's recommended display and text size at setup."""
     lines = await _async_target_section(
@@ -1181,7 +1208,7 @@ async def async_apply_display_sizing(
 
 
 async def async_restore_display_sizing(
-    target: AdbInstallTarget, signer: PythonRSASigner
+    target: AdbInstallTarget, signer: PythonRSASigner | None
 ) -> str:
     """Put back the display and text size setup changed, before the app goes.
 
@@ -1251,7 +1278,7 @@ async def async_settle_vendor_display(
 
 
 async def async_restore_vendor_setup(
-    target: AdbInstallTarget, signer: PythonRSASigner
+    target: AdbInstallTarget, signer: PythonRSASigner | None
 ) -> str:
     """Put back the vendor values an install changed, before the app goes.
 
@@ -1303,8 +1330,28 @@ async def async_launch_installed_app(
     descriptor: InstallDescriptor,
     *,
     expected_root_mode: AdbRootMode,
+    previous_home_job_id: str | None = None,
 ) -> LaunchOutcome:
     """Launch the descriptor's one fixed package component exactly once."""
+    launch = await async_start_installed_app(
+        target,
+        signer,
+        descriptor,
+        expected_root_mode=expected_root_mode,
+        previous_home_job_id=previous_home_job_id,
+    )
+    return launch.outcome
+
+
+async def async_start_installed_app(
+    target: AdbInstallTarget,
+    signer: PythonRSASigner,
+    descriptor: InstallDescriptor,
+    *,
+    expected_root_mode: AdbRootMode,
+    previous_home_job_id: str | None = None,
+) -> AppLaunch:
+    """Launch once, reporting what the HOME claim before the start did."""
     _validate_request(target, descriptor)
     _validate_expected_root_mode(expected_root_mode)
     device: AdbDeviceAsync | None = None
@@ -1313,12 +1360,26 @@ async def async_launch_installed_app(
         async with asyncio.timeout(_LAUNCH_TIMEOUT_SECONDS):
             device = await _async_connect(target, signer)
             await _async_require_identity_root(device, target, expected_root_mode)
-            await _async_repair_app_permissions(
+            if previous_home_job_id is not None:
+                remote_apk = _remote_path(previous_home_job_id)
+                nonce = token_hex(16)
+                transferred = await _async_shell(
+                    device,
+                    f"{transfer_previous_home(remote_apk)}; "
+                    f"echo HAPANELD_PREVIOUS_HOME:{nonce}:$?",
+                    read_timeout=_INSTALL_READ_TIMEOUT_SECONDS,
+                )
+                if (
+                    transferred.replace(b"\r\n", b"\n")
+                    != f"HAPANELD_PREVIOUS_HOME:{nonce}:0\n".encode()
+                ):
+                    raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE)
+            home_chooser = await _async_repair_app_permissions(
                 device, target, descriptor.package_id, descriptor.launch_component
             )
             nonce = token_hex(16)
             mutation_started = True
-            return _parse_launch_outcome(
+            outcome = _parse_launch_outcome(
                 await _async_shell(
                     device,
                     _launch_command(
@@ -1329,6 +1390,7 @@ async def async_launch_installed_app(
                 ),
                 nonce,
             )
+            return AppLaunch(outcome, home_chooser)
     except InstallAdbError:
         raise
     except (
@@ -1374,7 +1436,12 @@ async def async_cleanup_staged_apk(
             _parse_cleanup(
                 await _async_shell(
                     device,
-                    _cleanup_command(nonce, remote_path),
+                    _cleanup_command(
+                        nonce,
+                        remote_path,
+                        preserve_previous_home=reason
+                        is DefiniteCleanupReason.INSTALL_SUCCEEDED,
+                    ),
                     read_timeout=_READ_TIMEOUT_SECONDS,
                 ),
                 nonce,
@@ -1403,6 +1470,7 @@ class MoveStep(StrEnum):
     OBSERVE = "OBSERVE"
     REMOVE_APP = "REMOVE_APP"
     VENDOR_HOME = "VENDOR_HOME"
+    HAND_BACK_HOME = "HAND_BACK_HOME"
 
 
 @dataclass(frozen=True, slots=True)
@@ -1416,6 +1484,7 @@ class MoveObservation:
     #: The vendor's own firmware number (``ro.build.display.id``), or None
     #: when the panel reports none a help page could match.
     firmware: str | None = None
+    shelly_installed: bool = False
 
 
 #: The old app's APK that Panel Assistant 0.9.0's move kept on a panel while
@@ -1458,10 +1527,10 @@ _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
         "|android/*|com.android.settings/*) ;; ?*/?*) "
         f"am force-stop {LEGACY_PACKAGE_ID}; {_uninstall(LEGACY_PACKAGE_ID)}; "
         f"rm -f {_LEGACY_COPY}; "
-        f'case "$(pm list packages -u {LEGACY_PACKAGE_ID} 2>/dev/null)" in '
-        f"*package:{LEGACY_PACKAGE_ID}*) ;; *) "
+        f'packages="$(pm list packages -u {LEGACY_PACKAGE_ID} 2>&1)"; '
+        'if [ "$?" = 0 ]; then case "$packages" in "") '
         f"am force-stop {PACKAGE_ID}; {_uninstall(PACKAGE_ID)} ;; "
-        "esac ;; esac",
+        "esac; fi ;; esac",
     ),
     # The vendor's launcher takes HOME from the panel's shell when the app
     # cannot hand it back (vendor_provisioning names the panels).
@@ -1469,20 +1538,43 @@ _MOVE_ACTIONS: dict[MoveStep, tuple[str, ...]] = {
 }
 
 
-def _move_command(nonce: str, step: MoveStep) -> str:
+def _move_command(nonce: str, step: MoveStep, home_target: str | None = None) -> str:
+    actions = _MOVE_ACTIONS.get(step, ())
+    if step is MoveStep.HAND_BACK_HOME:
+        # The app chose this enabled component after clearing HOME ownership.
+        # Re-read the exact component: a different activity in the same package
+        # does not prove that the selected home screen took the role.
+        actions = (f"cmd package set-home-activity {home_target}",)
     quiet = ">/dev/null 2>&1"
     return "; ".join(
         (
             f"echo HAPANELD_MOVE_BEGIN:{nonce}",
-            *(f"{action} {quiet}" for action in _MOVE_ACTIONS[step]),
-            # No pipe into grep: toybox grep on some panels reports an error
-            # on an empty pipe, which would corrupt the frame.
+            *(f"{action} {quiet}" for action in actions),
+            # An empty `pm path` also means PM failed. Require a successful
+            # enumeration and its exact filtered result before accepting absence.
+            # Capture stderr too: some Android versions print service errors
+            # while returning success.
             *(
-                f'case "$(pm path {package} 2>/dev/null)" in '
-                f"package:*) echo installed:{package} ;; esac"
-                for package in (LEGACY_PACKAGE_ID, PACKAGE_ID)
+                f'packages="$(pm list packages {package} 2>&1)"; '
+                'if [ "$?" != 0 ]; then echo observation-failed; '
+                f'else case "$packages" in "package:{package}") '
+                f'echo installed:{package} ;; "") ;; '
+                "*) echo observation-failed ;; esac; fi"
+                for package in (
+                    LEGACY_PACKAGE_ID,
+                    PACKAGE_ID,
+                    SHELLY_LAUNCHER,
+                )
             ),
-            f'echo "home:$({_HOME_QUERY})"',
+            (
+                f'hp_home="$({_HOME_QUERY})"; '
+                'case "${hp_home#*/}" in .*) '
+                'hp_home="${hp_home%/*}/${hp_home%/*}${hp_home#*/}" ;; esac; '
+                f'[ "$hp_home" = "{home_target}" ] || echo observation-failed; '
+                'echo "home:$hp_home"'
+                if step is MoveStep.HAND_BACK_HOME
+                else f'echo "home:$({_HOME_QUERY})"'
+            ),
             'echo "firmware:$(getprop ro.build.display.id 2>/dev/null)"',
             f"echo HAPANELD_MOVE_END:{nonce}:0",
         )
@@ -1503,7 +1595,7 @@ def _parse_move(body: bytes, nonce: str) -> MoveObservation:
     if (
         status_code != 0
         or len(homes) != 1
-        or not installed <= {LEGACY_PACKAGE_ID, PACKAGE_ID}
+        or not installed <= {LEGACY_PACKAGE_ID, PACKAGE_ID, SHELLY_LAUNCHER}
         or len(firmwares) > 1
         or len(homes) + len(installed) + len(firmwares) != len(lines)
     ):
@@ -1511,6 +1603,7 @@ def _parse_move(body: bytes, nonce: str) -> MoveObservation:
     home = homes[0].removeprefix("home:").strip()
     package, slash, _activity = home.partition("/")
     return MoveObservation(
+        shelly_installed=SHELLY_LAUNCHER in installed,
         legacy_installed=LEGACY_PACKAGE_ID in installed,
         successor_installed=PACKAGE_ID in installed,
         # The system chooser and an empty answer are not a HOME.
@@ -1526,14 +1619,26 @@ def _firmware(value: str) -> str | None:
 
 
 async def async_move_step(
-    target: AdbInstallTarget, signer: PythonRSASigner, step: MoveStep
+    target: AdbInstallTarget,
+    signer: PythonRSASigner | None,
+    step: MoveStep,
+    *,
+    home_target: str | None = None,
 ) -> MoveObservation:
     """Run one removal step on the pinned panel and observe its result."""
     _validate_target(target)
+    if step is MoveStep.HAND_BACK_HOME:
+        # Validate again at the shell boundary, including callers other than removal.
+        selected = HandBackRefusedError.from_not_handed({"home_target": home_target})
+        if selected.home_target is None:
+            raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE)
+        home_target = selected.home_target
     device: AdbDeviceAsync | None = None
     mutation_started = False
     try:
-        async with asyncio.timeout(_INSTALL_TIMEOUT_SECONDS):
+        async with asyncio.timeout(
+            None if target.local_shell is not None else _INSTALL_TIMEOUT_SECONDS
+        ):
             device = await _async_connect(target, signer)
             # Every connection proves the device at the address is the one the
             # removal started on before any command can change it.
@@ -1552,7 +1657,7 @@ async def async_move_step(
             return _parse_move(
                 await _async_shell(
                     device,
-                    _move_command(nonce, step),
+                    _move_command(nonce, step, home_target),
                     read_timeout=_INSTALL_READ_TIMEOUT_SECONDS,
                     transport_timeout=_INSTALL_TIMEOUT_SECONDS,
                 ),

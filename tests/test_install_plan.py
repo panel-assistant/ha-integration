@@ -376,17 +376,6 @@ def test_hash_is_deterministic_and_release_url_is_irrelevant() -> None:
     assert first == second
 
 
-def test_plan_delegates_exact_validated_inputs_to_job_digest_authority() -> None:
-    with patch.object(
-        install_plan,
-        "install_plan_sha256",
-        wraps=install_plan.install_plan_sha256,
-    ) as digest:
-        plan = build_install_plan(pinned_target(), probe(), release(), CREDENTIAL_ID)
-
-    digest.assert_called_once_with(plan.target, plan.artifact, CREDENTIAL_ID)
-
-
 def test_job_digest_failure_is_mapped_without_detail() -> None:
     with (
         patch.object(

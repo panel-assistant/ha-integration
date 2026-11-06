@@ -63,7 +63,9 @@ from .removed_panels import (
     async_remember_removed_panel,
 )
 from .repairs_microphone import async_delete_microphone_issue
+from .repairs_removal import async_dismiss_removal_notification
 from .repairs_restart import async_setup_restart_check
+from .repairs_restore import async_reconcile_restore_issue
 from .repairs_upgrade import (
     async_evaluate_app_too_old,
     async_evaluate_old_app,
@@ -120,6 +122,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     await async_setup_connection_info(hass)
     await async_setup_lifecycle(hass)
     await async_setup_voice_stream(hass)
+    from .panel_logs import async_setup_panel_logs
+
+    await async_setup_panel_logs(hass)
     async_setup_transport(hass)
     async_setup_voice(hass)
     await async_setup_voice_commands(hass)
@@ -239,7 +244,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
             translation_placeholders={"panel": panel_display_name(hass, entry)},
         )
     ir.async_delete_issue(hass, DOMAIN, needs_090_issue_id(entry.entry_id))
-    update_coordinator = PanelUpdateCoordinator(hass, client)
+    update_coordinator = PanelUpdateCoordinator(hass, client, entry.entry_id)
     await update_coordinator.async_config_entry_first_refresh()
 
     if coordinator.data is not None:
@@ -307,6 +312,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     clear_foreign_ha_warning()
     entry.async_on_unload(coordinator.async_add_listener(clear_foreign_ha_warning))
     entry.async_on_unload(lambda: async_clear_foreign_ha_issue(hass, entry.entry_id))
+
+    def reconcile_restore_issue() -> None:
+        async_reconcile_restore_issue(hass, entry, update_coordinator.restore_snapshot)
+
+    reconcile_restore_issue()
+    entry.async_on_unload(
+        update_coordinator.async_add_listener(reconcile_restore_issue)
+    )
     await hass.config_entries.async_forward_entry_setups(entry, platforms)
     if satellite_known(hass, entry):
         await async_load_voice(hass, entry, platforms)
@@ -359,6 +372,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) ->
     """
     await async_delete_entry_issues(hass, entry.entry_id)
     async_clear_foreign_ha_issue(hass, entry.entry_id)
+    async_dismiss_removal_notification(hass, entry.entry_id)
     async_delete_merged_identity_issue(hass, entry)
     async_get_sessions(hass).forget_entry(entry.entry_id)
     # The panel's Sendspin key goes with its entry; a re-added panel gets a new one.

@@ -1,6 +1,6 @@
 import { Adb, AdbDaemonTransport } from '@yume-chan/adb';
 import AdbWebCredentialStore from '@yume-chan/adb-credential-web';
-import { AdbDaemonWebUsbDeviceManager } from '@yume-chan/adb-daemon-webusb';
+import { AdbDaemonWebUsbDevice, AdbDaemonWebUsbDeviceManager } from '@yume-chan/adb-daemon-webusb';
 import { boundedUsb } from './usb-bounds.mjs';
 import { inspectSessionTarget } from './session-target.mjs';
 import { openJobStore } from './job-store.mjs';
@@ -14,6 +14,7 @@ import { ensureNetworkAdb, panelAssistantKeyAuthenticator } from './panel-assist
 import { readSetupUrl } from './panel-address.mjs';
 import { renderJourney } from './wizard-look.mjs';
 import { newNonce } from './shared.mjs';
+import { provisionUsbWebView } from './webview.mjs';
 
 // A guided wizard for people who have never used a terminal. One step is on
 // screen at a time; the single Install press is the consent for everything
@@ -52,7 +53,7 @@ const ALLOW_PROMPT_MS = 1500;
 const manager = window.isSecureContext && navigator.usb
   ? new AdbDaemonWebUsbDeviceManager(boundedUsb(navigator.usb)) : undefined;
 const supported = Boolean(manager && navigator.locks && globalThis.indexedDB);
-let release, raw, adb, sessionAdb, store, controller;
+let release, raw, adb, sessionAdb, store, controller, transactionPorts;
 let handoff, handoffSettings, incomingAuthenticate, panelAssistantKey;
 let anotherHomeAssistant = false;
 let busy = false, quarantined = false;
@@ -154,11 +155,15 @@ function guardedAdb(value) {
 // arrives, so every other pending step then reports session_closed. Keep the
 // first real code: that is the one that explains what happened.
 let firstFailure;
+function failureCode(error) {
+  return error instanceof AdbDaemonWebUsbDevice.DeviceBusyError
+    ? 'usb_busy' : error?.code ?? error?.message;
+}
 function noteFailure(error) {
-  const code = error?.code ?? error?.message;
+  const code = failureCode(error);
   if (!firstFailure && code && code !== 'session_closed') {
     firstFailure = code;
-    support('cause', String(code));
+    support('cause', String(error?.code ?? error?.message ?? error));
     // Which check refused, when the step names it (the permission parsers do).
     if (typeof error.detail === 'string') support('failedCheck', error.detail);
     message('error-text', errorView(code), 'errors');
@@ -167,7 +172,7 @@ function noteFailure(error) {
 }
 function fail(error) {
   support('error', String(error?.code ?? error?.message ?? error));
-  quarantine(errorView(firstFailure ?? error?.code));
+  quarantine(errorView(firstFailure ?? failureCode(error)));
 }
 
 function releaseReady(verified) {
@@ -245,6 +250,7 @@ connect.addEventListener('click', async () => {
           }
         },
       });
+      transactionPorts = ports;
       controller = createInstallController({ store, ports, ensureCurrent,
         onReceipt(value) {
           receipt = value;
@@ -295,6 +301,12 @@ install.addEventListener('click', async () => {
   try { await installAll(); } catch (error) { fail(error); } finally { busy = false; }
 });
 
+// The line shown once the engine step ends: "updated" only for a confirmed
+// install, otherwise "left as it is"; a failure has its own Repair.
+function webViewOutcomeKey(outcome) {
+  return outcome === 'installed' ? 'stepWebViewUpdated' : 'stepWebViewKept';
+}
+
 // The controller runs the whole install, permissions included, under the one
 // consent; this screen only shows its progress and then hands over to the
 // panel's own setup.
@@ -307,8 +319,14 @@ async function installAll() {
   ensureCurrent();
   support('permissions', installed.permissions);
 
+  progress('stepWebView', 95);
+  const webView = await provisionUsbWebView(sessionAdb, `pa-usb-${installed.receipt.id}`,
+    { ensureCurrent, quarantine, port: transactionPorts.appPort() });
+  support('webview', webView);
+  progress(webViewOutcomeKey(webView), 97);
+
   progress('stepOpening', 100);
-  const url = await readSetupUrl(sessionAdb, newNonce);
+  const url = await readSetupUrl(sessionAdb, newNonce, transactionPorts.appPort());
   support('setupAddress', url, url ? null : { messageKey: 'setupMissing', group: 'support' });
   let display = null;
   await handOverThenOpen(url, {

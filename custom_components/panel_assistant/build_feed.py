@@ -35,6 +35,7 @@ from .release import (
     InstallDescriptor,
     ReleaseArtifact,
     ReleaseResolutionError,
+    ReleaseTooLargeError,
     _async_fetch_bounded,
     _bounded_integer,
     _verify_detached_signature,
@@ -80,6 +81,24 @@ _APK_READ_SECONDS = 30.0
 
 class BuildFeedError(Exception):
     """Raised when a build feed or one of its APKs cannot be authenticated."""
+
+
+class BuildFeedTooLargeError(BuildFeedError):
+    """Raised when the feed is over the read limit; the message names both."""
+
+    def __init__(self, size: int | None, limit: int = _MAX_FEED_BYTES) -> None:
+        if size is None:
+            message = (
+                f"The build feed is too large: more than {limit} bytes (the limit)"
+            )
+        else:
+            message = (
+                f"The build feed is too large: {size} bytes, "
+                f"over the {limit}-byte limit"
+            )
+        super().__init__(message)
+        self.size = size
+        self.limit = limit
 
 
 class BuildDownloadError(BuildFeedError):
@@ -294,7 +313,7 @@ def _parse_build(entry: Any, feed_url: URL) -> FeedBuild | None:
 def parse_build_feed(body: bytes, signature: bytes, feed_url: URL) -> BuildFeed:
     """Authenticate the exact feed bytes, then parse its closed canonical shape."""
     if len(body) > _MAX_FEED_BYTES:
-        raise BuildFeedError
+        raise BuildFeedTooLargeError(len(body))
     try:
         _verify_detached_signature(body, signature)
     except ReleaseResolutionError as err:
@@ -384,6 +403,11 @@ async def async_fetch_build_feed(session: ClientSession, feed_url: URL) -> Build
             allow_release_redirects=False,
             headers=_FEED_HEADERS,
         )
+    except ReleaseTooLargeError as err:
+        raise BuildFeedTooLargeError(err.size, err.limit) from err
+    except ReleaseResolutionError as err:
+        raise BuildFeedError from err
+    try:
         signature = await _async_fetch_bounded(
             session,
             signature_url,

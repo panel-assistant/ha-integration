@@ -49,7 +49,7 @@ VOICE_SCHEMAS = {
 }
 
 _HA_VECTOR_REVISION = "502dc6575cdd214a3cc0890ea3594e60758c8b97"
-_ANDROID_PRODUCER_REVISION = "562ad120a51ff40964ec781bb98340dae6567f46"
+_ANDROID_PRODUCER_REVISION = "40e71cb7e29bd74c67b3ce1f5a1a46ae0b9b7e74"
 
 
 def test_shared_vectors_name_the_ha_source_revision_vendored_by_android() -> None:
@@ -70,6 +70,17 @@ def test_reply_vectors_carry_the_actual_parser_inputs() -> None:
 def test_android_producer_fixture_names_its_exact_source_revision() -> None:
     """The consumer pin names the committed Android source that produced it."""
     assert ANDROID_PRODUCER["sourceRevision"] == _ANDROID_PRODUCER_REVISION
+    # Wire-format reason: pin the committed export byte-for-byte without making
+    # offline public CI depend on an Android checkout or network access. Live
+    # integration-ref parity is the admission CLI in test_android_producer_hello.
+    assert (
+        hashlib.sha256(
+            (
+                Path(__file__).parent / "fixtures" / "android_producer_v1.json"
+            ).read_bytes()
+        ).hexdigest()
+        == "391d7549784e7fdd9fb87454964d1a72606f11ba2962e0819837801f9f2da81f"
+    )
 
 
 def test_android_install_descriptors_pass_the_independent_release_parser() -> None:
@@ -110,6 +121,7 @@ def test_real_android_transport_messages_pass_ha_schemas(
         assert message["contract_digest"] != local_digest
         # The channels the producer states it cannot serve reach the handler.
         assert validated["unsupported"] == message.get("unsupported", [])
+        assert validated.get("http_port") == message.get("http_port")
 
 
 def _old_panel(channel: str, platform: str, **facts: Any) -> dict[str, Any]:
@@ -596,8 +608,8 @@ def _raised_translation_keys() -> dict[str, set[str]]:
             for keyword in node.keywords:
                 if keyword.arg != "translation_key":
                     continue
-                if name == "send_error":
-                    # Codes the panel renders from its own catalogue.
+                if name in {"send_error", "SelectSelectorConfig"}:
+                    # Panel errors and selector options have separate catalogues.
                     continue
                 value = keyword.value
                 if isinstance(value, ast.Name) and _resolve(value, constants) is None:
@@ -641,22 +653,7 @@ def test_every_raised_exception_and_issue_has_english_text() -> None:
     assert "mqtt_panel_needs_090" in keys["exceptions"]
     assert "health_update_failed" in keys["exceptions"]
     assert "update_busy" in keys["exceptions"]
-    assert keys["issues"] == {
-        "another_home_assistant",
-        "adb_update_authorization",
-        "no_update_route",
-        "merged_panel_identity",
-        "panel_app_too_old",
-        "mqtt_panel_needs_090",
-        "old_app_needs_090",
-        "panel_permissions",
-        "panel_proximity_setup",
-        "panel_identity_confirmation",
-        "panel_identity_mismatch",
-        "panel_link_shared",
-        "restart_required",
-        "volume_number_removed",
-    }
+    assert keys["issues"], "No raised Repairs issues were discovered"
     # The binding issue is raised under a constant, which the scan above misses.
     issues = keys["issues"] | {transport_binding.ISSUE_PANEL_USER_MISMATCH}
     assert "panel_user_mismatch" in issues

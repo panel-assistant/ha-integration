@@ -28,6 +28,7 @@
     "mqtt_panel_needs_090": "/home-assistant/repairs/#mqtt-panel-needs-090",
     "panel_permissions": "/home-assistant/repairs/#panel-permissions",
     "panel_proximity_setup": "/home-assistant/repairs/#panel-proximity-setup",
+    "panel_restore_interrupted": "/home-assistant/repairs/#panel-restore-interrupted",
     "voice_microphone_silent": "/home-assistant/repairs/#voice-microphone-silent",
     "voice_microphone_no_audio": "/home-assistant/repairs/#voice-microphone-no-audio",
     "voice_microphone_no_audio_detail": "/home-assistant/repairs/#voice-microphone-no-audio-detail",
@@ -57,6 +58,7 @@
     "panel_identity_confirmation": "/home-assistant/repairs/#panel-identity-confirmation",
     "installer_failure_adb_authorization": "/home-assistant/repairs/#installer-failure-adb-authorization",
     "adb_update_authorization": "/home-assistant/repairs/#adb-update-authorization",
-    "another_home_assistant": "/home-assistant/repairs/#another-home-assistant"
+    "another_home_assistant": "/home-assistant/repairs/#another-home-assistant",
+    "dashboard_unfiltered": "/home-assistant/repairs/#dashboard-unfiltered"
   }
 }

@@ -7,6 +7,7 @@ import pytest
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers.data_entry_flow import FlowManagerIndexView
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.adb_credentials import (
@@ -20,13 +21,13 @@ from custom_components.panel_assistant.client import (
 )
 from custom_components.panel_assistant.config_flow import (
     HaPaneldConfigFlow,
-    _install_candidate_placeholders,
 )
 from custom_components.panel_assistant.const import (
     DOMAIN,
     INSTALL_RECOVERY_PLACEHOLDERS,
     help_url,
 )
+from custom_components.panel_assistant.install_jobs import async_get_install_job_manager
 from custom_components.panel_assistant.install_network import (
     InstallNetworkError,
     InstallNetworkErrorCode,
@@ -83,6 +84,7 @@ async def test_install_rejects_invalid_address_before_network_calls(
         **INSTALL_RECOVERY_PLACEHOLDERS,
         "panel_access_url": help_url("panel-access"),
         "panel_help_url": help_url("panel-unreachable"),
+        "old_app_help_url": help_url("repair", issue="old_app_needs_090"),
     }
     health_mock.assert_not_awaited()
     probe_mock.assert_not_awaited()
@@ -199,8 +201,8 @@ async def test_install_existing_panel_requires_confirmation(
     assert result["title"] == "alpha"
     assert result["data"] == {CONF_ADDRESS: "panel.local"}
     assert result["result"].unique_id is None
-    # Entry setup performs the third health refresh after the two flow checks.
-    assert health_mock.await_count == 3
+    # Entry setup checks health and operation ownership after the two flow checks.
+    assert health_mock.await_count == 4
 
 
 async def test_install_existing_panel_rechecks_health_before_create(
@@ -337,18 +339,38 @@ async def test_connect_found_failure_returns_to_address_form_and_can_retry(
     assert result["data"] == {CONF_ADDRESS: "panel.local"}
 
 
-@pytest.mark.parametrize("healthy", [True, False], ids=["healthy", "unreachable"])
-async def test_install_rejects_an_http_port_as_an_adb_port(
-    hass: HomeAssistant, install_network_pin: SimpleNamespace, healthy: bool
+@pytest.mark.parametrize(
+    ("address", "port"),
+    [("panel.local", 8888), ("panel.local:17242", 17242)],
+    ids=["default", "custom"],
+)
+@pytest.mark.parametrize(
+    "health",
+    [HEALTH, CannotConnectError, InvalidResponseError],
+    ids=["healthy", "unreachable", "invalid"],
+)
+async def test_install_requires_a_verified_port_or_host_only_first_contact(
+    hass: HomeAssistant,
+    install_network_pin: SimpleNamespace,
+    address: str,
+    port: int,
+    health: object,
 ) -> None:
-    """A non-standard port is connect-only: health alone, never pin, job or ADB."""
+    """Never install against an unverified custom listener the app cannot honor."""
+    healthy = health is HEALTH
     health_mock = (
-        AsyncMock(return_value=HEALTH)
-        if healthy
-        else AsyncMock(side_effect=CannotConnectError)
+        AsyncMock(return_value=health) if healthy else AsyncMock(side_effect=health)
     )
-    probe_mock = AsyncMock()
-    manager_mock = AsyncMock()
+    probe_mock = AsyncMock(
+        return_value=_probe(
+            "install_candidate",
+            model="WF1589T",
+            serial="serial-123",
+            primary_abi="arm64-v8a",
+            android_sdk=31,
+        )
+    )
+    pinned = "192.168.1.23" if port == 8888 else f"192.168.1.23:{port}"
     with (
         patch(
             "custom_components.panel_assistant.config_flow.HaPaneldClient"
@@ -357,10 +379,6 @@ async def test_install_rejects_an_http_port_as_an_adb_port(
             "custom_components.panel_assistant.config_flow.async_probe_install_target",
             probe_mock,
         ),
-        patch(
-            "custom_components.panel_assistant.config_flow.async_get_install_job_manager",
-            manager_mock,
-        ),
     ):
         client_class.return_value.async_get_health = health_mock
         client_class.return_value.async_get_setup_state = AsyncMock(
@@ -368,24 +386,34 @@ async def test_install_rejects_an_http_port_as_an_adb_port(
         )
         form = await _start_step(hass, "add_panel")
         result = await hass.config_entries.flow.async_configure(
-            form["flow_id"], {CONF_ADDRESS: "panel.local:5555"}
+            form["flow_id"], {CONF_ADDRESS: address}
         )
 
     if healthy:
         assert result["type"] is FlowResultType.MENU
         assert result["step_id"] == "found_panel"
         assert result["description_placeholders"] == {
-            "address": "panel.local:5555",
+            "address": address,
             "version": "0.9.0",
         }
+        probe_mock.assert_not_awaited()
+    elif port == 8888:
+        assert result.get("errors") in (None, {})
+        assert result["step_id"] == "choose_version"
+        probe_mock.assert_awaited_once()
+        assert probe_mock.await_args.args[0].stored_value == pinned
+        assert len(probe_mock.await_args.args) == 1
     else:
+        assert result["type"] is FlowResultType.FORM
         assert result["step_id"] == "add_panel"
-        assert result["errors"] == {"base": "cannot_connect"}
+        assert result["errors"] == {"base": "invalid_install_address"}
+        probe_mock.assert_not_awaited()
     health_mock.assert_awaited_once()
-    assert client_class.call_args.args[1].stored_value == "panel.local:5555"
-    install_network_pin.pin.assert_not_awaited()
-    manager_mock.assert_not_awaited()
-    probe_mock.assert_not_awaited()
+    assert client_class.call_args.args[1].stored_value == pinned
+    install_network_pin.pin.assert_awaited_once()
+    manager = await async_get_install_job_manager(hass)
+    assert await manager.async_list() == ()
+    assert not hass.config_entries.async_entries(DOMAIN)
 
 
 async def test_install_existing_duplicate_address_is_rejected(
@@ -479,6 +507,7 @@ async def test_install_candidate_readiness_is_non_mutating_until_confirmation(
             {"tag": "v0.9.8-rc1", "prerelease": True},
             {"tag": RELEASE.tag, "prerelease": False},
         ]
+    install_release_catalog.return_value[0]["name"] = "Panel Assistant 0.9.7 (stable)"
     with (
         patch(
             "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
@@ -499,6 +528,19 @@ async def test_install_candidate_readiness_is_non_mutating_until_confirmation(
         )
         assert choose["step_id"] == "choose_version"
         release_mock.assert_not_awaited()
+        fields = FlowManagerIndexView(hass.config_entries.flow)._prepare_result_json(
+            choose
+        )["data_schema"]
+        release_field = next(
+            field for field in fields if field["name"] == "release_candidate"
+        )
+        assert release_field["default"] == "stable"
+        assert [
+            option["label"] for option in release_field["selector"]["select"]["options"]
+        ] == [
+            release.get("name", release["tag"])
+            for release in install_release_catalog.return_value
+        ]
         # An omitted choice takes the recommended PA-channel release.
         confirm = await hass.config_entries.flow.async_configure(
             choose["flow_id"], choice
@@ -751,10 +793,10 @@ async def test_install_authorization_revalidates_pin_before_loading_key(
         ),
     ],
 )
-def test_install_confirmation_device_facts_are_literal(
-    model: str, display: str
+async def test_install_confirmation_device_facts_are_literal(
+    hass: HomeAssistant, model: str, display: str
 ) -> None:
-    """Escape only presentation, including entities and Markdown metacharacters."""
+    """The confirmation shown to the owner escapes device-provided facts."""
     probe = _probe(
         "install_candidate",
         model=model,
@@ -762,13 +804,39 @@ def test_install_confirmation_device_facts_are_literal(
         primary_abi="arm64-v8a",
         android_sdk=31,
     )
-    assert _install_candidate_placeholders(probe) == {
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+            AsyncMock(side_effect=CannotConnectError),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_probe_install_target",
+            AsyncMock(return_value=probe),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_resolve_install_choice",
+            AsyncMock(return_value=RELEASE),
+        ),
+    ):
+        form = await _start_step(hass, "add_panel")
+        choose = await hass.config_entries.flow.async_configure(
+            form["flow_id"], {CONF_ADDRESS: "panel.local"}
+        )
+        confirm = await _choose_version(hass, choose)
+
+    assert confirm["type"] is FlowResultType.FORM
+    assert confirm["step_id"] == "confirm_install_candidate"
+    assert confirm["description_placeholders"] == {
+        **INSTALL_RECOVERY_PLACEHOLDERS,
+        "address": "panel.local",
         "model": display,
         "serial": "serial&#95;123",
         "abi": "arm64-v8a",
         "sdk": "31",
+        "version": "0.9.7",
+        "tag": "v0.9.7",
+        "sha256": "a" * 64,
     }
-    assert probe.model == model and probe.serial == "serial_123"
 
 
 async def test_install_authorization_credential_storage_error_is_actionable(

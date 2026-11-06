@@ -39,6 +39,7 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
         <fieldset id="release" aria-describedby="catalog-status"><legend id="release-label" data-message="release"></legend><select id="release-choices" aria-labelledby="release-label"></select></fieldset></details>
         <p id="catalog-status" role="status" aria-live="polite"></p>
         <button id="retry" class="pbtn wiz-secondary" data-message="retry"></button>
+        <p id="selected-release" role="status" aria-live="polite"><span id="selected-release-label"></span>: <strong id="selected-release-version"></strong></p>
         <button id="start" class="pbtn primary wiz-primary" data-message="start"></button>
         <p id="status" role="status" aria-live="polite"></p>
         <button id="cancel" class="pbtn wiz-secondary" data-message="cancel"></button>
@@ -128,6 +129,10 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
     const selected = selection === '' ? this.#releases[0] : this.#releases.find(release => release.tag === selection);
     // Finished: nothing is left on this page, so it offers no second install.
     const installed = this.#status === 'installed';
+    const summary = root.querySelector('#selected-release');
+    summary.hidden = installed || !allowed || !configured || !selected;
+    root.querySelector('#selected-release-label').textContent = selection === '' ? this.#messages.choose : this.#messages.release;
+    root.querySelector('#selected-release-version').textContent = selected ? selected.name ?? selected.tag.replace(/^v/, '') : '';
     this.shadowRoot.querySelector('#start').hidden = installed;
     this.shadowRoot.querySelector('#versions').hidden = installed;
     this.shadowRoot.querySelector('#start').disabled = !allowed || !configured || Boolean(this.#transfer) || !selected;

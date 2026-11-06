@@ -1,5 +1,9 @@
 {
   "title": "Panel Assistant",
+  "common": {
+    "remove_from_panel_notification_title": "Remover o Panel Assistant de {panel}",
+    "remove_from_panel_notification_message": "Para remover o Panel Assistant de {panel}, abra [Reparos]({repairs_url}) e confirme lá. Nada foi alterado no painel ainda."
+  },
   "config": {
     "flow_title": "{name}",
     "step": {
@@ -56,7 +60,7 @@
       },
       "panel_setup": {
         "title": "Concluir a configuração do painel",
-        "description": "Conclua o assistente de configuração na janela que foi aberta. O Home Assistant conecta o painel assim que a configuração for concluída."
+        "description": "Conclua a [página de configuração]({setup_url}) do painel e, em seguida, selecione Enviar para conectar o painel ao Home Assistant."
       },
       "choose_version": {
         "title": "Escolher uma versão",
@@ -85,6 +89,14 @@
         "title": "Instalar Panel Assistant {version}?",
         "description": "Apenas para testes: Panel Assistant {version} é uma versão candidata, não uma versão estável, e pode conter erros.\n\nTudo pronto para instalar no painel, no endereço {address}.\n\nSeus outros aplicativos não serão alterados."
       },
+      "confirm_reinstall_candidate": {
+        "title": "Instalar Panel Assistant {version}?",
+        "description": "Tudo pronto para instalar no painel em {address}.\n\nSeus outros aplicativos não são alterados.\n\nEste painel volta a se vincular a {entry_title} e mantém suas entidades e seu histórico."
+      },
+      "confirm_reinstall_rc": {
+        "title": "Instalar Panel Assistant {version}?",
+        "description": "Apenas para testes: o Panel Assistant {version} é uma versão candidata, não uma versão estável, e pode conter erros.\n\nTudo pronto para instalar no painel em {address}.\n\nSeus outros aplicativos não são alterados.\n\nEste painel volta a se vincular a {entry_title} e mantém suas entidades e seu histórico."
+      },
       "release_preview_only": {
         "title": "A versão não pode ser instalada automaticamente",
         "description": "O painel {address} atende aos requisitos para uma inspeção adicional, e a versão {version} ({tag}, SHA-256 {sha256}) foi autenticada. Esta versão não tem um descritor de instalação assinado, portanto o Home Assistant não criará uma credencial ADB, não baixará o APK nem alterará o painel. Selecione Enviar para escolher outra versão."
@@ -96,10 +108,12 @@
     },
     "progress": {
       "authorize_adb": "Olhe a tela do painel em {address}: marque **Sempre permitir neste computador** e toque em **Permitir**. O Android pode descrever o Home Assistant como um computador.\n\nO processo continua sozinho quando o painel permitir.",
-      "installing": "Instalando Panel Assistant em {address}. Mantenha esta caixa de diálogo aberta; a operação termina sozinha.\n\nSe você fechar a caixa, a instalação continuará. Adicione o mesmo endereço novamente para concluir."
+      "installing": "Instalando Panel Assistant em {address}. Mantenha esta caixa de diálogo aberta; a operação termina sozinha.\n\nSe você fechar a caixa, a instalação continuará. Adicione o mesmo endereço novamente para concluir.",
+      "updating_webview": "Atualizando o mecanismo do navegador do painel em {address}…"
     },
     "error": {
-      "old_app_installed": "Este painel ainda executa o aplicativo ha-paneld antigo. O Panel Assistant 1.0 não consegue migrá-lo para o novo aplicativo e não instala nada ao lado dele. Instale primeiro o Panel Assistant 0.9.0 (no HACS abra Panel Assistant, escolha Redownload e selecione a versão 0.9.0), adicione o painel e migre-o com o reparo dele, depois instale 1.0.0.",
+      "panel_setup_not_finished": "O painel ainda não concluiu sua configuração. Conclua a página de configuração e, em seguida, selecione Enviar novamente.",
+      "old_app_installed": "Este painel ainda executa o aplicativo antigo ha-paneld. O Panel Assistant 1.0 não pode migrá-lo para o novo aplicativo e não instala nada ao lado dele. Siga as [etapas de recuperação segura]({old_app_help_url}) para concluir a migração com o Panel Assistant 0.9.0. Se algum painel já executa o aplicativo 1.0, ou se você não tem um backup anterior à atualização, peça ajuda antes de mudar de versão.",
       "cannot_connect": "Não foi possível conectar-se a um endpoint válido de verificação de funcionamento do Panel Assistant.",
       "invalid_address": "Informe um nome de host ou endereço IP sem esquema de URL nem caminho.",
       "invalid_install_address": "Digite apenas o nome de host ou o endereço IP do painel.",
@@ -130,10 +144,10 @@
       "release_selection_required": "Escolha uma versão da lista."
     },
     "abort": {
-      "old_app_installed": "Este painel ainda executa o aplicativo ha-paneld antigo. O Panel Assistant 1.0 não consegue migrá-lo para o novo aplicativo e não instala nada ao lado dele. Instale primeiro o Panel Assistant 0.9.0 (no HACS abra Panel Assistant, escolha Redownload e selecione a versão 0.9.0), adicione o painel e migre-o com o reparo dele, depois instale 1.0.0.",
+      "old_app_installed": "Este painel ainda executa o aplicativo antigo ha-paneld. O Panel Assistant 1.0 não pode migrá-lo para o novo aplicativo e não instala nada ao lado dele. Siga as [etapas de recuperação segura]({old_app_help_url}) para concluir a migração com o Panel Assistant 0.9.0. Se algum painel já executa o aplicativo 1.0, ou se você não tem um backup anterior à atualização, peça ajuda antes de mudar de versão.",
       "already_configured": "Este painel já está configurado.",
       "reinstall_successful": "O aplicativo foi instalado novamente. Este painel mantém seu histórico e suas configurações no Home Assistant.",
-      "usb_installed": "O Panel Assistant está instalado e o painel foi adicionado ao Home Assistant. Conclua a configuração do painel na janela do instalador.",
+      "usb_installed": "O Panel Assistant está instalado e o painel foi adicionado ao Home Assistant. Termine de configurar o painel na janela que você abriu para a instalação.",
       "reinstall_identity_mismatch": "O aplicativo está instalado, mas não foi possível vinculá-lo ao painel mantido. Seu histórico e suas configurações no Home Assistant foram mantidos. Verifique o painel no Home Assistant antes de tentar novamente.",
       "not_panel": "Não é um painel no qual o Panel Assistant possa instalar o aplicativo.",
       "invalid_discovery": "Não foi comprovado que o painel descoberto é a mesma instalação do Panel Assistant em bom funcionamento. Nenhuma entrada do Home Assistant nem configuração do painel foi alterada.",
@@ -250,6 +264,9 @@
       },
       "back": {
         "name": "Voltar"
+      },
+      "remove_from_panel": {
+        "name": "Remover deste painel"
       }
     },
     "event": {
@@ -824,6 +841,9 @@
     "update_not_complete": {
       "message": "A atualização do painel não foi concluída"
     },
+    "update_webview_unfinished": {
+      "message": "O aplicativo está instalado, mas a atualização do WebView não foi concluída. Abra o Reparo deste painel para tentar a etapa do WebView novamente."
+    },
     "panel_backup_failed": {
       "message": "Não foi possível fazer backup do painel, portanto nada foi instalado"
     },
@@ -924,6 +944,10 @@
           "entry_removed": "Este painel não está mais configurado no Home Assistant.\n\nPara corrigir:\n1. [Abra os dispositivos do Panel Assistant](/config/integrations/integration/panel_assistant) se quiser adicioná-lo novamente.\n2. Caso contrário, feche esta caixa de diálogo.\n\n[Saiba mais]({learn_more_url})"
         }
       }
+    },
+    "panel_restore_interrupted": {
+      "title": "{panel} não terminou de restaurar um backup.",
+      "description": "O app do painel em {panel} parou no meio da restauração de um backup, então algumas configurações ou estado do painel do backup podem estar faltando.\n\nPara corrigir:\n1. Abra a [aba Instalar]({install_url}) na página do painel na barra lateral do Panel Assistant.\n2. Restaure o mesmo backup novamente.\n\n[Saiba mais]({learn_more_url})"
     },
     "panel_proximity_setup": {
       "title": "Configurar a proximidade em {panel}.",
@@ -1044,6 +1068,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_panel_busy": "Este painel ainda está ocupado com uma atualização ou outra tarefa. Aguarde a conclusão e tente novamente. Se uma atualização for bem-sucedida, este reparo se fecha sozinho.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         }
       }
@@ -1086,6 +1111,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_panel_busy": "Este painel ainda está ocupado com uma atualização ou outra tarefa. Aguarde a conclusão e tente novamente. Se uma atualização for bem-sucedida, este reparo se fecha sozinho.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         }
       }
@@ -1128,6 +1154,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_panel_busy": "Este painel ainda está ocupado com uma atualização ou outra tarefa. Aguarde a conclusão e tente novamente. Se uma atualização for bem-sucedida, este reparo se fecha sozinho.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         }
       }
@@ -1170,6 +1197,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_panel_busy": "Este painel ainda está ocupado com uma atualização ou outra tarefa. Aguarde a conclusão e tente novamente. Se uma atualização for bem-sucedida, este reparo se fecha sozinho.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         }
       }
@@ -1212,6 +1240,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_panel_busy": "Este painel ainda está ocupado com uma atualização ou outra tarefa. Aguarde a conclusão e tente novamente. Se uma atualização for bem-sucedida, este reparo se fecha sozinho.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         }
       }
@@ -1254,6 +1283,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_panel_busy": "Este painel ainda está ocupado com uma atualização ou outra tarefa. Aguarde a conclusão e tente novamente. Se uma atualização for bem-sucedida, este reparo se fecha sozinho.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         }
       }
@@ -1296,6 +1326,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_panel_busy": "Este painel ainda está ocupado com uma atualização ou outra tarefa. Aguarde a conclusão e tente novamente. Se uma atualização for bem-sucedida, este reparo se fecha sozinho.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         }
       }
@@ -1338,6 +1369,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_panel_busy": "Este painel ainda está ocupado com uma atualização ou outra tarefa. Aguarde a conclusão e tente novamente. Se uma atualização for bem-sucedida, este reparo se fecha sozinho.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         }
       }
@@ -1380,6 +1412,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_panel_busy": "Este painel ainda está ocupado com uma atualização ou outra tarefa. Aguarde a conclusão e tente novamente. Se uma atualização for bem-sucedida, este reparo se fecha sozinho.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         }
       }
@@ -1422,6 +1455,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_panel_busy": "Este painel ainda está ocupado com uma atualização ou outra tarefa. Aguarde a conclusão e tente novamente. Se uma atualização for bem-sucedida, este reparo se fecha sozinho.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         }
       }
@@ -1433,6 +1467,71 @@
           "init": {
             "title": "Resolver erro do painel",
             "description": "O Home Assistant não conseguiu confirmar que o Panel Assistant terminou de atualizar.\n\nPara corrigir:\n1. Siga as [etapas de recuperação]({repair_url}).\n2. Restaure a conexão do painel, verifique **Relatório de suporte** e selecione **Tentar novamente**.\n\n[Saiba mais]({learn_more_url})",
+            "menu_options": {
+              "retry": "Tentar novamente",
+              "authorize_adb": "Permitir atualizações",
+              "support_report": "Relatório de suporte",
+              "clear_error": "Limpar erro"
+            }
+          },
+          "support_report": {
+            "title": "Relatório de suporte",
+            "description": "Este relatório contém os detalhes salvos da instalação ou atualização que falhou.\n\nPara corrigir:\n1. Leia [como usar este relatório de suporte]({guide_url}).\n2. Revise o relatório para identificar informações privadas e copie-o para um [novo problema da integração Panel Assistant]({issue_url}).\n\n{report}\n\n[Saiba mais]({learn_more_url})"
+          },
+          "clear_error": {
+            "title": "Limpar erro",
+            "description": "Limpar este erro exclui seu relatório salvo sem alterar o painel.\n\nPara corrigir:\n1. [Salve um relatório de suporte]({guide_url}) primeiro, se precisar dele.\n2. Selecione **Enviar** para remover este erro e seu relatório.\n\n[Saiba mais]({learn_more_url})"
+          },
+          "retry_error": {
+            "title": "Nova tentativa incompleta",
+            "description": "A nova tentativa não pôde ser concluída, então este erro e seu relatório continuam em Reparos.\n\nPara corrigir:\n1. Siga as [etapas de recuperação]({repair_url}).\n2. Selecione **Enviar** e depois **Relatório de suporte** para verificar a causa antes de tentar novamente.\n\n[Saiba mais]({learn_more_url})"
+          },
+          "authorize_adb": {
+            "title": "Permitir atualizações",
+            "description": "O Home Assistant precisa da aprovação do Android antes de atualizar {panel}.\n\nPara corrigir:\n1. Leia as [etapas de aprovação do ADB]({approval_url}).\n2. Selecione **Enviar** e, em {panel}, marque **Sempre permitir a partir deste computador** e toque em **Permitir**.\n3. Após a aprovação, selecione **Tentar novamente** neste reparo para tentar a atualização novamente.\n\n[Saiba mais]({learn_more_url})"
+          }
+        },
+        "progress": {
+          "retrying": "O Home Assistant está verificando o painel e tentando executar novamente a operação salva.\n\nPara corrigir:\n1. Leia as [orientações para tentar novamente]({repair_url}), se necessário.\n2. Aguarde aqui o resultado antes de decidir o que fazer em seguida.\n\n[Saiba mais]({learn_more_url})",
+          "authorize_adb": "A aprovação do Android em {panel} ainda é necessária.\n\nPara corrigir:\n1. Leia as [etapas de aprovação do ADB]({approval_url}).\n2. Em {panel}, marque **Sempre permitir a partir deste computador** e toque em **Permitir**.\n\nO processo continua automaticamente após a aprovação.\n\n[Saiba mais]({learn_more_url})"
+        },
+        "error": {
+          "retry_target_changed": "O painel não corresponde mais ao destino salvo. Verifique-o antes de tentar novamente.",
+          "retry_release_changed": "A versão selecionada não corresponde mais à versão salva. Escolha uma nova tentativa de instalação.",
+          "retry_credential_changed": "A credencial ADB do Home Assistant mudou. Verifique o painel antes de tentar novamente.",
+          "retry_panel_ambiguous": "Não foi possível verificar o aplicativo instalado no painel. Nenhuma nova instalação foi iniciada.",
+          "retry_cannot_prove_safe": "Não foi possível verificar o painel o suficiente para tentar novamente com segurança. Tente novamente mais tarde.",
+          "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
+          "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
+          "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_panel_busy": "Este painel ainda está ocupado com uma atualização ou outra tarefa. Aguarde a conclusão e tente novamente. Se uma atualização for bem-sucedida, este reparo se fecha sozinho.",
+          "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer.",
+          "cannot_connect": "Não foi possível se conectar a um endpoint válido de integridade do Panel Assistant.",
+          "invalid_install_address": "Digite apenas o nome de host ou o endereço IP do painel.",
+          "install_resolution_failed": "O Home Assistant não conseguiu resolver este endereço do painel. Verifique o endereço e o DNS local e tente novamente.",
+          "install_resolution_timeout": "O tempo limite da resolução de nomes local foi atingido antes que o endereço do painel pudesse ser fixado com segurança. Verifique o DNS local e tente novamente.",
+          "install_too_many_addresses": "Este nome de host foi resolvido para endereços demais para fixá-lo com segurança. Use um nome de host local dedicado ou um endereço IP privado.",
+          "unsafe_install_target": "A instalação é permitida somente em um endereço IPv4 local privado ou em um endereço IPv6 local único. Nenhuma conexão ADB foi tentada.",
+          "install_target_changed": "O nome de host não é mais resolvido para o mesmo endereço fixado do painel. Nenhuma chave ADB ou instalação foi enviada. Verifique o endereço e comece novamente.",
+          "adb_unreachable": "O painel respondeu, mas nada respondeu na porta do Android Debug Bridge (5555). No painel, habilite o Android Debug Bridge e permita seu uso pela rede. Depois, tente novamente. Se puder conectar o painel ao computador em que está navegando, faça a instalação por USB.",
+          "adb_still_unauthorized": "O painel ainda não aceitou esta instância do Home Assistant. Aprove a solicitação ADB no painel e tente novamente.",
+          "adb_credential_error": "O Home Assistant não conseguiu carregar ou salvar de forma persistente sua credencial ADB com segurança. Nenhuma alteração no painel foi tentada. Verifique o armazenamento e os registros do Home Assistant antes de tentar novamente.",
+          "retained_or_ambiguous": "O painel pode conter um registro retido do pacote Panel Assistant ou não foi possível comprovar a ausência do estado do pacote. Nenhuma alteração foi feita no painel. Tente novamente uma vez se a conexão estava instável; caso contrário, siga as etapas em {recovery_address}. Não desinstale nem redefina o aplicativo sem uma cópia de segurança verificada.",
+          "unknown": "Erro inesperado",
+          "panel_identity_changed": "O endereço não responde mais como este painel configurado. Verifique o painel e seu endereço antes de tentar novamente."
+        },
+        "abort": {
+          "entry_removed": "Este painel não está mais configurado no Home Assistant.\n\nPara corrigir:\n1. [Abra os dispositivos do Panel Assistant](/config/integrations/integration/panel_assistant) se quiser adicioná-lo novamente.\n2. Caso contrário, feche esta caixa de diálogo.\n\n[Saiba mais]({learn_more_url})"
+        }
+      }
+    },
+    "installer_failure_update_webview": {
+      "title": "A atualização do WebView em {panel} não foi concluída",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolver erro do painel",
+            "description": "O aplicativo do painel está instalado, mas a atualização do WebView (mecanismo do navegador) não foi concluída.\n\nPara corrigir:\n1. Siga as [etapas de recuperação]({repair_url}).\n2. Mantenha o painel conectado e, em seguida, selecione **Tentar novamente** para repetir apenas a etapa do WebView.\n\n[Saiba mais]({learn_more_url})",
             "menu_options": {
               "retry": "Tentar novamente",
               "authorize_adb": "Permitir atualizações",
@@ -1528,6 +1627,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_panel_busy": "Este painel ainda está ocupado com uma atualização ou outra tarefa. Aguarde a conclusão e tente novamente. Se uma atualização for bem-sucedida, este reparo se fecha sozinho.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
         },
         "abort": {
@@ -1613,6 +1713,7 @@
           "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
           "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
           "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_panel_busy": "Este painel ainda está ocupado com uma atualização ou outra tarefa. Aguarde a conclusão e tente novamente. Se uma atualização for bem-sucedida, este reparo se fecha sozinho.",
           "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer.",
           "cannot_connect": "Não foi possível se conectar a um endpoint válido de integridade do Panel Assistant.",
           "invalid_install_address": "Digite apenas o nome de host ou o endereço IP do painel.",
@@ -1668,6 +1769,83 @@
     "another_home_assistant": {
       "title": "{panel} está com sessão iniciada em outro Home Assistant",
       "description": "{panel} foi adicionado aqui, mas continua com sessão iniciada em outro Home Assistant.\n\nPara corrigir:\n1. [Abra a conexão do painel com o Home Assistant]({configure_url}).\n2. Se pretende conectá-lo aqui, digite o endereço deste Home Assistant e salve.\n3. Reconecte e faça login com a conta que você quer que o painel use; caso contrário, mantenha o servidor atual dele e ignore este reparo."
+    },
+    "remove_from_panel": {
+      "title": "Remover Panel Assistant de {panel}",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Remover/manter Panel Assistant",
+            "menu_options": {
+              "confirm": "Remover o Panel Assistant",
+              "keep_app": "Manter o Panel Assistant"
+            }
+          },
+          "authorize_adb": {
+            "title": "Permitir o Home Assistant em {panel}",
+            "description": "Panel Assistant cannot be removed from {panel} until the panel allows Home Assistant's ADB connection.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}), then select Submit to send the approval request.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n3. Wait here; the removal question comes back once the panel allows it.\n\n[Learn more]({learn_more_url})"
+          },
+          "confirm": {
+            "title": "Remover Panel Assistant de {panel}",
+            "description": "O Panel Assistant restaura a tela inicial do painel e os aplicativos e configurações do fabricante que ele alterou, depois se desinstala e exclui este painel do Home Assistant. As configurações dele no painel são excluídas.\n\nPara remover:\n1. Leia [o que a remoção pode causar neste painel]({risks_url}). Alguns painéis perdem o acesso às Configurações do Android ou à depuração pela rede, o que pode impedir a reinstalação do aplicativo sem abrir o painel.\n2. Selecione Enviar para confirmar a remoção.\n\nSe você não quiser mais removê-lo, feche esta caixa de diálogo e, em vez disso, escolha Manter o Panel Assistant; isso não altera nada no painel.\n\n[Saiba mais]({learn_more_url})"
+          }
+        },
+        "progress": {
+          "authorize_adb": "Android approval on {panel} is still needed.\n\nTo remove:\n1. Read the [recovery steps]({recovery_url}) if needed.\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n\nThis continues automatically after approval.\n\n[Learn more]({learn_more_url})"
+        },
+        "error": {
+          "cannot_connect": "Não foi possível conectar a um endpoint válido de integridade do Panel Assistant.",
+          "invalid_install_address": "Digite apenas o nome de host ou o endereço IP do painel.",
+          "install_resolution_failed": "O Home Assistant não conseguiu resolver este endereço do painel. Verifique o endereço e o DNS local e tente novamente.",
+          "install_resolution_timeout": "O tempo limite da resolução de nomes local foi atingido antes que o endereço do painel pudesse ser fixado com segurança. Verifique o DNS local e tente novamente.",
+          "install_too_many_addresses": "Este nome de host foi resolvido para endereços demais para ser fixado com segurança. Use um nome de host local dedicado ou um endereço IP privado.",
+          "unsafe_install_target": "A instalação só é permitida em um endereço IPv4 local privado ou em um endereço IPv6 local único. Nenhuma conexão de ADB foi tentada.",
+          "install_target_changed": "O nome de host deixou de resolver para o mesmo endereço fixado do painel. Nenhuma chave de ADB ou instalação foi enviada. Verifique o endereço e recomece.",
+          "adb_unreachable": "O painel respondeu, mas não houve resposta na porta do Android Debug Bridge (5555). No painel, ative o Android Debug Bridge e permita seu uso pela rede. Depois, tente novamente. Se puder conectar o painel ao computador em que está navegando, instale pelo USB.",
+          "adb_still_unauthorized": "O painel ainda não aceitou esta instância do Home Assistant. Aprove a solicitação de ADB no painel e tente novamente.",
+          "adb_credential_error": "O Home Assistant não conseguiu carregar ou salvar sua credencial de ADB com segurança. Nenhuma alteração no painel foi tentada. Verifique o armazenamento e os registros do Home Assistant antes de tentar novamente.",
+          "retained_or_ambiguous": "O painel pode conter um registro remanescente do pacote Panel Assistant, ou não foi possível comprovar a ausência do pacote. Nenhuma alteração foi feita no painel. Tente novamente uma vez se a conexão estava instável; caso contrário, siga as etapas em {recovery_address}. Não desinstale nem redefina o aplicativo sem um backup verificado.",
+          "unknown": "Erro inesperado",
+          "panel_identity_changed": "O endereço deixou de responder como este painel configurado. Verifique o painel e seu endereço antes de tentar novamente.",
+          "removal_busy": "Outra operação já está alterando este painel. Nada foi removido; tente novamente quando ela terminar.",
+          "removal_adb_unreachable": "O Home Assistant não conseguiu acessar o painel pelo Android Debug Bridge (porta 5555). Nada foi removido. Verifique se o painel está ligado e se a depuração pela rede continua ativada. Depois, tente novamente.",
+          "removal_adb_authorization": "O painel não aceitou esta instância do Home Assistant para o Android Debug Bridge. Nada foi removido. Primeiro escolha “Permitir atualizações” e depois tente novamente.",
+          "removal_panel_changed": "Outro dispositivo está respondendo no endereço deste painel. Nada foi removido.",
+          "removal_approval_required": "A segurança reforçada está ativada, então a devolução da tela inicial precisa ser aprovada no próprio painel. Nada foi alterado e o Panel Assistant continua instalado. Aprove a solicitação no painel e depois envie o formulário novamente.",
+          "removal_no_replacement_home": "O painel não conseguiu entregar sua tela inicial a outro inicializador: não há outro aplicativo de tela inicial instalado, então o Panel Assistant é a única opção que ele pode exibir. Nada foi removido e o painel continua funcionando. Instale um inicializador ou reative o do fabricante e tente novamente.",
+          "removal_original_home_missing": "O painel não conseguiu devolver sua tela inicial: {launcher}, o iniciador que ele usava antes do Panel Assistant, não está mais instalado ou está desativado. Nada foi removido e o painel continua funcionando. Reinstale {launcher} ou reative-o e tente novamente.",
+          "removal_original_home_missing_unnamed": "O painel não conseguiu devolver sua tela inicial: o iniciador que ele usava antes do Panel Assistant não está mais instalado ou está desativado. Nada foi removido e o painel continua funcionando. Reinstale esse iniciador ou reative-o e tente novamente.",
+          "removal_ownership_unreadable": "O painel não conseguiu ler seu próprio registro dos aplicativos do fabricante que desativou. Nada foi removido. Inicie o Panel Assistant novamente no painel e tente novamente.",
+          "removal_package_state_unknown": "O painel não conseguiu ler quais aplicativos estão instalados ou qual deles é sua tela inicial. Nada foi removido. Tente novamente em instantes.",
+          "removal_home_not_handed": "O painel não confirmou que outro inicializador assumiu sua tela inicial, por isso o Panel Assistant não foi removido. Instale um inicializador ou reative o do fabricante e tente novamente.",
+          "removal_hand_back_unsupported": "O aplicativo Panel Assistant neste painel é antigo demais para devolver a tela inicial. Nada foi removido. Atualize-o primeiro e depois tente novamente.",
+          "removal_app_unreachable": "O Panel Assistant não respondeu e ainda é a tela inicial do painel, então removê-lo agora deixaria o painel sem tela inicial. Nada foi removido. Inicie o Panel Assistant no painel e tente novamente.",
+          "removal_remove_failed": "O painel já recuperou sua tela inicial, mas não foi possível remover completamente o Panel Assistant. Tente novamente: uma nova tentativa conclui o que falta."
+        }
+      }
+    },
+    "dashboard_unfiltered": {
+      "title": "{panel} mostra o dashboard sem filtragem de entidades",
+      "description": "{panel} abriu o dashboard com todas as entidades porque não conseguiu preparar o filtro de entidades a tempo. Ele continua tentando e volta sozinho ao dashboard filtrado.\n\nPara corrigir:\n1. Abra as [configurações de entidades]({entities_url}) de {panel} para ver o que ele está esperando.\n2. Se pedir uma decisão ou um novo login, siga as etapas indicadas."
+    },
+    "panel_root_lost": {
+      "title": "{panel} perdeu o acesso root",
+      "fix_flow": {
+        "step": {
+          "confirm_restart": {
+            "title": "Reiniciar {panel}",
+            "description": "{panel} tinha acesso root desde a última inicialização, mas o root parou de responder. Reiniciar o painel restaura esse acesso.\n\nPara corrigir:\n1. Leia as [orientações de reinicialização]({learn_more_url}).\n2. Selecione Enviar para reiniciar o painel agora. O bloqueio de tela será verificado novamente antes.\n\n[Saiba mais]({learn_more_url})"
+          }
+        },
+        "abort": {
+          "restart_unavailable": "{panel} tinha acesso root desde a última inicialização, mas o root parou de responder. Reiniciar o painel restaura esse acesso. A reinicialização não está disponível porque há um bloqueio de tela, seu estado é desconhecido ou o painel não pode receber comandos. Após reiniciar, alguém talvez precise desbloquear {panel} pessoalmente.\n\nPara corrigir:\n1. Leia as [orientações de reinicialização]({learn_more_url}).\n2. Reinicie o painel somente quando alguém puder desbloqueá-lo, se necessário.\n\n[Saiba mais]({learn_more_url})",
+          "root_unreadable": "Não foi possível ler um estado root atualizado. Nenhum comando de reinicialização foi enviado.\n\nPara corrigir:\n1. Leia as [orientações de reinicialização]({learn_more_url}).\n2. Tente este reparo novamente quando o painel estiver disponível.\n\n[Saiba mais]({learn_more_url})",
+          "panel_busy": "Outra operação está usando {panel}. Nenhum comando de reinicialização foi enviado.\n\nPara corrigir:\n1. Leia as [orientações de reinicialização]({learn_more_url}).\n2. Tente este reparo novamente quando o painel estiver disponível.\n\n[Saiba mais]({learn_more_url})",
+          "restart_failed": "Não foi possível confirmar a reinicialização. Verifique {panel} antes de tentar novamente.\n\nPara corrigir:\n1. Leia as [orientações de reinicialização]({learn_more_url}).\n2. Reinicie o painel somente quando alguém puder desbloqueá-lo, se necessário.\n\n[Saiba mais]({learn_more_url})",
+          "entry_removed": "Este painel não está mais configurado no Home Assistant.\n\nPara corrigir:\n1. Leia as [orientações de reinicialização]({learn_more_url}).\n2. Tente este reparo novamente quando o painel estiver disponível.\n\n[Saiba mais]({learn_more_url})",
+          "restart_started": "O comando de reinicialização foi aceito. Este aviso desaparecerá quando {panel} informar que o acesso root foi restaurado.\n\nPara corrigir:\n1. Leia as [orientações de reinicialização]({learn_more_url}).\n2. Tente este reparo novamente quando o painel estiver disponível.\n\n[Saiba mais]({learn_more_url})"
+        }
+      }
     }
   },
   "options": {
@@ -1679,7 +1857,8 @@
           "onboarding": "Continuar configuração",
           "authorize_adb": "Permitir atualizações",
           "updates": "Atualizações do painel",
-          "remove_app": "Remover Panel Assistant deste painel"
+          "remove_app": "Remover deste painel",
+          "panel_logs": "Logs dos painéis (todos os painéis)"
         },
         "menu_option_descriptions": {
           "remove_app": "Devolve a tela inicial ao inicializador do próprio painel e depois desinstala o aplicativo."
@@ -1706,12 +1885,21 @@
       },
       "remove_app": {
         "title": "Remover Panel Assistant de {panel}",
-        "description": "Primeiro, o Panel Assistant devolve a tela inicial do painel ao inicializador do próprio painel e reativa os aplicativos do fabricante que havia desativado; só então ele é desinstalado. Suas configurações no painel são excluídas.\n\nEm alguns painéis e versões de firmware, a remoção deixa você sem acesso às Configurações do Android ou à depuração pela rede, impedindo a reinstalação do aplicativo sem abrir o painel. Leia [o que a remoção pode causar neste painel]({risks_url}) antes de selecionar Enviar.",
+        "description": "O Panel Assistant restaura a tela inicial do painel e os aplicativos e configurações do fabricante que alterou; depois, ele se desinstala e exclui este painel do Home Assistant. Suas configurações no painel são excluídas.\n\nEm alguns painéis e versões de firmware, a remoção deixa você sem acesso às Configurações do Android ou à depuração pela rede, impedindo a reinstalação do aplicativo sem abrir o painel. Leia [o que a remoção pode causar neste painel]({risks_url}) antes de selecionar Enviar."
+      },
+      "panel_logs": {
+        "title": "Logs dos painéis (todos os painéis)",
+        "description": "Escolha um destino para todos os painéis. Estas configurações também se aplicam aos painéis adicionados posteriormente. Os logs do sistema estão desativados por padrão. Um destino HTTP aceita um nome de host ou uma URL HTTP completa.",
         "data": {
-          "delete_entry": "Excluir também este painel do Home Assistant"
+          "destination": "Destino",
+          "host": "Host ou URL HTTP",
+          "port": "Porta",
+          "app_level": "Nível de log do aplicativo",
+          "system_level": "Nível de log do sistema",
+          "also_home_assistant": "Gravar também no log do Home Assistant"
         },
         "data_description": {
-          "delete_entry": "Deixe desativado para manter as entidades e o histórico dele para quando você instalar o Panel Assistant novamente."
+          "also_home_assistant": "Aplica-se quando o destino é UDP, TCP ou HTTP."
         }
       }
     },
@@ -1732,24 +1920,57 @@
       "removal_busy": "Outra operação já está alterando este painel. Nada foi removido; tente novamente quando ela terminar.",
       "removal_adb_unreachable": "O Home Assistant não conseguiu acessar o painel pelo Android Debug Bridge (porta 5555). Nada foi removido. Verifique se o painel está ligado e se a depuração pela rede continua ativada. Depois, tente novamente.",
       "removal_adb_authorization": "O painel não aceitou esta instância do Home Assistant para o Android Debug Bridge. Nada foi removido. Primeiro escolha “Permitir atualizações” e depois tente novamente.",
+      "removal_adb_authorization_unavailable": "O painel não aceitou esta instância do Home Assistant para o Android Debug Bridge. Nada foi removido. Verifique se o painel está ligado e respondendo, depois tente novamente.",
       "removal_panel_changed": "Outro dispositivo está respondendo no endereço deste painel. Nada foi removido.",
       "removal_approval_required": "A segurança reforçada está ativada, então a devolução da tela inicial precisa ser aprovada no próprio painel. Nada foi alterado e o Panel Assistant continua instalado. Aprove a solicitação no painel e depois envie o formulário novamente.",
       "removal_no_replacement_home": "O painel não conseguiu entregar sua tela inicial a outro inicializador: não há outro aplicativo de tela inicial instalado, então o Panel Assistant é a única opção que ele pode exibir. Nada foi removido e o painel continua funcionando. Instale um inicializador ou reative o do fabricante e tente novamente.",
+      "removal_original_home_missing": "O painel não conseguiu devolver sua tela inicial: {launcher}, o inicializador que ele usava antes do Panel Assistant, não está mais instalado ou está desativado. Nada foi removido e o painel continua funcionando. Reinstale {launcher} ou reative-o e tente novamente.",
+      "removal_original_home_missing_unnamed": "O painel não conseguiu devolver sua tela inicial: o inicializador que ele usava antes do Panel Assistant não está mais instalado ou está desativado. Nada foi removido e o painel continua funcionando. Reinstale esse inicializador ou reative-o e tente novamente.",
       "removal_ownership_unreadable": "O painel não conseguiu ler seu próprio registro dos aplicativos do fabricante que desativou. Nada foi removido. Inicie o Panel Assistant novamente no painel e tente novamente.",
       "removal_package_state_unknown": "O painel não conseguiu ler quais aplicativos estão instalados ou qual deles é sua tela inicial. Nada foi removido. Tente novamente em instantes.",
       "removal_home_not_handed": "O painel não confirmou que outro inicializador assumiu sua tela inicial, por isso o Panel Assistant não foi removido. Instale um inicializador ou reative o do fabricante e tente novamente.",
       "removal_hand_back_unsupported": "O aplicativo Panel Assistant neste painel é antigo demais para devolver a tela inicial. Nada foi removido. Atualize-o primeiro e depois tente novamente.",
       "removal_app_unreachable": "O Panel Assistant não respondeu e ainda é a tela inicial do painel, então removê-lo agora deixaria o painel sem tela inicial. Nada foi removido. Inicie o Panel Assistant no painel e tente novamente.",
       "removal_remove_failed": "O painel já recuperou sua tela inicial, mas não foi possível remover completamente o Panel Assistant. Tente novamente: uma nova tentativa conclui o que falta.",
-      "panel_not_connected": "O painel ainda não se conectou. Conclua as etapas na página de configuração dele e selecione Concluído novamente."
+      "panel_not_connected": "O painel ainda não se conectou. Conclua as etapas na página de configuração dele e selecione Concluído novamente.",
+      "log_host_required": "Insira um host de destino ou uma URL HTTP.",
+      "log_sink_unavailable": "Este destino salvo não está mais disponível. Escolha outro destino.",
+      "log_destination_invalid": "Confira o host de destino, a URL e a porta."
     },
     "abort": {
       "removed_entry_deleted": "O Panel Assistant foi removido e o painel foi excluído do Home Assistant.",
-      "removed_entry_kept": "O Panel Assistant foi removido. O painel permanece no Home Assistant até que você o exclua.",
       "panel_connected": "O painel está configurado e conectado ao Home Assistant."
     },
     "progress": {
       "authorize_adb": "Olhe a tela de {panel}: marque **Sempre permitir neste computador** e toque em **Permitir**. O Android pode descrever o Home Assistant como um computador.\n\nO processo continua sozinho quando o painel permitir."
+    }
+  },
+  "selector": {
+    "destination": {
+      "options": {
+        "none": "Desativado"
+      }
+    },
+    "app_level": {
+      "options": {
+        "2": "Detalhado",
+        "3": "Depuração",
+        "4": "Informação",
+        "5": "Aviso",
+        "6": "Erro",
+        "7": "Fatal"
+      }
+    },
+    "system_level": {
+      "options": {
+        "0": "Desativado",
+        "2": "Detalhado",
+        "3": "Depuração",
+        "4": "Informação",
+        "5": "Aviso",
+        "6": "Erro",
+        "7": "Fatal"
+      }
     }
   }
 }

@@ -56,7 +56,7 @@
     "downloading": "Die App wird vorbereitet…",
     "verifying": "Die App wird vorbereitet…",
     "verified": "Fahre im neuen Fenster fort.",
-    "installed": "Panel Assistant ist installiert. Schließe die Einrichtung des Panels im Installationsfenster ab und schließe dann diesen Tab.",
+    "installed": "Panel Assistant ist installiert. Schließe die Einrichtung des Panels in dem Fenster ab, das du für die Installation geöffnet hast, und schließe dann diesen Tab.",
     "cancelled": "Abgebrochen.",
     "popup_blocked": "Dein Browser hat das neue Fenster blockiert. Erlaube Pop-ups für diese Seite und drücke dann „Weiter“.",
     "invalid_request": "Wähle zuerst eine Version.",
@@ -88,6 +88,9 @@
     "stepStarting": "Die App wird gestartet…",
     "stepPermissions": "Die App erhält alles, was sie zum Ausführen braucht…",
     "stepOpening": "Die Einrichtung deines Panels wird geöffnet…",
+    "stepWebView": "Die Browser-Engine des Panels wird aktualisiert…",
+    "stepWebViewUpdated": "Die Browser-Engine des Panels ist auf dem neuesten Stand.",
+    "stepWebViewKept": "Die Browser-Engine des Panels wurde unverändert beibehalten.",
     "keepConnected": "Lass das Kabel angeschlossen, bis der Vorgang abgeschlossen ist.",
     "doneHeading": "Installiert",
     "doneOpening": "Du wirst zur Einrichtung deines Panels weitergeleitet…",
@@ -113,6 +116,7 @@
   },
   "errors": {
     "installErrorGeneric": "Etwas ist schiefgegangen. Lass das Panel angeschlossen und drücke „Erneut versuchen“.",
+    "installErrorUsbBusy": "Eine andere App verwendet die USB-Verbindung. Schließe andere Apps, die die USB-Verbindung des Panels verwenden, und drücke dann „Erneut versuchen“.",
     "installErrorBusy": "Das Panel ist mit einer anderen Installation beschäftigt. Warte eine Minute und versuche es dann erneut.",
     "installErrorStorage": "Dieser Browser konnte den Fortschritt nicht speichern. Erlaube dieser Website, Daten zu speichern, und versuche es erneut.",
     "installErrorTarget": "Ein anderes Panel wurde angeschlossen. Schließe dasselbe Panel an und versuche es erneut.",
@@ -155,6 +159,7 @@
     "networkAdb": "ADB über das Netzwerk",
     "copiedDetail": "{bytes} Bytes gesendet; Bestätigung des Panels ausstehend",
     "none": "keine",
-    "setupMissing": "nicht gefunden; Einrichtung wird auf dem Panel fortgesetzt"
+    "setupMissing": "nicht gefunden; Einrichtung wird auf dem Panel fortgesetzt",
+    "webview": "WebView"
   }
 }

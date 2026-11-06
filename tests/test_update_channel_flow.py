@@ -85,7 +85,7 @@ async def test_default_install_recommendation_follows_pa_catalogue_first_row(
         selector = next(iter(choose["data_schema"].schema.values()))
         assert selector.config["options"][0] == {
             "value": "stable",
-            "label": f"{selected.tag} (recommended)",
+            "label": selected.tag,
         }
         preview = await hass.config_entries.flow.async_configure(choose["flow_id"], {})
         assert preview["step_id"] == "confirm_install_candidate"

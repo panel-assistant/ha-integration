@@ -1,5 +1,9 @@
 {
   "title": "Panel Assistant",
+  "common": {
+    "remove_from_panel_notification_title": "从 {panel} 移除 Panel Assistant",
+    "remove_from_panel_notification_message": "要从 {panel} 移除 Panel Assistant，请打开[修复]({repairs_url})并在那里确认。面板目前尚未发生任何更改。"
+  },
   "config": {
     "flow_title": "{name}",
     "step": {
@@ -56,7 +60,7 @@
       },
       "panel_setup": {
         "title": "完成面板设置",
-        "description": "在打开的窗口中完成设置向导。设置完成后，Home Assistant 会立即连接面板。"
+        "description": "完成面板的[设置页面]({setup_url})，然后选择“提交”，将面板连接到 Home Assistant。"
       },
       "choose_version": {
         "title": "选择版本",
@@ -85,6 +89,14 @@
         "title": "安装 Panel Assistant {version}？",
         "description": "仅供测试：Panel Assistant {version} 是候选发布版，并非稳定版，可能存在错误。\n\n已准备好在地址为 {address} 的面板上安装。\n\n不会改动你的其他应用。"
       },
+      "confirm_reinstall_candidate": {
+        "title": "安装 Panel Assistant {version}？",
+        "description": "已准备好在地址为 {address} 的面板上安装。\n\n您的其他应用不会受到影响。\n\n此面板将重新加入 {entry_title}，并保留其实体和历史记录。"
+      },
+      "confirm_reinstall_rc": {
+        "title": "安装 Panel Assistant {version}？",
+        "description": "仅供测试：Panel Assistant {version} 是候选发布版，并非稳定版，可能存在缺陷。\n\n已准备好在地址为 {address} 的面板上安装。\n\n您的其他应用不会受到影响。\n\n此面板将重新加入 {entry_title}，并保留其实体和历史记录。"
+      },
       "release_preview_only": {
         "title": "无法自动安装此版本",
         "description": "面板 {address} 符合进一步检查条件，版本 {version}（{tag}，SHA-256 {sha256}）也已通过真实性验证。此版本没有签名的安装描述文件，因此 Home Assistant 不会创建 ADB 凭据、下载 APK 或更改面板。提交即可选择其他版本。"
@@ -96,10 +108,12 @@
     },
     "progress": {
       "authorize_adb": "请查看位于 {address} 的面板屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。\n\n面板允许后，将自动继续。",
-      "installing": "正在 {address} 上安装 Panel Assistant。请保持此对话框打开；操作会自动完成。\n\n如果关闭对话框，安装仍会继续。请再次添加同一地址以完成操作。"
+      "installing": "正在 {address} 上安装 Panel Assistant。请保持此对话框打开；操作会自动完成。\n\n如果关闭对话框，安装仍会继续。请再次添加同一地址以完成操作。",
+      "updating_webview": "正在更新地址为 {address} 的面板上的浏览器引擎…"
     },
     "error": {
-      "old_app_installed": "此面板仍在运行旧版 ha-paneld 应用。Panel Assistant 1.0 无法将其迁移到新应用，也不会在旁边安装任何内容。请先安装 Panel Assistant 0.9.0（在 HACS 中打开 Panel Assistant，选择 Redownload，然后选择 0.9.0 版本），添加面板并通过其修复完成迁移，再安装 1.0.0。",
+      "panel_setup_not_finished": "面板尚未完成设置。请完成设置页面，然后再次选择“提交”。",
+      "old_app_installed": "此面板仍在运行旧版 ha-paneld 应用。Panel Assistant 1.0 无法将其迁移到新应用，也不会与其并存安装任何内容。请按照[安全恢复步骤]({old_app_help_url})，使用 Panel Assistant 0.9.0 完成迁移。如果任何面板已在运行 1.0 应用，或者您没有升级前的备份，请在更改版本之前寻求帮助。",
       "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
       "invalid_address": "请输入不含 URL 方案或路径的主机名或 IP 地址。",
       "invalid_install_address": "请只输入面板的主机名或 IP 地址。",
@@ -130,10 +144,10 @@
       "release_selection_required": "请从列表中选择一个版本。"
     },
     "abort": {
-      "old_app_installed": "此面板仍在运行旧版 ha-paneld 应用。Panel Assistant 1.0 无法将其迁移到新应用，也不会在旁边安装任何内容。请先安装 Panel Assistant 0.9.0（在 HACS 中打开 Panel Assistant，选择 Redownload，然后选择 0.9.0 版本），添加面板并通过其修复完成迁移，再安装 1.0.0。",
+      "old_app_installed": "此面板仍在运行旧版 ha-paneld 应用。Panel Assistant 1.0 无法将其迁移到新应用，也不会在旧应用之外另行安装任何内容。请按照[安全恢复步骤]({old_app_help_url})，使用 Panel Assistant 0.9.0 完成迁移。如果任何面板已在运行 1.0 应用，或者您没有升级前的备份，请在更改版本之前寻求帮助。",
       "already_configured": "此面板已配置。",
       "reinstall_successful": "应用已重新安装。此面板在 Home Assistant 中的历史记录和设置会保留。",
-      "usb_installed": "Panel Assistant 已安装，面板已添加到 Home Assistant。请在安装程序窗口中完成面板的设置。",
+      "usb_installed": "Panel Assistant 已安装，面板已添加到 Home Assistant。请在为安装而打开的窗口中完成面板设置。",
       "reinstall_identity_mismatch": "应用已安装，但无法关联到保留的面板。该面板在 Home Assistant 中的历史记录和设置已保留。请先在 Home Assistant 中检查此面板，再重试。",
       "not_panel": "这不是 Panel Assistant 可以在其上进行安装的面板。",
       "invalid_discovery": "发现的面板无法证明它是同一健康的 Panel Assistant 安装。未更改 Home Assistant 条目或面板设置。",
@@ -636,6 +650,9 @@
       },
       "back": {
         "name": "返回"
+      },
+      "remove_from_panel": {
+        "name": "从此面板移除"
       }
     },
     "event": {
@@ -824,6 +841,9 @@
     "update_not_complete": {
       "message": "面板更新未完成"
     },
+    "update_webview_unfinished": {
+      "message": "应用已安装，但其 WebView 更新未完成。请打开此面板的修复项，重试 WebView 步骤。"
+    },
     "panel_backup_failed": {
       "message": "无法备份面板，因此未安装任何内容"
     },
@@ -924,6 +944,10 @@
           "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})"
         }
       }
+    },
+    "panel_restore_interrupted": {
+      "title": "{panel} 未完成备份恢复。",
+      "description": "{panel} 上的面板应用在恢复备份的中途停止，因此备份中的部分设置或面板状态可能缺失。\n\n解决方法：\n1. 在 Panel Assistant 侧边栏中打开该面板页面的[安装选项卡]({install_url})。\n2. 再次恢复同一个备份。\n\n[了解更多]({learn_more_url})"
     },
     "panel_proximity_setup": {
       "title": "请在 {panel} 上设置接近传感器。",
@@ -1044,6 +1068,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
       }
@@ -1086,6 +1111,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
       }
@@ -1128,6 +1154,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
       }
@@ -1170,6 +1197,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
       }
@@ -1212,6 +1240,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
       }
@@ -1254,6 +1283,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
       }
@@ -1296,6 +1326,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
       }
@@ -1338,6 +1369,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
       }
@@ -1380,6 +1412,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
       }
@@ -1422,6 +1455,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
       }
@@ -1433,6 +1467,71 @@
           "init": {
             "title": "解决面板错误",
             "description": "Home Assistant 无法确认 Panel Assistant 已完成更新。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 恢复面板连接并查看“**支持报告**”，然后选择“**重试**”。\n\n[了解更多]({learn_more_url})",
+            "menu_options": {
+              "retry": "重试",
+              "authorize_adb": "允许更新",
+              "support_report": "支持报告",
+              "clear_error": "清除错误"
+            }
+          },
+          "support_report": {
+            "title": "支持报告",
+            "description": "此报告包含已保存的安装或更新失败详情。\n\n解决方法：\n1. 阅读[如何使用此支持报告]({guide_url})。\n2. 检查报告中是否包含隐私信息，然后将其复制到[新的 Panel Assistant 集成问题]({issue_url})中。\n\n{report}\n\n[了解更多]({learn_more_url})"
+          },
+          "clear_error": {
+            "title": "清除错误",
+            "description": "清除此错误会删除其已保存的报告，不会更改面板。\n\n解决方法：\n1. 如果需要报告，请先[保存支持报告]({guide_url})。\n2. 选择“**提交**”，移除此错误和报告。\n\n[了解更多]({learn_more_url})"
+          },
+          "retry_error": {
+            "title": "重试未能完成",
+            "description": "重试未能完成，因此此错误及其报告仍保留在“修复”中。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**提交**”，然后选择“**支持报告**”，在重试前查看原因。\n\n[了解更多]({learn_more_url})"
+          },
+          "authorize_adb": {
+            "title": "允许更新",
+            "description": "Home Assistant 需要获得 Android 批准，才能更新 {panel}。\n\n解决方法：\n1. 阅读 [ADB 授权步骤]({approval_url})。\n2. 选择“**提交**”，然后在 {panel} 上勾选“**一律允许使用这台计算机进行调试**”并点按“**允许**”。\n3. 获得批准后，在此修复提示中选择“**重试**”，再次尝试更新。\n\n[了解更多]({learn_more_url})"
+          }
+        },
+        "progress": {
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})",
+          "authorize_adb": "仍需在 {panel} 上获得 Android 批准。\n\n解决方法：\n1. 阅读 [ADB 授权步骤]({approval_url})。\n2. 在 {panel} 上勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。\n\n获得批准后将自动继续。\n\n[了解更多]({learn_more_url})"
+        },
+        "error": {
+          "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
+          "retry_release_changed": "所选应用版本不再与保存的版本一致。请开始新的安装。",
+          "retry_credential_changed": "Home Assistant 的 ADB 凭据已更改。重试前请检查面板。",
+          "retry_panel_ambiguous": "无法验证面板上已安装的应用。未开始新的安装。",
+          "retry_cannot_prove_safe": "无法充分确认面板状态，暂不能安全重试。请稍后再试。",
+          "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
+          "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
+          "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
+          "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。",
+          "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
+          "invalid_install_address": "请只输入面板的主机名或 IP 地址。",
+          "install_resolution_failed": "Home Assistant 无法解析此面板地址。请检查地址和本地 DNS，然后重试。",
+          "install_resolution_timeout": "在能够安全固定面板地址之前，本地名称解析已超时。请检查本地 DNS，然后重试。",
+          "install_too_many_addresses": "此主机名解析出的地址过多，无法安全固定。请使用专用的本地主机名或私有 IP 地址。",
+          "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
+          "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥，也未执行安装。请检查地址并重新开始。",
+          "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到您正在使用的这台计算机上，也可以改用 USB 安装。",
+          "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
+          "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
+          "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照 {recovery_address} 中的步骤操作。在备份经过验证之前，请勿卸载或重置应用。",
+          "unknown": "出现意外错误",
+          "panel_identity_changed": "该地址上响应的已不再是此已配置的面板。请检查面板及其地址后重试。"
+        },
+        "abort": {
+          "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})"
+        }
+      }
+    },
+    "installer_failure_update_webview": {
+      "title": "{panel} 上的 WebView 更新未完成",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "解决面板错误",
+            "description": "面板应用已安装，但其 WebView（浏览器引擎）更新未完成。\n\n修复方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 保持面板连接，然后选择**重试**，仅重复 WebView 步骤。\n\n[了解更多]({learn_more_url})",
             "menu_options": {
               "retry": "重试",
               "authorize_adb": "允许更新",
@@ -1528,6 +1627,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         },
         "abort": {
@@ -1613,6 +1713,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。",
           "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
           "invalid_install_address": "请只输入面板的主机名或 IP 地址。",
@@ -1668,6 +1769,83 @@
     "another_home_assistant": {
       "title": "{panel} 已登录另一个 Home Assistant",
       "description": "{panel} 已添加到此处，但仍登录着另一个 Home Assistant。\n\n解决方法：\n1. [打开面板的 Home Assistant 连接设置]({configure_url})。\n2. 如果确实要连接到此处，请输入此 Home Assistant 的地址并保存。\n3. 重新连接，并使用希望面板使用的账户登录；否则，请保留当前服务器并忽略此修复提示。"
+    },
+    "remove_from_panel": {
+      "title": "从 {panel} 移除 Panel Assistant",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "移除或保留 Panel Assistant",
+            "menu_options": {
+              "confirm": "移除 Panel Assistant",
+              "keep_app": "保留 Panel Assistant"
+            }
+          },
+          "authorize_adb": {
+            "title": "在 {panel} 上允许 Home Assistant",
+            "description": "在面板允许 Home Assistant 的 ADB 连接之前，无法从 {panel} 移除 Panel Assistant。\n\n移除步骤：\n1. 阅读[恢复步骤]({recovery_url})，然后选择“提交”以发送授权请求。\n2. 在 {panel} 上，勾选**一律允许使用这台计算机进行调试**（Always allow from this computer），然后点按**允许**（Allow）。\n3. 在此等待；面板允许连接后，将重新显示移除确认。\n\n[了解更多]({learn_more_url})"
+          },
+          "confirm": {
+            "title": "从 {panel} 移除 Panel Assistant",
+            "description": "Panel Assistant restores the panel's home screen and the vendor apps and settings it changed, then uninstalls itself and deletes this panel from Home Assistant. Its settings on the panel are deleted.\n\nTo remove:\n1. Read [what removal can do to this panel]({risks_url}). Some panels lose access to Android Settings or network debugging, which may prevent reinstalling the app without opening the panel.\n2. Select Submit to confirm removal.\n\nIf you no longer want to remove it, close this dialog and choose Keep Panel Assistant instead; that changes nothing on the panel.\n\n[Learn more]({learn_more_url})"
+          }
+        },
+        "progress": {
+          "authorize_adb": "仍需在 {panel} 上获得 Android 授权。\n\n移除步骤：\n1. 如有需要，请阅读[恢复步骤]({recovery_url})。\n2. 在 {panel} 上，勾选 **Always allow from this computer**，然后点按 **Allow**。\n\n授权后将自动继续。\n\n[了解更多]({learn_more_url})"
+        },
+        "error": {
+          "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
+          "invalid_install_address": "请只输入面板的主机名或 IP 地址。",
+          "install_resolution_failed": "Home Assistant 无法解析此面板地址。请检查地址和本地 DNS，然后重试。",
+          "install_resolution_timeout": "在能够安全固定面板地址之前，本地名称解析已超时。请检查本地 DNS，然后重试。",
+          "install_too_many_addresses": "此主机名解析出的地址过多，无法安全固定。请使用专用的本地主机名或私有 IP 地址。",
+          "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
+          "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥或安装内容。请检查地址并重新开始。",
+          "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以将面板连接到您当前用于浏览的计算机，请改用 USB 安装。",
+          "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
+          "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
+          "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照 {recovery_address} 中的步骤操作。在备份经过验证之前，请勿卸载或重置应用。",
+          "unknown": "出现意外错误",
+          "panel_identity_changed": "该地址上响应的已不再是此已配置的面板。请检查面板及其地址后重试。",
+          "removal_busy": "另一项操作正在更改此面板。未移除任何内容；请在该操作完成后重试。",
+          "removal_adb_unreachable": "Home Assistant 无法通过 Android Debug Bridge（端口 5555）连接到面板。未移除任何内容。请确认面板已开启且网络调试仍处于启用状态，然后重试。",
+          "removal_adb_authorization": "面板尚未接受此 Home Assistant 实例的 Android Debug Bridge 连接。未移除任何内容。请先选择“允许更新”，然后重试。",
+          "removal_panel_changed": "此面板的地址现在由另一台设备响应。未移除任何内容。",
+          "removal_approval_required": "已开启强化安全模式，因此交还主屏幕必须在面板上批准。未做任何更改，Panel Assistant 仍已安装。请在面板上批准请求，然后再次提交。",
+          "removal_no_replacement_home": "面板无法把主屏幕交给其他启动器：面板上没有其他主屏幕应用，因此只能显示 Panel Assistant。未移除任何内容，面板仍可正常使用。请安装一个启动器或重新启用厂商启动器，然后重试。",
+          "removal_original_home_missing": "面板无法交还主屏幕：它在 Panel Assistant 之前使用的启动器 {launcher} 已卸载或已停用。未移除任何内容，面板仍可正常使用。请重新安装或重新启用 {launcher}，然后重试。",
+          "removal_original_home_missing_unnamed": "面板无法交还主屏幕：它在 Panel Assistant 之前使用的启动器已卸载或已停用。未移除任何内容，面板仍可正常使用。请重新安装或重新启用该启动器，然后重试。",
+          "removal_ownership_unreadable": "面板无法读取它自己关于已停用厂商应用的记录。未移除任何内容。请在面板上重新启动 Panel Assistant，然后重试。",
+          "removal_package_state_unknown": "面板无法读取已安装哪些应用或哪个是其主屏幕。未移除任何内容。请稍后重试。",
+          "removal_home_not_handed": "面板没有确认其他启动器已接管主屏幕，因此未移除 Panel Assistant。请安装一个启动器或重新启用厂商启动器，然后重试。",
+          "removal_hand_back_unsupported": "此面板上的 Panel Assistant 应用版本过旧，无法交还主屏幕。未移除任何内容。请先更新应用，然后重试。",
+          "removal_app_unreachable": "Panel Assistant 没有响应，而它仍是面板的主屏幕，现在移除会让面板没有主屏幕。未移除任何内容。请在面板上启动 Panel Assistant，然后重试。",
+          "removal_remove_failed": "面板已经拿回主屏幕，但 Panel Assistant 未能完全移除。请重试：重试会完成剩余部分。"
+        }
+      }
+    },
+    "dashboard_unfiltered": {
+      "title": "{panel} 正在显示未经实体筛选的仪表盘",
+      "description": "{panel} 未能及时准备好实体筛选器，因此以全部实体打开了仪表盘。它会继续尝试，并自动回到筛选后的仪表盘。\n\n解决方法：\n1. 打开 {panel} 的[实体设置]({entities_url})，查看它在等待什么。\n2. 如果需要做出决定或重新登录，请按照其中的步骤操作。"
+    },
+    "panel_root_lost": {
+      "title": "{panel} 已失去 root 权限",
+      "fix_flow": {
+        "step": {
+          "confirm_restart": {
+            "title": "重启 {panel}",
+            "description": "{panel} 在本次开机后曾拥有 root 权限，但 root 已停止响应。重启面板可恢复此权限。\n\n修复方法:\n1. 阅读[重启指南]({learn_more_url})。\n2. 选择提交以立即重启面板。系统会先再次检查屏幕锁。\n\n[了解更多]({learn_more_url})"
+          }
+        },
+        "abort": {
+          "restart_unavailable": "{panel} 在本次开机后曾拥有 root 权限，但 root 已停止响应。重启面板可恢复此权限。 由于已设置屏幕锁、屏幕锁状态未知或面板无法接收命令，无法远程重启。重启后可能需要有人到现场解锁 {panel}。\n\n修复方法:\n1. 阅读[重启指南]({learn_more_url})。\n2. 仅在有人能按需解锁面板时重启。\n\n[了解更多]({learn_more_url})",
+          "root_unreadable": "无法读取最新的 root 状态。未发送重启命令。\n\n修复方法:\n1. 阅读[重启指南]({learn_more_url})。\n2. 面板可用后，请再次尝试此修复。\n\n[了解更多]({learn_more_url})",
+          "panel_busy": "另一项操作正在使用 {panel}。未发送重启命令。\n\n修复方法:\n1. 阅读[重启指南]({learn_more_url})。\n2. 面板可用后，请再次尝试此修复。\n\n[了解更多]({learn_more_url})",
+          "restart_failed": "无法确认重启结果。请检查 {panel} 后再试。\n\n修复方法:\n1. 阅读[重启指南]({learn_more_url})。\n2. 仅在有人能按需解锁面板时重启。\n\n[了解更多]({learn_more_url})",
+          "entry_removed": "此面板已不再配置于 Home Assistant 中。\n\n修复方法:\n1. 阅读[重启指南]({learn_more_url})。\n2. 面板可用后，请再次尝试此修复。\n\n[了解更多]({learn_more_url})",
+          "restart_started": "重启命令已被接受。当 {panel} 报告 root 权限已恢复时，此警告将消失。\n\n修复方法:\n1. 阅读[重启指南]({learn_more_url})。\n2. 面板可用后，请再次尝试此修复。\n\n[了解更多]({learn_more_url})"
+        }
+      }
     }
   },
   "options": {
@@ -1679,7 +1857,8 @@
           "onboarding": "继续设置",
           "authorize_adb": "允许更新",
           "updates": "面板更新",
-          "remove_app": "从此面板移除 Panel Assistant"
+          "remove_app": "从此面板移除",
+          "panel_logs": "面板日志（所有面板）"
         },
         "menu_option_descriptions": {
           "remove_app": "把主屏幕交还给面板自带的启动器，然后卸载该应用。"
@@ -1706,12 +1885,21 @@
       },
       "remove_app": {
         "title": "从 {panel} 移除 Panel Assistant",
-        "description": "Panel Assistant 会先把主屏幕交还给面板自带的启动器，并重新启用它停用的厂商应用；之后才会将其卸载。它在面板上的设置会被删除。\n\n在某些面板和固件版本上，移除后将无法再回到 Android 设置或网络调试，因此不打开面板就无法再次安装该应用。选择“提交”之前，请阅读[移除可能对此面板造成的影响]({risks_url})。",
+        "description": "Panel Assistant 会恢复面板的主屏幕以及它更改过的厂商应用和设置，然后卸载自身，并从 Home Assistant 中删除此面板。它在面板上的设置会被删除。\n\n在某些面板和固件版本上，移除后将无法再回到 Android 设置或网络调试，因此不打开面板就无法再次安装该应用。选择“提交”之前，请阅读[移除可能对此面板造成的影响]({risks_url})。"
+      },
+      "panel_logs": {
+        "title": "面板日志（所有面板）",
+        "description": "为所有面板选择一个目标。这些设置也适用于以后添加的面板。系统日志默认关闭。HTTP 目标支持主机名或完整的 HTTP URL。",
         "data": {
-          "delete_entry": "同时从 Home Assistant 中删除此面板"
+          "destination": "目标",
+          "host": "主机或 HTTP URL",
+          "port": "端口",
+          "app_level": "应用日志级别",
+          "system_level": "系统日志级别",
+          "also_home_assistant": "同时写入 Home Assistant 日志"
         },
         "data_description": {
-          "delete_entry": "保持关闭可保留其实体和历史记录，以便你再次安装 Panel Assistant 时使用。"
+          "also_home_assistant": "适用于 UDP、TCP 或 HTTP 目标。"
         }
       }
     },
@@ -1732,24 +1920,57 @@
       "removal_busy": "另一项操作正在更改此面板。未移除任何内容；请在该操作完成后重试。",
       "removal_adb_unreachable": "Home Assistant 无法通过 Android Debug Bridge（端口 5555）连接到面板。未移除任何内容。请确认面板已开启且网络调试仍处于启用状态，然后重试。",
       "removal_adb_authorization": "面板尚未接受此 Home Assistant 实例的 Android Debug Bridge 连接。未移除任何内容。请先选择“允许更新”，然后重试。",
+      "removal_adb_authorization_unavailable": "面板尚未授权此 Home Assistant 实例使用 Android 调试桥。未移除任何内容。请检查面板是否已开机且能响应，然后重试。",
       "removal_panel_changed": "此面板的地址现在由另一台设备响应。未移除任何内容。",
       "removal_approval_required": "已开启强化安全模式，因此交还主屏幕必须在面板上批准。未做任何更改，Panel Assistant 仍已安装。请在面板上批准请求，然后再次提交。",
       "removal_no_replacement_home": "面板无法把主屏幕交给其他启动器：面板上没有其他主屏幕应用，因此只能显示 Panel Assistant。未移除任何内容，面板仍可正常使用。请安装一个启动器或重新启用厂商启动器，然后重试。",
+      "removal_original_home_missing": "面板无法交还主屏幕：它在 Panel Assistant 之前使用的启动器 {launcher} 已卸载或已停用。未移除任何内容，面板仍可正常使用。请重新安装或重新启用 {launcher}，然后重试。",
+      "removal_original_home_missing_unnamed": "面板无法交还主屏幕：它在 Panel Assistant 之前使用的启动器已卸载或已停用。未移除任何内容，面板仍可正常使用。请重新安装或重新启用该启动器，然后重试。",
       "removal_ownership_unreadable": "面板无法读取它自己关于已停用厂商应用的记录。未移除任何内容。请在面板上重新启动 Panel Assistant，然后重试。",
       "removal_package_state_unknown": "面板无法读取已安装哪些应用或哪个是其主屏幕。未移除任何内容。请稍后重试。",
       "removal_home_not_handed": "面板没有确认其他启动器已接管主屏幕，因此未移除 Panel Assistant。请安装一个启动器或重新启用厂商启动器，然后重试。",
       "removal_hand_back_unsupported": "此面板上的 Panel Assistant 应用版本过旧，无法交还主屏幕。未移除任何内容。请先更新应用，然后重试。",
       "removal_app_unreachable": "Panel Assistant 没有响应，而它仍是面板的主屏幕，现在移除会让面板没有主屏幕。未移除任何内容。请在面板上启动 Panel Assistant，然后重试。",
       "removal_remove_failed": "面板已经拿回主屏幕，但 Panel Assistant 未能完全移除。请重试：重试会完成剩余部分。",
-      "panel_not_connected": "面板尚未连接。请在其设置页面完成各个步骤，然后再次点击“完成”。"
+      "panel_not_connected": "面板尚未连接。请在其设置页面完成各个步骤，然后再次点击“完成”。",
+      "log_host_required": "请输入目标主机或 HTTP URL。",
+      "log_sink_unavailable": "此已保存的目标不再可用。请选择其他目标。",
+      "log_destination_invalid": "请检查目标主机、URL 和端口。"
     },
     "abort": {
       "removed_entry_deleted": "已移除 Panel Assistant，并已从 Home Assistant 删除该面板。",
-      "removed_entry_kept": "已移除 Panel Assistant。在您删除之前，面板会保留在 Home Assistant 中。",
       "panel_connected": "面板已设置完成，并已连接到 Home Assistant。"
     },
     "progress": {
       "authorize_adb": "请查看 {panel} 的屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。\n\n面板允许后，将自动继续。"
+    }
+  },
+  "selector": {
+    "destination": {
+      "options": {
+        "none": "关闭"
+      }
+    },
+    "app_level": {
+      "options": {
+        "2": "详细",
+        "3": "调试",
+        "4": "信息",
+        "5": "警告",
+        "6": "错误",
+        "7": "致命"
+      }
+    },
+    "system_level": {
+      "options": {
+        "0": "关闭",
+        "2": "详细",
+        "3": "调试",
+        "4": "信息",
+        "5": "警告",
+        "6": "错误",
+        "7": "致命"
+      }
     }
   }
 }

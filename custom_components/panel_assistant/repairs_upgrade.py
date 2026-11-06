@@ -33,6 +33,7 @@ from .client import PanelHealth
 from .const import (
     CONF_CUTOVER,
     DOMAIN,
+    INTEGRATION_VERSION,
     REQUIRED_APP_VERSION,
     help_url,
 )
@@ -43,6 +44,19 @@ from .update_policy import overlaps
 ISSUE_PANEL_APP_TOO_OLD: Final = "panel_app_too_old"
 ISSUE_MQTT_PANEL_NEEDS_090: Final = "mqtt_panel_needs_090"
 ISSUE_OLD_APP_NEEDS_090: Final = "old_app_needs_090"
+
+
+def _required_app_version() -> str:
+    """Name the app release to install; a stable integration names the stable app.
+
+    Stable promotion deletes the prereleases, so a stable Panel Assistant must
+    not point at ``1.0.0-rc1``.
+    """
+    if "-" in INTEGRATION_VERSION:
+        return REQUIRED_APP_VERSION
+    return REQUIRED_APP_VERSION.split("-", 1)[0]
+
+
 # The device registry's name for MQTT, and how the app named its MQTT device.
 _MQTT_DOMAIN: Final = "mqtt"
 _CUTOVER_COMPLETE: Final = "complete"
@@ -134,7 +148,7 @@ def async_evaluate_app_too_old(hass: HomeAssistant, entry: ConfigEntry) -> None:
         translation_placeholders={
             "panel": panel_display_name(hass, entry),
             "version": health.version,
-            "required_version": REQUIRED_APP_VERSION,
+            "required_version": _required_app_version(),
             "updates_url": "/config/updates",
         },
     )
@@ -196,10 +210,3 @@ def async_raise_needs_090(hass: HomeAssistant, entry: ConfigEntry) -> None:
             "recovery_url": help_url("repair", issue=ISSUE_MQTT_PANEL_NEEDS_090),
         },
     )
-
-
-@callback
-def async_delete_upgrade_issues(hass: HomeAssistant, entry_id: str) -> None:
-    """Withdraw both of an entry's upgrade Repairs."""
-    ir.async_delete_issue(hass, DOMAIN, app_too_old_issue_id(entry_id))
-    ir.async_delete_issue(hass, DOMAIN, needs_090_issue_id(entry_id))

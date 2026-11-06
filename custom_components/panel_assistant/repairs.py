@@ -9,20 +9,24 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.components.repairs import RepairsFlow, RepairsFlowResult
+from homeassistant.components.update import DATA_COMPONENT as UPDATE_COMPONENT
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType, UnknownStep
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from .build_feed import parse_build_request
 from .client import (
     CannotConnectError,
     HaPaneldClient,
     InvalidAddressError,
     InvalidResponseError,
     is_valid_discovery_id,
+    is_version_at_least,
     normalize_address,
 )
 from .config_flow import AdbAuthorization, async_authorize_adb_form
@@ -38,6 +42,7 @@ from .identity import (
 from .install_executor import async_get_install_executor
 from .install_jobs import async_get_install_job_manager
 from .install_receipt import InstallPhase
+from .panel_operations import claim_panel_operation, release_panel_operation
 from .release import ReleaseResolutionError
 from .release_catalog import async_resolve_install_choice
 from .repairs_failure import (
@@ -46,6 +51,7 @@ from .repairs_failure import (
     RetrySafetyHold,
     adb_authorization_issue_id,
     async_clear_failure,
+    async_clear_update_failure_if_installed,
     async_delete_issue_and_report,
     async_failure_events,
     async_record_retry_hold,
@@ -64,7 +70,14 @@ from .repairs_proximity import (
     proximity_issue_id,
     proximity_state,
 )
+from .repairs_removal import (
+    ISSUE_REMOVE_FROM_PANEL,
+    RemoveFromPanelFlow,
+    removal_issue_id,
+)
 from .repairs_restart import ISSUE_RESTART_REQUIRED, RestartRequiredFlow
+from .repairs_root import ISSUE_PANEL_ROOT_LOST, PanelRootLostFlow, root_issue_id
+from .repairs_webview import async_update_webview
 from .transport_binding import (
     ISSUE_DATA_ENTRY_ID,
     ISSUE_DATA_USER_ID,
@@ -489,18 +502,73 @@ class InstallerFailureFlow(RepairsFlow):
             if entity_id is None:
                 raise RetrySafetyHold("retry_update_unavailable")
             state = self.hass.states.get(entity_id)
+            if state is not None and state.attributes.get("in_progress"):
+                # The update is still running; its own outcome ends this Repair.
+                return "retry_panel_busy"
             offered = state.attributes.get("latest_version") if state else None
             installed = (
                 state.attributes.get("installed_version", state.state)
                 if state
                 else None
             )
+            target = previous.get("target_version")
+            target_code = (
+                parse_build_request(target) if isinstance(target, str) else None
+            )
+            installed_code = (
+                parse_build_request(installed) if isinstance(installed, str) else None
+            )
+            app_reached = isinstance(installed, str) and (
+                target is None
+                or (
+                    target_code is not None
+                    and installed_code is not None
+                    and installed_code >= target_code
+                )
+                or (
+                    target_code is None
+                    and is_version_at_least(installed.partition(" build ")[0], target)
+                    is True
+                )
+            )
+            if (
+                previous.get("webview_pending")
+                and app_reached
+                and isinstance(installed, str)
+            ):
+                if not claim_panel_operation(self.hass, entry_id):
+                    return "retry_panel_busy"
+                try:
+                    entry = self.hass.config_entries.async_get_entry(entry_id)
+                    if entry is None or not entry.data.get(CONF_TRANSPORT_USER_ID):
+                        return "retry_failed"
+                    reason = await async_update_webview(
+                        self.hass, entry_id, allow_legacy=True
+                    )
+                    # Unpublished WebView files end the bundle as the install
+                    # does: the app is current, the WebView is offered later.
+                    if reason not in (None, "webview_download_deferred"):
+                        raise HomeAssistantError(reason)
+                    await async_clear_update_failure_if_installed(
+                        self.hass,
+                        entry_id,
+                        installed.partition(" build ")[0],
+                        parse_build_request(installed),
+                        verified_success=True,
+                        webview_completed=True,
+                    )
+                    return "_update_completed"
+                finally:
+                    release_panel_operation(self.hass, entry_id)
             if (
                 state is not None
                 and state.state == STATE_OFF
                 and isinstance(installed, str)
                 and offered == installed
             ):
+                if previous.get("webview_pending"):
+                    # A missing offer is not proof that the saved app target landed.
+                    return "retry_cannot_prove_safe"
                 # The panel already runs the newest build on offer: the update
                 # that failed to report back has since landed, or nothing newer
                 # exists. There is nothing to install, so the failure is over;
@@ -527,12 +595,23 @@ class InstallerFailureFlow(RepairsFlow):
             service_data = {"entity_id": entity_id}
             if not current_retry and isinstance(previous.get("target_version"), str):
                 service_data["version"] = previous["target_version"]
-            await self.hass.services.async_call(
-                Platform.UPDATE,
-                "install",
-                service_data,
-                blocking=True,
-            )
+            try:
+                await self.hass.services.async_call(
+                    Platform.UPDATE,
+                    "install",
+                    service_data,
+                    blocking=True,
+                )
+            except HomeAssistantError as err:
+                # An update that began after the state was read is refused,
+                # by Home Assistant or by the panel's own operation claim.
+                component = self.hass.data.get(UPDATE_COMPONENT)
+                entity = component.get_entity(entity_id) if component else None
+                if err.translation_key == "update_busy" or (
+                    entity is not None and entity.in_progress
+                ):
+                    return "retry_panel_busy"
+                raise
             return "_update_completed"
         except RetrySafetyHold as err:
             await async_record_retry_hold(self.hass, self.issue_id, previous, err)
@@ -721,6 +800,16 @@ async def async_create_fix_flow(
 ) -> RepairsFlow:
     """Create the fix flow for a Panel Assistant issue."""
     values = data or {}
+    if issue_id.startswith(f"{ISSUE_PANEL_ROOT_LOST}_"):
+        entry_id = values.get("entry_id")
+        if not isinstance(entry_id, str) or issue_id != root_issue_id(entry_id):
+            raise UnknownStep
+        return PanelRootLostFlow(entry_id)
+    if issue_id.startswith(f"{ISSUE_REMOVE_FROM_PANEL}_"):
+        entry_id = values.get("entry_id")
+        if not isinstance(entry_id, str) or issue_id != removal_issue_id(entry_id):
+            raise UnknownStep
+        return RemoveFromPanelFlow(entry_id)
     if issue_id == ISSUE_RESTART_REQUIRED:
         return RestartRequiredFlow()
     if issue_id.startswith(f"{ISSUE_PANEL_PERMISSIONS}_"):

@@ -95,6 +95,11 @@ class FakeSession:
         if self.error is not None:
             raise self.error
         if by_url:
+            if (
+                str(url) == "https://panel-assistant.io/releases/v1.json"
+                and str(url) not in self.responses
+            ):
+                return FakeResponse(404, b"", URL(str(url)))
             return self.responses[str(url)]
         if isinstance(self.responses, FakeResponse):
             return self.responses

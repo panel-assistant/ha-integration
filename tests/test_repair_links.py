@@ -109,8 +109,18 @@ async def test_every_issue_has_a_repair_map_entry(hass: HomeAssistant) -> None:
     pinned = json.loads(
         (Path(__file__).parent / "fixtures/go_topics.json").read_text()
     ).get("repair", {})
-    assert issues and issues == set(pinned)
-    assert len(set(pinned.values())) == len(issues)
+    # Owner-requested removal links directly to the existing removal-risks topic.
+    # Fault Repairs use /go/repair and require an issue-specific destination.
+    # The unfinished-WebView wording of the update Repair shares its page.
+    # Root-loss guidance lives in the Repair; its optional app status extension
+    # uses the generic /go/repair destination until its dedicated page is added.
+    fault_issues = issues - {
+        "remove_from_panel",
+        "installer_failure_update_webview",
+        "panel_root_lost",
+    }
+    assert fault_issues and fault_issues == set(pinned)
+    assert len(set(pinned.values())) == len(fault_issues)
     assert all("#" in destination for destination in pinned.values())
 
 
@@ -130,7 +140,25 @@ async def test_repair_descriptions_have_short_linked_fix_steps(
     assert bodies
     for key, text in bodies.items():
         steps = re.findall(r"^\d\. (.+)$", text, re.MULTILINE)
-        assert "\n\nTo fix:\n" in text and 1 <= len(steps) <= 3, key
+        # An owner-started action is a confirmation, rather than a panel fault.
+        heading = "To remove" if ".issues.remove_from_panel." in key else "To fix"
+        assert f"\n\n{heading}:\n" in text and 1 <= len(steps) <= 3, key
         assert re.search(r"\[[^]]+\]\([^)]+\)", steps[0]), key
         if ".fix_flow." in key:
             assert "[Learn more]({learn_more_url})" in text, key
+
+
+@pytest.mark.parametrize(
+    "language",
+    ["cs", "de", "en", "es", "fr", "it", "nl", "pl", "pt-BR", "uk", "zh-Hans"],
+)
+async def test_retired_standalone_webview_repair_is_absent_from_core(
+    hass: HomeAssistant, language: str
+) -> None:
+    """Only the combined update Repair owns unfinished browser-engine work."""
+    assert await async_setup_component(hass, DOMAIN, {})
+    strings = await async_get_translations(hass, language, "issues", {DOMAIN})
+    prefix = f"component.{DOMAIN}.issues."
+    assert strings
+    assert not any(key.startswith(f"{prefix}panel_webview.") for key in strings)
+    assert any(key.startswith(f"{prefix}installer_failure_update.") for key in strings)

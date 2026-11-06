@@ -1,6 +1,5 @@
 """Published release choices and offline native setup behavior."""
 
-import asyncio
 from contextlib import ExitStack
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -12,6 +11,7 @@ from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.panel_assistant.client import PanelSetupState
 from custom_components.panel_assistant.config_flow import HaPaneldConfigFlow
+from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.release import ReleaseResolutionError
 
 from .test_config_flow import (
@@ -75,8 +75,8 @@ async def test_real_catalog_populates_selector_and_caches(
         if pa_version == "1.0.0":
             # One recommended release is nothing to choose: straight to the question.
             assert form["step_id"] == "confirm_install_candidate"
-            assert flow._pending_release.tag == "v1.2.3"
-            assert flow._pending_rc_tag is None
+            assert form["description_placeholders"]["tag"] == "v1.2.3"
+            assert form["description_placeholders"]["version"] == "1.2.3"
             return
         again = await flow.async_step_choose_version()
     assert "release_candidate" not in address_form["data_schema"].schema
@@ -87,7 +87,7 @@ async def test_real_catalog_populates_selector_and_caches(
     assert not any(url.endswith(".apk") for url, _ in requests)
     selector = form["data_schema"].schema["release_candidate"]
     assert selector.config["options"] == [
-        {"value": "stable", "label": "v1.3.0-rc2 (recommended)"},
+        {"value": "stable", "label": "v1.3.0-rc2"},
         {"value": "v1.2.3", "label": "v1.2.3"},
     ]
     assert form["errors"] is None
@@ -254,15 +254,14 @@ async def test_network_setup_offers_and_installs_a_feed_build(
         # The feed build is the one recommended choice, so no version step shows.
         result = await flow.async_step_add_panel({CONF_ADDRESS: "panel.local"})
     assert result["step_id"] == "confirm_install_candidate"
-    assert flow._pending_release is not None
-    assert flow._pending_release.tag == "build-772-successor"
-    assert flow._pending_rc_tag is None
+    assert result["description_placeholders"]["tag"] == "build-772-successor"
+    assert result["description_placeholders"]["version"] == "0.9.7-rc4"
     mocks["credential"].assert_not_awaited()
     manager.async_create_or_join.assert_not_awaited()
 
 
 async def test_found_panel_offers_its_unfinished_setup_before_connecting(hass):
-    """An unfinished setup is offered first; connecting anyway is the explicit skip."""
+    """An unfinished setup is offered first; a new panel cannot skip it."""
     with (
         patch(
             f"{_FLOW}.HaPaneldClient.async_get_health", AsyncMock(return_value=HEALTH)
@@ -277,24 +276,23 @@ async def test_found_panel_offers_its_unfinished_setup_before_connecting(hass):
             form["flow_id"], {CONF_ADDRESS: "panel.local:8889"}
         )
         assert found["step_id"] == "found_unconfigured"
-        assert found["menu_options"] == ["panel_setup", "connect_found", "add_panel"]
-        skipped = await hass.config_entries.flow.async_configure(
-            form["flow_id"], {"next_step_id": "connect_found"}
-        )
-    assert skipped["type"] is FlowResultType.CREATE_ENTRY
+        assert found["menu_options"] == ["panel_setup", "add_panel"]
+    assert not hass.config_entries.async_entries(DOMAIN)
 
 
 async def test_setup_wizard_opens_and_the_flow_connects_when_setup_is_done(hass):
-    """Home Assistant opens the wizard and moves on by itself once setup is done."""
-    setup = AsyncMock(side_effect=[False, False, True])
+    """The setup page is linked in a form; Submit connects once setup is done."""
+    setup = AsyncMock(side_effect=[False, True])
+    # The panel's setup state agrees with its completion once the wizard ends;
+    # the entry is created only after that durable completion.
+    state = AsyncMock(
+        side_effect=lambda: PanelSetupState(complete=setup.await_count >= 2)
+    )
     with (
         patch(
             f"{_FLOW}.HaPaneldClient.async_get_health", AsyncMock(return_value=HEALTH)
         ),
-        patch(
-            f"{_FLOW}.HaPaneldClient.async_get_setup_state",
-            AsyncMock(return_value=PanelSetupState(complete=False)),
-        ),
+        patch(f"{_FLOW}.HaPaneldClient.async_get_setup_state", state),
         patch(f"{_FLOW}.HaPaneldClient.async_get_setup_complete", setup),
         patch(f"{_FLOW}._SETUP_POLL_SECONDS", 0),
     ):
@@ -305,37 +303,36 @@ async def test_setup_wizard_opens_and_the_flow_connects_when_setup_is_done(hass)
         opened = await hass.config_entries.flow.async_configure(
             form["flow_id"], {"next_step_id": "panel_setup"}
         )
-        assert opened["type"] is FlowResultType.EXTERNAL_STEP
-        assert opened["url"] == "http://panel.local:8889/setup"
-        # The watcher runs in the background; wait for it to see setup done.
-        for _ in range(200):
-            if hass.config_entries.flow.async_get(form["flow_id"])["step_id"] == (
-                "connect_found"
-            ):
-                break
-            await asyncio.sleep(0.01)
-        done = await hass.config_entries.flow.async_configure(form["flow_id"])
+        assert opened["type"] is FlowResultType.FORM
+        # The setup page is linked at the address the installer pinned.
+        assert opened["description_placeholders"]["setup_url"] == (
+            "http://192.168.1.23:8889/setup"
+        )
+        early = await hass.config_entries.flow.async_configure(form["flow_id"], {})
+        assert early["errors"] == {"base": "panel_setup_not_finished"}
+        done = await hass.config_entries.flow.async_configure(form["flow_id"], {})
     assert done["type"] is FlowResultType.CREATE_ENTRY
-    assert setup.await_count == 3
+    assert setup.await_count == 2
 
 
-async def test_a_panel_that_cannot_report_setup_connects_as_before(hass):
-    """An older panel without the setup report is treated as set up."""
+async def test_a_panel_that_cannot_report_setup_is_offered_its_setup(hass):
+    """A failed setup read cannot advertise a new panel as set up."""
     with (
         patch(
             f"{_FLOW}.HaPaneldClient.async_get_health", AsyncMock(return_value=HEALTH)
         ),
         patch(
-            f"{_FLOW}.HaPaneldClient.async_get_setup_complete",
+            f"{_FLOW}.HaPaneldClient.async_get_setup_state",
             AsyncMock(side_effect=CannotConnectError),
-        ),
+        ) as setup,
     ):
         form = await _start_step(hass, "add_panel")
         found = await hass.config_entries.flow.async_configure(
             form["flow_id"], {CONF_ADDRESS: "panel.local:8889"}
         )
-    assert found["step_id"] == "found_panel"
-    assert found["menu_options"] == ["connect_found", "add_panel"]
+    setup.assert_awaited_once()
+    assert found["step_id"] == "found_unconfigured"
+    assert found["menu_options"] == ["panel_setup", "add_panel"]
 
 
 @pytest.mark.parametrize(
@@ -406,7 +403,7 @@ async def test_opening_the_wizard_tells_the_panel_where_home_assistant_is(hass):
         opened = await hass.config_entries.flow.async_configure(
             form["flow_id"], {"next_step_id": "panel_setup"}
         )
-        assert opened["type"] is FlowResultType.EXTERNAL_STEP
+        assert opened["type"] is FlowResultType.FORM
 
     hand_over.assert_awaited_once_with("http://192.0.2.5:8123")
 

@@ -37,7 +37,7 @@ test('opens synchronously, selects stable, sends only bounded bytes and waits fo
   const f = fixture();
   assert.equal(f.opened.target, '_blank');
   const fragment = new URLSearchParams(f.opened.url.hash.slice(1));
-  assert.deepEqual([...fragment.keys()], ['ha_origin', 'nonce', 'rc']);
+  assert.deepEqual([...fragment.keys()].sort(), ['ha_origin', 'nonce', 'rc']);
   assert.equal(fragment.get('ha_origin'), 'http://ha.example:8123');
   assert.match(fragment.get('nonce'), /^[a-f0-9]{32}$/);
   assert.equal(fragment.get('rc'), '');
@@ -53,8 +53,8 @@ test('opens synchronously, selects stable, sends only bounded bytes and waits fo
   assert.equal(f.posts.length, 1);
   const [message, target] = f.posts[0];
   assert.equal(target, 'https://installer.example');
-  assert.deepEqual(Object.keys(message), ['type', 'nonce', 'bundle', 'apk']);
-  assert.deepEqual(Object.keys(message.bundle), ['tag', 'checksum', 'checksumSignature', 'descriptor', 'descriptorSignature']);
+  assert.deepEqual(Object.keys(message).sort(), ['apk', 'bundle', 'nonce', 'type']);
+  assert.deepEqual(Object.keys(message.bundle).sort(), ['checksum', 'checksumSignature', 'descriptor', 'descriptorSignature', 'tag']);
   assert.ok(message.bundle.checksum instanceof Uint8Array);
   assert.equal(await message.apk.text(), 'apk');
   assert.equal(f.listeners.size, 1);
@@ -173,7 +173,7 @@ test('a dev build is requested by its build tag and delivered as the signed feed
   assert.deepEqual(JSON.parse(f.calls[0][1].body), { release_candidate: 'build-772' });
   assert.equal(f.calls[1][0], `/api/panel_assistant/usb/release/${'c'.repeat(32)}/apk`);
   const [message] = f.posts[0];
-  assert.deepEqual(Object.keys(message.bundle), ['tag', 'feed', 'feedSignature']);
+  assert.deepEqual(Object.keys(message.bundle).sort(), ['feed', 'feedSignature', 'tag']);
   assert.equal(message.bundle.tag, 'build-772');
   assert.equal(new TextDecoder().decode(message.bundle.feed), '{"builds":[]}\n');
   assert.equal(message.bundle.feedSignature.length, 256);

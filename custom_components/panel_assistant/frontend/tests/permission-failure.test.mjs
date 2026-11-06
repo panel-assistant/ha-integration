@@ -32,7 +32,7 @@ function failedPermissions(panelOptions) {
     const stubs = {
       '@yume-chan/adb': 'export const AdbCommand = {}; export class AdbTcpIpService {}; export class Adb { disconnected = new Promise(() => {}); createSocket(command) { return globalThis.panel.adb.createSocket(command); } close() {} }; export const AdbDaemonTransport = { authenticate: async () => ({}) };',
       '@yume-chan/adb-credential-web': 'export default class Store {}',
-      '@yume-chan/adb-daemon-webusb': 'export class AdbDaemonWebUsbDeviceManager { requestDevice() { return Promise.resolve({ raw: { ...globalThis.panel.usbDevice, close() {} }, serial: "panel", connect: async () => ({}) }); } }',
+      '@yume-chan/adb-daemon-webusb': 'export class AdbDaemonWebUsbDevice { static DeviceBusyError = class extends Error {}; } export class AdbDaemonWebUsbDeviceManager { requestDevice() { return Promise.resolve({ raw: { ...globalThis.panel.usbDevice, close() {} }, serial: "panel", connect: async () => ({}) }); } }',
       'usb-bounds.mjs': 'export const boundedUsb = value => value;',
       'session-target.mjs': 'export const inspectSessionTarget = async () => globalThis.panel.target;',
       'job-store.mjs': 'export const openJobStore = async () => ({ close() {} });',

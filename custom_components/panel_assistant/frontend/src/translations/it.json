@@ -56,7 +56,7 @@
     "downloading": "Preparazione dell’app…",
     "verifying": "Preparazione dell’app…",
     "verified": "Continua nella nuova finestra.",
-    "installed": "Panel Assistant è installato. Completa la configurazione del pannello nella finestra dell'installer, poi chiudi questa scheda.",
+    "installed": "Panel Assistant è installato. Completa la configurazione del pannello nella finestra che hai aperto per l'installazione, poi chiudi questa scheda.",
     "cancelled": "Annullato.",
     "popup_blocked": "Il browser ha bloccato la nuova finestra. Consenti i popup per questa pagina, poi premi Continua.",
     "invalid_request": "Scegli prima una versione.",
@@ -88,6 +88,9 @@
     "stepStarting": "Avvio dell’app…",
     "stepPermissions": "Assegnazione all’app di ciò che le serve per funzionare…",
     "stepOpening": "Apertura della configurazione del pannello…",
+    "stepWebView": "Aggiornamento del motore del browser del pannello…",
+    "stepWebViewUpdated": "Il motore del browser del pannello è aggiornato.",
+    "stepWebViewKept": "Il motore del browser del pannello è stato lasciato invariato.",
     "keepConnected": "Lascia il cavo collegato fino al termine dell’operazione.",
     "doneHeading": "Installata",
     "doneOpening": "Apertura della configurazione del pannello…",
@@ -109,10 +112,11 @@
     "licenses": "Licenze di terze parti",
     "doneAnotherHomeAssistant": "Su questo pannello è attivo l'accesso a un altro Home Assistant. Cambia Home Assistant ed esegui l'accesso sul pannello per collegarlo qui.",
     "reconnectedHeading": "Panel Assistant raggiunge di nuovo questo pannello",
-    "reconnectedBody": "Questo pannello ha già l'app, quindi non è stato installato nulla. Home Assistant ora può aggiornarlo tramite la tua rete."
+    "reconnectedBody": "Questo pannello ha già l'app, quindi non è stato installato nulla. Home Assistant ora può aggiornarla tramite la tua rete."
   },
   "errors": {
     "installErrorGeneric": "Si è verificato un problema. Lascia il pannello collegato e premi Riprova.",
+    "installErrorUsbBusy": "Un’altra app sta usando la connessione USB. Chiudi le altre app che usano la connessione USB del pannello, poi premi Riprova.",
     "installErrorBusy": "Il pannello è impegnato in un’altra installazione. Attendi un minuto, poi riprova.",
     "installErrorStorage": "Questo browser non è riuscito a salvare l’avanzamento. Consenti a questo sito di memorizzare dati, poi riprova.",
     "installErrorTarget": "È stato collegato un pannello diverso. Collega lo stesso pannello e riprova.",
@@ -140,7 +144,7 @@
     "cause": "Causa",
     "failedCheck": "Controllo non riuscito",
     "error": "Errore",
-    "release": "Versione pubblicata",
+    "release": "Versione",
     "panel": "Pannello",
     "copied": "Copiato",
     "savedProgress": "Avanzamento salvato",
@@ -155,6 +159,7 @@
     "networkAdb": "ADB di rete",
     "copiedDetail": "{bytes} byte inviati; in attesa della conferma del pannello",
     "none": "nessuno",
-    "setupMissing": "non trovato; la configurazione prosegue sul pannello"
+    "setupMissing": "non trovato; la configurazione prosegue sul pannello",
+    "webview": "WebView"
   }
 }

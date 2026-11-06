@@ -56,7 +56,7 @@
     "downloading": "Getting the app ready…",
     "verifying": "Getting the app ready…",
     "verified": "Continue in the new window.",
-    "installed": "Panel Assistant is installed. Finish the panel's setup in the installer window, then close this tab.",
+    "installed": "Panel Assistant is installed. Finish setting up the panel in the window you opened for the install, then close this tab.",
     "cancelled": "Cancelled.",
     "popup_blocked": "Your browser blocked the new window. Allow pop-ups for this page, then press Continue.",
     "invalid_request": "Choose a version first.",
@@ -77,7 +77,7 @@
     "confirmHeading": "Ready to install",
     "confirmBody": "This installs the app and makes it your panel’s home screen. Your other apps are not touched.",
     "install": "Install",
-    "restartedDifferentVersion": "An earlier installation attempt used a different release. That attempt has been set aside.",
+    "restartedDifferentVersion": "An earlier installation attempt used a different version. That attempt has been set aside.",
     "alreadyInstalledHeading": "Already installed",
     "alreadyInstalledBody": "This version is already on your panel. Continue to finish setting it up; nothing is copied or reinstalled.",
     "continueSetup": "Continue",
@@ -88,6 +88,9 @@
     "stepStarting": "Starting the app…",
     "stepPermissions": "Giving the app what it needs to run…",
     "stepOpening": "Opening your panel’s setup…",
+    "stepWebView": "Updating the panel’s browser engine…",
+    "stepWebViewUpdated": "The panel’s browser engine is up to date.",
+    "stepWebViewKept": "The panel’s browser engine was left as it is.",
     "keepConnected": "Keep the cable plugged in until this finishes.",
     "doneHeading": "Installed",
     "doneOpening": "Taking you to your panel’s setup…",
@@ -106,13 +109,14 @@
     "pageClosed": "The page was closed.",
     "progress": "Progress",
     "installProgress": "Installation progress",
-    "licenses": "Third-party licenses",
+    "licenses": "Third-party licences",
     "doneAnotherHomeAssistant": "This panel is signed in to another Home Assistant. Change Home Assistant and sign in on the panel to connect it here.",
     "reconnectedHeading": "Panel Assistant can reach this panel again",
     "reconnectedBody": "This panel already has the app, so nothing was installed. Home Assistant can now update it over your network."
   },
   "errors": {
     "installErrorGeneric": "Something went wrong. Keep the panel plugged in and press Try again.",
+    "installErrorUsbBusy": "Another app is using the USB connection. Close other apps using the panel’s USB connection, then press Try again.",
     "installErrorBusy": "The panel is busy with another install. Wait a minute, then try again.",
     "installErrorStorage": "This browser couldn’t save its progress. Allow this site to store data, then try again.",
     "installErrorTarget": "A different panel was connected. Plug in the same panel and try again.",
@@ -140,7 +144,7 @@
     "cause": "Cause",
     "failedCheck": "Failed check",
     "error": "Error",
-    "release": "Release",
+    "release": "Version",
     "panel": "Panel",
     "copied": "Copied",
     "savedProgress": "Saved progress",
@@ -155,6 +159,7 @@
     "networkAdb": "Network ADB",
     "copiedDetail": "{bytes} bytes sent; waiting for the panel to confirm",
     "none": "none",
-    "setupMissing": "not found; setup continues on the panel"
+    "setupMissing": "not found; setup continues on the panel",
+    "webview": "WebView"
   }
 }

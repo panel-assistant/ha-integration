@@ -7,30 +7,30 @@ language: it
 commands:
   show_page:
     sentences:
-      - "(mostra|mostrami|fammi vedere|voglio vedere|visualizza) ((la pagina|la vista|la scheda) (di|del|dello|dei|degli|delle)|[la] dashboard [di|del|dello|dei|degli|delle]) {page} sul {panel}"
+      - "(mostra|mostrami|voglio vedere|visualizza) ((la pagina|la vista|la scheda) (di|del|dello|dei|degli|delle)|[la] dashboard [di|del|dello|dei|degli|delle]) {page} sul {panel}"
       - "(vai|torna) ((alla pagina|alla vista|alla scheda) (di|del|dello|dei|degli|delle)|alla dashboard [di|del|dello|dei|degli|delle]) {page} sul {panel}"
-      - "(mostra|mostrami|fammi vedere|voglio vedere|visualizza) ((la pagina|la vista|la scheda) (di|del|dello|dei|degli|delle)|[la] dashboard [di|del|dello|dei|degli|delle]) {page}"
+      - "(mostra|mostrami|voglio vedere|visualizza) ((la pagina|la vista|la scheda) (di|del|dello|dei|degli|delle)|[la] dashboard [di|del|dello|dei|degli|delle]) {page}"
       - "(vai|torna) ((alla pagina|alla vista|alla scheda) (di|del|dello|dei|degli|delle)|alla dashboard [di|del|dello|dei|degli|delle]) {page}"
   android_settings:
     sentences:
-      - "(mostra|mostrami|fammi vedere|voglio vedere|visualizza) [le] impostazioni [di] android"
+      - "(mostra|mostrami|voglio vedere|visualizza) [le] impostazioni [di] android"
       - "(vai|torna) alle impostazioni [di] android"
-      - "(mostra|mostrami|fammi vedere|voglio vedere|visualizza) [le] impostazioni [di] android sul {panel}"
+      - "(mostra|mostrami|voglio vedere|visualizza) [le] impostazioni [di] android sul {panel}"
       - "(vai|torna) alle impostazioni [di] android sul {panel}"
   launcher:
     sentences:
-      - "(mostra|mostrami|fammi vedere|voglio vedere) il launcher [di android]"
+      - "(mostra|mostrami|voglio vedere) il launcher [di android]"
       - "(vai|torna) al launcher [di android]"
-      - "(mostra|mostrami|fammi vedere|voglio vedere) la (schermata (home|iniziale|principale)|home) di android"
+      - "(mostra|mostrami|voglio vedere) la (schermata (home|iniziale|principale)|home) di android"
       - "(vai|torna) alla (schermata (home|iniziale|principale)|home) di android"
-      - "(mostra|mostrami|fammi vedere|voglio vedere) il launcher [di android] sul {panel}"
+      - "(mostra|mostrami|voglio vedere) il launcher [di android] sul {panel}"
       - "(vai|torna) al launcher [di android] sul {panel}"
   recents:
     sentences:
-      - "(mostra|mostrami|fammi vedere|voglio vedere|visualizza) le (app|applicazioni) recenti"
+      - "(mostra|mostrami|voglio vedere|visualizza) le (app|applicazioni) recenti"
       - "(vai|torna) alle (app|applicazioni) recenti"
       - "(app|applicazioni) recenti"
-      - "(mostra|mostrami|fammi vedere|voglio vedere|visualizza) le (app|applicazioni) recenti sul {panel}"
+      - "(mostra|mostrami|voglio vedere|visualizza) le (app|applicazioni) recenti sul {panel}"
       - "(app|applicazioni) recenti sul {panel}"
   back:
     sentences:
@@ -41,10 +41,10 @@ commands:
   screen_wake:
     sentences:
       - "svegliati"
-      - "(sveglia|riattiva) (lo schermo|il display|il pannello|il tablet)"
+      - "sveglia (lo schermo|il display|il pannello|il tablet)"
       - "esci dallo (standby|stand-by|stand by)"
-      - "(sveglia|riattiva) il {panel}"
-      - "(sveglia|riattiva) lo schermo del {panel}"
+      - "sveglia il {panel}"
+      - "sveglia lo schermo del {panel}"
   screen_sleep:
     sentences:
       - "vai (a dormire|in standby|in stand-by|in stand by)"
