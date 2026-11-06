@@ -76,6 +76,7 @@ from .repairs_removal import (
     removal_issue_id,
 )
 from .repairs_restart import ISSUE_RESTART_REQUIRED, RestartRequiredFlow
+from .repairs_root import ISSUE_PANEL_ROOT_LOST, PanelRootLostFlow, root_issue_id
 from .repairs_webview import async_update_webview
 from .transport_binding import (
     ISSUE_DATA_ENTRY_ID,
@@ -799,6 +800,11 @@ async def async_create_fix_flow(
 ) -> RepairsFlow:
     """Create the fix flow for a Panel Assistant issue."""
     values = data or {}
+    if issue_id.startswith(f"{ISSUE_PANEL_ROOT_LOST}_"):
+        entry_id = values.get("entry_id")
+        if not isinstance(entry_id, str) or issue_id != root_issue_id(entry_id):
+            raise UnknownStep
+        return PanelRootLostFlow(entry_id)
     if issue_id.startswith(f"{ISSUE_REMOVE_FROM_PANEL}_"):
         entry_id = values.get("entry_id")
         if not isinstance(entry_id, str) or issue_id != removal_issue_id(entry_id):

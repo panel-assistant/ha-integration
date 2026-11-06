@@ -1827,6 +1827,25 @@
     "dashboard_unfiltered": {
       "title": "{panel} mostra o dashboard sem filtragem de entidades",
       "description": "{panel} abriu o dashboard com todas as entidades porque não conseguiu preparar o filtro de entidades a tempo. Ele continua tentando e volta sozinho ao dashboard filtrado.\n\nPara corrigir:\n1. Abra as [configurações de entidades]({entities_url}) de {panel} para ver o que ele está esperando.\n2. Se pedir uma decisão ou um novo login, siga as etapas indicadas."
+    },
+    "panel_root_lost": {
+      "title": "{panel} perdeu o acesso root",
+      "fix_flow": {
+        "step": {
+          "confirm_restart": {
+            "title": "Reiniciar {panel}",
+            "description": "{panel} tinha acesso root desde a última inicialização, mas o root parou de responder. Reiniciar o painel restaura esse acesso.\n\nPara corrigir:\n1. Leia as [orientações de reinicialização]({learn_more_url}).\n2. Selecione Enviar para reiniciar o painel agora. O bloqueio de tela será verificado novamente antes.\n\n[Saiba mais]({learn_more_url})"
+          }
+        },
+        "abort": {
+          "restart_unavailable": "{panel} tinha acesso root desde a última inicialização, mas o root parou de responder. Reiniciar o painel restaura esse acesso. A reinicialização não está disponível porque há um bloqueio de tela, seu estado é desconhecido ou o painel não pode receber comandos. Após reiniciar, alguém talvez precise desbloquear {panel} pessoalmente.\n\nPara corrigir:\n1. Leia as [orientações de reinicialização]({learn_more_url}).\n2. Reinicie o painel somente quando alguém puder desbloqueá-lo, se necessário.\n\n[Saiba mais]({learn_more_url})",
+          "root_unreadable": "Não foi possível ler um estado root atualizado. Nenhum comando de reinicialização foi enviado.\n\nPara corrigir:\n1. Leia as [orientações de reinicialização]({learn_more_url}).\n2. Tente este reparo novamente quando o painel estiver disponível.\n\n[Saiba mais]({learn_more_url})",
+          "panel_busy": "Outra operação está usando {panel}. Nenhum comando de reinicialização foi enviado.\n\nPara corrigir:\n1. Leia as [orientações de reinicialização]({learn_more_url}).\n2. Tente este reparo novamente quando o painel estiver disponível.\n\n[Saiba mais]({learn_more_url})",
+          "restart_failed": "Não foi possível confirmar a reinicialização. Verifique {panel} antes de tentar novamente.\n\nPara corrigir:\n1. Leia as [orientações de reinicialização]({learn_more_url}).\n2. Reinicie o painel somente quando alguém puder desbloqueá-lo, se necessário.\n\n[Saiba mais]({learn_more_url})",
+          "entry_removed": "Este painel não está mais configurado no Home Assistant.\n\nPara corrigir:\n1. Leia as [orientações de reinicialização]({learn_more_url}).\n2. Tente este reparo novamente quando o painel estiver disponível.\n\n[Saiba mais]({learn_more_url})",
+          "restart_started": "O comando de reinicialização foi aceito. Este aviso desaparecerá quando {panel} informar que o acesso root foi restaurado.\n\nPara corrigir:\n1. Leia as [orientações de reinicialização]({learn_more_url}).\n2. Tente este reparo novamente quando o painel estiver disponível.\n\n[Saiba mais]({learn_more_url})"
+        }
+      }
     }
   },
   "options": {

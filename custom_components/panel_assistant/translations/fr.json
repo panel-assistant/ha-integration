@@ -1827,6 +1827,25 @@
     "dashboard_unfiltered": {
       "title": "{panel} affiche son tableau de bord sans filtrage des entités",
       "description": "{panel} a ouvert son tableau de bord avec toutes les entités, car il n’a pas pu préparer son filtre d’entités à temps. Il continue d’essayer et revient seul au tableau de bord filtré.\n\nPour corriger le problème :\n1. Ouvrez les [paramètres des entités]({entities_url}) de {panel} pour voir ce qu’il attend.\n2. S’il demande une décision ou une nouvelle connexion, suivez les étapes indiquées."
+    },
+    "panel_root_lost": {
+      "title": "{panel} a perdu son accès root",
+      "fix_flow": {
+        "step": {
+          "confirm_restart": {
+            "title": "Redémarrer {panel}",
+            "description": "{panel} disposait de l’accès root depuis son dernier démarrage, mais root ne répond plus. Un redémarrage du panneau le rétablit.\n\nPour résoudre le problème:\n1. Consultez les [consignes de redémarrage]({learn_more_url}).\n2. Sélectionnez Envoyer pour redémarrer le panneau maintenant. Le verrouillage d’écran sera vérifié à nouveau au préalable.\n\n[En savoir plus]({learn_more_url})"
+          }
+        },
+        "abort": {
+          "restart_unavailable": "{panel} disposait de l’accès root depuis son dernier démarrage, mais root ne répond plus. Un redémarrage du panneau le rétablit. Le redémarrage est indisponible car un verrouillage d’écran est défini, son état est inconnu ou le panneau ne peut pas recevoir de commandes. Quelqu’un devra peut-être déverrouiller {panel} sur place après le redémarrage.\n\nPour résoudre le problème:\n1. Consultez les [consignes de redémarrage]({learn_more_url}).\n2. Redémarrez le panneau uniquement si quelqu’un peut le déverrouiller si nécessaire.\n\n[En savoir plus]({learn_more_url})",
+          "root_unreadable": "Impossible de lire un état root récent. Aucune commande de redémarrage n’a été envoyée.\n\nPour résoudre le problème:\n1. Consultez les [consignes de redémarrage]({learn_more_url}).\n2. Réessayez cette réparation lorsque le panneau sera disponible.\n\n[En savoir plus]({learn_more_url})",
+          "panel_busy": "Une autre opération utilise {panel}. Aucune commande de redémarrage n’a été envoyée.\n\nPour résoudre le problème:\n1. Consultez les [consignes de redémarrage]({learn_more_url}).\n2. Réessayez cette réparation lorsque le panneau sera disponible.\n\n[En savoir plus]({learn_more_url})",
+          "restart_failed": "Le redémarrage n’a pas pu être confirmé. Vérifiez {panel} avant de réessayer.\n\nPour résoudre le problème:\n1. Consultez les [consignes de redémarrage]({learn_more_url}).\n2. Redémarrez le panneau uniquement si quelqu’un peut le déverrouiller si nécessaire.\n\n[En savoir plus]({learn_more_url})",
+          "entry_removed": "Ce panneau n’est plus configuré dans Home Assistant.\n\nPour résoudre le problème:\n1. Consultez les [consignes de redémarrage]({learn_more_url}).\n2. Réessayez cette réparation lorsque le panneau sera disponible.\n\n[En savoir plus]({learn_more_url})",
+          "restart_started": "La commande de redémarrage a été acceptée. Cet avertissement disparaîtra lorsque {panel} signalera que l’accès root est rétabli.\n\nPour résoudre le problème:\n1. Consultez les [consignes de redémarrage]({learn_more_url}).\n2. Réessayez cette réparation lorsque le panneau sera disponible.\n\n[En savoir plus]({learn_more_url})"
+        }
+      }
     }
   },
   "options": {

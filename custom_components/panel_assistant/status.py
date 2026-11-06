@@ -55,6 +55,8 @@ class PanelStatus:
     permissions: ComponentStatus | None = None
     proximity: ComponentStatus | None = None
     webview: WebViewStatus | None = None
+    root_lost_since_boot: bool | None = None
+    screen_lock_secure: bool | None = None
 
     def as_dict(self) -> dict[str, object]:
         """Return a serializable copy suitable for diagnostics."""
@@ -62,6 +64,8 @@ class PanelStatus:
             "warning_count": self.warning_count,
             "capability_count": self.capability_count,
             "install_capability": self.install_capability,
+            "root_lost_since_boot": self.root_lost_since_boot,
+            "screen_lock_secure": self.screen_lock_secure,
             "zigbee_gateway": _copy_component(self.zigbee_gateway),
             "storage_health": _copy_component(self.storage_health),
             "renderer": _copy_component(self.renderer),
@@ -557,6 +561,8 @@ def parse_status_response(body: str) -> PanelStatus:
         warning_count=warning_count,
         capability_count=capability_count,
         install_capability=install_capability,
+        root_lost_since_boot=_nullable_boolean(parsed.get("root_lost_since_boot")),
+        screen_lock_secure=_nullable_boolean(parsed.get("screen_lock_secure")),
         zigbee_gateway=_sanitize_component(
             parsed,
             "zigbee_gateway",

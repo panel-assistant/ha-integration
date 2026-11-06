@@ -1827,6 +1827,25 @@
     "dashboard_unfiltered": {
       "title": "{panel} toont zijn dashboard zonder entiteitfilter",
       "description": "{panel} heeft zijn dashboard met alle entiteiten geopend, omdat het entiteitsfilter niet op tijd klaar was. Het blijft het proberen en gaat vanzelf terug naar het gefilterde dashboard.\n\nOm dit op te lossen:\n1. Open de [entiteitsinstellingen]({entities_url}) van {panel} om te zien waarop het wacht.\n2. Als het om een beslissing of een nieuwe aanmelding vraagt, volg dan de stappen daar."
+    },
+    "panel_root_lost": {
+      "title": "{panel} heeft roottoegang verloren",
+      "fix_flow": {
+        "step": {
+          "confirm_restart": {
+            "title": "{panel} opnieuw opstarten",
+            "description": "{panel} had sinds de laatste start roottoegang, maar root reageert niet meer. Opnieuw opstarten van het paneel herstelt dit.\n\nOplossen:\n1. Lees de [aanwijzingen voor opnieuw opstarten]({learn_more_url}).\n2. Kies Verzenden om het paneel nu opnieuw op te starten. De schermvergrendeling wordt eerst opnieuw gecontroleerd.\n\n[Meer informatie]({learn_more_url})"
+          }
+        },
+        "abort": {
+          "restart_unavailable": "{panel} had sinds de laatste start roottoegang, maar root reageert niet meer. Opnieuw opstarten van het paneel herstelt dit. Opnieuw opstarten is niet beschikbaar omdat een schermvergrendeling is ingesteld, de status onbekend is of het paneel geen opdrachten kan ontvangen. Na het opnieuw opstarten moet iemand {panel} mogelijk ter plaatse ontgrendelen.\n\nOplossen:\n1. Lees de [aanwijzingen voor opnieuw opstarten]({learn_more_url}).\n2. Start het paneel alleen opnieuw op als iemand het zo nodig kan ontgrendelen.\n\n[Meer informatie]({learn_more_url})",
+          "root_unreadable": "Een actuele rootstatus kon niet worden gelezen. Er is geen herstartopdracht verstuurd.\n\nOplossen:\n1. Lees de [aanwijzingen voor opnieuw opstarten]({learn_more_url}).\n2. Probeer deze reparatie opnieuw wanneer het paneel beschikbaar is.\n\n[Meer informatie]({learn_more_url})",
+          "panel_busy": "Een andere bewerking gebruikt {panel}. Er is geen herstartopdracht verstuurd.\n\nOplossen:\n1. Lees de [aanwijzingen voor opnieuw opstarten]({learn_more_url}).\n2. Probeer deze reparatie opnieuw wanneer het paneel beschikbaar is.\n\n[Meer informatie]({learn_more_url})",
+          "restart_failed": "Het opnieuw opstarten kon niet worden bevestigd. Controleer {panel} voordat je het opnieuw probeert.\n\nOplossen:\n1. Lees de [aanwijzingen voor opnieuw opstarten]({learn_more_url}).\n2. Start het paneel alleen opnieuw op als iemand het zo nodig kan ontgrendelen.\n\n[Meer informatie]({learn_more_url})",
+          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\nOplossen:\n1. Lees de [aanwijzingen voor opnieuw opstarten]({learn_more_url}).\n2. Probeer deze reparatie opnieuw wanneer het paneel beschikbaar is.\n\n[Meer informatie]({learn_more_url})",
+          "restart_started": "De herstartopdracht is geaccepteerd. Deze waarschuwing verdwijnt zodra {panel} meldt dat de roottoegang is hersteld.\n\nOplossen:\n1. Lees de [aanwijzingen voor opnieuw opstarten]({learn_more_url}).\n2. Probeer deze reparatie opnieuw wanneer het paneel beschikbaar is.\n\n[Meer informatie]({learn_more_url})"
+        }
+      }
     }
   },
   "options": {

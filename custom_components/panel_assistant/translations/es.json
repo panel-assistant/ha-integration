@@ -1827,6 +1827,25 @@
     "dashboard_unfiltered": {
       "title": "{panel} muestra su panel de control sin filtrado de entidades",
       "description": "{panel} abrió su panel de control con todas las entidades porque no pudo terminar a tiempo de preparar su filtro de entidades. Sigue intentándolo y vuelve por sí solo al panel de control filtrado.\n\nPara solucionarlo:\n1. Abre la [configuración de entidades]({entities_url}) de {panel} para ver qué está esperando.\n2. Si pide una decisión o un nuevo inicio de sesión, sigue los pasos que indica."
+    },
+    "panel_root_lost": {
+      "title": "{panel} ha perdido el acceso root",
+      "fix_flow": {
+        "step": {
+          "confirm_restart": {
+            "title": "Reiniciar {panel}",
+            "description": "{panel} tenía acceso root desde el último arranque, pero root ha dejado de responder. Un reinicio del panel lo restablece.\n\nPara solucionarlo:\n1. Lee las [indicaciones para reiniciar]({learn_more_url}).\n2. Selecciona Enviar para reiniciar el panel ahora. Antes se comprobará de nuevo el bloqueo de pantalla.\n\n[Más información]({learn_more_url})"
+          }
+        },
+        "abort": {
+          "restart_unavailable": "{panel} tenía acceso root desde el último arranque, pero root ha dejado de responder. Un reinicio del panel lo restablece. El reinicio no está disponible porque hay un bloqueo de pantalla, se desconoce su estado o el panel no puede recibir órdenes. Tras reiniciarlo, alguien podría tener que desbloquear {panel} físicamente.\n\nPara solucionarlo:\n1. Lee las [indicaciones para reiniciar]({learn_more_url}).\n2. Reinicia el panel solo cuando alguien pueda desbloquearlo si es necesario.\n\n[Más información]({learn_more_url})",
+          "root_unreadable": "No se pudo leer un estado root reciente. No se envió ninguna orden de reinicio.\n\nPara solucionarlo:\n1. Lee las [indicaciones para reiniciar]({learn_more_url}).\n2. Vuelve a intentar esta reparación cuando el panel esté disponible.\n\n[Más información]({learn_more_url})",
+          "panel_busy": "Otra operación está usando {panel}. No se envió ninguna orden de reinicio.\n\nPara solucionarlo:\n1. Lee las [indicaciones para reiniciar]({learn_more_url}).\n2. Vuelve a intentar esta reparación cuando el panel esté disponible.\n\n[Más información]({learn_more_url})",
+          "restart_failed": "No se pudo confirmar el reinicio. Comprueba {panel} antes de volver a intentarlo.\n\nPara solucionarlo:\n1. Lee las [indicaciones para reiniciar]({learn_more_url}).\n2. Reinicia el panel solo cuando alguien pueda desbloquearlo si es necesario.\n\n[Más información]({learn_more_url})",
+          "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. Lee las [indicaciones para reiniciar]({learn_more_url}).\n2. Vuelve a intentar esta reparación cuando el panel esté disponible.\n\n[Más información]({learn_more_url})",
+          "restart_started": "Se ha aceptado la orden de reinicio. Este aviso desaparecerá cuando {panel} indique que se ha restablecido el acceso root.\n\nPara solucionarlo:\n1. Lee las [indicaciones para reiniciar]({learn_more_url}).\n2. Vuelve a intentar esta reparación cuando el panel esté disponible.\n\n[Más información]({learn_more_url})"
+        }
+      }
     }
   },
   "options": {
