@@ -24,6 +24,7 @@ from .test_update_finished_proofs import (
     _native,
     _press_install,
     _session,
+    added,  # noqa: F401 - fixture must resolve when its module is also collected
 )
 from .test_webview import observation
 
