@@ -293,7 +293,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     # entity links to it by identifier, then kept current. The coordinator's
     # listeners run on every poll and whenever the session opens or closes,
     # which is when the card can learn something new.
-    dr.async_get(hass).async_get_or_create(config_entry_id=entry.entry_id, **card())
+    registry = dr.async_get(hass)
+    if hasattr(registry, "async_get_or_create_from_info"):
+        registry.async_get_or_create_from_info(
+            config_entry_id=entry.entry_id, device_info=card()
+        )
+    else:
+        # Core before 2026.11 uses a TypedDict and has no from_info method.
+        registry.async_get_or_create(config_entry_id=entry.entry_id, **card())
 
     def refresh_card() -> None:
         async_refresh_panel_device(
