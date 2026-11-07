@@ -1525,6 +1525,71 @@
         }
       }
     },
+    "installer_failure_update_slow_transfer": {
+      "title": "向 {panel} 的低速传输未完成",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "解决面板错误",
+            "description": "更新传输在失败前的速度约为 {transfer_rate} KB/s。\n\n解决方法：\n1. 重启面板，然后选择 **重试**。\n2. 如果再次失败，请查看 **支持报告** 并按照[恢复步骤]({repair_url})操作。\n\n[了解更多]({learn_more_url})",
+            "menu_options": {
+              "retry": "重试",
+              "authorize_adb": "允许更新",
+              "support_report": "支持报告",
+              "clear_error": "清除错误"
+            }
+          },
+          "support_report": {
+            "title": "支持报告",
+            "description": "此报告包含已保存的安装或更新失败详情。\n\n解决方法：\n1. 阅读[如何使用此支持报告]({guide_url})。\n2. 检查报告中是否包含隐私信息，然后将其复制到[新的 Panel Assistant 集成问题]({issue_url})中。\n\n{report}\n\n[了解更多]({learn_more_url})"
+          },
+          "clear_error": {
+            "title": "清除错误",
+            "description": "清除此错误会删除其已保存的报告，不会更改面板。\n\n解决方法：\n1. 如果需要报告，请先[保存支持报告]({guide_url})。\n2. 选择“**提交**”，移除此错误和报告。\n\n[了解更多]({learn_more_url})"
+          },
+          "retry_error": {
+            "title": "重试未能完成",
+            "description": "重试未能完成，因此此错误及其报告仍保留在“修复”中。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**提交**”，然后选择“**支持报告**”，在重试前查看原因。\n\n[了解更多]({learn_more_url})"
+          },
+          "authorize_adb": {
+            "title": "允许更新",
+            "description": "Home Assistant 需要获得 Android 批准，才能更新 {panel}。\n\n解决方法：\n1. 阅读 [ADB 授权步骤]({approval_url})。\n2. 选择“**提交**”，然后在 {panel} 上勾选“**一律允许使用这台计算机进行调试**”并点按“**允许**”。\n3. 获得批准后，在此修复提示中选择“**重试**”，再次尝试更新。\n\n[了解更多]({learn_more_url})"
+          }
+        },
+        "progress": {
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})",
+          "authorize_adb": "仍需在 {panel} 上获得 Android 批准。\n\n解决方法：\n1. 阅读 [ADB 授权步骤]({approval_url})。\n2. 在 {panel} 上勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。\n\n获得批准后将自动继续。\n\n[了解更多]({learn_more_url})"
+        },
+        "error": {
+          "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
+          "retry_release_changed": "所选应用版本不再与保存的版本一致。请开始新的安装。",
+          "retry_credential_changed": "Home Assistant 的 ADB 凭据已更改。重试前请检查面板。",
+          "retry_panel_ambiguous": "无法验证面板上已安装的应用。未开始新的安装。",
+          "retry_cannot_prove_safe": "无法充分确认面板状态，暂不能安全重试。请稍后再试。",
+          "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
+          "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
+          "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
+          "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。",
+          "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
+          "invalid_install_address": "请只输入面板的主机名或 IP 地址。",
+          "install_resolution_failed": "Home Assistant 无法解析此面板地址。请检查地址和本地 DNS，然后重试。",
+          "install_resolution_timeout": "在能够安全固定面板地址之前，本地名称解析已超时。请检查本地 DNS，然后重试。",
+          "install_too_many_addresses": "此主机名解析出的地址过多，无法安全固定。请使用专用的本地主机名或私有 IP 地址。",
+          "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
+          "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥，也未执行安装。请检查地址并重新开始。",
+          "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到您正在使用的这台计算机上，也可以改用 USB 安装。",
+          "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
+          "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
+          "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照 {recovery_address} 中的步骤操作。在备份经过验证之前，请勿卸载或重置应用。",
+          "unknown": "出现意外错误",
+          "panel_identity_changed": "该地址上响应的已不再是此已配置的面板。请检查面板及其地址后重试。"
+        },
+        "abort": {
+          "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})"
+        }
+      }
+    },
     "installer_failure_update_webview": {
       "title": "{panel} 上的 WebView 更新未完成",
       "fix_flow": {

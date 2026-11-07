@@ -146,6 +146,14 @@ _PREFLIGHT_TIMEOUT_SECONDS = 30.0
 _STAGE_TIMEOUT_SECONDS = 180.0
 
 
+# At 16 KiB/s a typical 16 MB APK gets about 19 minutes, while a panel
+# which stops accepting bytes gets only 30 seconds. Even a large APK is bounded.
+_STAGE_MIN_BYTES_PER_SECOND = 16 * 1024
+_STAGE_MAX_TIMEOUT_SECONDS = 1800.0
+_STAGE_NO_PROGRESS_SECONDS = 30.0
+_SLOW_TRANSFER_BYTES_PER_SECOND = 100 * 1024
+
+
 _INSTALL_TIMEOUT_SECONDS = 180.0
 
 
@@ -202,6 +210,104 @@ class StagedApk:
     remote_path: str
     apk_size: int
     apk_sha256: str
+
+
+class InstallAdbTransferError(InstallAdbError):
+    """A failed copy's stable cause and measured, privacy-safe progress."""
+
+    def __init__(
+        self,
+        code: InstallAdbErrorCode,
+        *,
+        reason: str,
+        bytes_sent: int,
+        elapsed_seconds: float,
+        total_bytes: int,
+    ) -> None:
+        super().__init__(code)
+        self.reason = reason
+        self.bytes_sent = bytes_sent
+        self.elapsed_seconds = elapsed_seconds
+        self.total_bytes = total_bytes
+        self.bytes_per_second = bytes_sent / max(elapsed_seconds, 0.001)
+        self.slow = (
+            elapsed_seconds >= _STAGE_NO_PROGRESS_SECONDS
+            and self.bytes_per_second < _SLOW_TRANSFER_BYTES_PER_SECOND
+        )
+        self.args = (
+            f"{code}: {reason}; {bytes_sent}/{total_bytes} bytes in "
+            f"{elapsed_seconds:.1f}s ({self.bytes_per_second / 1024:.1f} KiB/s)",
+        )
+
+
+def _stage_timeout(apk_size: int) -> float:
+    """Allow a slow copy time proportional to its verified local size."""
+    return min(
+        _STAGE_MAX_TIMEOUT_SECONDS,
+        _STAGE_TIMEOUT_SECONDS + apk_size / _STAGE_MIN_BYTES_PER_SECOND,
+    )
+
+
+async def _async_push_apk(
+    device: AdbDeviceAsync,
+    file_descriptor: int,
+    remote_path: str,
+    descriptor: InstallDescriptor,
+    code: InstallAdbErrorCode,
+) -> None:
+    """Keep copying while bytes advance, within one absolute size budget."""
+    loop = asyncio.get_running_loop()
+    started = loop.time()
+    ceiling = started + _stage_timeout(descriptor.apk_size)
+    deadline = min(ceiling, started + _STAGE_NO_PROGRESS_SECONDS)
+    sent = 0
+    try:
+        async with asyncio.timeout_at(deadline) as timeout:
+
+            async def progress(_path: str, amount: int, _total: int) -> None:
+                # adb-shell reports each chunk's length, not a cumulative count.
+                # Repeated/empty callbacks cannot extend the absolute ceiling.
+                nonlocal sent, deadline
+                if amount > 0 and sent < descriptor.apk_size:
+                    sent = min(descriptor.apk_size, sent + amount)
+                    deadline = min(ceiling, loop.time() + _STAGE_NO_PROGRESS_SECONDS)
+                    timeout.reschedule(deadline)
+
+            await device.push(
+                f"/proc/self/fd/{file_descriptor}",
+                remote_path,
+                st_mode=_REMOTE_MODE,
+                mtime=int(time()),
+                progress_callback=progress,
+                transport_timeout_s=_TRANSPORT_TIMEOUT_SECONDS,
+                read_timeout_s=_INSTALL_READ_TIMEOUT_SECONDS,
+            )
+    except (
+        TimeoutError,
+        _MalformedAdbResponse,
+        _UnsafeAdbPacket,
+        *_ADB_EXCEPTIONS,
+    ) as err:
+        reason = (
+            "stage_timeout"
+            if isinstance(err, TimeoutError) and loop.time() >= ceiling
+            else "no_progress"
+            if isinstance(err, TimeoutError) and loop.time() >= deadline
+            else "packet_timeout"
+            if isinstance(err, (TimeoutError, AdbTimeoutError, TcpTimeoutException))
+            else "connection_closed"
+            if isinstance(err, (AdbConnectionError, OSError))
+            else "response_invalid"
+        )
+        failure = InstallAdbTransferError(
+            code,
+            reason=reason,
+            bytes_sent=sent,
+            elapsed_seconds=loop.time() - started,
+            total_bytes=descriptor.apk_size,
+        )
+        _LOGGER.warning("ADB APK transfer failed: %s", failure, exc_info=True)
+        raise failure from err
 
 
 def _remote_path(job_id: str) -> str:
@@ -760,7 +866,9 @@ async def async_stage_apk(
     file_descriptor: int | None = None
     mutation_started = False
     try:
-        async with asyncio.timeout(_STAGE_TIMEOUT_SECONDS):
+        async with asyncio.timeout(
+            _STAGE_TIMEOUT_SECONDS + _stage_timeout(descriptor.apk_size)
+        ):
             file_descriptor = await _async_open_verified_apk(local_apk, descriptor)
             device = await _async_connect(target, signer)
             preflight = await _async_preflight_on_device(device, target, descriptor)
@@ -799,18 +907,12 @@ async def async_stage_apk(
                     ) from None
             _validate_filesync_maxdata(device)
             mutation_started = True
-            await device.push(
-                f"/proc/self/fd/{file_descriptor}",
+            await _async_push_apk(
+                device,
+                file_descriptor,
                 remote_path,
-                st_mode=_REMOTE_MODE,
-                # The sync protocol carries this as the staged file's
-                # modification time in whole seconds. The bytes come from a
-                # file descriptor with no meaningful time of its own, so send
-                # the time of the copy rather than a constant that dates the
-                # file to 1970 and tells a consumer nothing.
-                mtime=int(time()),
-                transport_timeout_s=_TRANSPORT_TIMEOUT_SECONDS,
-                read_timeout_s=_INSTALL_READ_TIMEOUT_SECONDS,
+                descriptor,
+                InstallAdbErrorCode.STAGE_INTERRUPTED,
             )
             await _async_verify_remote_artifact(device, remote_path, descriptor)
             return StagedApk(
@@ -832,9 +934,10 @@ async def async_stage_apk(
         _MalformedAdbResponse,
         _UnsafeAdbPacket,
         *_ADB_EXCEPTIONS,
-    ):
+    ) as err:
+        _LOGGER.warning("ADB operation failed: %s", type(err).__name__, exc_info=True)
         if not mutation_started:
-            raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE) from None
+            raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE) from err
         # The copy stopped. Nothing was installed, so this is a connection
         # failure the owner can retry; the stalled link is dropped and the
         # panel asked once more to remove the partial file.
@@ -843,7 +946,7 @@ async def async_stage_apk(
         await _async_clear_interrupted_stage(
             target, signer, expected_root_mode, remote_path
         )
-        raise InstallAdbError(InstallAdbErrorCode.STAGE_INTERRUPTED) from None
+        raise InstallAdbError(InstallAdbErrorCode.STAGE_INTERRUPTED) from err
     finally:
         try:
             await _async_close(device)
@@ -930,7 +1033,11 @@ async def async_update_installed_apk(
     install_definite = False
     admitted_root_mode: AdbRootMode | None = None
     try:
-        async with asyncio.timeout(_UPDATE_TIMEOUT_SECONDS):
+        async with asyncio.timeout(
+            _UPDATE_TIMEOUT_SECONDS
+            - _STAGE_TIMEOUT_SECONDS
+            + _stage_timeout(descriptor.apk_size)
+        ):
             device = await _async_connect(target, signer)
             admitted = await _async_preflight_on_device(
                 device, target, descriptor, admit_installed_target=True
@@ -958,13 +1065,12 @@ async def async_update_installed_apk(
                 raise InstallAdbError(InstallAdbErrorCode.STAGING_PATH_OCCUPIED)
             _validate_filesync_maxdata(device)
             stage_started = True
-            await device.push(
-                f"/proc/self/fd/{file_descriptor}",
+            await _async_push_apk(
+                device,
+                file_descriptor,
                 remote_path,
-                st_mode=_REMOTE_MODE,
-                mtime=int(time()),
-                transport_timeout_s=_TRANSPORT_TIMEOUT_SECONDS,
-                read_timeout_s=_INSTALL_READ_TIMEOUT_SECONDS,
+                descriptor,
+                InstallAdbErrorCode.STAGE_AMBIGUOUS,
             )
             await _async_verify_remote_artifact(device, remote_path, descriptor)
             # The package and identity can change while the file crosses ADB.
@@ -1013,7 +1119,8 @@ async def async_update_installed_apk(
         _MalformedAdbResponse,
         _UnsafeAdbPacket,
         *_ADB_EXCEPTIONS,
-    ):
+    ) as err:
+        _LOGGER.warning("ADB operation failed: %s", type(err).__name__, exc_info=True)
         code = (
             InstallAdbErrorCode.CLEANUP_AMBIGUOUS
             if install_definite
@@ -1023,7 +1130,7 @@ async def async_update_installed_apk(
             if stage_started
             else InstallAdbErrorCode.TARGET_UNREACHABLE
         )
-        raise InstallAdbError(code) from None
+        raise InstallAdbError(code) from err
     finally:
         try:
             # Before package mutation, the random path is ours to remove. Once

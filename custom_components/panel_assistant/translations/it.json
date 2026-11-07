@@ -1525,6 +1525,71 @@
         }
       }
     },
+    "installer_failure_update_slow_transfer": {
+      "title": "Il trasferimento lento a {panel} non è stato completato",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Risolvi l'errore del pannello",
+            "description": "Il trasferimento dell’aggiornamento procedeva a circa {transfer_rate} KB/s prima di interrompersi.\n\nPer risolvere:\n1. Riavvia il pannello, poi seleziona **Riprova**.\n2. Se il problema si ripete, consulta **Rapporto di assistenza** e segui i [passaggi di ripristino]({repair_url}).\n\n[Scopri di più]({learn_more_url})",
+            "menu_options": {
+              "retry": "Riprova",
+              "authorize_adb": "Consenti aggiornamenti",
+              "support_report": "Rapporto di assistenza",
+              "clear_error": "Cancella errore"
+            }
+          },
+          "support_report": {
+            "title": "Rapporto di assistenza",
+            "description": "Questo rapporto contiene i dettagli salvati dell'installazione o dell'aggiornamento non riuscito.\n\nPer risolvere:\n1. Leggi [come usare questo rapporto di assistenza]({guide_url}).\n2. Controlla se il rapporto contiene informazioni private, poi copialo in una [nuova segnalazione per l'integrazione Panel Assistant]({issue_url}).\n\n{report}\n\n[Scopri di più]({learn_more_url})"
+          },
+          "clear_error": {
+            "title": "Cancella errore",
+            "description": "Cancellare questo errore elimina il rapporto salvato senza modificare il pannello.\n\nPer risolvere:\n1. [Salva prima un rapporto di assistenza]({guide_url}) se ti serve.\n2. Seleziona **Invia** per rimuovere questo errore e il rapporto.\n\n[Scopri di più]({learn_more_url})"
+          },
+          "retry_error": {
+            "title": "Nuovo tentativo incompleto",
+            "description": "Il nuovo tentativo non è stato completato, quindi questo errore e il suo rapporto rimangono in Riparazioni.\n\nPer risolvere:\n1. Segui i [passaggi di ripristino]({repair_url}).\n2. Seleziona **Invia**, poi **Rapporto di assistenza** per verificare la causa prima di riprovare.\n\n[Scopri di più]({learn_more_url})"
+          },
+          "authorize_adb": {
+            "title": "Consenti aggiornamenti",
+            "description": "Home Assistant ha bisogno dell'autorizzazione di Android per aggiornare {panel}.\n\nPer risolvere:\n1. Leggi i [passaggi per autorizzare ADB]({approval_url}).\n2. Seleziona **Invia**, poi su {panel} spunta **Consenti sempre da questo computer** e tocca **Consenti**.\n3. Dopo l'autorizzazione, seleziona **Riprova** da questa riparazione per ritentare l'aggiornamento.\n\n[Scopri di più]({learn_more_url})"
+          }
+        },
+        "progress": {
+          "retrying": "Home Assistant sta controllando il pannello e ritentando l'operazione salvata.\n\nPer risolvere:\n1. Leggi le [indicazioni per il nuovo tentativo]({repair_url}) se necessario.\n2. Attendi qui il risultato prima di decidere come procedere.\n\n[Scopri di più]({learn_more_url})",
+          "authorize_adb": "È ancora necessaria l'autorizzazione di Android su {panel}.\n\nPer risolvere:\n1. Leggi i [passaggi per autorizzare ADB]({approval_url}).\n2. Su {panel}, spunta **Consenti sempre da questo computer**, poi tocca **Consenti**.\n\nLa procedura prosegue automaticamente dopo l'autorizzazione.\n\n[Scopri di più]({learn_more_url})"
+        },
+        "error": {
+          "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
+          "retry_release_changed": "La versione scelta non corrisponde più a quella salvata. Avvia una nuova installazione.",
+          "retry_credential_changed": "Le credenziali ADB di Home Assistant sono cambiate. Controlla il pannello prima di riprovare.",
+          "retry_panel_ambiguous": "Non è stato possibile verificare l'app installata sul pannello. Non è stata avviata una nuova installazione.",
+          "retry_cannot_prove_safe": "Non è stato possibile controllare abbastanza il pannello per riprovare in sicurezza. Riprova più tardi.",
+          "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
+          "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
+          "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
+          "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna.",
+          "cannot_connect": "Impossibile connettersi a un endpoint valido sullo stato di funzionamento di Panel Assistant.",
+          "invalid_install_address": "Inserisci solo il nome host o l’indirizzo IP del pannello.",
+          "install_resolution_failed": "Home Assistant non è riuscito a risolvere l'indirizzo di questo pannello. Controlla l'indirizzo e il DNS locale, quindi riprova.",
+          "install_resolution_timeout": "La risoluzione locale del nome non è stata completata in tempo per fissare in modo sicuro l'indirizzo del pannello. Controlla il DNS locale, quindi riprova.",
+          "install_too_many_addresses": "Questo nome host è stato risolto in troppi indirizzi per poterlo fissare in modo sicuro. Usa un nome host locale dedicato o un indirizzo IP privato.",
+          "unsafe_install_target": "L'installazione è consentita solo su un indirizzo IPv4 locale privato o su un indirizzo IPv6 univoco locale. Non è stata tentata alcuna connessione ADB.",
+          "install_target_changed": "Il nome host non si risolve più nello stesso indirizzo del pannello fissato in precedenza. Non è stata inviata alcuna chiave ADB e non è stata avviata alcuna installazione. Controlla l'indirizzo e ricomincia.",
+          "adb_unreachable": "Il pannello ha risposto, ma nulla ha risposto sulla sua porta Android Debug Bridge (5555). Sul pannello attiva Android Debug Bridge e consentilo via rete, poi riprova. Se puoi collegare il pannello al computer da cui stai navigando, installa invece tramite USB.",
+          "adb_still_unauthorized": "Il pannello non ha ancora accettato questa istanza di Home Assistant. Approva la richiesta ADB sul pannello, quindi riprova.",
+          "adb_credential_error": "Home Assistant non è riuscito a caricare o conservare in modo sicuro le proprie credenziali ADB. Non è stata tentata alcuna modifica del pannello. Controlla lo spazio di archiviazione e i registri di Home Assistant prima di riprovare.",
+          "retained_or_ambiguous": "Il pannello potrebbe contenere un record conservato del pacchetto Panel Assistant oppure non è stato possibile dimostrare che il pacchetto sia assente. Il pannello non è stato modificato. Riprova una volta se la connessione era instabile; in caso contrario, segui i passaggi all'indirizzo {recovery_address}. Non disinstallare o reimpostare l'app senza un backup verificato.",
+          "unknown": "Errore imprevisto",
+          "panel_identity_changed": "L’indirizzo non risponde più come questo pannello configurato. Controlla il pannello e il suo indirizzo prima di riprovare."
+        },
+        "abort": {
+          "entry_removed": "Questo pannello non è più configurato in Home Assistant.\n\nPer risolvere:\n1. [Apri i dispositivi di Panel Assistant](/config/integrations/integration/panel_assistant) se vuoi aggiungerlo di nuovo.\n2. Altrimenti, chiudi questa finestra.\n\n[Scopri di più]({learn_more_url})"
+        }
+      }
+    },
     "installer_failure_update_webview": {
       "title": "L'aggiornamento di WebView su {panel} non è stato completato",
       "fix_flow": {

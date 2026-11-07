@@ -25,6 +25,7 @@ from .build_feed import parse_build_request
 from .client import is_newer_stable_version, is_version_at_least
 from .const import CONF_TRANSPORT_USER_ID, DOMAIN, INTEGRATION_VERSION, help_url
 from .device import panel_display_name
+from .install_adb import InstallAdbTransferError
 from .transport_protocol import CAPABILITY_UI_SUBSCRIBE, OUTCOME_APPLIED
 from .transport_sessions import async_get_sessions, session_manages
 from .ui_relay import async_manage
@@ -301,6 +302,8 @@ def _issue(
     kind: str,
     reason: str,
     entry_id: str | None = None,
+    *,
+    transfer_rate: str | None = None,
 ) -> None:
     if kind == "install" and reason in _INSTALL_CAUSES:
         translation_key = f"{ISSUE_INSTALLER_FAILURE}_{reason}"
@@ -308,14 +311,16 @@ def _issue(
         translation_key = "installer_failure_adb_authorization"
     elif kind == "update" and reason == "update_webview_unfinished":
         translation_key = f"{ISSUE_INSTALLER_FAILURE}_update_webview"
+    elif kind == "update" and transfer_rate is not None:
+        translation_key = f"{ISSUE_INSTALLER_FAILURE}_update_slow_transfer"
     elif kind == "update":
         translation_key = f"{ISSUE_INSTALLER_FAILURE}_update"
     elif kind == "retry_hold":
         translation_key = f"{ISSUE_INSTALLER_FAILURE}_retry_hold"
     else:
         translation_key = ISSUE_INSTALLER_FAILURE
-    # The WebView wording shares the update Repair's help page.
-    anchor = translation_key.removesuffix("_webview")
+    # These update explanations share the update Repair's help page.
+    anchor = translation_key.removesuffix("_webview").removesuffix("_slow_transfer")
     if translation_key == "installer_failure_adb_authorization" and entry_id:
         ir.async_delete_issue(hass, DOMAIN, adb_authorization_issue_id(entry_id))
     ir.async_create_issue(
@@ -333,6 +338,7 @@ def _issue(
             "learn_more_url": help_url("repair", issue=anchor),
             "guide_url": help_url("support-report"),
             "approval_url": help_url("repair", issue="adb_update_authorization"),
+            **({"transfer_rate": transfer_rate} if transfer_rate is not None else {}),
         },
         data={"key": issue_id, **({"entry_id": entry_id} if entry_id else {})},
     )
@@ -435,6 +441,23 @@ async def async_record_update_failure(
         "target_version": target_version,
         "exception": "".join(traceback.format_exception(error))[-12000:],
     }
+    # The update service wraps transport failures for its toast. Keep only
+    # structured transfer details in the Repair, never raw exception messages.
+    cause: BaseException | None = error
+    seen: set[int] = set()
+    while cause is not None and id(cause) not in seen:
+        seen.add(id(cause))
+        if isinstance(cause, InstallAdbTransferError):
+            event["transfer"] = {
+                "reason": cause.reason,
+                "bytes_sent": cause.bytes_sent,
+                "total_bytes": cause.total_bytes,
+                "elapsed_seconds": cause.elapsed_seconds,
+                "bytes_per_second": cause.bytes_per_second,
+                "slow": cause.slow,
+            }
+            break
+        cause = cause.__cause__ or cause.__context__
     event["panel_logs"] = await _async_panel_logs(hass, entry_id)
     if artifact is not None:
         event["artifact"] = artifact
@@ -459,10 +482,20 @@ async def async_record_update_failure(
             entry_id
             if getattr(error, "translation_key", None) == "adb_authorization_required"
             else None,
+            transfer_rate=_slow_transfer_rate(event),
         ),
         # An entry removed during the awaits above keeps neither report nor Repair.
         lambda: hass.config_entries.async_get_entry(entry_id) is entry,
     )
+
+
+def _slow_transfer_rate(event: dict[str, Any]) -> str | None:
+    transfer = event.get("transfer")
+    if isinstance(transfer, dict) and transfer.get("slow") is True:
+        rate = transfer.get("bytes_per_second")
+        if isinstance(rate, (int, float)) and rate >= 0:
+            return f"{rate / 1000:.0f}"
+    return None
 
 
 def async_refresh_update_failure_name(hass: HomeAssistant, entry_id: str) -> None:
@@ -489,6 +522,9 @@ def async_refresh_update_failure_name(hass: HomeAssistant, entry_id: str) -> Non
         else "",
         entry_id
         if issue.translation_key == "installer_failure_adb_authorization"
+        else None,
+        transfer_rate=(issue.translation_placeholders or {}).get("transfer_rate")
+        if issue.translation_key == "installer_failure_update_slow_transfer"
         else None,
     )
 
@@ -688,7 +724,15 @@ async def async_restore_update_failure(hass: HomeAssistant, entry_id: str) -> No
         )
         kind = "retry_hold" if latest.get("kind") == "retry_hold" else "update"
         reason = str(latest.get("translation_key") or latest.get("reason", ""))
-        _issue(hass, issue_id, panel_display_name(hass, entry), kind, reason, entry_id)
+        _issue(
+            hass,
+            issue_id,
+            panel_display_name(hass, entry),
+            kind,
+            reason,
+            entry_id,
+            transfer_rate=_slow_transfer_rate(latest),
+        )
 
 
 async def async_record_retry_hold(

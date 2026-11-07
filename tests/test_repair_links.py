@@ -117,6 +117,7 @@ async def test_every_issue_has_a_repair_map_entry(hass: HomeAssistant) -> None:
     fault_issues = issues - {
         "remove_from_panel",
         "installer_failure_update_webview",
+        "installer_failure_update_slow_transfer",
         "panel_root_lost",
     }
     assert fault_issues and fault_issues == set(pinned)
