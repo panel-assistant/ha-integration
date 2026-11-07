@@ -455,7 +455,8 @@ async def test_selected_feed_apk_failure_withholds_offer_without_falling_back(
         client.async_stage_apk.assert_not_awaited()
         client.async_commit_apk.assert_not_awaited()
     finally:
-        await entity.async_will_remove_from_hass()
+        entity._cancel_route_refresh()
+        await hass.async_block_till_done(wait_background_tasks=True)
 
 
 @pytest.mark.parametrize("incompatible_source", ["feed", "public"])
