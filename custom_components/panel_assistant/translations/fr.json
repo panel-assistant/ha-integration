@@ -2,7 +2,14 @@
   "title": "Panel Assistant",
   "common": {
     "remove_from_panel_notification_title": "Retirer Panel Assistant de {panel}",
-    "remove_from_panel_notification_message": "Pour retirer Panel Assistant de {panel}, ouvrez [Réparations]({repairs_url}) et confirmez-y le retrait. Rien n’a encore changé sur le panneau."
+    "remove_from_panel_notification_message": "Pour retirer Panel Assistant de {panel}, ouvrez [Réparations]({repairs_url}) et confirmez-y le retrait. Rien n’a encore changé sur le panneau.",
+    "webview_recovery_unknown": "L’état de WebView du panneau n’a pas pu être lu. Gardez-le connecté, puis sélectionnez Réessayer. Si l’échec persiste, enregistrez un rapport d’assistance avant d’effacer cette erreur.",
+    "webview_recovery_current": "Le panneau indique maintenant que WebView est à jour. Sélectionnez Réessayer pour le vérifier et effacer cette erreur sans réinstaller WebView.",
+    "webview_recovery_installer": "L’application ne dispose d’aucune méthode autorisée pour installer WebView. Sélectionner Réessayer à plusieurs reprises ne peut pas lui accorder cette autorisation. Mettez WebView à jour manuellement en suivant le guide correspondant à votre modèle, puis sélectionnez Réessayer pour vérifier. Sur un NSPanel Pro avec son micrologiciel d’origine, cela passe par ADB ; activer ADB seul ne donne pas à l’application l’autorisation d’installer.",
+    "webview_recovery_refused": "Android a refusé l’installation de WebView. Suivez le guide de mise à jour de WebView correspondant à votre modèle et vérifiez la compatibilité du paquet, de la version d’Android et de la signature. Enregistrez un rapport d’assistance si le refus persiste ; des tentatives répétées ne peuvent pas résoudre une incompatibilité de paquet.",
+    "webview_recovery_mismatch": "Le WebView téléchargé ne correspondait pas à la mise à jour vérifiée. Gardez le panneau connecté et sélectionnez Réessayer pour le télécharger à nouveau. Si cela se reproduit, enregistrez un rapport d’assistance ; n’installez pas de fichier APK non vérifié.",
+    "webview_recovery_uncertain": "Le résultat de l’installation n’a pas pu être confirmé. Gardez le panneau connecté et sélectionnez Réessayer : le WebView installé est d’abord vérifié, et une nouvelle tentative ne commence que si la mise à jour remplit toujours les conditions requises.",
+    "webview_recovery_retry": "L’opération WebView a été interrompue ou n’a pas pu terminer sa préparation. Vérifiez la connexion du panneau et l’espace de stockage disponible, puis sélectionnez Réessayer. Enregistrez un rapport d’assistance si cela se reproduit."
   },
   "config": {
     "flow_title": "{name}",
@@ -1531,7 +1538,7 @@
         "step": {
           "init": {
             "title": "Résoudre l'erreur du panneau",
-            "description": "L’application du panneau est installée, mais sa mise à jour de WebView (moteur de navigateur) n’a pas abouti.\n\nPour résoudre le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Gardez le panneau connecté, puis sélectionnez **Réessayer** pour répéter uniquement l’étape WebView.\n\n[En savoir plus]({learn_more_url})",
+            "description": "L’application du panneau est installée, mais sa mise à jour de WebView (moteur de navigateur) n’a pas abouti.\n\n{webview_guidance}\n\nPour résoudre le problème :\n1. Suivez le [guide de mise à jour de WebView correspondant à votre modèle]({webview_guide_url}).\n2. Sélectionnez **Rapport d'assistance** pour consulter la cause enregistrée par le panneau avant de réessayer.\n\n[En savoir plus]({learn_more_url})",
             "menu_options": {
               "retry": "Réessayer",
               "authorize_adb": "Autoriser les mises à jour",
@@ -1549,7 +1556,7 @@
           },
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
-            "description": "La nouvelle tentative n’a pas pu se terminer ; cette erreur et son rapport restent donc dans Réparations.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Valider**, puis **Rapport d’assistance** pour vérifier la cause avant de réessayer.\n\n[En savoir plus]({learn_more_url})"
+            "description": "La nouvelle tentative n’a pas pu se terminer ; cette erreur et son rapport restent donc dans Réparations.\n\n{webview_guidance}\n\nPour corriger le problème :\n1. Suivez le [guide de mise à jour de WebView correspondant à votre modèle]({webview_guide_url}).\n2. Sélectionnez **Valider**, puis **Rapport d’assistance** pour vérifier la cause avant de réessayer.\n\n[En savoir plus]({learn_more_url})"
           },
           "authorize_adb": {
             "title": "Autoriser les mises à jour",

@@ -2,7 +2,14 @@
   "title": "Panel Assistant",
   "common": {
     "remove_from_panel_notification_title": "从 {panel} 移除 Panel Assistant",
-    "remove_from_panel_notification_message": "要从 {panel} 移除 Panel Assistant，请打开[修复]({repairs_url})并在那里确认。面板目前尚未发生任何更改。"
+    "remove_from_panel_notification_message": "要从 {panel} 移除 Panel Assistant，请打开[修复]({repairs_url})并在那里确认。面板目前尚未发生任何更改。",
+    "webview_recovery_unknown": "无法读取面板的 WebView 状态。请保持面板连接，然后选择重试。如果仍然失败，请先保存支持报告，再清除此错误。",
+    "webview_recovery_current": "面板现在报告 WebView 已是最新版本。请选择重试，以验证状态并清除此错误，无需重新安装 WebView。",
+    "webview_recovery_installer": "应用没有获准安装 WebView 的途径。反复选择重试无法授予此权限。请按照适用于该型号的 WebView 更新指南手动更新，然后选择重试以验证。使用原厂固件的 NSPanel Pro 需通过 ADB 操作；仅启用 ADB 并不会授予应用安装权限。",
+    "webview_recovery_refused": "Android 拒绝安装 WebView。请按照适用于该型号的 WebView 更新指南操作，并检查软件包、Android 版本和签名的兼容性。如果仍被拒绝，请保存支持报告；反复重试无法解决软件包不兼容的问题。",
+    "webview_recovery_mismatch": "下载的 WebView 与已验证的更新不匹配。请保持面板连接，并选择重试以重新下载。如果此问题反复出现，请保存支持报告；不要安装未经验证的 APK。",
+    "webview_recovery_uncertain": "无法确认安装结果。请保持面板连接，并选择重试：系统会先检查已安装的 WebView，仅在更新仍符合条件时才发起新的尝试。",
+    "webview_recovery_retry": "WebView 操作已中断，或无法完成准备工作。请检查面板连接和可用存储空间，然后选择重试。如果此问题反复出现，请保存支持报告。"
   },
   "config": {
     "flow_title": "{name}",
@@ -1531,7 +1538,7 @@
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "面板应用已安装，但其 WebView（浏览器引擎）更新未完成。\n\n修复方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 保持面板连接，然后选择**重试**，仅重复 WebView 步骤。\n\n[了解更多]({learn_more_url})",
+            "description": "面板应用已安装，但其 WebView（浏览器引擎）更新未完成。\n\n{webview_guidance}\n\n修复方法：\n1. 按照[适用于该型号的 WebView 更新指南]({webview_guide_url})操作。\n2. 重试前，请选择**支持报告**，查看已保存的面板故障原因。\n\n[了解更多]({learn_more_url})",
             "menu_options": {
               "retry": "重试",
               "authorize_adb": "允许更新",
@@ -1549,7 +1556,7 @@
           },
           "retry_error": {
             "title": "重试未能完成",
-            "description": "重试未能完成，因此此错误及其报告仍保留在“修复”中。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**提交**”，然后选择“**支持报告**”，在重试前查看原因。\n\n[了解更多]({learn_more_url})"
+            "description": "重试未能完成，因此此错误及其报告仍保留在“修复”中。\n\n{webview_guidance}\n\n解决方法：\n1. 按照[适用于该型号的 WebView 更新指南]({webview_guide_url})操作。\n2. 选择“**提交**”，然后选择“**支持报告**”，在重试前查看原因。\n\n[了解更多]({learn_more_url})"
           },
           "authorize_adb": {
             "title": "允许更新",

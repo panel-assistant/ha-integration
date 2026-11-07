@@ -2,7 +2,14 @@
   "title": "Panel Assistant",
   "common": {
     "remove_from_panel_notification_title": "Panel Assistant von {panel} entfernen",
-    "remove_from_panel_notification_message": "Um Panel Assistant von {panel} zu entfernen, öffne [Reparaturen]({repairs_url}) und bestätige dort. Auf dem Panel hat sich noch nichts geändert."
+    "remove_from_panel_notification_message": "Um Panel Assistant von {panel} zu entfernen, öffne [Reparaturen]({repairs_url}) und bestätige dort. Auf dem Panel hat sich noch nichts geändert.",
+    "webview_recovery_unknown": "Der WebView-Status des Panels konnte nicht gelesen werden. Lass es verbunden und wähle dann Erneut versuchen. Wenn der Fehler weiterhin auftritt, speichere einen Supportbericht, bevor du ihn löschst.",
+    "webview_recovery_current": "Das Panel meldet jetzt, dass WebView aktuell ist. Wähle Erneut versuchen, um dies zu prüfen und den Fehler ohne erneute Installation von WebView zu löschen.",
+    "webview_recovery_installer": "Die App hat keinen erlaubten Weg, WebView zu installieren. Wiederholtes Auswählen von Erneut versuchen kann diese Berechtigung nicht erteilen. Aktualisiere WebView anhand der Anleitung für dein Modell manuell und wähle dann Erneut versuchen zur Überprüfung. Bei einem NSPanel Pro mit Originalfirmware erfolgt dies über ADB; allein das Aktivieren von ADB erteilt der App keine Installationsberechtigung.",
+    "webview_recovery_refused": "Android hat die Installation von WebView abgelehnt. Befolge die WebView-Update-Anleitung für dein Modell und prüfe die Kompatibilität von Paket, Android-Version und Signatur. Speichere einen Supportbericht, wenn die Installation weiterhin abgelehnt wird; wiederholte Versuche können eine Paketinkompatibilität nicht beheben.",
+    "webview_recovery_mismatch": "Die heruntergeladene WebView entsprach nicht dem verifizierten Update. Lass das Panel verbunden und wähle Erneut versuchen, um es erneut herunterzuladen. Speichere einen Supportbericht, wenn dies erneut auftritt; installiere keine ungeprüfte APK.",
+    "webview_recovery_uncertain": "Das Installationsergebnis konnte nicht bestätigt werden. Lass das Panel verbunden und wähle Erneut versuchen: Zuerst wird die installierte WebView geprüft. Ein neuer Versuch beginnt nur, wenn die Voraussetzungen für ein Update weiterhin erfüllt sind.",
+    "webview_recovery_retry": "Der WebView-Vorgang wurde unterbrochen oder konnte seine Vorbereitung nicht abschließen. Prüfe die Verbindung und den verfügbaren Speicher des Panels und wähle dann Erneut versuchen. Speichere einen Supportbericht, wenn dies erneut auftritt."
   },
   "config": {
     "flow_title": "{name}",
@@ -1531,7 +1538,7 @@
         "step": {
           "init": {
             "title": "Panel-Fehler beheben",
-            "description": "Die Panel-App ist installiert, aber die Aktualisierung ihrer WebView (Browser-Engine) wurde nicht abgeschlossen.\n\nZur Behebung:\n1. Befolge die [Wiederherstellungsschritte]({repair_url}).\n2. Lass das Panel verbunden und wähle dann **Erneut versuchen**, um nur den WebView-Schritt zu wiederholen.\n\n[Mehr erfahren]({learn_more_url})",
+            "description": "Die Panel-App ist installiert, aber die Aktualisierung ihrer WebView (Browser-Engine) wurde nicht abgeschlossen.\n\n{webview_guidance}\n\nZur Behebung:\n1. Befolge die [WebView-Update-Anleitung für dein Modell]({webview_guide_url}).\n2. Wähle **Supportbericht**, um vor einem erneuten Versuch die gespeicherte Ursache vom Panel zu prüfen.\n\n[Mehr erfahren]({learn_more_url})",
             "menu_options": {
               "retry": "Erneut versuchen",
               "authorize_adb": "Updates erlauben",
@@ -1549,7 +1556,7 @@
           },
           "retry_error": {
             "title": "Erneuter Versuch unvollständig",
-            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\nSo behebst du das Problem:\n1. Folge den [Schritten zur Wiederherstellung]({repair_url}).\n2. Wähle **OK** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
+            "description": "Der erneute Versuch wurde nicht abgeschlossen. Daher bleiben dieser Fehler und sein Bericht in Reparaturen erhalten.\n\n{webview_guidance}\n\nSo behebst du das Problem:\n1. Befolge die [WebView-Update-Anleitung für dein Modell]({webview_guide_url}).\n2. Wähle **OK** und dann **Supportbericht**, um die Ursache vor einem weiteren Versuch zu prüfen.\n\n[Mehr erfahren]({learn_more_url})"
           },
           "authorize_adb": {
             "title": "Updates erlauben",

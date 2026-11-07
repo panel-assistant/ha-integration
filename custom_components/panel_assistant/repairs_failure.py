@@ -524,6 +524,8 @@ def async_refresh_update_failure_name(hass: HomeAssistant, entry_id: str) -> Non
         kind,
         "adb_authorization_required"
         if issue.translation_key == "installer_failure_adb_authorization"
+        else "update_webview_unfinished"
+        if issue.translation_key == "installer_failure_update_webview"
         else "",
         entry_id
         if issue.translation_key == "installer_failure_adb_authorization"
@@ -724,7 +726,12 @@ async def async_restore_update_failure(hass: HomeAssistant, entry_id: str) -> No
         latest = next(
             (event for event in reversed(events) if isinstance(event, dict)), {}
         )
-        kind = "retry_hold" if latest.get("kind") == "retry_hold" else "update"
+        kind = (
+            "retry_hold"
+            if latest.get("kind") == "retry_hold"
+            and latest.get("translation_key") != "update_webview_unfinished"
+            else "update"
+        )
         reason = str(latest.get("translation_key") or latest.get("reason", ""))
         _issue(hass, issue_id, panel_display_name(hass, entry), kind, reason, entry_id)
 
@@ -754,10 +761,24 @@ async def async_record_retry_hold(
     }
     if entry_id is not None:
         event["entry_id"] = entry_id
+    webview_failure = (
+        previous.get("webview_pending")
+        and entry_id is not None
+        and str(error) in {"webview_deferred", "webview_unavailable"}
+    )
+    if webview_failure and entry_id is not None:
+        event["webview"] = await _async_failure_webview(hass, entry_id)
+        event["translation_key"] = "update_webview_unfinished"
     await _failure_store(hass).append(
         issue_id,
         event,
-        lambda: _issue(hass, issue_id, panel, "retry_hold", reason),
+        lambda: _issue(
+            hass,
+            issue_id,
+            panel,
+            "update" if webview_failure else "retry_hold",
+            "update_webview_unfinished" if webview_failure else reason,
+        ),
         # A panel removed while its Retry ran took its Repair with it; an
         # update Retry records nothing once its entry is no longer current.
         None

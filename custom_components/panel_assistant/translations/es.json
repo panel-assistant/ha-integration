@@ -2,7 +2,14 @@
   "title": "Panel Assistant",
   "common": {
     "remove_from_panel_notification_title": "Eliminar Panel Assistant de {panel}",
-    "remove_from_panel_notification_message": "Para eliminar Panel Assistant de {panel}, abre [Reparaciones]({repairs_url}) y confirma allí. Aún no ha cambiado nada en el panel."
+    "remove_from_panel_notification_message": "Para eliminar Panel Assistant de {panel}, abre [Reparaciones]({repairs_url}) y confirma allí. Aún no ha cambiado nada en el panel.",
+    "webview_recovery_unknown": "No se ha podido leer el estado de WebView del panel. Mantenlo conectado y selecciona Reintentar. Si sigue fallando, guarda un informe de soporte antes de borrar este error.",
+    "webview_recovery_current": "El panel indica ahora que WebView está actualizado. Selecciona Reintentar para comprobarlo y borrar este error sin reinstalar WebView.",
+    "webview_recovery_installer": "La aplicación no dispone de ninguna vía autorizada para instalar WebView. Seleccionar Reintentar repetidamente no puede concederle ese permiso. Actualízalo manualmente siguiendo la guía de actualización de WebView específica de tu modelo y selecciona Reintentar para verificarlo. En un NSPanel Pro con firmware de fábrica se utiliza ADB; activar ADB por sí solo no concede a la aplicación permiso de instalación.",
+    "webview_recovery_refused": "Android ha rechazado la instalación de WebView. Sigue la guía de actualización de WebView específica de tu modelo y comprueba la compatibilidad del paquete, la versión de Android y la firma. Guarda un informe de soporte si sigue rechazándola; los reintentos no pueden resolver una incompatibilidad del paquete.",
+    "webview_recovery_mismatch": "El WebView descargado no coincidía con la actualización verificada. Mantén el panel conectado y selecciona Reintentar para descargarlo de nuevo. Si se repite, guarda un informe de soporte; no instales un APK sin verificar.",
+    "webview_recovery_uncertain": "No se ha podido confirmar el resultado de la instalación. Mantén el panel conectado y selecciona Reintentar: primero se comprueba el WebView instalado y solo se inicia un nuevo intento si la actualización sigue cumpliendo los requisitos.",
+    "webview_recovery_retry": "La operación de WebView se ha interrumpido o no ha podido terminar su preparación. Comprueba la conexión del panel y el almacenamiento disponible, y selecciona Reintentar. Guarda un informe de soporte si se repite."
   },
   "config": {
     "flow_title": "{name}",
@@ -1531,7 +1538,7 @@
         "step": {
           "init": {
             "title": "Resolver el error del panel",
-            "description": "La aplicación del panel está instalada, pero su actualización de WebView (motor del navegador) no ha terminado.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Mantén el panel conectado y luego selecciona **Reintentar** para repetir solo el paso de WebView.\n\n[Más información]({learn_more_url})",
+            "description": "La aplicación del panel está instalada, pero su actualización de WebView (motor del navegador) no ha terminado.\n\n{webview_guidance}\n\nPara solucionarlo:\n1. Sigue la [guía de actualización de WebView específica de tu modelo]({webview_guide_url}).\n2. Selecciona **Informe de soporte** para consultar la causa guardada del panel antes de reintentarlo.\n\n[Más información]({learn_more_url})",
             "menu_options": {
               "retry": "Reintentar",
               "authorize_adb": "Permitir actualizaciones",
@@ -1549,7 +1556,7 @@
           },
           "retry_error": {
             "title": "Reintento incompleto",
-            "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
+            "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\n{webview_guidance}\n\nPara solucionarlo:\n1. Sigue la [guía de actualización de WebView específica de tu modelo]({webview_guide_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
           },
           "authorize_adb": {
             "title": "Permitir actualizaciones",

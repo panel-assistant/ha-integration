@@ -2,7 +2,14 @@
   "title": "Panel Assistant",
   "common": {
     "remove_from_panel_notification_title": "Rimuovi Panel Assistant da {panel}",
-    "remove_from_panel_notification_message": "Per rimuovere Panel Assistant da {panel}, apri [Riparazioni]({repairs_url}) e conferma lì. Sul pannello non è ancora cambiato nulla."
+    "remove_from_panel_notification_message": "Per rimuovere Panel Assistant da {panel}, apri [Riparazioni]({repairs_url}) e conferma lì. Sul pannello non è ancora cambiato nulla.",
+    "webview_recovery_unknown": "Non è stato possibile leggere lo stato di WebView del pannello. Mantienilo connesso, poi seleziona Riprova. Se il problema persiste, salva un rapporto di assistenza prima di cancellare questo errore.",
+    "webview_recovery_current": "Il pannello ora indica che WebView è aggiornato. Seleziona Riprova per verificarlo e cancellare questo errore senza reinstallare WebView.",
+    "webview_recovery_installer": "L’app non dispone di un metodo autorizzato per installare WebView. Selezionare ripetutamente Riprova non può concederle tale autorizzazione. Aggiorna WebView manualmente seguendo la guida specifica per il tuo modello, poi seleziona Riprova per verificare. Su un NSPanel Pro con firmware originale si utilizza ADB; la sola attivazione di ADB non concede all’app l’autorizzazione a installare.",
+    "webview_recovery_refused": "Android ha rifiutato l’installazione di WebView. Segui la guida all’aggiornamento di WebView specifica per il tuo modello e verifica la compatibilità del pacchetto, della versione di Android e della firma. Salva un rapporto di assistenza se il rifiuto persiste; ripetere i tentativi non può risolvere un’incompatibilità del pacchetto.",
+    "webview_recovery_mismatch": "Il WebView scaricato non corrispondeva all’aggiornamento verificato. Mantieni il pannello connesso e seleziona Riprova per scaricarlo di nuovo. Se il problema si ripete, salva un rapporto di assistenza; non installare un APK non verificato.",
+    "webview_recovery_uncertain": "Non è stato possibile confermare il risultato dell’installazione. Mantieni il pannello connesso e seleziona Riprova: viene prima verificato il WebView installato e viene avviato un nuovo tentativo solo se l’aggiornamento soddisfa ancora i requisiti.",
+    "webview_recovery_retry": "L’operazione WebView è stata interrotta o non ha potuto completare la preparazione. Controlla la connessione del pannello e lo spazio di archiviazione disponibile, poi seleziona Riprova. Salva un rapporto di assistenza se il problema si ripete."
   },
   "config": {
     "flow_title": "{name}",
@@ -1531,7 +1538,7 @@
         "step": {
           "init": {
             "title": "Risolvi l'errore del pannello",
-            "description": "L'app del pannello è installata, ma il suo aggiornamento di WebView (motore del browser) non è stato completato.\n\nPer risolvere:\n1. Segui i [passaggi di ripristino]({repair_url}).\n2. Mantieni il pannello connesso, poi seleziona **Riprova** per ripetere solo il passaggio relativo a WebView.\n\n[Scopri di più]({learn_more_url})",
+            "description": "L'app del pannello è installata, ma il suo aggiornamento di WebView (motore del browser) non è stato completato.\n\n{webview_guidance}\n\nPer risolvere:\n1. Segui la [guida all’aggiornamento di WebView specifica per il tuo modello]({webview_guide_url}).\n2. Seleziona **Rapporto di assistenza** per consultare la causa salvata dal pannello prima di riprovare.\n\n[Scopri di più]({learn_more_url})",
             "menu_options": {
               "retry": "Riprova",
               "authorize_adb": "Consenti aggiornamenti",
@@ -1549,7 +1556,7 @@
           },
           "retry_error": {
             "title": "Nuovo tentativo incompleto",
-            "description": "Il nuovo tentativo non è stato completato, quindi questo errore e il suo rapporto rimangono in Riparazioni.\n\nPer risolvere:\n1. Segui i [passaggi di ripristino]({repair_url}).\n2. Seleziona **Invia**, poi **Rapporto di assistenza** per verificare la causa prima di riprovare.\n\n[Scopri di più]({learn_more_url})"
+            "description": "Il nuovo tentativo non è stato completato, quindi questo errore e il suo rapporto rimangono in Riparazioni.\n\n{webview_guidance}\n\nPer risolvere:\n1. Segui la [guida all’aggiornamento di WebView specifica per il tuo modello]({webview_guide_url}).\n2. Seleziona **Invia**, poi **Rapporto di assistenza** per verificare la causa prima di riprovare.\n\n[Scopri di più]({learn_more_url})"
           },
           "authorize_adb": {
             "title": "Consenti aggiornamenti",

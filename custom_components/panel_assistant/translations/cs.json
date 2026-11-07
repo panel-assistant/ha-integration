@@ -2,7 +2,14 @@
   "title": "Panel Assistant",
   "common": {
     "remove_from_panel_notification_title": "Odstranit Panel Assistant z panelu {panel}",
-    "remove_from_panel_notification_message": "Chcete-li odstranit Panel Assistant z panelu {panel}, otevřete [Opravy]({repairs_url}) a tam odstranění potvrďte. Na panelu se zatím nic nezměnilo."
+    "remove_from_panel_notification_message": "Chcete-li odstranit Panel Assistant z panelu {panel}, otevřete [Opravy]({repairs_url}) a tam odstranění potvrďte. Na panelu se zatím nic nezměnilo.",
+    "webview_recovery_unknown": "Stav WebView panelu se nepodařilo přečíst. Nechte panel připojený a poté vyberte Zkusit znovu. Pokud se chyba opakuje, před jejím vymazáním si uložte zprávu pro podporu.",
+    "webview_recovery_current": "Panel nyní hlásí, že WebView je aktuální. Vyberte Zkusit znovu pro ověření a vymazání této chyby bez nové instalace WebView.",
+    "webview_recovery_installer": "Aplikace nemá povolený způsob instalace WebView. Opakovaným výběrem Zkusit znovu toto oprávnění nezíská. Aktualizujte WebView ručně podle návodu pro váš model a poté vyberte Zkusit znovu pro ověření. U NSPanel Pro s původním firmwarem se používá ADB; samotné zapnutí ADB aplikaci neudělí oprávnění k instalaci.",
+    "webview_recovery_refused": "Android odmítl instalaci WebView. Postupujte podle návodu k aktualizaci WebView pro váš model a zkontrolujte kompatibilitu balíčku, verze Androidu a podpisu. Pokud instalaci stále odmítá, uložte si zprávu pro podporu; opakované pokusy nevyřeší nekompatibilitu balíčku.",
+    "webview_recovery_mismatch": "Stažené WebView neodpovídalo ověřené aktualizaci. Nechte panel připojený a vyberte Zkusit znovu pro nové stažení. Pokud se to opakuje, uložte si zprávu pro podporu; neinstalujte neověřený soubor APK.",
+    "webview_recovery_uncertain": "Výsledek instalace se nepodařilo potvrdit. Nechte panel připojený a vyberte Zkusit znovu: nejprve se zkontroluje nainstalované WebView a nový pokus začne, pouze pokud aktualizace stále splňuje podmínky.",
+    "webview_recovery_retry": "Operace WebView byla přerušena nebo nemohla dokončit přípravu. Zkontrolujte připojení panelu a volné úložiště a poté vyberte Zkusit znovu. Pokud se to opakuje, uložte si zprávu pro podporu."
   },
   "config": {
     "flow_title": "{name}",
@@ -1531,7 +1538,7 @@
         "step": {
           "init": {
             "title": "Vyřešit chybu panelu",
-            "description": "Aplikace panelu je nainstalována, ale její aktualizace WebView (jádra prohlížeče) nebyla dokončena.\n\nPostup opravy:\n1. Postupujte podle [kroků obnovy]({repair_url}).\n2. Nechte panel připojený a poté vyberte **Zkusit znovu**, aby se zopakoval pouze krok aktualizace WebView.\n\n[Další informace]({learn_more_url})",
+            "description": "Aplikace panelu je nainstalována, ale její aktualizace WebView (jádra prohlížeče) nebyla dokončena.\n\n{webview_guidance}\n\nPostup opravy:\n1. Postupujte podle [návodu k aktualizaci WebView pro váš model]({webview_guide_url}).\n2. Vyberte **Zpráva pro podporu**, abyste před dalším pokusem zjistili uloženou příčinu z panelu.\n\n[Další informace]({learn_more_url})",
             "menu_options": {
               "retry": "Zkusit znovu",
               "authorize_adb": "Povolit aktualizace",
@@ -1549,7 +1556,7 @@
           },
           "retry_error": {
             "title": "Opakovaný pokus nebyl dokončen",
-            "description": "Opakovaný pokus se nemohl dokončit, takže tato chyba a její zpráva zůstávají v Opravách.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Odeslat** a poté **Zpráva pro podporu**, abyste před dalším pokusem zjistili příčinu.\n\n[Další informace]({learn_more_url})"
+            "description": "Opakovaný pokus se nemohl dokončit, takže tato chyba a její zpráva zůstávají v Opravách.\n\n{webview_guidance}\n\nPostup opravy:\n1. Postupujte podle [návodu k aktualizaci WebView pro váš model]({webview_guide_url}).\n2. Zvolte **Odeslat** a poté **Zpráva pro podporu**, abyste před dalším pokusem zjistili příčinu.\n\n[Další informace]({learn_more_url})"
           },
           "authorize_adb": {
             "title": "Povolit aktualizace",
