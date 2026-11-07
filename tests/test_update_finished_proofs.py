@@ -32,6 +32,7 @@ from custom_components.panel_assistant.coordinator import (
 )
 from custom_components.panel_assistant.repairs_failure import (
     async_failure_events,
+    async_support_report,
     panel_failure_issue_id,
 )
 from custom_components.panel_assistant.update_route import ROUTE_STAGED
@@ -193,3 +194,98 @@ async def test_webview_finishing_after_the_wait_clears_its_repair_on_the_poll(
     assert poller.last_update_success
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
     assert await async_failure_events(hass, issue_id) == []
+
+
+@pytest.mark.parametrize(
+    "state,reason",
+    [
+        ("deferred", "install_unavailable"),
+        ("rejected", "install_refused"),
+        ("submitted_unknown", "reply_lost"),
+    ],
+)
+async def test_unfinished_update_report_keeps_panel_webview_cause(
+    hass: HomeAssistant, added: list[Any], state: str, reason: str
+) -> None:
+    """The support report retains the panel cause after pressing Install."""
+    entity, entry, issue_id = _native(hass)
+    entity_id = await _with_service(hass, entity, added)
+    terminal = observation(state)
+    terminal["reason"] = "eligible"
+    terminal["transaction"]["reason"] = reason
+    sent: list[str] = []
+
+    async def manage(_hass: Any, _session: Any, operation: str, **_: Any) -> Any:
+        sent.append(operation)
+        return observation() if len(sent) == 1 else terminal
+
+    with (
+        patch(
+            "custom_components.panel_assistant.repairs_failure.async_get_sessions"
+        ) as sessions,
+        patch(
+            "custom_components.panel_assistant.repairs_failure.async_observe_management",
+            manage,
+            create=True,
+        ),
+        pytest.raises(HomeAssistantError),
+    ):
+        sessions.return_value.get.return_value = _session(entry)
+        await _press_install(hass, entity_id, entry, manage)
+    event = (await async_failure_events(hass, issue_id))[-1]
+    assert event["webview"] == {
+        "reason": "eligible",
+        "transaction_state": state,
+        "transaction_reason": reason,
+    }
+    assert sent == ["webview.observe", "webview.install", "webview.observe"]
+    assert event["webview_pending"] is True
+    report = await async_support_report(hass, issue_id)
+    assert f"events[1].webview.transaction_state: {state}" in report
+    assert f"events[1].webview.transaction_reason: {reason}" in report
+    assert "events[1].webview.reason: eligible" in report
+    entity._delivery.async_deliver_build.assert_awaited_once()
+
+
+@pytest.mark.parametrize("failure", ["timeout", "invalid", "repaired_identity"])
+async def test_unavailable_webview_evidence_keeps_the_original_update_failure(
+    hass: HomeAssistant, added: list[Any], failure: str
+) -> None:
+    entity, entry, issue_id = _native(hass)
+    entity_id = await _with_service(hass, entity, added)
+    terminal = observation("deferred")
+    terminal["transaction"]["reason"] = "install_unavailable"
+    sent: list[str] = []
+
+    async def manage(_hass: Any, _session: Any, operation: str, **_: Any) -> Any:
+        sent.append(operation)
+        return observation() if len(sent) == 1 else terminal
+
+    async def evidence(*_: Any) -> Any:
+        if failure == "timeout":
+            raise TimeoutError
+        if failure == "invalid":
+            return {"schema": 2}
+        hass.config_entries.async_update_entry(
+            entry, data={**entry.data, CONF_TRANSPORT_USER_ID: "different-owner"}
+        )
+        return terminal
+
+    with (
+        patch(
+            "custom_components.panel_assistant.repairs_failure.async_get_sessions"
+        ) as sessions,
+        patch(
+            "custom_components.panel_assistant.repairs_failure.async_observe_management",
+            evidence,
+        ),
+        pytest.raises(HomeAssistantError) as raised,
+    ):
+        sessions.return_value.get.return_value = _session(entry)
+        await _press_install(hass, entity_id, entry, manage)
+    assert raised.value.translation_key == "update_webview_unfinished"
+    assert sent == ["webview.observe", "webview.install"]
+    assert (await async_failure_events(hass, issue_id))[-1]["webview"] == {
+        "status": "unavailable"
+    }
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None

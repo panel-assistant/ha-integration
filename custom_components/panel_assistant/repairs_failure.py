@@ -22,12 +22,14 @@ from homeassistant.helpers.storage import Store
 
 from .build import INTEGRATION_BUILD
 from .build_feed import parse_build_request
-from .client import is_newer_stable_version, is_version_at_least
+from .client import InvalidResponseError, is_newer_stable_version, is_version_at_least
 from .const import CONF_TRANSPORT_USER_ID, DOMAIN, INTEGRATION_VERSION, help_url
 from .device import panel_display_name
 from .transport_protocol import CAPABILITY_UI_SUBSCRIBE, OUTCOME_APPLIED
 from .transport_sessions import async_get_sessions, session_manages
+from .transport_sessions import async_manage as async_observe_management
 from .ui_relay import async_manage
+from .webview import parse_webview
 
 if TYPE_CHECKING:
     from .install_receipt import InstallJobReceipt
@@ -405,6 +407,40 @@ async def async_record_update_bundle(
     )
 
 
+async def _async_failure_webview(hass: HomeAssistant, entry_id: str) -> dict[str, Any]:
+    """Read bounded failure-time facts without submitting any provider work."""
+    unavailable = {"status": "unavailable"}
+    entry = hass.config_entries.async_get_entry(entry_id)
+    session = async_get_sessions(hass).get(entry_id)
+    if (
+        entry is None
+        or not session_manages(session)
+        or session is None
+        or session.did != entry.unique_id
+        or session.user_id != entry.data.get(CONF_TRANSPORT_USER_ID)
+    ):
+        return unavailable
+    try:
+        async with asyncio.timeout(_PANEL_LOG_TIMEOUT):
+            status = parse_webview(
+                await async_observe_management(hass, session, "webview.observe")
+            )
+        if (
+            hass.config_entries.async_get_entry(entry_id) is not entry
+            or async_get_sessions(hass).get(entry_id) is not session
+            or session.did != entry.unique_id
+            or session.user_id != entry.data.get(CONF_TRANSPORT_USER_ID)
+        ):
+            return unavailable
+        return {
+            "reason": status.reason,
+            "transaction_state": status.transaction_state,
+            "transaction_reason": status.transaction_reason,
+        }
+    except HomeAssistantError, TimeoutError, InvalidResponseError:
+        return unavailable
+
+
 async def async_record_update_failure(
     hass: HomeAssistant,
     entry_id: str,
@@ -442,6 +478,8 @@ async def async_record_update_failure(
         event["observed_before"] = list(observed_before)
     if webview_pending:
         event["webview_pending"] = True
+        if raise_issue:
+            event["webview"] = await _async_failure_webview(hass, entry_id)
     if isinstance(cause := getattr(error, "translation_key", None), str):
         # A restart restores the same wording from the saved report.
         event["translation_key"] = cause
