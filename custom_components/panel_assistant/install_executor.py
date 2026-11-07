@@ -84,7 +84,7 @@ from .install_network import (
     async_revalidate_install_target,
 )
 from .install_receipt import (
-    _RESTART_AMBIGUOUS_PHASES,
+    _RESTART_INTERRUPTED_PHASES,
     InstallArtifact,
     InstallJobCleanupRequiredError,
     InstallJobError,
@@ -339,7 +339,7 @@ class InstallExecutor:
                     or receipt.phase is InstallPhase.HEALTHY_UNCLAIMED
                 ):
                     continue
-                if receipt.phase in _RESTART_AMBIGUOUS_PHASES:
+                if receipt.phase in _RESTART_INTERRUPTED_PHASES:
                     try:
                         await self._async_claim(receipt)
                     except _PauseJob:
@@ -354,7 +354,7 @@ class InstallExecutor:
                         current = await self._manager.async_get(receipt.job_id)
                         if (
                             not current.is_terminal
-                            and current.phase in _RESTART_AMBIGUOUS_PHASES
+                            and current.phase in _RESTART_INTERRUPTED_PHASES
                         ):
                             try:
                                 await self._async_claim(current)

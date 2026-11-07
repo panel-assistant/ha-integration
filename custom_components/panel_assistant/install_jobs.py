@@ -42,7 +42,7 @@ from .install_receipt import (
     _NEXT_PHASE,
     _PREFLIGHT_ROOT_MODES,
     _RECOVERY_CODES,
-    _RESTART_AMBIGUOUS_PHASES,
+    _RESTART_INTERRUPTED_PHASES,
     _SUBCODE,
     _TERMINAL_PHASES,
     InstallArtifact,
@@ -981,11 +981,11 @@ class InstallJobManager:
     ) -> InstallJobReceipt:
         """Durably claim safe work for this manager generation.
 
-        A new manager has no in-memory claims. Encountering a phase from which
-        an earlier process may already have mutated the panel therefore records
-        recovery-required instead of replaying the operation. A claim which
-        would become terminal requires proof that receipt-local artifact
-        custody was cleaned against the exact current durable revision.
+        A new manager has no in-memory claims. An interrupted copy fails safely;
+        a package install or launch requires recovery instead of replaying the
+        operation. A claim which would become terminal requires proof that
+        receipt-local artifact custody was cleaned against the exact current
+        durable revision.
         """
         async with self._lock:
             jobs = (await self._async_load_locked(refresh=True)).copy()
@@ -1004,7 +1004,7 @@ class InstallJobManager:
                 current.executor_generation >= _MAX_EXECUTOR_GENERATION
                 or current.attempt >= _MAX_ATTEMPTS
             )
-            terminalizing = exhausted or current.phase in _RESTART_AMBIGUOUS_PHASES
+            terminalizing = exhausted or current.phase in _RESTART_INTERRUPTED_PHASES
             if terminalizing and cleanup_confirmed_revision is None:
                 raise InstallJobCleanupRequiredError
             if exhausted:
@@ -1023,9 +1023,15 @@ class InstallJobManager:
                 return self._jobs[job_id]  # type: ignore[index]
             phase = current.phase
             result_code = None
-            if phase in _RESTART_AMBIGUOUS_PHASES:
+            subcode = None
+            if phase is InstallPhase.STAGING:
+                phase = InstallPhase.FAILED
+                result_code = InstallResultCode.TRANSPORT_FAILED
+                subcode = "job:interrupted_staging"
+            elif phase in _RESTART_INTERRUPTED_PHASES:
                 phase = InstallPhase.RECOVERY_REQUIRED
                 result_code = InstallResultCode.VERIFICATION_REQUIRED
+                subcode = "job:interrupted_mutation"
             updated = replace(
                 current,
                 revision=current.revision + 1,
@@ -1034,14 +1040,8 @@ class InstallJobManager:
                 phase=phase,
                 attempt=current.attempt + 1,
                 result_code=result_code,
-                failure_stage=(
-                    current.phase if phase is InstallPhase.RECOVERY_REQUIRED else None
-                ),
-                result_subcode=(
-                    "job:interrupted_mutation"
-                    if phase is InstallPhase.RECOVERY_REQUIRED
-                    else None
-                ),
+                failure_stage=current.phase if result_code is not None else None,
+                result_subcode=subcode,
             )
             jobs[job_id] = updated
             self._prune(jobs, updated.updated_at)

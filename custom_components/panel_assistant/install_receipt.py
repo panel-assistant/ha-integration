@@ -261,7 +261,7 @@ _FAILURE_CODES_BY_PHASE: Mapping[InstallPhase, frozenset[InstallResultCode]] = {
         }
     ),
 }
-_RESTART_AMBIGUOUS_PHASES = frozenset(
+_RESTART_INTERRUPTED_PHASES = frozenset(
     {
         InstallPhase.STAGING,
         InstallPhase.INSTALLING,

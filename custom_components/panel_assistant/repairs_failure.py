@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 import secrets
 import traceback
@@ -30,6 +31,8 @@ from .ui_relay import async_manage
 
 if TYPE_CHECKING:
     from .install_receipt import InstallJobReceipt
+
+_LOGGER = logging.getLogger(__name__)
 
 ISSUE_INSTALLER_FAILURE = "installer_failure"
 ISSUE_ADB_AUTHORIZATION = "adb_update_authorization"
@@ -505,8 +508,10 @@ async def async_clear_update_failure_if_installed(
     issue_id = panel_failure_issue_id(f"update:{entry_id}")
     # A record can exist without its Repair (an update still running, or one
     # restored at startup), so the record decides, not the registry.
+    cleared_event: dict[str, Any] | None = None
 
     def reached(record: dict[str, Any]) -> bool:
+        nonlocal cleared_event
         if is_current is not None and not is_current():
             return False
         events = record.get("events", [])
@@ -520,6 +525,7 @@ async def async_clear_update_failure_if_installed(
             ),
             None,
         )
+        cleared_event = previous
         if (
             previous is not None
             and previous.get("webview_pending")
@@ -555,11 +561,34 @@ async def async_clear_update_failure_if_installed(
             return installed_code is not None and installed_code >= target_code
         return is_version_at_least(installed_version, target) is True
 
-    await _failure_store(hass).clear(
-        issue_id,
-        lambda: ir.async_delete_issue(hass, DOMAIN, issue_id),
-        reached,
-    )
+    def cleared() -> None:
+        if (
+            not verified_success
+            and cleared_event is not None
+            and ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+        ):
+            elapsed = "unknown"
+            at = cleared_event.get("at")
+            if isinstance(at, str):
+                try:
+                    started = datetime.fromisoformat(at)
+                    if started.tzinfo is None:
+                        started = started.replace(tzinfo=UTC)
+                    elapsed = (
+                        f"{max(0, (datetime.now(UTC) - started).total_seconds()):.0f}s"
+                    )
+                except ValueError:
+                    pass
+            _LOGGER.warning(
+                "Cleared update failure for %s after observing target build %s; "
+                "elapsed since failure: %s",
+                cleared_event.get("panel", entry_id),
+                cleared_event.get("target_version") or "unknown",
+                elapsed,
+            )
+        ir.async_delete_issue(hass, DOMAIN, issue_id)
+
+    await _failure_store(hass).clear(issue_id, cleared, reached)
 
 
 async def async_failure_events(
