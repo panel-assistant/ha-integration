@@ -107,17 +107,16 @@ def emulate_home_assistant_store_file(
     hass_storage: dict[str, Any],
 ) -> Generator[None]:
     """Model the Store file hidden by HA's in-memory test storage manager."""
-    observed_paths: set[str] = set()
 
     def _presence(path: str) -> tuple[bool, bool]:
         exists, corrupt = _REAL_STORE_PRESENCE(path)
         if exists or corrupt:
             return exists, corrupt
-        if path.endswith(f"{DOMAIN}.install_jobs.details"):
-            return f"{DOMAIN}.install_jobs.details" in hass_storage, False
-        if path in observed_paths:
-            return True, False
-        observed_paths.add(path)
+        # Presence follows the same document the readers below return, so a
+        # read that finds no file never meets a reader that finds no data.
+        key = Path(path).name
+        if key in {f"{DOMAIN}.install_jobs", f"{DOMAIN}.install_jobs.details"}:
+            return key in hass_storage, False
         return False, False
 
     def _durable_reader(_path: str) -> dict[str, InstallJobReceipt]:
