@@ -15,7 +15,7 @@ from homeassistant.components.update import (
 )
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -181,6 +181,13 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         self._legacy_api_ready_key: tuple[object, ...] | None = None
         self._route_checked_key: tuple[object, ...] | None = None
         self._route_task: asyncio.Task[None] | None = None
+
+    @callback
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Keep coordinator listeners and pending operations through a rename."""
+        # Core before 2026.11 has no hook and still removes/re-adds on rename.
+        if changed := getattr(super(), "async_entity_id_changed", None):
+            changed(old_entity_id)
 
     async def async_added_to_hass(self) -> None:
         """Refresh presentation when the panel's local operation state changes."""

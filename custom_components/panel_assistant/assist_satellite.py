@@ -154,6 +154,13 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         voice = self._voice
         return voice is not None and voice.enabled
 
+    @callback
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Keep session-owned announcements and device timers through a rename."""
+        # Core before 2026.11 has no hook and still removes/re-adds on rename.
+        if changed := getattr(super(), "async_entity_id_changed", None):
+            changed(old_entity_id)
+
     async def async_added_to_hass(self) -> None:
         """Follow the panel's session."""
         await super().async_added_to_hass()
