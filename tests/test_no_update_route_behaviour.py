@@ -8,6 +8,7 @@ other two leave a panel accused of something that is no longer true.
 
 import asyncio
 from dataclasses import replace
+from datetime import timedelta
 from unittest.mock import AsyncMock
 
 import pytest
@@ -70,7 +71,7 @@ async def test_a_lost_route_is_noticed_although_nothing_else_changed(
         state=InstallTargetState.ADB_UNAUTHORIZED
     )
     route.entity._schedule_route_refresh()
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
 
     issue = _issue(hass, entry)
     assert issue is not None
@@ -104,7 +105,7 @@ async def test_a_panel_that_can_install_for_itself_again_is_let_off(
         ),
     )
     route.entity._schedule_route_refresh()
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
 
     assert route.entity._has_install_route()
     assert _issue(hass, entry) is None
@@ -168,7 +169,7 @@ async def test_an_unreachable_panel_is_not_accused_of_losing_its_route(
 
     route.entity.coordinator.reachable = False
     route.entity._handle_coordinator_update()
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
 
     assert _issue(hass, entry) is None
 
@@ -186,28 +187,29 @@ async def test_an_established_repair_outlives_an_offline_spell(
 
     route.entity.coordinator.reachable = False
     route.entity._handle_coordinator_update()
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
 
     assert _issue(hass, entry) is not None
 
 
 @pytest.mark.parametrize("has_offer", [False, True])
 async def test_recovered_adb_clears_repair_without_a_pending_update(
-    route, hass, has_offer
+    route, hass, has_offer, freezer
 ):
     entry = _entry(hass)
     route.probe_target.return_value = InstallTargetProbe(
         state=InstallTargetState.ADB_UNAUTHORIZED
     )
     route.entity._schedule_route_refresh()
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     assert _issue(hass, entry) is not None
 
+    freezer.tick(timedelta(minutes=10, seconds=1))
     route.probe_target.return_value = route.probe
     if not has_offer:
         _up_to_date(route)
     route.entity._schedule_route_refresh()
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     assert _issue(hass, entry) is None
     if not has_offer:
         assert route.entity.latest_version == route.entity.installed_version
@@ -217,7 +219,7 @@ async def test_healthy_adb_without_offer_does_not_raise_repair(route, hass):
     entry = _entry(hass)
     _up_to_date(route)
     route.entity._schedule_route_refresh()
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     assert _issue(hass, entry) is None
     route.probe_target.assert_awaited()
     assert route.entity.latest_version == route.entity.installed_version
@@ -230,7 +232,7 @@ async def test_adb_loss_is_reported_without_a_pending_update(route, hass):
         state=InstallTargetState.ADB_UNAUTHORIZED
     )
     route.entity._schedule_route_refresh()
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     assert _issue(hass, entry) is not None
 
 
@@ -240,7 +242,7 @@ async def test_build_verification_failure_is_not_route_loss(route, hass):
         side_effect=RuntimeError("feed unavailable")
     )
     route.entity._schedule_route_refresh()
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     route.probe_target.assert_awaited()
     assert _issue(hass, entry) is None
 
@@ -261,7 +263,7 @@ async def test_wrong_http_identity_preserves_route_issue_state(
         route.entity.coordinator.data.health, panel_id="another-panel"
     )
     route.entity._schedule_route_refresh()
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     assert (_issue(hass, entry) is not None) == existing_issue
 
 
@@ -276,7 +278,7 @@ async def test_open_adb_without_offer_does_not_create_credentials(
     )
     monkeypatch.setattr(update_route, "async_get_adb_credential", create_key)
     route.entity._schedule_route_refresh()
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     route.probe_target.assert_awaited_once_with(route.pinned.pinned)
     create_key.assert_not_awaited()
     assert _issue(hass, entry) is None
@@ -322,7 +324,7 @@ async def test_unreadable_adb_app_facts_preserve_issue(
     _up_to_date(route)
     route.probe_target.return_value = InstallTargetProbe(state=state)
     route.entity._schedule_route_refresh()
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     assert (_issue(hass, entry) is not None) == existing_issue
 
 
@@ -333,6 +335,6 @@ async def test_a_route_check_that_raises_waits_for_the_next_poll(route, hass):
 
     route.entity._schedule_route_refresh()
     async with asyncio.timeout(5):
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
 
     assert route.probe_target.await_count == 1
