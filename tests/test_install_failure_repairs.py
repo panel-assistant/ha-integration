@@ -274,20 +274,23 @@ async def test_restart_quarantine_raises_repair_from_claim_boundary(
     manager = InstallJobManager(hass, now=Clock())
     receipt, _ = await create(manager)
     staging = await transition_to_staging(manager, receipt.job_id)
+    installing = await manager.async_transition(
+        staging.job_id, staging.revision, InstallPhase.INSTALLING
+    )
 
     restarted = InstallJobManager(hass, now=Clock())
     quarantined = await restarted.async_claim(
-        staging.job_id,
-        staging.revision,
-        cleanup_confirmed_revision=staging.revision,
+        installing.job_id,
+        installing.revision,
+        cleanup_confirmed_revision=installing.revision,
     )
     assert quarantined.phase is InstallPhase.RECOVERY_REQUIRED
-    assert quarantined.failure_stage is InstallPhase.STAGING
+    assert quarantined.failure_stage is InstallPhase.INSTALLING
     assert quarantined.result_subcode == "job:interrupted_mutation"
     await hass.async_block_till_done()
     issues = _install_issues(hass)
     assert len(issues) == 1
     await hass.async_block_till_done()
     events = await async_failure_events(hass, issues[0].issue_id)
-    assert events[-1]["receipt"]["failure_stage"] == InstallPhase.STAGING
+    assert events[-1]["receipt"]["failure_stage"] == InstallPhase.INSTALLING
     assert events[-1]["receipt"]["result_subcode"] == "job:interrupted_mutation"
