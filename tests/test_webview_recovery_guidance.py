@@ -100,7 +100,7 @@ async def _retry(
 async def test_terminal_webview_repair_explains_the_next_action_and_keeps_retry_cause(
     hass: HomeAssistant,
     hass_client: Any,
-    added: list[Any],
+    added: list[Any],  # noqa: F811 - request the imported pytest fixture
     state: str,
     reason: str,
     route: str,
