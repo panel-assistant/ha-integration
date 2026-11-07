@@ -181,7 +181,6 @@ class DefiniteCleanupReason(StrEnum):
     """States which allow deletion of the one job-owned staging path."""
 
     CANCELLED = "cancelled"
-    STAGE_INTERRUPTED = "stage_interrupted"
     INSTALL_SUCCEEDED = "install_succeeded"
     INSTALL_REFUSED = "install_refused"
 

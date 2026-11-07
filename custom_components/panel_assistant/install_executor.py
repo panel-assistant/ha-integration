@@ -1116,31 +1116,6 @@ class InstallExecutor:
                 await self._async_cleanup_local(_execution_id(current))
             except ArtifactCustodyError:
                 raise _PauseJob(nonrestartable=True) from None
-            if current.phase is InstallPhase.STAGING:
-                # No install can start before INSTALLING is durable. Removing
-                # an interrupted copy is best effort; the next stage also
-                # clears this device-local slot before writing it.
-                execution = _frozen_execution(current, self._feed_url())
-                try:
-                    await _require_pin(self._hass, execution.pinned)
-                    credential = await self._async_current_credential(current)
-                    await async_cleanup_staged_apk(
-                        execution.adb_target,
-                        credential.signer,
-                        _staged(current.artifact),
-                        DefiniteCleanupReason.STAGE_INTERRUPTED,
-                        expected_root_mode=_root_mode(current),
-                    )
-                except (
-                    AdbCredentialError,
-                    InstallNetworkError,
-                    InstallAdbError,
-                ):
-                    _LOGGER.warning(
-                        "Could not clear interrupted install staging panel=%s job=%s",
-                        current.target.address,
-                        current.job_id,
-                    )
             return await self._manager.async_claim(
                 current.job_id,
                 current.revision,
