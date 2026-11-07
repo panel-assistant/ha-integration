@@ -1525,6 +1525,71 @@
         }
       }
     },
+    "installer_failure_update_slow_transfer": {
+      "title": "Pomalý přenos do panelu {panel} nebyl dokončen",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Vyřešit chybu panelu",
+            "description": "Přenos aktualizace před selháním probíhal rychlostí přibližně {transfer_rate} KB/s.\n\nPostup nápravy:\n1. Restartujte panel a vyberte **Zkusit znovu**.\n2. Pokud znovu selže, zkontrolujte **Zpráva pro podporu** a postupujte podle [pokynů k obnovení]({repair_url}).\n\n[Další informace]({learn_more_url})",
+            "menu_options": {
+              "retry": "Zkusit znovu",
+              "authorize_adb": "Povolit aktualizace",
+              "support_report": "Zpráva pro podporu",
+              "clear_error": "Vymazat chybu"
+            }
+          },
+          "support_report": {
+            "title": "Zpráva pro podporu",
+            "description": "Tato zpráva obsahuje uložené podrobnosti o neúspěšné instalaci nebo aktualizaci.\n\nPostup opravy:\n1. Přečtěte si, [jak tuto zprávu pro podporu použít]({guide_url}).\n2. Zkontrolujte, zda zpráva neobsahuje soukromé informace, a poté ji zkopírujte do [nového hlášení problému integrace Panel Assistant]({issue_url}).\n\n{report}\n\n[Další informace]({learn_more_url})"
+          },
+          "clear_error": {
+            "title": "Vymazat chybu",
+            "description": "Vymazáním této chyby se odstraní její uložená zpráva, aniž by se panel změnil.\n\nPostup opravy:\n1. Pokud zprávu potřebujete, nejprve si [uložte zprávu pro podporu]({guide_url}).\n2. Zvolte **Odeslat** pro odstranění této chyby a zprávy.\n\n[Další informace]({learn_more_url})"
+          },
+          "retry_error": {
+            "title": "Opakovaný pokus nebyl dokončen",
+            "description": "Opakovaný pokus se nemohl dokončit, takže tato chyba a její zpráva zůstávají v Opravách.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Odeslat** a poté **Zpráva pro podporu**, abyste před dalším pokusem zjistili příčinu.\n\n[Další informace]({learn_more_url})"
+          },
+          "authorize_adb": {
+            "title": "Povolit aktualizace",
+            "description": "Home Assistant potřebuje schválení v systému Android, aby mohl aktualizovat panel {panel}.\n\nPostup opravy:\n1. Přečtěte si [postup schválení ADB]({approval_url}).\n2. Zvolte **Odeslat** a poté na panelu {panel} zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**.\n3. Po schválení zvolte v této opravě **Zkusit znovu** pro opakování aktualizace.\n\n[Další informace]({learn_more_url})"
+          }
+        },
+        "progress": {
+          "retrying": "Home Assistant kontroluje panel a opakuje uloženou operaci.\n\nPostup opravy:\n1. V případě potřeby si přečtěte [pokyny k opakování pokusu]({repair_url}).\n2. Než se rozhodnete, co udělat dál, počkejte zde na výsledek.\n\n[Další informace]({learn_more_url})",
+          "authorize_adb": "Na panelu {panel} je stále potřeba schválení v systému Android.\n\nPostup opravy:\n1. Přečtěte si [postup schválení ADB]({approval_url}).\n2. Na panelu {panel} zaškrtněte **Vždy povolit z tohoto počítače** a poté klepněte na **Povolit**.\n\nPo schválení se bude pokračovat automaticky.\n\n[Další informace]({learn_more_url})"
+        },
+        "error": {
+          "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
+          "retry_release_changed": "Vybrané vydání už neodpovídá uloženému vydání. Zvolte nový pokus o instalaci.",
+          "retry_credential_changed": "Přihlašovací údaj ADB systému Home Assistant se změnil. Před opakovaným pokusem zkontrolujte panel.",
+          "retry_panel_ambiguous": "Nainstalovanou aplikaci na panelu se nepodařilo ověřit. Žádná nová instalace nebyla zahájena.",
+          "retry_cannot_prove_safe": "Panel se nepodařilo zkontrolovat dostatečně důkladně pro bezpečné opakování pokusu. Zkuste to znovu později.",
+          "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
+          "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
+          "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
+          "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu.",
+          "cannot_connect": "Nelze se připojit k platnému koncovému bodu kontroly funkčnosti Panel Assistant.",
+          "invalid_install_address": "Zadejte pouze název hostitele nebo IP adresu panelu.",
+          "install_resolution_failed": "Home Assistant nemohl přeložit tuto adresu panelu. Zkontrolujte adresu a místní DNS a zkuste to znovu.",
+          "install_resolution_timeout": "Vypršel časový limit místního překladu názvu, než bylo možné bezpečně pevně určit adresu panelu. Zkontrolujte místní DNS a zkuste to znovu.",
+          "install_too_many_addresses": "Tento název hostitele se přeložil na příliš mnoho adres, než aby bylo možné bezpečně pevně určit jednu z nich. Použijte vyhrazený místní název hostitele nebo soukromou IP adresu.",
+          "unsafe_install_target": "Instalace je povolena pouze na soukromou místní adresu IPv4 nebo unikátní lokální adresu IPv6. O připojení přes ADB nebyl proveden žádný pokus.",
+          "install_target_changed": "Název hostitele se už nepřekládá na stejnou pevně určenou adresu panelu. Nebyl odeslán žádný klíč ADB ani instalace. Zkontrolujte adresu a začněte znovu.",
+          "adb_unreachable": "Panel odpověděl, ale na jeho portu Android Debug Bridge (5555) nic neodpovědělo. Na panelu zapněte Android Debug Bridge a povolte jej přes síť. Poté to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém máte otevřený prohlížeč, proveďte místo toho instalaci přes USB.",
+          "adb_still_unauthorized": "Panel dosud nepřijal tuto instanci systému Home Assistant. Schvalte výzvu ADB na panelu a zkuste to znovu.",
+          "adb_credential_error": "Home Assistant nemohl bezpečně načíst nebo trvale uložit svůj přihlašovací údaj ADB. Nebyl proveden žádný pokus o změnu panelu. Před opakovaným pokusem zkontrolujte úložiště a protokoly systému Home Assistant.",
+          "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam balíčku Panel Assistant nebo se nepodařilo prokázat, že neobsahuje žádný stav tohoto balíčku. Na panelu se nic nezměnilo. Pokud bylo připojení nestabilní, zkuste to jednou znovu; jinak postupujte podle kroků na adrese {recovery_address}. Bez ověřené zálohy aplikaci neodinstalovávejte ani neresetujte.",
+          "unknown": "Neočekávaná chyba",
+          "panel_identity_changed": "Zařízení na této adrese už neodpovídá jako tento nakonfigurovaný panel. Před opakovaným pokusem zkontrolujte panel a jeho adresu."
+        },
+        "abort": {
+          "entry_removed": "Tento panel již není nastaven v Home Assistant.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant](/config/integrations/integration/panel_assistant), pokud ho chcete znovu přidat.\n2. Jinak tento dialog zavřete.\n\n[Další informace]({learn_more_url})"
+        }
+      }
+    },
     "installer_failure_update_webview": {
       "title": "Aktualizace WebView na panelu {panel} nebyla dokončena",
       "fix_flow": {

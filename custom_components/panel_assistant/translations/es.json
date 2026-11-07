@@ -1525,6 +1525,71 @@
         }
       }
     },
+    "installer_failure_update_slow_transfer": {
+      "title": "La transferencia lenta a {panel} no se completó",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolver el error del panel",
+            "description": "La transferencia de la actualización avanzó a unos {transfer_rate} KB/s antes de fallar.\n\nPara solucionarlo:\n1. Reinicie el panel y seleccione **Reintentar**.\n2. Si vuelve a fallar, consulte **Informe de soporte** y siga los [pasos de recuperación]({repair_url}).\n\n[Más información]({learn_more_url})",
+            "menu_options": {
+              "retry": "Reintentar",
+              "authorize_adb": "Permitir actualizaciones",
+              "support_report": "Informe de soporte",
+              "clear_error": "Borrar error"
+            }
+          },
+          "support_report": {
+            "title": "Informe de soporte",
+            "description": "Este informe contiene los detalles guardados de la instalación o actualización fallida.\n\nPara solucionarlo:\n1. Lee [cómo usar este informe de soporte]({guide_url}).\n2. Revisa si el informe contiene información privada y después cópialo en una [nueva incidencia de la integración Panel Assistant]({issue_url}).\n\n{report}\n\n[Más información]({learn_more_url})"
+          },
+          "clear_error": {
+            "title": "Borrar error",
+            "description": "Borrar este error elimina su informe guardado sin cambiar el panel.\n\nPara solucionarlo:\n1. [Guarda primero un informe de soporte]({guide_url}) si lo necesitas.\n2. Selecciona **Enviar** para eliminar este error y su informe.\n\n[Más información]({learn_more_url})"
+          },
+          "retry_error": {
+            "title": "Reintento incompleto",
+            "description": "El reintento no ha podido finalizar, por lo que este error y su informe permanecen en Reparaciones.\n\nPara solucionarlo:\n1. Sigue los [pasos de recuperación]({repair_url}).\n2. Selecciona **Enviar** y después **Informe de soporte** para comprobar la causa antes de reintentarlo.\n\n[Más información]({learn_more_url})"
+          },
+          "authorize_adb": {
+            "title": "Permitir actualizaciones",
+            "description": "Home Assistant necesita la autorización de Android para poder actualizar {panel}.\n\nPara solucionarlo:\n1. Lee los [pasos de autorización de ADB]({approval_url}).\n2. Selecciona **Enviar** y después, en {panel}, marca **Permitir siempre desde este ordenador** y toca **Permitir**.\n3. Tras autorizarlo, selecciona **Reintentar** en esta reparación para volver a intentar la actualización.\n\n[Más información]({learn_more_url})"
+          }
+        },
+        "progress": {
+          "retrying": "Home Assistant está comprobando el panel y reintentando la operación guardada.\n\nPara solucionarlo:\n1. Lee las [indicaciones para el reintento]({repair_url}) si lo necesitas.\n2. Espera aquí al resultado antes de decidir qué hacer después.\n\n[Más información]({learn_more_url})",
+          "authorize_adb": "Aún se necesita la autorización de Android en {panel}.\n\nPara solucionarlo:\n1. Lee los [pasos de autorización de ADB]({approval_url}).\n2. En {panel}, marca **Permitir siempre desde este ordenador** y después toca **Permitir**.\n\nEl proceso continúa automáticamente tras la autorización.\n\n[Más información]({learn_more_url})"
+        },
+        "error": {
+          "retry_target_changed": "El panel ya no coincide con el destino guardado. Compruébalo antes de reintentar.",
+          "retry_release_changed": "La versión elegida ya no coincide con la guardada. Inicia una instalación nueva.",
+          "retry_credential_changed": "La credencial ADB de Home Assistant ha cambiado. Comprueba el panel antes de reintentar.",
+          "retry_panel_ambiguous": "No se pudo verificar la aplicación instalada en el panel. No se inició otra instalación.",
+          "retry_cannot_prove_safe": "No se pudo comprobar el panel lo suficiente para reintentar con seguridad. Inténtalo más tarde.",
+          "retry_update_unavailable": "El control de actualización del panel no está disponible. Comprueba la conexión y reintenta.",
+          "retry_finalization": "La aplicación está lista, pero Home Assistant no pudo terminar de añadir el panel. Reintenta.",
+          "retry_failed": "El reintento falló. El informe de soporte contiene los detalles.",
+          "retry_panel_busy": "Este panel sigue ocupado con una actualización u otra tarea. Espera a que termine y vuelve a intentarlo. Si una actualización se completa correctamente, esta reparación se cierra sola.",
+          "retry_no_longer_needed": "Esta instalación ya no necesita un reintento. Vuelve a abrir la reparación si reaparece un error.",
+          "cannot_connect": "No se puede conectar a un punto de conexión de estado válido de Panel Assistant.",
+          "invalid_install_address": "Introduce solo el nombre de host o la dirección IP del panel.",
+          "install_resolution_failed": "Home Assistant no ha podido resolver la dirección de este panel. Comprueba la dirección y el DNS local y vuelve a intentarlo.",
+          "install_resolution_timeout": "La resolución de nombres local ha agotado el tiempo de espera antes de que se pudiera fijar de forma segura la dirección del panel. Comprueba el DNS local y vuelve a intentarlo.",
+          "install_too_many_addresses": "Este nombre de host se ha resuelto en demasiadas direcciones para fijarlo de forma segura. Utiliza un nombre de host local dedicado o una dirección IP privada.",
+          "unsafe_install_target": "La instalación solo se permite en una dirección IPv4 local privada o una dirección local única IPv6 (ULA). No se ha intentado ninguna conexión ADB.",
+          "install_target_changed": "El nombre de host ya no se resuelve en la misma dirección fijada del panel. No se ha enviado al panel ninguna clave ADB ni ningún contenido de instalación. Comprueba la dirección y vuelve a empezar.",
+          "adb_unreachable": "El panel respondió, pero nada respondió en su puerto de Android Debug Bridge (5555). En el panel, activa Android Debug Bridge y permítelo por red, y vuelve a intentarlo. Si puedes conectar el panel al ordenador desde el que navegas, instala por USB en su lugar.",
+          "adb_still_unauthorized": "El panel todavía no ha aceptado esta instancia de Home Assistant. Acepta el aviso de ADB en el panel y vuelve a intentarlo.",
+          "adb_credential_error": "Home Assistant no ha podido cargar ni conservar de forma segura su credencial ADB. No se ha intentado modificar el panel. Comprueba el almacenamiento y los registros de Home Assistant antes de volver a intentarlo.",
+          "retained_or_ambiguous": "El panel podría contener un registro conservado del paquete Panel Assistant o no se ha podido demostrar la ausencia del paquete. No se ha modificado el panel. Inténtalo una vez más si la conexión era inestable; de lo contrario, sigue los pasos de {recovery_address}. No desinstales ni restablezcas la aplicación sin una copia de seguridad verificada.",
+          "unknown": "Error inesperado",
+          "panel_identity_changed": "La dirección ya no responde como este panel configurado. Comprueba el panel y su dirección antes de reintentar."
+        },
+        "abort": {
+          "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant](/config/integrations/integration/panel_assistant) si quieres volver a añadirlo.\n2. En caso contrario, cierra este diálogo.\n\n[Más información]({learn_more_url})"
+        }
+      }
+    },
     "installer_failure_update_webview": {
       "title": "La actualización de WebView en {panel} no ha terminado",
       "fix_flow": {
