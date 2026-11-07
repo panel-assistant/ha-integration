@@ -2022,7 +2022,7 @@ var fe = class extends HTMLElement {
 	};
 	constructor() {
 		super(), this.attachShadow({ mode: "open" }), this.shadowRoot.innerHTML = `<style>${c}${l}
-      :host{display:block;height:100vh;height:100dvh;overflow:hidden;background:var(--primary-background-color,#fafafa);color:var(--primary-text-color,#212121)}
+      :host{display:block;height:100vh;height:100dvh;overflow:hidden;color:var(--primary-text-color,#212121)}
       [hidden]{display:none!important}
       .root{display:flex;flex-direction:column;height:100%;overflow:hidden}
       header{display:flex;flex-wrap:wrap;flex-shrink:0;align-items:center;gap:8px;min-height:56px;padding:4px 12px 4px 20px;font-size:1rem;background:var(--app-header-background-color,var(--primary-color,#03a9f4));color:var(--app-header-text-color,#fff);border-bottom:1px solid var(--divider-color,#e0e0e0);box-sizing:border-box}
@@ -2053,7 +2053,7 @@ var fe = class extends HTMLElement {
       .menu-icon,.item-label,#backdrop{display:none}
       #add-label{display:inline}
       /* Loading and failure fill the pane as one shared card: a pill word, one line, a quiet next step. */
-      .state{background:var(--bg);box-sizing:border-box;flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:safe center;padding:20px}
+      .state{box-sizing:border-box;flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:safe center;padding:20px}
       .state .card{width:100%;max-width:520px;margin:0;display:flex;flex-direction:column;align-items:flex-start;gap:12px;color:var(--text)}
       .state .card p{margin:0;line-height:1.5}
       .state .title{font-size:1.5rem;font-weight:300;line-height:1.25;overflow-wrap:anywhere}
