@@ -219,6 +219,13 @@ class NativeEntity(Entity):
         }
         return shown or None
 
+    @callback
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Keep entry-keyed subscriptions attached when only the entity ID changes."""
+        # Core before 2026.11 has no hook and still removes/re-adds on rename.
+        if changed := getattr(super(), "async_entity_id_changed", None):
+            changed(old_entity_id)
+
     async def async_added_to_hass(self) -> None:
         """Follow the session and this channel's reports."""
         await super().async_added_to_hass()
