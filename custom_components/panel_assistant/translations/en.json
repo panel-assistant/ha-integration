@@ -2,7 +2,14 @@
   "title": "Panel Assistant",
   "common": {
     "remove_from_panel_notification_title": "Remove Panel Assistant from {panel}",
-    "remove_from_panel_notification_message": "To remove Panel Assistant from {panel}, open [Repairs]({repairs_url}) and confirm there. Nothing has changed on the panel yet."
+    "remove_from_panel_notification_message": "To remove Panel Assistant from {panel}, open [Repairs]({repairs_url}) and confirm there. Nothing has changed on the panel yet.",
+    "webview_recovery_unknown": "The panel's WebView status could not be read. Keep it connected, then select Try again. If it still fails, save a Support report before clearing this error.",
+    "webview_recovery_current": "The panel now reports that WebView is current. Select Try again to verify it and clear this error without reinstalling WebView.",
+    "webview_recovery_installer": "The app has no permitted route to install WebView. Repeating Try again cannot grant that permission. Follow the model-specific WebView update guide to update it manually, then select Try again to verify. On a stock NSPanel Pro this uses ADB; enabling ADB alone does not grant the app installation permission.",
+    "webview_recovery_refused": "Android refused the WebView installation. Follow the model-specific WebView update guide and check the package, Android version and signing compatibility. Save a Support report if it still refuses; repeated retries cannot resolve a package incompatibility.",
+    "webview_recovery_mismatch": "The downloaded WebView did not match the verified update. Keep the panel connected and select Try again to download it again. If this repeats, save a Support report; do not install an unverified APK.",
+    "webview_recovery_uncertain": "The installation result could not be confirmed. Keep the panel connected and select Try again: it checks the installed WebView first and starts a fresh attempt only if an update is still eligible.",
+    "webview_recovery_retry": "The WebView operation was interrupted or could not finish its preparation. Check the panel's connection and available storage, then select Try again. Save a Support report if it repeats."
   },
   "config": {
     "flow_title": "{name}",
@@ -1596,7 +1603,7 @@
         "step": {
           "init": {
             "title": "Resolve panel error",
-            "description": "The panel app is installed, but its WebView (browser engine) update did not finish.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Keep the panel connected, then select **Try again** to repeat only the WebView step.\n\n[Learn more]({learn_more_url})",
+            "description": "The panel app is installed, but its WebView (browser engine) update did not finish.\n\n{webview_guidance}\n\nTo fix:\n1. Follow the [model-specific WebView update guide]({webview_guide_url}).\n2. Select **Support report** for the saved panel cause before retrying.\n\n[Learn more]({learn_more_url})",
             "menu_options": {
               "retry": "Try again",
               "authorize_adb": "Allow updates",
@@ -1614,7 +1621,7 @@
           },
           "retry_error": {
             "title": "Retry incomplete",
-            "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
+            "description": "Retry could not finish, so this error and its report remain in Repairs.\n\n{webview_guidance}\n\nTo fix:\n1. Follow the [model-specific WebView update guide]({webview_guide_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           },
           "authorize_adb": {
             "title": "Allow updates",

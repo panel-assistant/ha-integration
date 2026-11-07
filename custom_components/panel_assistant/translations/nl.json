@@ -2,7 +2,14 @@
   "title": "Panel Assistant",
   "common": {
     "remove_from_panel_notification_title": "Panel Assistant van {panel} verwijderen",
-    "remove_from_panel_notification_message": "Om Panel Assistant van {panel} te verwijderen, open je [Reparaties]({repairs_url}) en bevestig je daar. Er is nog niets veranderd op het paneel."
+    "remove_from_panel_notification_message": "Om Panel Assistant van {panel} te verwijderen, open je [Reparaties]({repairs_url}) en bevestig je daar. Er is nog niets veranderd op het paneel.",
+    "webview_recovery_unknown": "De WebView-status van het paneel kon niet worden gelezen. Houd het verbonden en selecteer daarna Opnieuw proberen. Als het blijft mislukken, sla dan een ondersteuningsrapport op voordat je deze fout wist.",
+    "webview_recovery_current": "Het paneel meldt nu dat WebView up-to-date is. Selecteer Opnieuw proberen om dit te controleren en deze fout te wissen zonder WebView opnieuw te installeren.",
+    "webview_recovery_installer": "De app heeft geen toegestane manier om WebView te installeren. Herhaaldelijk Opnieuw proberen selecteren kan die toestemming niet geven. Werk WebView handmatig bij volgens de handleiding voor je model en selecteer daarna Opnieuw proberen om dit te controleren. Op een NSPanel Pro met de oorspronkelijke firmware gaat dit via ADB; alleen ADB inschakelen geeft de app geen toestemming om te installeren.",
+    "webview_recovery_refused": "Android heeft de installatie van WebView geweigerd. Volg de WebView-updatehandleiding voor je model en controleer de compatibiliteit van het pakket, de Android-versie en de ondertekening. Sla een ondersteuningsrapport op als de installatie geweigerd blijft worden; opnieuw proberen kan een pakket dat niet compatibel is niet verhelpen.",
+    "webview_recovery_mismatch": "De gedownloade WebView kwam niet overeen met de geverifieerde update. Houd het paneel verbonden en selecteer Opnieuw proberen om deze opnieuw te downloaden. Sla een ondersteuningsrapport op als dit opnieuw gebeurt; installeer geen ongeverifieerde APK.",
+    "webview_recovery_uncertain": "Het installatieresultaat kon niet worden bevestigd. Houd het paneel verbonden en selecteer Opnieuw proberen: eerst wordt de geïnstalleerde WebView gecontroleerd. Een nieuwe poging begint alleen als de update nog aan de voorwaarden voldoet.",
+    "webview_recovery_retry": "De WebView-bewerking is onderbroken of kon de voorbereiding niet voltooien. Controleer de verbinding en de beschikbare opslagruimte van het paneel en selecteer daarna Opnieuw proberen. Sla een ondersteuningsrapport op als dit opnieuw gebeurt."
   },
   "config": {
     "flow_title": "{name}",
@@ -1596,7 +1603,7 @@
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "De paneelapp is geïnstalleerd, maar de update van de WebView (browserengine) ervan is niet voltooid.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Houd het paneel verbonden en selecteer daarna **Opnieuw proberen** om alleen de WebView-stap te herhalen.\n\n[Meer informatie]({learn_more_url})",
+            "description": "De paneelapp is geïnstalleerd, maar de update van de WebView (browserengine) ervan is niet voltooid.\n\n{webview_guidance}\n\nOm dit op te lossen:\n1. Volg de [WebView-updatehandleiding voor je model]({webview_guide_url}).\n2. Selecteer **Ondersteuningsrapport** om de opgeslagen oorzaak van het paneel te bekijken voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "authorize_adb": "Updates toestaan",
@@ -1614,7 +1621,7 @@
           },
           "retry_error": {
             "title": "Opnieuw proberen niet voltooid",
-            "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
+            "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\n{webview_guidance}\n\nOm dit op te lossen:\n1. Volg de [WebView-updatehandleiding voor je model]({webview_guide_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           },
           "authorize_adb": {
             "title": "Updates toestaan",
