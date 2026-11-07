@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## 1.0.1-rc1
 
+- Update route checks close their TCP connections even when ADB close fails, run without delaying Home Assistant startup, and recheck every ten minutes or on reconnect instead of on every health update.
+
 ## 1.0.0
 
 This is Panel Assistant 1.0, the Home Assistant integration. Panel Assistant and each panel now share one connection for everything: the sidebar, updates, voice and settings, which is what makes most of the changes below possible. MQTT and the move from the old panel app are gone for good. These notes cover what you will notice since 0.9.0, not every commit; if something does not work on your panel, please open an issue with the panel model and what you saw.

@@ -270,8 +270,17 @@ class _BoundedTcpTransportAsync(TcpTransportAsync):
 
     def __init__(self, host: str, port: int) -> None:
         super().__init__(host, port)
+        self._reader: asyncio.StreamReader | None = None
+        self._writer: asyncio.StreamWriter | None = None
         self._received_bytes = 0
         self._written_bytes = 0
+
+    def abort(self) -> None:
+        """Drop the TCP connection when graceful device close cannot finish."""
+        if self._writer is not None:
+            self._writer.transport.abort()
+        self._reader = None
+        self._writer = None
 
     async def bulk_read(
         self, numbytes: int, transport_timeout_s: float | None
@@ -1669,9 +1678,15 @@ async def _async_wait_for_completion[T](task: asyncio.Task[T]) -> bool:
 
 
 async def _async_close_once(device: AdbDeviceAsync) -> None:
+    transport = getattr(getattr(device, "_io_manager", None), "_transport", None)
     with suppress(Exception):
-        async with asyncio.timeout(_CLOSE_TIMEOUT_SECONDS):
-            await device.close()
+        try:
+            async with asyncio.timeout(_CLOSE_TIMEOUT_SECONDS):
+                await device.close()
+        finally:
+            # Device.close can time out waiting for its lock, before TCP close runs.
+            if isinstance(transport, _BoundedTcpTransportAsync):
+                transport.abort()
 
 
 async def _async_close(device: AdbDeviceAsync | None) -> None:

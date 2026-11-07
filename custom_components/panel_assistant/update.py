@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 from dataclasses import asdict
+from datetime import datetime, timedelta
 from functools import partial
 from typing import Any
 
@@ -20,6 +22,8 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.event import async_call_later
+from homeassistant.util import dt as dt_util
 
 from . import HaPaneldConfigEntry
 from .adb_credentials import AdbCredential
@@ -92,6 +96,7 @@ AWAITING_CONFIRMATION_ATTRIBUTE = "awaiting_confirmation"
 _LOGGER = logging.getLogger(__name__)
 # Marks an offer that installs only the WebView on a panel whose app is current.
 WEBVIEW_ONLY_SUFFIX = " + WebView"
+_ROUTE_REFRESH_INTERVAL = timedelta(minutes=10)
 
 
 async def async_setup_entry(
@@ -181,6 +186,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         self._legacy_api_ready_key: tuple[object, ...] | None = None
         self._route_checked_key: tuple[object, ...] | None = None
         self._route_task: asyncio.Task[None] | None = None
+        self._route_attempt_key: tuple[object, ...] | None = None
+        self._route_next_check_at: datetime | None = None
+        self._route_timer: Callable[[], None] | None = None
 
     @callback
     def async_entity_id_changed(self, old_entity_id: str) -> None:
@@ -280,6 +288,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self._adb_ready_key = None
             self._legacy_api_ready_key = None
             self._route_checked_key = None
+            self._route_attempt_key = None
+            self._cancel_route_timer()
             # A panel that can install for itself needs no route resolved, so this
             # returns before the refresh runs. Withdraw the issue here too, or a
             # panel that regains the privileged route keeps a repair saying it
@@ -287,17 +297,27 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             if self._route_observed():
                 self._async_reconcile_route_issue(has_route=True)
             return
-        # There is deliberately no "already checked this key" skip here. An
-        # authorized ADB route is lost by something done on the panel -- a firmware
-        # update or a reset switching developer options off -- and none of that
-        # moves the key, which is identity, build, address and artifact. Trusting
-        # the previous answer made losing the route undetectable until the panel's
-        # build or address changed, which is the one case this check exists to
-        # catch. Re-resolving costs an admission probe against a panel the
-        # coordinator is already polling; the guard below still prevents overlap.
         if self._route_task is not None and not self._route_task.done():
             return
-        self._route_task = self.hass.async_create_task(
+        # A lost ADB authorization does not change the identity/build key.
+        # Recheck on a timer, and immediately on reconnect or changed inputs.
+        attempt_key = (self._route_key(), self.coordinator.reachable)
+        now = dt_util.utcnow()
+        if (
+            attempt_key == self._route_attempt_key
+            and self._route_next_check_at is not None
+            and now < self._route_next_check_at
+        ):
+            return
+        self._route_attempt_key = attempt_key
+        self._route_next_check_at = now + _ROUTE_REFRESH_INTERVAL
+        self._cancel_route_timer()
+        self._route_timer = async_call_later(
+            self.hass,
+            _ROUTE_REFRESH_INTERVAL.total_seconds(),
+            self._route_interval_elapsed,
+        )
+        self._route_task = self.hass.async_create_background_task(
             self._async_refresh_route(),
             f"check ha-paneld update route {self._entry_id}",
         )
@@ -334,12 +354,28 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self._route_task = None
             if task.cancelled() or task.exception() is not None:
                 # The key stays unchecked, so checking again at once would fail
-                # the same way without end; the next poll checks again.
+                # the same way without end; the next interval checks again.
                 return
-            if self._route_checked_key != self._route_key():
+            if (
+                self._route_checked_key != self._route_key()
+                or self._route_attempt_key
+                != (self._route_key(), self.coordinator.reachable)
+                or self._route_timer is None
+            ):
                 self._schedule_route_refresh()
 
+    @callback
+    def _route_interval_elapsed(self, _now: datetime) -> None:
+        self._route_timer = None
+        self._schedule_route_refresh()
+
+    def _cancel_route_timer(self) -> None:
+        if self._route_timer is not None:
+            self._route_timer()
+            self._route_timer = None
+
     def _cancel_route_refresh(self) -> None:
+        self._cancel_route_timer()
         task = self._route_task
         self._route_task = None
         if task is not None and not task.done():
