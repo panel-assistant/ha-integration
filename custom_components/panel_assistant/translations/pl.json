@@ -1858,7 +1858,8 @@
           "authorize_adb": "Zezwól na aktualizacje",
           "updates": "Aktualizacje panelu",
           "remove_app": "Usuń z tego panelu",
-          "panel_logs": "Dzienniki paneli (wszystkie panele)"
+          "panel_logs": "Dzienniki paneli (wszystkie panele)",
+          "owner_report": "Raport właściciela o sprzęcie"
         },
         "menu_option_descriptions": {
           "remove_app": "Oddaje ekran główny własnemu launcherowi panelu, a potem odinstalowuje aplikację."
@@ -1901,6 +1902,11 @@
         "data_description": {
           "also_home_assistant": "Dotyczy celów UDP, TCP lub HTTP."
         }
+      },
+      "owner_report": {
+        "title": "Raport właściciela o sprzęcie",
+        "description": "Otwórz [wstępnie wypełniony raport na GitHubie]({issue_url}), sprawdź dane urządzenia i przed wysłaniem wpisz wyniki faktycznie wykonanych testów. Dane profilu są początkowo nieznane, a wszystkie testy nieprzeprowadzone. Raport zawiera tylko nieidentyfikujące dane z pamięci podręcznej. Nic nie zostanie opublikowane, dopóki nie wyślesz raportu na GitHubie. Utworzenie szkicu nie łączy się z panelem ani go nie zmienia.",
+        "submit": "Gotowe"
       }
     },
     "error": {

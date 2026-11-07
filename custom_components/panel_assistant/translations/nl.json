@@ -1858,7 +1858,8 @@
           "authorize_adb": "Updates toestaan",
           "updates": "Paneelupdates",
           "remove_app": "Van dit paneel verwijderen",
-          "panel_logs": "Paneellogboeken (alle panelen)"
+          "panel_logs": "Paneellogboeken (alle panelen)",
+          "owner_report": "Hardwarerapport van de eigenaar"
         },
         "menu_option_descriptions": {
           "remove_app": "Geeft het startscherm terug aan de eigen launcher van het paneel en verwijdert daarna de app."
@@ -1901,6 +1902,11 @@
         "data_description": {
           "also_home_assistant": "Van toepassing op bestemmingen via UDP, TCP of HTTP."
         }
+      },
+      "owner_report": {
+        "title": "Hardwarerapport van de eigenaar",
+        "description": "Open een [vooraf ingevuld GitHub-rapport]({issue_url}), controleer de apparaatgegevens en vul vóór het verzenden de daadwerkelijk uitgevoerde tests in. Profielgegevens beginnen als onbekend en alle tests als niet getest. Alleen niet-identificerende gegevens uit de cache zijn opgenomen. Er wordt pas iets gepubliceerd wanneer je het rapport op GitHub indient. Deze conceptversie maakt geen verbinding met het paneel en wijzigt het niet.",
+        "submit": "Gereed"
       }
     },
     "error": {

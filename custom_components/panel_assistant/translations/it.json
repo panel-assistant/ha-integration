@@ -1858,7 +1858,8 @@
           "authorize_adb": "Consenti aggiornamenti",
           "updates": "Aggiornamenti del pannello",
           "remove_app": "Rimuovi da questo pannello",
-          "panel_logs": "Log dei pannelli (tutti i pannelli)"
+          "panel_logs": "Log dei pannelli (tutti i pannelli)",
+          "owner_report": "Rapporto hardware del proprietario"
         },
         "menu_option_descriptions": {
           "remove_app": "Restituisce la schermata iniziale al launcher del pannello, poi disinstalla l'app."
@@ -1901,6 +1902,11 @@
         "data_description": {
           "also_home_assistant": "Si applica alle destinazioni UDP, TCP o HTTP."
         }
+      },
+      "owner_report": {
+        "title": "Rapporto hardware del proprietario",
+        "description": "Apri un [rapporto GitHub precompilato]({issue_url}), controlla i dati del dispositivo e indica i test effettivamente eseguiti prima di inviarlo. Il profilo inizialmente è sconosciuto e tutti i test sono non eseguiti. Sono inclusi solo dati memorizzati che non identificano il dispositivo. Nulla viene pubblicato finché non invii il rapporto su GitHub. Creare la bozza non contatta né modifica il pannello.",
+        "submit": "Fine"
       }
     },
     "error": {

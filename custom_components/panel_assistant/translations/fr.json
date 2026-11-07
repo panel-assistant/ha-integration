@@ -1858,7 +1858,8 @@
           "authorize_adb": "Autoriser les mises à jour",
           "updates": "Mises à jour du panneau",
           "remove_app": "Retirer de ce panneau",
-          "panel_logs": "Journaux des panneaux (tous les panneaux)"
+          "panel_logs": "Journaux des panneaux (tous les panneaux)",
+          "owner_report": "Rapport matériel du propriétaire"
         },
         "menu_option_descriptions": {
           "remove_app": "Rend l'écran d'accueil au lanceur propre du panneau, puis désinstalle l'application."
@@ -1901,6 +1902,11 @@
         "data_description": {
           "also_home_assistant": "S’applique aux destinations UDP, TCP ou HTTP."
         }
+      },
+      "owner_report": {
+        "title": "Rapport matériel du propriétaire",
+        "description": "Ouvrez un [rapport GitHub prérempli]({issue_url}), vérifiez les informations de l’appareil et indiquez les tests réellement effectués avant de l’envoyer. Le profil est initialement inconnu et tous les tests sont non effectués. Seules des informations en cache non identifiantes sont incluses. Rien n’est publié avant votre envoi sur GitHub. Créer ce brouillon ne contacte ni ne modifie le panneau.",
+        "submit": "Terminé"
       }
     },
     "error": {

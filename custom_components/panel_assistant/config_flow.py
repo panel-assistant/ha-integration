@@ -114,6 +114,7 @@ from .install_receipt import (
     InstallPhase,
     InstallResultCode,
 )
+from .owner_report import owner_report_issue_url
 from .provisioning import (
     InstallTargetProbe,
     InstallTargetState,
@@ -1924,7 +1925,7 @@ class HaPaneldOptionsFlow(OptionsFlow):
         """Offer this panel's setup, updates and available ADB consent."""
         if self.context.get("source") == "onboarding":
             return await self.async_step_onboarding()
-        options = ["updates", "panel_logs"]
+        options = ["updates", "panel_logs", "owner_report"]
         if self._current_panel_health() is not None:
             options.append("authorize_adb")
         if CONF_TRANSPORT_USER_ID not in self.config_entry.data:
@@ -1933,6 +1934,23 @@ class HaPaneldOptionsFlow(OptionsFlow):
         # have removed it, and the retry finishes over ADB.
         options.append("remove_app")
         return self.async_show_menu(step_id="init", menu_options=options)
+
+    async def async_step_owner_report(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Let the owner review a draft without changing or contacting the panel."""
+        if user_input is not None:
+            return self.async_create_entry(data=dict(self.config_entry.options))
+        coordinator = getattr(
+            getattr(self.config_entry, "runtime_data", None), "coordinator", None
+        )
+        return self.async_show_form(
+            step_id="owner_report",
+            data_schema=vol.Schema({}),
+            description_placeholders={
+                "issue_url": owner_report_issue_url(getattr(coordinator, "data", None))
+            },
+        )
 
     async def async_step_panel_logs(
         self, user_input: dict[str, Any] | None = None

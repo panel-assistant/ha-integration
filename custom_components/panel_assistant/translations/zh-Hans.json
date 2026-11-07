@@ -1858,7 +1858,8 @@
           "authorize_adb": "允许更新",
           "updates": "面板更新",
           "remove_app": "从此面板移除",
-          "panel_logs": "面板日志（所有面板）"
+          "panel_logs": "面板日志（所有面板）",
+          "owner_report": "设备所有者硬件报告"
         },
         "menu_option_descriptions": {
           "remove_app": "把主屏幕交还给面板自带的启动器，然后卸载该应用。"
@@ -1901,6 +1902,11 @@
         "data_description": {
           "also_home_assistant": "适用于 UDP、TCP 或 HTTP 目标。"
         }
+      },
+      "owner_report": {
+        "title": "设备所有者硬件报告",
+        "description": "打开[预填的 GitHub 报告]({issue_url})，检查设备信息，并在提交前填写实际完成的测试。配置档信息默认为未知，所有测试默认为未测试。草稿仅包含缓存中无法识别设备身份的信息。在您于 GitHub 提交之前，不会发布任何内容。创建草稿不会连接或更改面板。",
+        "submit": "完成"
       }
     },
     "error": {
