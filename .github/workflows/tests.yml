@@ -46,9 +46,9 @@ jobs:
     name: Home Assistant ${{ matrix.home-assistant }} · ${{ matrix.shard }}/2
     needs: gate
     if: needs.gate.outputs.run == 'true'
-    # Blacksmith trial (2026-10-16): push and dispatch runs use Blacksmith while the Actions variable
-    # CI_RUNNER is blacksmith; pull requests, schedules and Dependabot stay GitHub-hosted. Unset it to end the trial.
-    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.actor != 'dependabot[bot]' && vars.CI_RUNNER == 'blacksmith' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
+    # Pushes made by a person (branch or tag) use Blacksmith while the Actions variable CI_RUNNER is
+    # blacksmith; pull requests, schedules, manual dispatches and anything a bot starts stay GitHub-hosted.
+    runs-on: ${{ github.event_name == 'push' && !endsWith(github.actor, '[bot]') && !endsWith(github.triggering_actor, '[bot]') && vars.CI_RUNNER == 'blacksmith' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
     strategy:
       fail-fast: false
       matrix:
