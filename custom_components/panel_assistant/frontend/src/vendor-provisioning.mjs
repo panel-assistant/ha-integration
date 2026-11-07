@@ -288,7 +288,7 @@ export function parseVendorDisplaySettlement(body, nonce) {
 export function renderShellyDeveloperGuide(document) {
   const text = [
     'Shelly Wall Display: enable USB debugging',
-    'On the panel, open Settings > General > About Device.',
+    'This sequence was confirmed on the X2i on earlier firmware. Some owners report it unavailable on 2.8.4. If it does not open developer options, ask Shelly for the debugging procedure for your model and firmware. To try it, open Settings > General > About Device on the panel.',
     'Tap the row labels FW Version and Hardware Revision, not their values or the Software Information / Hardware Information card headings.',
     'Tap: FW Version → Hardware Revision → FW Version → FW Version → Hardware Revision → FW Version → Hardware Revision → Hardware Revision.',
     'Open Android Settings and enable USB debugging in Developer options. Then connect the panel to this computer and continue below.',
