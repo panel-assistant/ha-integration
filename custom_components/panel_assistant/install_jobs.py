@@ -367,6 +367,17 @@ def _metadata_identity(metadata: os.stat_result) -> tuple[int, ...]:
     )
 
 
+def _bytes_unchanged(file_fd: int, body: bytes | bytearray) -> bool:
+    """Re-read the open file: a same-size overwrite within one timestamp tick
+    leaves every metadata field unchanged, so only the bytes can show it."""
+    current = bytearray()
+    while chunk := os.pread(file_fd, len(body) + 1 - len(current), len(current)):
+        current.extend(chunk)
+        if len(current) > len(body):
+            return False
+    return current == body
+
+
 def _parse_store_body(body: bytes, key: str) -> object:
     try:
         document = json.loads(
@@ -441,6 +452,8 @@ def _read_durable_document[ReadValue](
         ):
             raise InstallJobStoreError
         value = parse(bytes(body))
+        if not _bytes_unchanged(file_fd, body):
+            raise InstallJobStoreError
         final = os.fstat(file_fd)
         final_path = os.lstat(path_text)
         if _metadata_identity(after) != _metadata_identity(final) or _metadata_identity(
