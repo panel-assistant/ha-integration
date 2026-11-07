@@ -499,12 +499,28 @@ async def test_superseded_update_repair_retries_current_offer(
         ] == "next update failed"
 
 
-async def test_update_retry_on_a_panel_already_current_clears_without_installing(
+@pytest.mark.parametrize(
+    ("target", "installed", "clears"),
+    [
+        (None, "0.9.9-rc3", True),
+        ("0.9.10 build 102", "0.9.10 build 101", False),
+        ("0.9.10 build 102", "0.9.10", False),
+        ("0.9.10 build 102", "0.9.10 build 102", True),
+        ("0.9.10 build 102", "0.9.10 build 103", True),
+        ("0.9.10", "0.9.9", False),
+        ("0.9.10", "0.9.10", True),
+        ("0.9.10", "0.9.11", True),
+    ],
+)
+async def test_update_retry_without_an_offer_clears_only_after_its_saved_target(
     hass: HomeAssistant,
     repairs_ready: None,
     hass_client: Any,
+    target: str | None,
+    installed: str,
+    clears: bool,
 ) -> None:
-    """The update landed after Panel Assistant stopped waiting for it."""
+    """No current offer alone does not prove the failed update landed."""
     entry = MockConfigEntry(
         domain=DOMAIN, title="Test panel", data={CONF_ADDRESS: "panel.local"}
     )
@@ -513,7 +529,7 @@ async def test_update_retry_on_a_panel_already_current_clears_without_installing
         hass,
         entry.entry_id,
         entry.title,
-        None,
+        target,
         RuntimeError("The panel did not return after the update"),
     )
     issue_id = next(
@@ -525,7 +541,7 @@ async def test_update_retry_on_a_panel_already_current_clears_without_installing
     hass.states.async_set(
         entity.entity_id,
         "off",
-        {"installed_version": "0.9.9-rc3", "latest_version": "0.9.9-rc3"},
+        {"installed_version": installed, "latest_version": installed},
     )
     calls = []
 
@@ -550,9 +566,17 @@ async def test_update_retry_on_a_panel_already_current_clears_without_installing
         )
         result = await response.json()
 
-    assert result["type"] == "create_entry"
     assert calls == []
-    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+    assert (ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None) is clears
+    if clears:
+        assert result["type"] == "create_entry"
+        assert await async_failure_events(hass, issue_id) == []
+    else:
+        assert result["step_id"] == "retry_error"
+        assert result["errors"] == {"base": "retry_cannot_prove_safe"}
+        assert (await async_failure_events(hass, issue_id))[-1]["reason"] == (
+            "The panel did not return after the update"
+        )
 
 
 @pytest.mark.parametrize(

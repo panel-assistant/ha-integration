@@ -614,8 +614,12 @@ async def test_unexpected_post_actuator_fault_cannot_replay_in_same_process(
     quarantined = await InstallExecutor(hass, restarted).async_wait(receipt.job_id)
     assert harness.events.count("local_cleanup") == cleanup_count + 1
     assert harness.events.count(event) == 1
-    assert quarantined.phase is InstallPhase.RECOVERY_REQUIRED
-    assert quarantined.result_code is InstallResultCode.VERIFICATION_REQUIRED
+    if durable_phase is InstallPhase.STAGING:
+        assert quarantined.phase is InstallPhase.FAILED
+        assert quarantined.result_code is InstallResultCode.TRANSPORT_FAILED
+    else:
+        assert quarantined.phase is InstallPhase.RECOVERY_REQUIRED
+        assert quarantined.result_code is InstallResultCode.VERIFICATION_REQUIRED
 
 
 async def test_cancelled_waiter_does_not_cancel_detached_worker(
@@ -670,9 +674,38 @@ async def test_new_process_resumes_every_safe_phase(
     assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
 
 
-@pytest.mark.parametrize(
-    "phase", [InstallPhase.STAGING, InstallPhase.INSTALLING, InstallPhase.LAUNCHING]
-)
+@pytest.mark.parametrize("cleanup_reachable", [True, False])
+async def test_new_process_stopped_copy_is_retryable_without_installing(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    cleanup_reachable: bool,
+) -> None:
+    """A Core restart during the copy leaves a safe retry, even off-line."""
+    receipt, restarted = await seed_phase(hass, InstallPhase.STAGING)
+    harness = Harness(monkeypatch)
+    if not cleanup_reachable:
+        harness.cleanup_error = InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE)
+
+    completed = await InstallExecutor(hass, restarted).async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.FAILED
+    assert completed.result_code is InstallResultCode.TRANSPORT_FAILED
+    assert completed.failure_stage is InstallPhase.STAGING
+    assert completed.result_subcode == "job:interrupted_staging"
+    assert harness.events.count("remote_cleanup:stage_interrupted") == 1
+    assert harness.events.count("local_cleanup") == 1
+    assert "stage" not in harness.events
+    assert "install" not in harness.events
+    assert "launch" not in harness.events
+
+    harness.cleanup_error = None
+    retry = await create_job(restarted)
+    installed = await InstallExecutor(hass, restarted).async_wait(retry.job_id)
+    assert installed.phase is InstallPhase.HEALTHY_UNCLAIMED
+    assert harness.events.count("install") == 1
+
+
+@pytest.mark.parametrize("phase", [InstallPhase.INSTALLING, InstallPhase.LAUNCHING])
 async def test_new_process_quarantines_every_ambiguous_phase_without_adb(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
@@ -720,7 +753,8 @@ async def test_worker_cancellation_leaves_durable_phase_for_new_process_claim(
     quarantined = await InstallExecutor(hass, restarted).async_wait(receipt.job_id)
     assert harness.events.count("local_cleanup") == 1
     assert harness.events.count("stage") == 1
-    assert quarantined.phase is InstallPhase.RECOVERY_REQUIRED
+    assert quarantined.phase is InstallPhase.FAILED
+    assert quarantined.result_code is InstallResultCode.TRANSPORT_FAILED
 
 
 async def test_restart_removes_real_local_ready_before_ambiguous_quarantine(
@@ -2448,12 +2482,12 @@ async def test_artifact_reconciliation_does_not_retain_terminal_custody_id(
 @pytest.mark.parametrize(
     "phase", [InstallPhase.STAGING, InstallPhase.INSTALLING, InstallPhase.LAUNCHING]
 )
-async def test_resume_hook_quarantines_but_does_not_resume_ambiguous_phase(
+async def test_resume_hook_settles_but_does_not_replay_interrupted_phase(
     hass: HomeAssistant,
     monkeypatch: pytest.MonkeyPatch,
     phase: InstallPhase,
 ) -> None:
-    """Loaded-domain recovery never reports crash-ambiguous work as resumed."""
+    """Loaded-domain recovery never replays interrupted side effects."""
     receipt, restarted = await seed_phase(hass, phase)
     harness = Harness(monkeypatch)
     executor = InstallExecutor(hass, restarted)
@@ -2462,9 +2496,19 @@ async def test_resume_hook_quarantines_but_does_not_resume_ambiguous_phase(
     quarantined = await restarted.async_get(receipt.job_id)
 
     assert resumed == ()
-    assert quarantined.phase is InstallPhase.RECOVERY_REQUIRED
-    assert quarantined.result_code is InstallResultCode.VERIFICATION_REQUIRED
-    assert harness.events == ["local_cleanup"]
+    if phase is InstallPhase.STAGING:
+        assert quarantined.phase is InstallPhase.FAILED
+        assert quarantined.result_code is InstallResultCode.TRANSPORT_FAILED
+        assert harness.events == [
+            "local_cleanup",
+            "pin",
+            "credential",
+            "remote_cleanup:stage_interrupted",
+        ]
+    else:
+        assert quarantined.phase is InstallPhase.RECOVERY_REQUIRED
+        assert quarantined.result_code is InstallResultCode.VERIFICATION_REQUIRED
+        assert harness.events == ["local_cleanup"]
     assert "stage" not in harness.events
     assert "install" not in harness.events
     assert "launch" not in harness.events

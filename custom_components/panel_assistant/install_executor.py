@@ -84,7 +84,7 @@ from .install_network import (
     async_revalidate_install_target,
 )
 from .install_receipt import (
-    _RESTART_AMBIGUOUS_PHASES,
+    _RESTART_INTERRUPTED_PHASES,
     InstallArtifact,
     InstallJobCleanupRequiredError,
     InstallJobError,
@@ -339,7 +339,7 @@ class InstallExecutor:
                     or receipt.phase is InstallPhase.HEALTHY_UNCLAIMED
                 ):
                     continue
-                if receipt.phase in _RESTART_AMBIGUOUS_PHASES:
+                if receipt.phase in _RESTART_INTERRUPTED_PHASES:
                     try:
                         await self._async_claim(receipt)
                     except _PauseJob:
@@ -354,7 +354,7 @@ class InstallExecutor:
                         current = await self._manager.async_get(receipt.job_id)
                         if (
                             not current.is_terminal
-                            and current.phase in _RESTART_AMBIGUOUS_PHASES
+                            and current.phase in _RESTART_INTERRUPTED_PHASES
                         ):
                             try:
                                 await self._async_claim(current)
@@ -1116,6 +1116,31 @@ class InstallExecutor:
                 await self._async_cleanup_local(_execution_id(current))
             except ArtifactCustodyError:
                 raise _PauseJob(nonrestartable=True) from None
+            if current.phase is InstallPhase.STAGING:
+                # No install can start before INSTALLING is durable. Removing
+                # an interrupted copy is best effort; the next stage also
+                # clears this device-local slot before writing it.
+                execution = _frozen_execution(current, self._feed_url())
+                try:
+                    await _require_pin(self._hass, execution.pinned)
+                    credential = await self._async_current_credential(current)
+                    await async_cleanup_staged_apk(
+                        execution.adb_target,
+                        credential.signer,
+                        _staged(current.artifact),
+                        DefiniteCleanupReason.STAGE_INTERRUPTED,
+                        expected_root_mode=_root_mode(current),
+                    )
+                except (
+                    AdbCredentialError,
+                    InstallNetworkError,
+                    InstallAdbError,
+                ):
+                    _LOGGER.warning(
+                        "Could not clear interrupted install staging panel=%s job=%s",
+                        current.target.address,
+                        current.job_id,
+                    )
             return await self._manager.async_claim(
                 current.job_id,
                 current.revision,

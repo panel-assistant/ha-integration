@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from freezegun.api import FrozenDateTimeFactory
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -574,12 +575,15 @@ async def test_verified_panel_success_clears_previous_repair(
 )
 async def test_accepted_health_poll_clears_repair_when_failed_build_is_reached(
     hass: HomeAssistant,
+    caplog: pytest.LogCaptureFixture,
+    freezer: FrozenDateTimeFactory,
     target: str | None,
     earlier: tuple[str, int | None],
     reached: tuple[str, int | None],
     clears: bool,
     observed_before: tuple[str, int | None] | None,
 ) -> None:
+    freezer.move_to("2026-11-07T00:00:00+00:00")
     entry = MockConfigEntry(
         domain="panel_assistant",
         title="Test panel",
@@ -595,6 +599,7 @@ async def test_accepted_health_poll_clears_repair_when_failed_build_is_reached(
         RuntimeError("interrupted rollout"),
         observed_before=observed_before,
     )
+    freezer.tick(75)
     hass.data.pop("panel_assistant.failure_repair_store", None)
     client = SimpleNamespace(
         address="panel.local",
@@ -627,6 +632,7 @@ async def test_accepted_health_poll_clears_repair_when_failed_build_is_reached(
         "reason"
     ] == "interrupted rollout"
 
+    freezer.tick(45)
     client.async_get_health.return_value = PanelHealth(
         version=reached[0],
         version_code=reached[1],
@@ -646,6 +652,21 @@ async def test_accepted_health_poll_clears_repair_when_failed_build_is_reached(
         assert (await async_failure_events(hass, issue_id))[-1][
             "reason"
         ] == "interrupted rollout"
+
+    # The same accepted health must not report the passive resolution twice.
+    await coordinator.async_refresh()
+    warnings = [
+        record
+        for record in caplog.records
+        if record.name == "custom_components.panel_assistant.repairs_failure"
+        and record.levelname == "WARNING"
+    ]
+    assert len(warnings) == int(clears)
+    if clears:
+        message = warnings[0].getMessage()
+        assert "Test panel" in message
+        assert str(target or "unknown") in message
+        assert "120s" in message
 
 
 @pytest.mark.parametrize(

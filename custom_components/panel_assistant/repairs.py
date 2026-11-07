@@ -566,12 +566,10 @@ class InstallerFailureFlow(RepairsFlow):
                 and isinstance(installed, str)
                 and offered == installed
             ):
-                if previous.get("webview_pending"):
+                if previous.get("webview_pending") or not app_reached:
                     # A missing offer is not proof that the saved app target landed.
                     return "retry_cannot_prove_safe"
-                # The panel already runs the newest build on offer: the update
-                # that failed to report back has since landed, or nothing newer
-                # exists. There is nothing to install, so the failure is over;
+                # The panel reached the saved target and nothing newer is offered;
                 # asking Home Assistant to install would only be refused.
                 return None
             current_retry = (
