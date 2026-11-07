@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry as ir
 from yarl import URL
 
 from custom_components.panel_assistant import update_policy
@@ -16,6 +17,8 @@ from custom_components.panel_assistant.build_feed import (
     feed_release_artifact,
 )
 from custom_components.panel_assistant.client import normalize_address
+from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.install_executor import InstallExecutor
 from custom_components.panel_assistant.install_jobs import (
     InstallArtifact,
     InstallJobManager,
@@ -30,9 +33,12 @@ from custom_components.panel_assistant.install_plan import (
 from custom_components.panel_assistant.provisioning import InstallTargetState
 from custom_components.panel_assistant.repairs_failure import (
     RetrySafetyHold,
+    async_failure_events,
     async_retry_install_job,
+    panel_failure_issue_id,
 )
 from tests import test_install_jobs as job_fixtures
+from tests.install_executor_harness import Harness
 from tests.test_config_flow import ARTIFACT as FLOW_ARTIFACT
 from tests.test_config_flow import CANDIDATE, CREDENTIAL, TARGET
 from tests.test_config_flow import RELEASE as FLOW_RELEASE
@@ -71,6 +77,93 @@ async def _failed_receipt(
         result_code=InstallResultCode.AUTHORIZATION_FAILED,
         result_subcode="adb:authorization_failed",
     )
+
+
+async def test_stopped_copy_repair_authorizes_a_fresh_install_retry(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A reclaimed copy is a retryable transport Repair, not uncertain install."""
+    manager = InstallJobManager(hass)
+    receipt, _ = await manager.async_create_or_join(
+        TARGET,
+        ARTIFACT,
+        install_plan_sha256(TARGET, ARTIFACT, CREDENTIAL.generation_id),
+        CREDENTIAL.generation_id,
+    )
+    receipt = await manager.async_claim(receipt.job_id, receipt.revision)
+    for phase in (
+        InstallPhase.AUTHORIZING,
+        InstallPhase.PREFLIGHT,
+        InstallPhase.DOWNLOADING,
+        InstallPhase.ARTIFACT_READY,
+        InstallPhase.REVALIDATING,
+        InstallPhase.STAGING,
+    ):
+        receipt = await manager.async_transition(
+            receipt.job_id,
+            receipt.revision,
+            phase,
+            preflight_root_mode="rootless"
+            if phase is InstallPhase.DOWNLOADING
+            else None,
+            actual_apk_bytes=ARTIFACT.apk_size
+            if phase is InstallPhase.ARTIFACT_READY
+            else None,
+        )
+    restarted = InstallJobManager(hass)
+    harness = Harness(monkeypatch)
+
+    failed = await InstallExecutor(hass, restarted).async_wait(receipt.job_id)
+    await hass.async_block_till_done()
+
+    issue_id = panel_failure_issue_id(f"install:{TARGET.adb_serial}")
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_key == "installer_failure_transport_failed"
+    assert failed.phase is InstallPhase.FAILED
+    assert failed.failure_stage is InstallPhase.STAGING
+    assert (await async_failure_events(hass, issue_id))[-1]["reason"] == (
+        "transport_failed"
+    )
+    assert "install" not in harness.events
+
+    pin = PinnedPanelTarget(
+        original=normalize_address(TARGET.address),
+        pinned=normalize_address(TARGET.pinned_address),
+    )
+    with (
+        patch(
+            "custom_components.panel_assistant.install_network.async_pin_install_target",
+            AsyncMock(return_value=pin),
+        ),
+        patch(
+            "custom_components.panel_assistant.install_network.async_revalidate_install_target",
+            AsyncMock(return_value=pin),
+        ),
+        patch(
+            "custom_components.panel_assistant.adb_credentials.async_get_durable_adb_credential",
+            AsyncMock(return_value=CREDENTIAL),
+        ),
+        patch(
+            "custom_components.panel_assistant.provisioning.async_probe_install_target",
+            AsyncMock(return_value=CANDIDATE),
+        ),
+        patch(
+            "custom_components.panel_assistant.release_catalog.async_resolve_install_choice",
+            AsyncMock(return_value=RELEASE),
+        ),
+        patch(
+            "custom_components.panel_assistant.install_jobs.async_get_install_job_manager",
+            AsyncMock(return_value=restarted),
+        ),
+    ):
+        fresh = await async_retry_install_job(hass, failed)
+
+    assert fresh.job_id != failed.job_id
+    assert fresh.phase is InstallPhase.APPROVED
+    assert fresh.target == failed.target
+    assert fresh.artifact == failed.artifact
+    assert (await restarted.async_get(failed.job_id)).phase is InstallPhase.FAILED
 
 
 async def test_retry_keeps_selected_stable_when_newer_default_exists(
