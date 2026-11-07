@@ -1858,7 +1858,8 @@
           "authorize_adb": "Povolit aktualizace",
           "updates": "Aktualizace panelu",
           "remove_app": "Odebrat z tohoto panelu",
-          "panel_logs": "Protokoly panelů (všechny panely)"
+          "panel_logs": "Protokoly panelů (všechny panely)",
+          "owner_report": "Hlášení vlastníka o hardwaru"
         },
         "menu_option_descriptions": {
           "remove_app": "Vrátí domovskou obrazovku vlastnímu spouštěči panelu a poté aplikaci odinstaluje."
@@ -1901,6 +1902,11 @@
         "data_description": {
           "also_home_assistant": "Platí, pokud je cílem UDP, TCP nebo HTTP."
         }
+      },
+      "owner_report": {
+        "title": "Hlášení vlastníka o hardwaru",
+        "description": "Otevřete [předvyplněné hlášení na GitHubu]({issue_url}), zkontrolujte údaje o zařízení a před odesláním upravte výsledky skutečně provedených testů. Údaje o profilu začínají jako neznámé a všechny testy jako neprovedené. Návrh obsahuje pouze neidentifikující údaje z mezipaměti. Nic se nezveřejní, dokud hlášení neodešlete na GitHubu. Vytvoření návrhu panel nekontaktuje ani nemění.",
+        "submit": "Hotovo"
       }
     },
     "error": {

@@ -1858,7 +1858,8 @@
           "authorize_adb": "Allow updates",
           "updates": "Panel updates",
           "remove_app": "Remove from this panel",
-          "panel_logs": "Panel logs (all panels)"
+          "panel_logs": "Panel logs (all panels)",
+          "owner_report": "Owner hardware report"
         },
         "menu_option_descriptions": {
           "remove_app": "Gives the home screen back to the panel's own launcher, then uninstalls the app."
@@ -1901,6 +1902,11 @@
         "data_description": {
           "also_home_assistant": "Applies when the destination is UDP, TCP or HTTP."
         }
+      },
+      "owner_report": {
+        "title": "Owner hardware report",
+        "description": "Open a [prefilled GitHub report]({issue_url}), review the device facts and edit the tests you actually performed before submitting. Profile details start as unknown and all tests start as untested. Only non-identifying cached facts are included. Nothing is posted until you submit on GitHub, and creating this draft does not contact or change the panel.",
+        "submit": "Done"
       }
     },
     "error": {

@@ -1858,7 +1858,8 @@
           "authorize_adb": "Permitir atualizações",
           "updates": "Atualizações do painel",
           "remove_app": "Remover deste painel",
-          "panel_logs": "Logs dos painéis (todos os painéis)"
+          "panel_logs": "Logs dos painéis (todos os painéis)",
+          "owner_report": "Relato de hardware do proprietário"
         },
         "menu_option_descriptions": {
           "remove_app": "Devolve a tela inicial ao inicializador do próprio painel e depois desinstala o aplicativo."
@@ -1901,6 +1902,11 @@
         "data_description": {
           "also_home_assistant": "Aplica-se quando o destino é UDP, TCP ou HTTP."
         }
+      },
+      "owner_report": {
+        "title": "Relato de hardware do proprietário",
+        "description": "Abra um [relato pré-preenchido no GitHub]({issue_url}), confira os dados do dispositivo e edite os testes realmente realizados antes de enviar. Os dados do perfil começam como desconhecidos e todos os testes como não realizados. Apenas dados em cache que não identificam o dispositivo são incluídos. Nada é publicado até você enviar o relato no GitHub. Criar o rascunho não contata nem altera o painel.",
+        "submit": "Concluído"
       }
     },
     "error": {

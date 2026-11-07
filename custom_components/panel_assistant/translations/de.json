@@ -1858,7 +1858,8 @@
           "authorize_adb": "Updates erlauben",
           "updates": "Panel-Updates",
           "remove_app": "Von diesem Panel entfernen",
-          "panel_logs": "Panelprotokolle (alle Panels)"
+          "panel_logs": "Panelprotokolle (alle Panels)",
+          "owner_report": "Hardwarebericht des Besitzers"
         },
         "menu_option_descriptions": {
           "remove_app": "Gibt den Startbildschirm an den eigenen Launcher des Panels zurück und deinstalliert dann die App."
@@ -1901,6 +1902,11 @@
         "data_description": {
           "also_home_assistant": "Gilt für Ziele über UDP, TCP oder HTTP."
         }
+      },
+      "owner_report": {
+        "title": "Hardwarebericht des Besitzers",
+        "description": "Öffne einen [vorausgefüllten GitHub-Bericht]({issue_url}), prüfe die Geräteangaben und trage vor dem Absenden die tatsächlich durchgeführten Tests ein. Profildetails sind zunächst unbekannt und alle Tests ungetestet. Enthalten sind nur nicht identifizierende, zwischengespeicherte Angaben. Erst dein Absenden auf GitHub veröffentlicht den Bericht. Dieser Entwurf kontaktiert oder verändert das Panel nicht.",
+        "submit": "Fertig"
       }
     },
     "error": {

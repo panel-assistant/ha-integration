@@ -1858,7 +1858,8 @@
           "authorize_adb": "Permitir actualizaciones",
           "updates": "Actualizaciones del panel",
           "remove_app": "Quitar de este panel",
-          "panel_logs": "Registros de paneles (todos los paneles)"
+          "panel_logs": "Registros de paneles (todos los paneles)",
+          "owner_report": "Informe de hardware del propietario"
         },
         "menu_option_descriptions": {
           "remove_app": "Devuelve la pantalla de inicio al lanzador propio del panel y luego desinstala la app."
@@ -1901,6 +1902,11 @@
         "data_description": {
           "also_home_assistant": "Se aplica cuando el destino es UDP, TCP o HTTP."
         }
+      },
+      "owner_report": {
+        "title": "Informe de hardware del propietario",
+        "description": "Abre un [informe de GitHub precompletado]({issue_url}), revisa los datos del dispositivo y edita las pruebas que realmente realizaste antes de enviarlo. Los datos del perfil comienzan como desconocidos y todas las pruebas como no realizadas. Solo se incluyen datos almacenados que no identifican el dispositivo. Nada se publica hasta que lo envíes en GitHub. Crear el borrador no contacta ni modifica el panel.",
+        "submit": "Listo"
       }
     },
     "error": {
