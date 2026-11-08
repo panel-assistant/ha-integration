@@ -85,7 +85,9 @@ function journey({ key, runsTheApp = false, networkAdb = 'turned_on', adopted = 
       done: node('step-done').hidden === false, error: node('step-error').hidden === false,
       during: globalThis.during ?? null, after: node('activity').shown.at(-2) ?? null,
       support: node('support-log').textContent, heading: node('step-done:child').textContent,
-      text: node('done-text').textContent + node('error-text').textContent }));
+      text: node('done-text').textContent + node('error-text').textContent }),
+      // The installer's pending navigation timer (1.2 s) would otherwise hold the process open.
+      () => process.exit(0));
   `;
   return JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', script], { encoding: 'utf8' }));
 }
