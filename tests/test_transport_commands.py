@@ -63,24 +63,31 @@ def _result(token: str, command_id: str, outcome: str, **fields: Any) -> dict[st
 class Panel:
     """One signed-in panel connection with an open session."""
 
-    def __init__(self, client: Any, hello: dict[str, Any]) -> None:
+    def __init__(
+        self, client: Any, hello: dict[str, Any], receive_timeout: float | None = 5
+    ) -> None:
         self.client = client
         self.subscription = hello["id"]
         self.result = hello["result"]
         self.token: str = hello["result"]["session"]
+        self.receive_timeout = receive_timeout
 
     async def sync(self, hass: HomeAssistant) -> None:
         for sync, observations in (
             ("full_begin", []),
             ("full_end", _observations()),
         ):
-            response = await _send(self.client, _report(self.token, sync, observations))
+            response = await _send(
+                self.client,
+                _report(self.token, sync, observations),
+                self.receive_timeout,
+            )
             assert response["success"], response
         await hass.async_block_till_done()
 
     async def command(self) -> dict[str, Any]:
         """Receive the next message, which must be a command event."""
-        message = await _receive(self.client)
+        message = await _receive(self.client, self.receive_timeout)
         assert message["type"] == "event", message
         assert message["id"] == self.subscription
         event: dict[str, Any] = message["event"]
@@ -89,7 +96,9 @@ class Panel:
 
     async def answer(self, command_id: str, outcome: str, **fields: Any) -> Any:
         return await _send(
-            self.client, _result(self.token, command_id, outcome, **fields)
+            self.client,
+            _result(self.token, command_id, outcome, **fields),
+            self.receive_timeout,
         )
 
     async def next_after_request(self) -> dict[str, Any]:
@@ -99,12 +108,14 @@ class Panel:
         request's own result, so a missing message fails as an assertion.
         """
         await self.client.send_json_auto_id(_report(self.token, "delta", []))
-        message: dict[str, Any] = await _receive(self.client)
+        message: dict[str, Any] = await _receive(self.client, self.receive_timeout)
         return message
 
     async def nothing_sent(self) -> None:
         """Prove no command is queued: the next message answers a request."""
-        response = await _send(self.client, _report(self.token, "delta", []))
+        response = await _send(
+            self.client, _report(self.token, "delta", []), self.receive_timeout
+        )
         assert response["type"] == "result", response
         assert response["success"], response
 
@@ -116,12 +127,13 @@ async def _connect(
     capabilities: list[str] | None = None,
     sync: bool = True,
     channels: list[dict[str, Any]] = DESCRIPTORS,
+    receive_timeout: float | None = 5,
 ) -> Panel:
     client = await hass_ws_client(hass, token)
     await client.send_json_auto_id(_hello(capabilities, channels))
-    hello = await _receive(client)
+    hello = await _receive(client, receive_timeout)
     assert hello["success"], hello
-    panel = Panel(client, hello)
+    panel = Panel(client, hello, receive_timeout)
     if sync:
         await panel.sync(hass)
     return panel

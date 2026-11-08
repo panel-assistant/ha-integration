@@ -116,9 +116,9 @@ def _hello(**changes: Any) -> dict[str, Any]:
     return message
 
 
-async def _receive(client: Any) -> dict[str, Any]:
-    """Wait a bounded time, so a missing reply fails instead of hanging."""
-    async with asyncio.timeout(5):
+async def _receive(client: Any, receive_timeout: float | None = 5) -> dict[str, Any]:
+    """Wait for a reply; callers may own the deadlock bound for a whole journey."""
+    async with asyncio.timeout(receive_timeout):
         message: dict[str, Any] = await client.receive_json()
     return message
 
@@ -134,9 +134,11 @@ async def _assert_closed_by_core(client: Any) -> None:
     await client.close()
 
 
-async def _send(client: Any, message: dict[str, Any]) -> dict[str, Any]:
+async def _send(
+    client: Any, message: dict[str, Any], receive_timeout: float | None = 5
+) -> dict[str, Any]:
     await client.send_json_auto_id(message)
-    response: dict[str, Any] = await _receive(client)
+    response: dict[str, Any] = await _receive(client, receive_timeout)
     return response
 
 
