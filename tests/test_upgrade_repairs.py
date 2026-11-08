@@ -236,7 +236,7 @@ async def test_a_completed_move_or_an_unknown_panel_id_sets_up(
 
 @pytest.mark.parametrize(
     ("integration_version", "required_version"),
-    [("1.0.0", "1.0.0"), ("1.0.0-rc2", "1.0.0-rc1")],
+    [("1.0.0", "1.0.0"), ("1.0.0-rc2", "1.0.0-rc1"), ("1.0.1-rc1", "1.0.0")],
 )
 async def test_the_too_old_repair_names_an_app_release_that_still_exists(
     hass: HomeAssistant,

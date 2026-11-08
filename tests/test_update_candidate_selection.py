@@ -444,15 +444,19 @@ async def test_selected_feed_apk_failure_withholds_offer_without_falling_back(
         github, key, [("1.3.0", 950, (5, 5)), ("1.2.0", 930, (5, 5))], broken=broken
     )
     entity, client = await _panel(hass, monkeypatch, github)
-    selected_sha = hashlib.sha256(apks["1.3.0", 950]).hexdigest()
-    selected_url = feed_http.FEED_URL.join(URL(f"apks/{selected_sha}.apk"))
-    assert str(selected_url) in github.requests
-    assert entity.latest_version == entity.installed_version
-    assert entity.state == "off"
-    with pytest.raises(HomeAssistantError):
-        await entity.async_install(None, False)
-    client.async_stage_apk.assert_not_awaited()
-    client.async_commit_apk.assert_not_awaited()
+    try:
+        selected_sha = hashlib.sha256(apks["1.3.0", 950]).hexdigest()
+        selected_url = feed_http.FEED_URL.join(URL(f"apks/{selected_sha}.apk"))
+        assert str(selected_url) in github.requests
+        assert entity.latest_version == entity.installed_version
+        assert entity.state == "off"
+        with pytest.raises(HomeAssistantError):
+            await entity.async_install(None, False)
+        client.async_stage_apk.assert_not_awaited()
+        client.async_commit_apk.assert_not_awaited()
+    finally:
+        entity._cancel_route_refresh()
+        await hass.async_block_till_done(wait_background_tasks=True)
 
 
 @pytest.mark.parametrize("incompatible_source", ["feed", "public"])

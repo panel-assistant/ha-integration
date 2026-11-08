@@ -545,16 +545,38 @@ async def test_a_session_snapshot_ends_an_update_repair_once_its_webview_settles
     entry = await _load(hass, hass_read_only_user.id)
     coordinator = entry.runtime_data.coordinator
     panel = await _connect(hass, hass_ws_client, hass_read_only_access_token, MANAGED)
-    await async_record_update_failure(
-        hass,
-        entry.entry_id,
-        entry.title,
-        "0.9.11-rc1 build 1200",
-        RuntimeError(),
-        webview_pending=True,
+    record = asyncio.ensure_future(
+        async_record_update_failure(
+            hass,
+            entry.entry_id,
+            entry.title,
+            "0.9.11-rc1 build 1200",
+            RuntimeError(),
+            webview_pending=True,
+        )
     )
+    # The failure report first asks the managed panel why its WebView is unfinished.
+    observe = await panel.manage()
+    assert observe["op"] == "webview.observe"
+    pending = {
+        "schema": 1,
+        "supported": True,
+        "eligible": True,
+        "reason": "eligible",
+        "candidate": {"sha256": "c" * 64},
+        "transaction": {
+            "state": "submitted_unknown",
+            "request_id": "r",
+            "reason": None,
+        },
+    }
+    answered = await panel.answer(observe, "applied", result=pending)
+    assert answered["success"], answered
+    await record
     issue_id = panel_failure_issue_id(f"update:{entry.entry_id}")
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+    events = await async_failure_events(hass, issue_id)
+    assert events[-1]["webview"]["transaction_state"] == "submitted_unknown"
     status_body = json.dumps(
         {
             **json.loads(STATUS_BODY),

@@ -1,3 +1,4 @@
+import { renderShellyDeveloperGuide } from './vendor-provisioning.mjs';
 import { Adb, AdbDaemonTransport } from '@yume-chan/adb';
 import AdbWebCredentialStore from '@yume-chan/adb-credential-web';
 import { AdbDaemonWebUsbDevice, AdbDaemonWebUsbDeviceManager } from '@yume-chan/adb-daemon-webusb';
@@ -22,6 +23,7 @@ import { provisionUsbWebView } from './webview.mjs';
 // below still runs, and technical detail only reaches "Details for support".
 
 const element = id => document.getElementById(id);
+renderShellyDeveloperGuide(document);
 const connect = element('connect');
 const install = element('install');
 let language = installerLocale();

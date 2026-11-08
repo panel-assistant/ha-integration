@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Callable
+from typing import Any, cast
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, callback
@@ -16,7 +17,6 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.typing import UNDEFINED
 
 from .client import PanelHealth
 from .const import DOMAIN
@@ -83,12 +83,14 @@ def panel_device_info(
         name = health.panel_id
     else:
         name = fallback_name
-    info = DeviceInfo(
-        identifiers={(DOMAIN, entry_id)},
-        name=name,
+    # Build only stated fields, then construct either Core's dataclass or its
+    # older TypedDict without using the dataclass's mapping compatibility layer.
+    info: dict[str, Any] = {
+        "identifiers": {(DOMAIN, entry_id)},
+        "name": name,
         # Home Assistant turns this scheme into a same-window, same-origin link.
-        configuration_url=panel_url or f"homeassistant:/{sidebar_url(entry_id)}",
-    )
+        "configuration_url": panel_url or f"homeassistant:/{sidebar_url(entry_id)}",
+    }
     software = _software_version(health, app_build)
     if software is not None:
         info["sw_version"] = software
@@ -108,18 +110,18 @@ def panel_device_info(
         macs = hardware.get("network_macs")
         if isinstance(macs, list):
             info["connections"] = {(dr.CONNECTION_NETWORK_MAC, mac) for mac in macs}
-    if device is None:
-        return info
-
-    if device.manufacturer:
-        info["manufacturer"] = device.manufacturer
-    if device.model:
-        info["model"] = device.model
-    # Home Assistant applies suggested_area only when it first registers the device and
-    # never overrides a later manual move, matching the panel's own request semantics.
-    if device.area:
-        info["suggested_area"] = device.area
-    return info
+    if device is not None:
+        if device.manufacturer:
+            info["manufacturer"] = device.manufacturer
+        if device.model:
+            info["model"] = device.model
+        # Home Assistant applies suggested_area only at initial registration and
+        # never overrides a later manual move.
+        if device.area:
+            info["suggested_area"] = device.area
+    # The older TypedDict constructor's type requires statically named keys;
+    # both Core representations accept these dynamically collected keywords.
+    return cast(Callable[..., DeviceInfo], DeviceInfo)(**info)
 
 
 def version_with_build(version: str, build: int) -> str:
@@ -178,24 +180,32 @@ def async_refresh_panel_device(
     device = registry.async_get_device_by_identifier((DOMAIN, entry_id), entry_id)
     if device is None:
         return
-    connections = info.get("connections", UNDEFINED)
-    # A field the card leaves out keeps its registered value.
-    registry.async_update_device(
-        device.id,
-        area_id=None if is_literal_null_area(hass, device.area_id) else UNDEFINED,
-        name=reported_name if reported_name else UNDEFINED,
-        manufacturer=info.get("manufacturer", UNDEFINED),
-        model=info.get("model", UNDEFINED),
-        sw_version=info.get("sw_version", UNDEFINED),
-        hw_version=info.get("hw_version", UNDEFINED),
-        serial_number=info.get("serial_number", UNDEFINED),
-        # Replaced, not merged, so an address the panel no longer has stops linking.
-        # Only when changed: Home Assistant announces any replacement as an update,
-        # and every dashboard refetches the whole device registry on each one.
-        new_connections=UNDEFINED if connections == device.connections else connections,
-        # Replace links registered by earlier versions as well.
-        configuration_url=info.get("configuration_url", UNDEFINED),
-    )
+    # Core 2026.11's as_dict excludes unset fields, preserving the sparse
+    # mapping used by older Core. Explicit None and empty sets remain values.
+    as_dict = getattr(info, "as_dict", None)
+    fields = as_dict() if as_dict is not None else info
+    updates: dict[str, Any] = {
+        key: value
+        for key, value in fields.items()
+        if key
+        in (
+            "manufacturer",
+            "model",
+            "sw_version",
+            "hw_version",
+            "serial_number",
+            "configuration_url",
+        )
+    }
+    if is_literal_null_area(hass, device.area_id):
+        updates["area_id"] = None
+    if reported_name:
+        updates["name"] = reported_name
+    # Replace, rather than merge, only a stated and changed connection set.
+    # Core announces even an unchanged replacement to every dashboard.
+    if "connections" in fields and fields["connections"] != device.connections:
+        updates["new_connections"] = fields["connections"]
+    registry.async_update_device(device.id, **updates)
 
 
 @callback

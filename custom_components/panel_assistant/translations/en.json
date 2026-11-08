@@ -2,7 +2,14 @@
   "title": "Panel Assistant",
   "common": {
     "remove_from_panel_notification_title": "Remove Panel Assistant from {panel}",
-    "remove_from_panel_notification_message": "To remove Panel Assistant from {panel}, open [Repairs]({repairs_url}) and confirm there. Nothing has changed on the panel yet."
+    "remove_from_panel_notification_message": "To remove Panel Assistant from {panel}, open [Repairs]({repairs_url}) and confirm there. Nothing has changed on the panel yet.",
+    "webview_recovery_unknown": "The panel's WebView status could not be read. Keep it connected, then select Try again. If it still fails, save a Support report before clearing this error.",
+    "webview_recovery_current": "The panel now reports that WebView is current. Select Try again to verify it and clear this error without reinstalling WebView.",
+    "webview_recovery_installer": "The app has no permitted route to install WebView. Repeating Try again cannot grant that permission. Follow the model-specific WebView update guide to update it manually, then select Try again to verify. On a stock NSPanel Pro this uses ADB; enabling ADB alone does not grant the app installation permission.",
+    "webview_recovery_refused": "Android refused the WebView installation. Follow the model-specific WebView update guide and check the package, Android version and signing compatibility. Save a Support report if it still refuses; repeated retries cannot resolve a package incompatibility.",
+    "webview_recovery_mismatch": "The downloaded WebView did not match the verified update. Keep the panel connected and select Try again to download it again. If this repeats, save a Support report; do not install an unverified APK.",
+    "webview_recovery_uncertain": "The installation result could not be confirmed. Keep the panel connected and select Try again: it checks the installed WebView first and starts a fresh attempt only if an update is still eligible.",
+    "webview_recovery_retry": "The WebView operation was interrupted or could not finish its preparation. Check the panel's connection and available storage, then select Try again. Save a Support report if it repeats."
   },
   "config": {
     "flow_title": "{name}",
@@ -346,6 +353,16 @@
           "always_on": "Always on",
           "swipe_reveal": "Swipe reveal",
           "native": "Native"
+        }
+      },
+      "presence": {
+        "name": "Presence",
+        "state": {
+          "automatic": "Automatic",
+          "home_assistant": "Home Assistant device",
+          "manual": "Manual (setup wizard)",
+          "hybrid": "Hybrid",
+          "off": "Off"
         }
       },
       "update_channel": {
@@ -1525,13 +1542,13 @@
         }
       }
     },
-    "installer_failure_update_webview": {
-      "title": "The WebView update on {panel} did not finish",
+    "installer_failure_update_slow_transfer": {
+      "title": "The slow transfer to {panel} did not complete",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Resolve panel error",
-            "description": "The panel app is installed, but its WebView (browser engine) update did not finish.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Keep the panel connected, then select **Try again** to repeat only the WebView step.\n\n[Learn more]({learn_more_url})",
+            "description": "The update transfer ran at about {transfer_rate} KB/s before it failed.\n\nTo fix:\n1. Restart the panel, then select **Try again**. See the [recovery steps]({repair_url}).\n2. If it fails again, check **Support report** and follow the [recovery steps]({repair_url}).\n\n[Learn more]({learn_more_url})",
             "menu_options": {
               "retry": "Try again",
               "authorize_adb": "Allow updates",
@@ -1550,6 +1567,71 @@
           "retry_error": {
             "title": "Retry incomplete",
             "description": "Retry could not finish, so this error and its report remain in Repairs.\n\nTo fix:\n1. Follow the [recovery steps]({repair_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
+          },
+          "authorize_adb": {
+            "title": "Allow updates",
+            "description": "Home Assistant needs Android approval before it can update {panel}.\n\nTo fix:\n1. Read the [ADB approval steps]({approval_url}).\n2. Select **Submit**, then on {panel} tick **Always allow from this computer** and tap **Allow**.\n3. After approval, select **Try again** from this Repair to retry the update.\n\n[Learn more]({learn_more_url})"
+          }
+        },
+        "progress": {
+          "retrying": "Home Assistant is checking the panel and retrying the saved operation. If the panel shows \"Send app for a security check?\" from Google Play Protect, tap one of its buttons on the panel; the retry waits until you do.\n\nTo fix:\n1. Read the [retry guidance]({repair_url}) if needed.\n2. Wait here for the result before deciding what to do next.\n\n[Learn more]({learn_more_url})",
+          "authorize_adb": "Android approval on {panel} is still needed.\n\nTo fix:\n1. Read the [ADB approval steps]({approval_url}).\n2. On {panel}, tick **Always allow from this computer**, then tap **Allow**.\n\nThis continues automatically after approval.\n\n[Learn more]({learn_more_url})"
+        },
+        "error": {
+          "retry_target_changed": "The panel no longer matches the saved target. Check it before retrying.",
+          "retry_release_changed": "The selected release no longer matches the saved release. Choose a new install attempt.",
+          "retry_credential_changed": "Home Assistant's ADB credential has changed. Check the panel before retrying.",
+          "retry_panel_ambiguous": "The installed app on the panel could not be verified. No new installation was started.",
+          "retry_cannot_prove_safe": "The panel could not be checked well enough for a safe retry. Try again later.",
+          "retry_update_unavailable": "The panel's update control is unavailable. Check its connection and try again.",
+          "retry_finalization": "The app is ready, but Home Assistant could not finish adding the panel. Try again.",
+          "retry_failed": "The retry failed. The support report has details.",
+          "retry_panel_busy": "This panel is still busy with an update or another task. Wait for it to finish, then try again. If an update succeeds, this repair closes by itself.",
+          "retry_no_longer_needed": "This installation no longer needs a retry. Reopen the repair if an error returns.",
+          "cannot_connect": "Unable to connect to a valid Panel Assistant health endpoint.",
+          "invalid_install_address": "Enter only the panel hostname or IP address.",
+          "install_resolution_failed": "Home Assistant could not resolve this panel address. Check the address and local DNS, then try again.",
+          "install_resolution_timeout": "Local name resolution timed out before the panel address could be pinned safely. Check local DNS, then try again.",
+          "install_too_many_addresses": "This hostname resolved to too many addresses to pin safely. Use a dedicated local hostname or private IP address.",
+          "unsafe_install_target": "Installation is allowed only to a private local IPv4 address or a unique-local IPv6 address. No ADB connection was attempted.",
+          "install_target_changed": "The hostname no longer resolves to the same pinned panel address. No ADB key or installation was sent. Check the address and start again.",
+          "adb_unreachable": "The panel answered, but nothing answered on its Android Debug Bridge port (5555). On the panel, turn on Android Debug Bridge and allow it over the network, then try again. If you can plug the panel into the computer you are browsing on, install over USB instead.",
+          "adb_still_unauthorized": "The panel has not accepted this Home Assistant instance yet. Approve the ADB prompt on the panel, then try again.",
+          "adb_credential_error": "Home Assistant could not safely load or persist its ADB credential. No panel change was attempted. Check the Home Assistant storage and logs before retrying.",
+          "retained_or_ambiguous": "The panel may contain a retained Panel Assistant package record or its package state could not be proven absent. No panel change was made. Retry once if the connection was unstable; otherwise follow the steps at {recovery_address}. Do not uninstall or reset the app without a verified backup.",
+          "unknown": "Unexpected error",
+          "panel_identity_changed": "The address no longer answers as this configured panel. Check the panel and its address before retrying."
+        },
+        "abort": {
+          "entry_removed": "This panel is no longer set up in Home Assistant.\n\nTo fix:\n1. [Open Panel Assistant devices](/config/integrations/integration/panel_assistant) if you want to add it again.\n2. Otherwise, close this dialog.\n\n[Learn more]({learn_more_url})"
+        }
+      }
+    },
+    "installer_failure_update_webview": {
+      "title": "The WebView update on {panel} did not finish",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolve panel error",
+            "description": "The panel app is installed, but its WebView (browser engine) update did not finish.\n\n{webview_guidance}\n\nTo fix:\n1. Follow the [model-specific WebView update guide]({webview_guide_url}).\n2. Select **Support report** for the saved panel cause before retrying.\n\n[Learn more]({learn_more_url})",
+            "menu_options": {
+              "retry": "Try again",
+              "authorize_adb": "Allow updates",
+              "support_report": "Support report",
+              "clear_error": "Clear error"
+            }
+          },
+          "support_report": {
+            "title": "Support report",
+            "description": "This report contains the saved details of the failed installation or update.\n\nTo fix:\n1. Read [how to use this support report]({guide_url}).\n2. Review the report for private information, then copy it into a [new Panel Assistant integration issue]({issue_url}).\n\n{report}\n\n[Learn more]({learn_more_url})"
+          },
+          "clear_error": {
+            "title": "Clear error",
+            "description": "Clearing this error deletes its saved report without changing the panel.\n\nTo fix:\n1. [Save a support report]({guide_url}) first if you need it.\n2. Select **Submit** to remove this error and report.\n\n[Learn more]({learn_more_url})"
+          },
+          "retry_error": {
+            "title": "Retry incomplete",
+            "description": "Retry could not finish, so this error and its report remain in Repairs.\n\n{webview_guidance}\n\nTo fix:\n1. Follow the [model-specific WebView update guide]({webview_guide_url}).\n2. Select **Submit**, then **Support report** to check the cause before retrying.\n\n[Learn more]({learn_more_url})"
           },
           "authorize_adb": {
             "title": "Allow updates",
@@ -1858,7 +1940,8 @@
           "authorize_adb": "Allow updates",
           "updates": "Panel updates",
           "remove_app": "Remove from this panel",
-          "panel_logs": "Panel logs (all panels)"
+          "panel_logs": "Panel logs (all panels)",
+          "owner_report": "Owner hardware report"
         },
         "menu_option_descriptions": {
           "remove_app": "Gives the home screen back to the panel's own launcher, then uninstalls the app."
@@ -1901,6 +1984,11 @@
         "data_description": {
           "also_home_assistant": "Applies when the destination is UDP, TCP or HTTP."
         }
+      },
+      "owner_report": {
+        "title": "Owner hardware report",
+        "description": "Open a [prefilled GitHub report]({issue_url}), review the device facts and edit the tests you actually performed before submitting. Profile details start as unknown and all tests start as untested. Only non-identifying cached facts are included. Nothing is posted until you submit on GitHub, and creating this draft does not contact or change the panel.",
+        "submit": "Done"
       }
     },
     "error": {

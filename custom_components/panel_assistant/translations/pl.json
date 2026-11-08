@@ -2,7 +2,14 @@
   "title": "Panel Assistant",
   "common": {
     "remove_from_panel_notification_title": "Usuń Panel Assistant z panelu {panel}",
-    "remove_from_panel_notification_message": "Aby usunąć Panel Assistant z panelu {panel}, otwórz [Problemy]({repairs_url}) i tam potwierdź. Na panelu nic się jeszcze nie zmieniło."
+    "remove_from_panel_notification_message": "Aby usunąć Panel Assistant z panelu {panel}, otwórz [Problemy]({repairs_url}) i tam potwierdź. Na panelu nic się jeszcze nie zmieniło.",
+    "webview_recovery_unknown": "Nie udało się odczytać stanu WebView panelu. Pozostaw go podłączonego, a następnie wybierz Spróbuj ponownie. Jeśli problem się utrzymuje, zapisz raport dla pomocy technicznej przed usunięciem tego błędu.",
+    "webview_recovery_current": "Panel zgłasza teraz, że WebView jest aktualny. Wybierz Spróbuj ponownie, aby to sprawdzić i usunąć ten błąd bez ponownej instalacji WebView.",
+    "webview_recovery_installer": "Aplikacja nie ma dozwolonej metody instalacji WebView. Wielokrotne wybieranie Spróbuj ponownie nie nada jej tego uprawnienia. Zaktualizuj WebView ręcznie zgodnie z poradnikiem dla swojego modelu, a następnie wybierz Spróbuj ponownie, aby to sprawdzić. Na NSPanel Pro z fabrycznym oprogramowaniem służy do tego ADB; samo włączenie ADB nie nadaje aplikacji uprawnienia do instalowania.",
+    "webview_recovery_refused": "Android odmówił instalacji WebView. Postępuj zgodnie z poradnikiem aktualizacji WebView dla swojego modelu i sprawdź zgodność pakietu, wersji Androida oraz podpisu. Jeśli odmowa się powtarza, zapisz raport dla pomocy technicznej; ponawianie prób nie rozwiąże problemu niezgodności pakietu.",
+    "webview_recovery_mismatch": "Pobrany WebView nie odpowiadał zweryfikowanej aktualizacji. Pozostaw panel podłączony i wybierz Spróbuj ponownie, aby pobrać go ponownie. Jeśli problem się powtarza, zapisz raport dla pomocy technicznej; nie instaluj niezweryfikowanego pliku APK.",
+    "webview_recovery_uncertain": "Nie udało się potwierdzić wyniku instalacji. Pozostaw panel podłączony i wybierz Spróbuj ponownie: najpierw zostanie sprawdzony zainstalowany WebView, a nowa próba rozpocznie się tylko wtedy, gdy aktualizacja nadal spełnia wymagane warunki.",
+    "webview_recovery_retry": "Operacja WebView została przerwana lub nie mogła zakończyć przygotowania. Sprawdź połączenie panelu i dostępne miejsce w pamięci, a następnie wybierz Spróbuj ponownie. Jeśli problem się powtarza, zapisz raport dla pomocy technicznej."
   },
   "config": {
     "flow_title": "{name}",
@@ -732,6 +739,16 @@
           "native": "Systemowy",
           "off": "Wyłączony",
           "swipe_reveal": "Pokaż po przesunięciu"
+        }
+      },
+      "presence": {
+        "name": "Obecność",
+        "state": {
+          "automatic": "Automatyczny",
+          "home_assistant": "Urządzenie Home Assistant",
+          "manual": "Ręczny (kreator konfiguracji)",
+          "hybrid": "Hybrydowy",
+          "off": "Wyłączony"
         }
       },
       "update_channel": {
@@ -1525,13 +1542,13 @@
         }
       }
     },
-    "installer_failure_update_webview": {
-      "title": "The WebView update on {panel} did not finish",
+    "installer_failure_update_slow_transfer": {
+      "title": "Powolne przesyłanie do {panel} nie zostało ukończone",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Rozwiąż błąd panelu",
-            "description": "Aplikacja panelu jest zainstalowana, ale aktualizacja jej WebView (silnika przeglądarki) nie została ukończona.\n\nAby naprawić:\n1. Wykonaj [kroki odzyskiwania]({repair_url}).\n2. Pozostaw panel podłączony, a następnie wybierz **Spróbuj ponownie**, aby powtórzyć tylko krok aktualizacji WebView.\n\n[Dowiedz się więcej]({learn_more_url})",
+            "description": "Przed wystąpieniem błędu aktualizacja była przesyłana z prędkością około {transfer_rate} KB/s.\n\nAby rozwiązać problem:\n1. Uruchom panel ponownie, a następnie wybierz **Spróbuj ponownie**.\n2. Jeśli błąd się powtórzy, sprawdź **Raport dla pomocy technicznej** i wykonaj [kroki odzyskiwania]({repair_url}).\n\n[Dowiedz się więcej]({learn_more_url})",
             "menu_options": {
               "retry": "Spróbuj ponownie",
               "authorize_adb": "Zezwól na aktualizacje",
@@ -1550,6 +1567,71 @@
           "retry_error": {
             "title": "Ponowna próba nieukończona",
             "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
+          },
+          "authorize_adb": {
+            "title": "Zezwól na aktualizacje",
+            "description": "Home Assistant potrzebuje zgody w systemie Android, aby zaktualizować panel {panel}.\n\nAby rozwiązać problem:\n1. Przeczytaj [instrukcję zatwierdzania ADB]({approval_url}).\n2. Wybierz **Zatwierdź**, a następnie na panelu {panel} zaznacz **Zawsze zezwalaj z tego komputera** i dotknij **Zezwól**.\n3. Po udzieleniu zgody wybierz **Spróbuj ponownie** w tym problemie, aby ponowić aktualizację.\n\n[Dowiedz się więcej]({learn_more_url})"
+          }
+        },
+        "progress": {
+          "retrying": "Home Assistant sprawdza panel i ponawia zapisaną operację.\n\nAby rozwiązać problem:\n1. W razie potrzeby przeczytaj [wskazówki dotyczące ponownej próby]({repair_url}).\n2. Poczekaj tutaj na wynik, zanim zdecydujesz, co zrobić dalej.\n\n[Dowiedz się więcej]({learn_more_url})",
+          "authorize_adb": "Nadal potrzebna jest zgoda w systemie Android na panelu {panel}.\n\nAby rozwiązać problem:\n1. Przeczytaj [instrukcję zatwierdzania ADB]({approval_url}).\n2. Na panelu {panel} zaznacz **Zawsze zezwalaj z tego komputera**, a następnie dotknij **Zezwól**.\n\nProces będzie kontynuowany automatycznie po udzieleniu zgody.\n\n[Dowiedz się więcej]({learn_more_url})"
+        },
+        "error": {
+          "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
+          "retry_release_changed": "Wybrane wydanie nie odpowiada już zapisanemu wydaniu. Rozpocznij nową instalację.",
+          "retry_credential_changed": "Dane uwierzytelniające ADB w Home Assistant zmieniły się. Sprawdź panel przed ponowną próbą.",
+          "retry_panel_ambiguous": "Nie udało się zweryfikować aplikacji zainstalowanej na panelu. Nie rozpoczęto nowej instalacji.",
+          "retry_cannot_prove_safe": "Nie udało się dostatecznie sprawdzić panelu, by bezpiecznie ponowić próbę. Spróbuj później.",
+          "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
+          "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
+          "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_panel_busy": "Ten panel jest nadal zajęty aktualizacją lub innym zadaniem. Poczekaj, aż się zakończy, i spróbuj ponownie. Jeśli aktualizacja się powiedzie, ta naprawa zamknie się sama.",
+          "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz naprawę ponownie, jeśli błąd wróci.",
+          "cannot_connect": "Nie udało się nawiązać połączenia z prawidłowym punktem końcowym stanu działania usługi Panel Assistant.",
+          "invalid_install_address": "Wpisz tylko nazwę hosta lub adres IP panelu.",
+          "install_resolution_failed": "Home Assistant nie może rozpoznać adresu tego panelu. Sprawdź adres i lokalny DNS, a następnie spróbuj ponownie.",
+          "install_resolution_timeout": "Upłynął limit czasu lokalnego rozpoznawania nazwy, zanim adres panelu mógł zostać bezpiecznie ustalony. Sprawdź lokalny DNS, a następnie spróbuj ponownie.",
+          "install_too_many_addresses": "Ta nazwa hosta została rozpoznana jako zbyt wiele adresów, aby można było bezpiecznie ją przypiąć. Użyj dedykowanej lokalnej nazwy hosta lub prywatnego adresu IP.",
+          "unsafe_install_target": "Instalacja jest dozwolona wyłącznie pod prywatnym lokalnym adresem IPv4 lub unikalnym lokalnym adresem IPv6. Nie podjęto żadnej próby nawiązania połączenia typu ADB.",
+          "install_target_changed": "Nazwa hosta nie wskazuje już tego samego przypiętego adresu panelu. Nie wysłano klucza ADB ani instalacji. Sprawdź adres i zacznij od nowa.",
+          "adb_unreachable": "Panel odpowiedział, ale nic nie odpowiedziało na jego porcie Android Debug Bridge (5555). Na panelu włącz Android Debug Bridge i zezwól na jego działanie przez sieć, a następnie spróbuj ponownie. Jeśli możesz podłączyć panel do komputera, na którym przeglądasz tę stronę, zainstaluj zamiast tego przez USB.",
+          "adb_still_unauthorized": "Panel nie zaakceptował jeszcze tej instancji Home Assistant. Zatwierdź monit ADB na panelu, a następnie spróbuj ponownie.",
+          "adb_credential_error": "Home Assistant nie mógł bezpiecznie wczytać ani zapisać swoich danych uwierzytelniających ADB. Nie podjęto próby zmiany panelu. Przed ponowną próbą sprawdź pamięć i logi Home Assistant.",
+          "retained_or_ambiguous": "Panel może zawierać zachowany rekord pakietu Panel Assistant albo nie udało się dowieść, że pakietu nie ma. Nie wprowadzono żadnych zmian w panelu. Spróbuj ponownie tylko raz, jeśli połączenie było niestabilne; w przeciwnym razie postępuj zgodnie z krokami opisanymi pod adresem {recovery_address}. Nie odinstalowuj ani nie resetuj aplikacji bez zweryfikowanej kopii zapasowej.",
+          "unknown": "Nieoczekiwany błąd",
+          "panel_identity_changed": "Ten adres nie odpowiada już jako skonfigurowany panel. Sprawdź panel i adres przed ponowną próbą."
+        },
+        "abort": {
+          "entry_removed": "Ten panel nie jest już skonfigurowany w Home Assistant.\n\nAby rozwiązać problem:\n1. [Otwórz urządzenia Panel Assistant](/config/integrations/integration/panel_assistant), jeśli chcesz dodać go ponownie.\n2. W przeciwnym razie zamknij to okno.\n\n[Dowiedz się więcej]({learn_more_url})"
+        }
+      }
+    },
+    "installer_failure_update_webview": {
+      "title": "The WebView update on {panel} did not finish",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Rozwiąż błąd panelu",
+            "description": "Aplikacja panelu jest zainstalowana, ale aktualizacja jej WebView (silnika przeglądarki) nie została ukończona.\n\n{webview_guidance}\n\nAby naprawić:\n1. Postępuj zgodnie z [poradnikiem aktualizacji WebView dla swojego modelu]({webview_guide_url}).\n2. Wybierz **Raport dla pomocy technicznej**, aby sprawdzić zapisaną przyczynę z panelu przed ponowieniem próby.\n\n[Dowiedz się więcej]({learn_more_url})",
+            "menu_options": {
+              "retry": "Spróbuj ponownie",
+              "authorize_adb": "Zezwól na aktualizacje",
+              "support_report": "Raport dla pomocy technicznej",
+              "clear_error": "Usuń błąd"
+            }
+          },
+          "support_report": {
+            "title": "Raport dla pomocy technicznej",
+            "description": "Ten raport zawiera zapisane szczegóły nieudanej instalacji lub aktualizacji.\n\nAby rozwiązać problem:\n1. Przeczytaj, [jak korzystać z tego raportu pomocy technicznej]({guide_url}).\n2. Sprawdź, czy raport zawiera prywatne informacje, a następnie skopiuj go do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}).\n\n{report}\n\n[Dowiedz się więcej]({learn_more_url})"
+          },
+          "clear_error": {
+            "title": "Usuń błąd",
+            "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
+          },
+          "retry_error": {
+            "title": "Ponowna próba nieukończona",
+            "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\n{webview_guidance}\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [poradnikiem aktualizacji WebView dla swojego modelu]({webview_guide_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
           },
           "authorize_adb": {
             "title": "Zezwól na aktualizacje",
@@ -1858,7 +1940,8 @@
           "authorize_adb": "Zezwól na aktualizacje",
           "updates": "Aktualizacje panelu",
           "remove_app": "Usuń z tego panelu",
-          "panel_logs": "Dzienniki paneli (wszystkie panele)"
+          "panel_logs": "Dzienniki paneli (wszystkie panele)",
+          "owner_report": "Raport właściciela o sprzęcie"
         },
         "menu_option_descriptions": {
           "remove_app": "Oddaje ekran główny własnemu launcherowi panelu, a potem odinstalowuje aplikację."
@@ -1901,6 +1984,11 @@
         "data_description": {
           "also_home_assistant": "Dotyczy celów UDP, TCP lub HTTP."
         }
+      },
+      "owner_report": {
+        "title": "Raport właściciela o sprzęcie",
+        "description": "Otwórz [wstępnie wypełniony raport na GitHubie]({issue_url}), sprawdź dane urządzenia i przed wysłaniem wpisz wyniki faktycznie wykonanych testów. Dane profilu są początkowo nieznane, a wszystkie testy nieprzeprowadzone. Raport zawiera tylko nieidentyfikujące dane z pamięci podręcznej. Nic nie zostanie opublikowane, dopóki nie wyślesz raportu na GitHubie. Utworzenie szkicu nie łączy się z panelem ani go nie zmienia.",
+        "submit": "Gotowe"
       }
     },
     "error": {

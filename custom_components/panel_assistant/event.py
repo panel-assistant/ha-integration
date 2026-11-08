@@ -37,6 +37,11 @@ class NativeEvent(NativeEntity, EventEntity):
         """Return the event types the panel declared, as Android key names."""
         return [code.upper() for code in self.descriptor["options"] or ()]
 
+    @callback
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Opt this class's lifecycle override in to in-place renames too."""
+        super().async_entity_id_changed(old_entity_id)
+
     async def async_added_to_hass(self) -> None:
         """Also follow this entry's counted events."""
         await super().async_added_to_hass()

@@ -2,7 +2,14 @@
   "title": "Panel Assistant",
   "common": {
     "remove_from_panel_notification_title": "Panel Assistant van {panel} verwijderen",
-    "remove_from_panel_notification_message": "Om Panel Assistant van {panel} te verwijderen, open je [Reparaties]({repairs_url}) en bevestig je daar. Er is nog niets veranderd op het paneel."
+    "remove_from_panel_notification_message": "Om Panel Assistant van {panel} te verwijderen, open je [Reparaties]({repairs_url}) en bevestig je daar. Er is nog niets veranderd op het paneel.",
+    "webview_recovery_unknown": "De WebView-status van het paneel kon niet worden gelezen. Houd het verbonden en selecteer daarna Opnieuw proberen. Als het blijft mislukken, sla dan een ondersteuningsrapport op voordat je deze fout wist.",
+    "webview_recovery_current": "Het paneel meldt nu dat WebView up-to-date is. Selecteer Opnieuw proberen om dit te controleren en deze fout te wissen zonder WebView opnieuw te installeren.",
+    "webview_recovery_installer": "De app heeft geen toegestane manier om WebView te installeren. Herhaaldelijk Opnieuw proberen selecteren kan die toestemming niet geven. Werk WebView handmatig bij volgens de handleiding voor je model en selecteer daarna Opnieuw proberen om dit te controleren. Op een NSPanel Pro met de oorspronkelijke firmware gaat dit via ADB; alleen ADB inschakelen geeft de app geen toestemming om te installeren.",
+    "webview_recovery_refused": "Android heeft de installatie van WebView geweigerd. Volg de WebView-updatehandleiding voor je model en controleer de compatibiliteit van het pakket, de Android-versie en de ondertekening. Sla een ondersteuningsrapport op als de installatie geweigerd blijft worden; opnieuw proberen kan een pakket dat niet compatibel is niet verhelpen.",
+    "webview_recovery_mismatch": "De gedownloade WebView kwam niet overeen met de geverifieerde update. Houd het paneel verbonden en selecteer Opnieuw proberen om deze opnieuw te downloaden. Sla een ondersteuningsrapport op als dit opnieuw gebeurt; installeer geen ongeverifieerde APK.",
+    "webview_recovery_uncertain": "Het installatieresultaat kon niet worden bevestigd. Houd het paneel verbonden en selecteer Opnieuw proberen: eerst wordt de geïnstalleerde WebView gecontroleerd. Een nieuwe poging begint alleen als de update nog aan de voorwaarden voldoet.",
+    "webview_recovery_retry": "De WebView-bewerking is onderbroken of kon de voorbereiding niet voltooien. Controleer de verbinding en de beschikbare opslagruimte van het paneel en selecteer daarna Opnieuw proberen. Sla een ondersteuningsrapport op als dit opnieuw gebeurt."
   },
   "config": {
     "flow_title": "{name}",
@@ -732,6 +739,16 @@
           "native": "Systeembalk",
           "off": "Uit",
           "swipe_reveal": "Tonen met veegbeweging"
+        }
+      },
+      "presence": {
+        "name": "Aanwezigheid",
+        "state": {
+          "automatic": "Automatisch",
+          "home_assistant": "Home Assistant-apparaat",
+          "manual": "Handmatig (instelwizard)",
+          "hybrid": "Hybride",
+          "off": "Uit"
         }
       },
       "update_channel": {
@@ -1525,13 +1542,13 @@
         }
       }
     },
-    "installer_failure_update_webview": {
-      "title": "De WebView-update op {panel} is niet voltooid",
+    "installer_failure_update_slow_transfer": {
+      "title": "De trage overdracht naar {panel} is niet voltooid",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Paneelfout oplossen",
-            "description": "De paneelapp is geïnstalleerd, maar de update van de WebView (browserengine) ervan is niet voltooid.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Houd het paneel verbonden en selecteer daarna **Opnieuw proberen** om alleen de WebView-stap te herhalen.\n\n[Meer informatie]({learn_more_url})",
+            "description": "De update werd vóór de fout met ongeveer {transfer_rate} KB/s overgedragen.\n\nZo lost u dit op:\n1. Start het paneel opnieuw op en selecteer **Opnieuw proberen**.\n2. Controleer bij een nieuwe fout **Ondersteuningsrapport** en volg de [herstelstappen]({repair_url}).\n\n[Meer informatie]({learn_more_url})",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "authorize_adb": "Updates toestaan",
@@ -1550,6 +1567,71 @@
           "retry_error": {
             "title": "Opnieuw proberen niet voltooid",
             "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
+          },
+          "authorize_adb": {
+            "title": "Updates toestaan",
+            "description": "Home Assistant heeft toestemming van Android nodig voordat het {panel} kan bijwerken.\n\nOm dit op te lossen:\n1. Lees de [stappen voor ADB-toestemming]({approval_url}).\n2. Selecteer **Verzenden**, vink daarna op {panel} **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**.\n3. Selecteer na het geven van toestemming **Opnieuw proberen** in deze reparatie om de update opnieuw te proberen.\n\n[Meer informatie]({learn_more_url})"
+          }
+        },
+        "progress": {
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})",
+          "authorize_adb": "Er is nog toestemming van Android op {panel} nodig.\n\nOm dit op te lossen:\n1. Lees de [stappen voor ADB-toestemming]({approval_url}).\n2. Vink op {panel} **Altijd toestaan vanaf deze computer** aan en tik daarna op **Toestaan**.\n\nDit gaat vanzelf verder zodra toestemming is gegeven.\n\n[Meer informatie]({learn_more_url})"
+        },
+        "error": {
+          "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen release komt niet meer overeen met de opgeslagen release. Kies een nieuwe installatiepoging.",
+          "retry_credential_changed": "De ADB-inloggegevens van Home Assistant zijn gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
+          "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
+          "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
+          "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
+          "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
+          "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt.",
+          "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig Panel Assistant-status-eindpunt.",
+          "invalid_install_address": "Voer alleen de hostnaam of het IP-adres van het paneel in.",
+          "install_resolution_failed": "Home Assistant kon dit paneeladres niet omzetten. Controleer het adres en de lokale DNS en probeer het daarna nog eens.",
+          "install_resolution_timeout": "De lokale naamomzetting is verlopen voordat het adres van het paneel veilig kon worden vastgelegd. Controleer de lokale DNS en probeer het dan nog eens.",
+          "install_too_many_addresses": "Deze hostnaam leverde te veel adressen op om veilig te kunnen vastleggen. Gebruik een speciale lokale hostnaam of een privé-IP-adres.",
+          "unsafe_install_target": "Installatie is alleen toegestaan op een privé-lokaal IPv4-adres of een uniek lokaal IPv6-adres. Er is geen ADB-verbinding geprobeerd.",
+          "install_target_changed": "De hostnaam verwijst niet meer naar hetzelfde vastgezette paneeladres. Er is geen ADB-sleutel of installatie verzonden. Controleer het adres en begin opnieuw.",
+          "adb_unreachable": "Het paneel reageerde wel, maar er kwam geen reactie op de Android Debug Bridge-poort (5555). Schakel op het paneel Android Debug Bridge in en sta dit toe via het netwerk, en probeer het dan nog eens. Als je het paneel kunt aansluiten op de computer waarop je nu surft, installeer dan via USB.",
+          "adb_still_unauthorized": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd. Bevestig de ADB-melding op het paneel en probeer het dan nog eens.",
+          "adb_credential_error": "Home Assistant kon de inloggegevens van ADB niet veilig laden of opslaan. Er is geen poging gedaan om het paneel te wijzigen. Controleer de opslag en logbestanden van Home Assistant voordat je het opnieuw probeert.",
+          "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket Panel Assistant, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de stappen op {recovery_address}. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
+          "unknown": "Onverwachte fout",
+          "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert."
+        },
+        "abort": {
+          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten](/config/integrations/integration/panel_assistant) als je het opnieuw wilt toevoegen.\n2. Sluit anders dit dialoogvenster.\n\n[Meer informatie]({learn_more_url})"
+        }
+      }
+    },
+    "installer_failure_update_webview": {
+      "title": "De WebView-update op {panel} is niet voltooid",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Paneelfout oplossen",
+            "description": "De paneelapp is geïnstalleerd, maar de update van de WebView (browserengine) ervan is niet voltooid.\n\n{webview_guidance}\n\nOm dit op te lossen:\n1. Volg de [WebView-updatehandleiding voor je model]({webview_guide_url}).\n2. Selecteer **Ondersteuningsrapport** om de opgeslagen oorzaak van het paneel te bekijken voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})",
+            "menu_options": {
+              "retry": "Opnieuw proberen",
+              "authorize_adb": "Updates toestaan",
+              "support_report": "Ondersteuningsrapport",
+              "clear_error": "Fout wissen"
+            }
+          },
+          "support_report": {
+            "title": "Ondersteuningsrapport",
+            "description": "Dit rapport bevat de opgeslagen details van de mislukte installatie of update.\n\nOm dit op te lossen:\n1. Lees [hoe je dit ondersteuningsrapport gebruikt]({guide_url}).\n2. Controleer het rapport op privégegevens en kopieer het daarna naar een [nieuwe probleemmelding voor de Panel Assistant-integratie]({issue_url}).\n\n{report}\n\n[Meer informatie]({learn_more_url})"
+          },
+          "clear_error": {
+            "title": "Fout wissen",
+            "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
+          },
+          "retry_error": {
+            "title": "Opnieuw proberen niet voltooid",
+            "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\n{webview_guidance}\n\nOm dit op te lossen:\n1. Volg de [WebView-updatehandleiding voor je model]({webview_guide_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
           },
           "authorize_adb": {
             "title": "Updates toestaan",
@@ -1858,7 +1940,8 @@
           "authorize_adb": "Updates toestaan",
           "updates": "Paneelupdates",
           "remove_app": "Van dit paneel verwijderen",
-          "panel_logs": "Paneellogboeken (alle panelen)"
+          "panel_logs": "Paneellogboeken (alle panelen)",
+          "owner_report": "Hardwarerapport van de eigenaar"
         },
         "menu_option_descriptions": {
           "remove_app": "Geeft het startscherm terug aan de eigen launcher van het paneel en verwijdert daarna de app."
@@ -1901,6 +1984,11 @@
         "data_description": {
           "also_home_assistant": "Van toepassing op bestemmingen via UDP, TCP of HTTP."
         }
+      },
+      "owner_report": {
+        "title": "Hardwarerapport van de eigenaar",
+        "description": "Open een [vooraf ingevuld GitHub-rapport]({issue_url}), controleer de apparaatgegevens en vul vóór het verzenden de daadwerkelijk uitgevoerde tests in. Profielgegevens beginnen als onbekend en alle tests als niet getest. Alleen niet-identificerende gegevens uit de cache zijn opgenomen. Er wordt pas iets gepubliceerd wanneer je het rapport op GitHub indient. Deze conceptversie maakt geen verbinding met het paneel en wijzigt het niet.",
+        "submit": "Gereed"
       }
     },
     "error": {

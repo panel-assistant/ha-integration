@@ -403,7 +403,7 @@ def _permission_state(value: object) -> str:
 
 
 PROXIMITY_STATES = frozenset(
-    {"calibration_required", "calibrating", "ready", "source_unavailable"}
+    {"calibration_required", "calibrating", "learning", "ready", "source_unavailable"}
 )
 
 

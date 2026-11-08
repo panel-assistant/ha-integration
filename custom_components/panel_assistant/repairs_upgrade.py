@@ -49,12 +49,14 @@ ISSUE_OLD_APP_NEEDS_090: Final = "old_app_needs_090"
 def _required_app_version() -> str:
     """Name the app release to install; a stable integration names the stable app.
 
-    Stable promotion deletes the prereleases, so a stable Panel Assistant must
-    not point at ``1.0.0-rc1``.
+    Stable promotion deletes the prereleases, so only a prerelease of that same
+    release (``1.0.0-rc2``) may point at ``1.0.0-rc1``; a stable Panel Assistant
+    and the next line's prereleases (``1.0.1-rc1``) name the stable app.
     """
-    if "-" in INTEGRATION_VERSION:
+    stable = REQUIRED_APP_VERSION.split("-", 1)[0]
+    if "-" in INTEGRATION_VERSION and INTEGRATION_VERSION.split("-", 1)[0] == stable:
         return REQUIRED_APP_VERSION
-    return REQUIRED_APP_VERSION.split("-", 1)[0]
+    return stable
 
 
 # The device registry's name for MQTT, and how the app named its MQTT device.

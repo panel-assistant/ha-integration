@@ -112,6 +112,11 @@ class NativeLight(NativeEntity, LightEntity, RestoreEntity):
         value = self.reported_value
         return None if value is None else value.get("effect")
 
+    @callback
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Keep restored capabilities and registry aliases through a rename."""
+        super().async_entity_id_changed(old_entity_id)
+
     async def async_added_to_hass(self) -> None:
         """Restore whether this light was already seen taking a colour."""
         await super().async_added_to_hass()

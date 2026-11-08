@@ -91,9 +91,7 @@ def _health(
 
 
 @pytest.fixture
-def route(
-    hass: HomeAssistant, tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> SimpleNamespace:
+async def route(hass: HomeAssistant, tmp_path, monkeypatch: pytest.MonkeyPatch):
     """A signed feed and a reachable, authorized panel without an on-panel route."""
     hass.config.config_dir = str(tmp_path)
     apk = b"signed-apk"
@@ -178,7 +176,7 @@ def route(
     monkeypatch.setattr(update_staging, "async_preflight_install", preflight)
     monkeypatch.setattr(update_staging, "async_update_installed_apk", adb_install)
     monkeypatch.setattr(update_staging, "async_launch_installed_app", launch)
-    return SimpleNamespace(
+    yield SimpleNamespace(
         entity=entity,
         client=client,
         pinned_health=pinned_health,
@@ -193,6 +191,9 @@ def route(
         pinned=pinned,
         probe=probe,
     )
+
+    entity._cancel_route_refresh()
+    await hass.async_block_till_done(wait_background_tasks=True)
 
 
 @pytest.mark.parametrize("mismatch", ["panel_id", "package"])
@@ -349,7 +350,7 @@ async def test_existing_keyless_shelly_offers_and_installs_from_ha(
     route.probe_target.reset_mock()
     with _durable_store_writes():
         route.entity._handle_coordinator_update()
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
     assert route.entity.latest_version == "0.9.7-rc4 build 772"
     await route.entity.async_install(None, False)
 

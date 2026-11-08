@@ -2,7 +2,14 @@
   "title": "Panel Assistant",
   "common": {
     "remove_from_panel_notification_title": "Retirer Panel Assistant de {panel}",
-    "remove_from_panel_notification_message": "Pour retirer Panel Assistant de {panel}, ouvrez [Réparations]({repairs_url}) et confirmez-y le retrait. Rien n’a encore changé sur le panneau."
+    "remove_from_panel_notification_message": "Pour retirer Panel Assistant de {panel}, ouvrez [Réparations]({repairs_url}) et confirmez-y le retrait. Rien n’a encore changé sur le panneau.",
+    "webview_recovery_unknown": "L’état de WebView du panneau n’a pas pu être lu. Gardez-le connecté, puis sélectionnez Réessayer. Si l’échec persiste, enregistrez un rapport d’assistance avant d’effacer cette erreur.",
+    "webview_recovery_current": "Le panneau indique maintenant que WebView est à jour. Sélectionnez Réessayer pour le vérifier et effacer cette erreur sans réinstaller WebView.",
+    "webview_recovery_installer": "L’application ne dispose d’aucune méthode autorisée pour installer WebView. Sélectionner Réessayer à plusieurs reprises ne peut pas lui accorder cette autorisation. Mettez WebView à jour manuellement en suivant le guide correspondant à votre modèle, puis sélectionnez Réessayer pour vérifier. Sur un NSPanel Pro avec son micrologiciel d’origine, cela passe par ADB ; activer ADB seul ne donne pas à l’application l’autorisation d’installer.",
+    "webview_recovery_refused": "Android a refusé l’installation de WebView. Suivez le guide de mise à jour de WebView correspondant à votre modèle et vérifiez la compatibilité du paquet, de la version d’Android et de la signature. Enregistrez un rapport d’assistance si le refus persiste ; des tentatives répétées ne peuvent pas résoudre une incompatibilité de paquet.",
+    "webview_recovery_mismatch": "Le WebView téléchargé ne correspondait pas à la mise à jour vérifiée. Gardez le panneau connecté et sélectionnez Réessayer pour le télécharger à nouveau. Si cela se reproduit, enregistrez un rapport d’assistance ; n’installez pas de fichier APK non vérifié.",
+    "webview_recovery_uncertain": "Le résultat de l’installation n’a pas pu être confirmé. Gardez le panneau connecté et sélectionnez Réessayer : le WebView installé est d’abord vérifié, et une nouvelle tentative ne commence que si la mise à jour remplit toujours les conditions requises.",
+    "webview_recovery_retry": "L’opération WebView a été interrompue ou n’a pas pu terminer sa préparation. Vérifiez la connexion du panneau et l’espace de stockage disponible, puis sélectionnez Réessayer. Enregistrez un rapport d’assistance si cela se reproduit."
   },
   "config": {
     "flow_title": "{name}",
@@ -732,6 +739,16 @@
           "always_on": "Toujours affichée",
           "swipe_reveal": "Afficher par balayage",
           "native": "Native"
+        }
+      },
+      "presence": {
+        "name": "Présence",
+        "state": {
+          "automatic": "Automatique",
+          "home_assistant": "Appareil Home Assistant",
+          "manual": "Manuel (assistant de configuration)",
+          "hybrid": "Hybride",
+          "off": "Désactivé"
         }
       },
       "update_channel": {
@@ -1525,13 +1542,13 @@
         }
       }
     },
-    "installer_failure_update_webview": {
-      "title": "La mise à jour de WebView sur {panel} n’a pas abouti",
+    "installer_failure_update_slow_transfer": {
+      "title": "Le transfert lent vers {panel} ne s’est pas terminé",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Résoudre l'erreur du panneau",
-            "description": "L’application du panneau est installée, mais sa mise à jour de WebView (moteur de navigateur) n’a pas abouti.\n\nPour résoudre le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Gardez le panneau connecté, puis sélectionnez **Réessayer** pour répéter uniquement l’étape WebView.\n\n[En savoir plus]({learn_more_url})",
+            "description": "Le transfert de la mise à jour avançait à environ {transfer_rate} KB/s avant d’échouer.\n\nPour résoudre le problème :\n1. Redémarrez le panneau, puis sélectionnez **Réessayer**.\n2. En cas de nouvel échec, consultez **Rapport d'assistance** et suivez les [étapes de récupération]({repair_url}).\n\n[En savoir plus]({learn_more_url})",
             "menu_options": {
               "retry": "Réessayer",
               "authorize_adb": "Autoriser les mises à jour",
@@ -1550,6 +1567,71 @@
           "retry_error": {
             "title": "Nouvelle tentative inachevée",
             "description": "La nouvelle tentative n’a pas pu se terminer ; cette erreur et son rapport restent donc dans Réparations.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération]({repair_url}).\n2. Sélectionnez **Valider**, puis **Rapport d’assistance** pour vérifier la cause avant de réessayer.\n\n[En savoir plus]({learn_more_url})"
+          },
+          "authorize_adb": {
+            "title": "Autoriser les mises à jour",
+            "description": "Home Assistant a besoin d’une autorisation Android avant de pouvoir mettre à jour {panel}.\n\nPour corriger le problème :\n1. Lisez les [étapes d’autorisation ADB]({approval_url}).\n2. Sélectionnez **Valider**, puis, sur {panel}, cochez **Toujours autoriser sur cet ordinateur** et touchez **Autoriser**.\n3. Après l’autorisation, sélectionnez **Réessayer** dans cette réparation pour relancer la mise à jour.\n\n[En savoir plus]({learn_more_url})"
+          }
+        },
+        "progress": {
+          "retrying": "Home Assistant vérifie le panneau et relance l’opération enregistrée.\n\nPour corriger le problème :\n1. Lisez les [conseils pour la nouvelle tentative]({repair_url}) si nécessaire.\n2. Attendez ici le résultat avant de décider de la suite.\n\n[En savoir plus]({learn_more_url})",
+          "authorize_adb": "L’autorisation Android sur {panel} est toujours nécessaire.\n\nPour corriger le problème :\n1. Lisez les [étapes d’autorisation ADB]({approval_url}).\n2. Sur {panel}, cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**.\n\nL’opération se poursuit automatiquement après l’autorisation.\n\n[En savoir plus]({learn_more_url})"
+        },
+        "error": {
+          "retry_target_changed": "Le panneau ne correspond plus à la cible enregistrée. Vérifiez-le avant de réessayer.",
+          "retry_release_changed": "La version choisie ne correspond plus à celle enregistrée. Choisissez une nouvelle tentative d'installation.",
+          "retry_credential_changed": "Les identifiants ADB de Home Assistant ont changé. Vérifiez le panneau avant de réessayer.",
+          "retry_panel_ambiguous": "L'application installée sur le panneau n'a pas pu être vérifiée. Aucune nouvelle installation n'a démarré.",
+          "retry_cannot_prove_safe": "Le panneau n'a pas pu être assez vérifié pour réessayer sans risque. Réessayez plus tard.",
+          "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
+          "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
+          "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
+          "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient.",
+          "cannot_connect": "Impossible de se connecter à un point de terminaison d'état Panel Assistant valide.",
+          "invalid_install_address": "Saisissez uniquement le nom d’hôte ou l’adresse IP du panneau.",
+          "install_resolution_failed": "Home Assistant n'a pas pu résoudre l'adresse de ce panneau. Vérifiez l'adresse et le DNS local, puis réessayez.",
+          "install_resolution_timeout": "Le délai de résolution locale du nom a expiré avant que l'adresse du panneau puisse être fixée de façon sûre. Vérifiez le DNS local, puis réessayez.",
+          "install_too_many_addresses": "Ce nom d'hôte correspond à un trop grand nombre d'adresses pour que l'une d'elles puisse être retenue de façon sûre. Utilisez un nom d'hôte local dédié ou une adresse IP privée.",
+          "unsafe_install_target": "L'installation n'est autorisée que si la cible est une adresse IPv4 locale privée ou une adresse IPv6 locale unique. Aucune connexion ADB n'a été tentée.",
+          "install_target_changed": "Le nom d'hôte ne renvoie plus la même adresse épinglée pour le panneau. Aucune clé ADB n'a été envoyée et aucune installation n'a été lancée. Vérifiez l'adresse et recommencez.",
+          "adb_unreachable": "Le panneau a répondu, mais rien n'a répondu sur son port Android Debug Bridge (5555). Sur le panneau, activez Android Debug Bridge et autorisez-le sur le réseau, puis réessayez. Si vous pouvez brancher le panneau sur l'ordinateur depuis lequel vous naviguez, installez plutôt par USB.",
+          "adb_still_unauthorized": "Le panneau n'a pas encore accepté cette instance de Home Assistant. Acceptez l'invite ADB sur le panneau, puis réessayez.",
+          "adb_credential_error": "Home Assistant n'a pas pu charger ou conserver son identifiant ADB de façon sûre. Aucune modification du panneau n'a été tentée. Vérifiez le stockage et les journaux de Home Assistant avant de réessayer.",
+          "retained_or_ambiguous": "Le panneau peut contenir un enregistrement conservé du paquet Panel Assistant, ou il n'a pas été possible de confirmer qu'aucune trace de ce paquet n'y subsiste. Le panneau n'a pas été modifié. Réessayez une fois si la connexion était instable ; sinon, suivez les étapes décrites à l'adresse {recovery_address}. Ne désinstallez pas et ne réinitialisez pas l'application sans disposer d'une sauvegarde vérifiée.",
+          "unknown": "Erreur inattendue",
+          "panel_identity_changed": "Cette adresse ne répond plus comme le panneau configuré. Vérifiez le panneau et son adresse avant de réessayer."
+        },
+        "abort": {
+          "entry_removed": "Ce panneau n’est plus configuré dans Home Assistant.\n\nPour corriger le problème :\n1. [Ouvrez les appareils Panel Assistant](/config/integrations/integration/panel_assistant) si vous souhaitez l’ajouter à nouveau.\n2. Sinon, fermez cette boîte de dialogue.\n\n[En savoir plus]({learn_more_url})"
+        }
+      }
+    },
+    "installer_failure_update_webview": {
+      "title": "La mise à jour de WebView sur {panel} n’a pas abouti",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Résoudre l'erreur du panneau",
+            "description": "L’application du panneau est installée, mais sa mise à jour de WebView (moteur de navigateur) n’a pas abouti.\n\n{webview_guidance}\n\nPour résoudre le problème :\n1. Suivez le [guide de mise à jour de WebView correspondant à votre modèle]({webview_guide_url}).\n2. Sélectionnez **Rapport d'assistance** pour consulter la cause enregistrée par le panneau avant de réessayer.\n\n[En savoir plus]({learn_more_url})",
+            "menu_options": {
+              "retry": "Réessayer",
+              "authorize_adb": "Autoriser les mises à jour",
+              "support_report": "Rapport d'assistance",
+              "clear_error": "Effacer l'erreur"
+            }
+          },
+          "support_report": {
+            "title": "Rapport d'assistance",
+            "description": "Ce rapport contient les détails enregistrés de l’échec de l’installation ou de la mise à jour.\n\nPour corriger le problème :\n1. Lisez [comment utiliser ce rapport d’assistance]({guide_url}).\n2. Vérifiez si le rapport contient des informations privées, puis copiez-le dans un [nouveau ticket pour l’intégration Panel Assistant]({issue_url}).\n\n{report}\n\n[En savoir plus]({learn_more_url})"
+          },
+          "clear_error": {
+            "title": "Effacer l'erreur",
+            "description": "Effacer cette erreur supprime son rapport enregistré sans modifier le panneau.\n\nPour corriger le problème :\n1. [Enregistrez d’abord un rapport d’assistance]({guide_url}) si vous en avez besoin.\n2. Sélectionnez **Valider** pour supprimer cette erreur et son rapport.\n\n[En savoir plus]({learn_more_url})"
+          },
+          "retry_error": {
+            "title": "Nouvelle tentative inachevée",
+            "description": "La nouvelle tentative n’a pas pu se terminer ; cette erreur et son rapport restent donc dans Réparations.\n\n{webview_guidance}\n\nPour corriger le problème :\n1. Suivez le [guide de mise à jour de WebView correspondant à votre modèle]({webview_guide_url}).\n2. Sélectionnez **Valider**, puis **Rapport d’assistance** pour vérifier la cause avant de réessayer.\n\n[En savoir plus]({learn_more_url})"
           },
           "authorize_adb": {
             "title": "Autoriser les mises à jour",
@@ -1858,7 +1940,8 @@
           "authorize_adb": "Autoriser les mises à jour",
           "updates": "Mises à jour du panneau",
           "remove_app": "Retirer de ce panneau",
-          "panel_logs": "Journaux des panneaux (tous les panneaux)"
+          "panel_logs": "Journaux des panneaux (tous les panneaux)",
+          "owner_report": "Rapport matériel du propriétaire"
         },
         "menu_option_descriptions": {
           "remove_app": "Rend l'écran d'accueil au lanceur propre du panneau, puis désinstalle l'application."
@@ -1901,6 +1984,11 @@
         "data_description": {
           "also_home_assistant": "S’applique aux destinations UDP, TCP ou HTTP."
         }
+      },
+      "owner_report": {
+        "title": "Rapport matériel du propriétaire",
+        "description": "Ouvrez un [rapport GitHub prérempli]({issue_url}), vérifiez les informations de l’appareil et indiquez les tests réellement effectués avant de l’envoyer. Le profil est initialement inconnu et tous les tests sont non effectués. Seules des informations en cache non identifiantes sont incluses. Rien n’est publié avant votre envoi sur GitHub. Créer ce brouillon ne contacte ni ne modifie le panneau.",
+        "submit": "Terminé"
       }
     },
     "error": {

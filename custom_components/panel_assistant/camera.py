@@ -175,6 +175,11 @@ class NativeCamera(NativeEntity, Camera):
         """Disable capture using the same native setting as the panel UI."""
         await self.async_command(False)
 
+    @callback
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Opt this class's lifecycle override in to in-place renames too."""
+        super().async_entity_id_changed(old_entity_id)
+
     async def async_will_remove_from_hass(self) -> None:
         """Release media when the entry or entity is unloaded."""
         self._media_generation += 1

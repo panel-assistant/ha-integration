@@ -571,24 +571,28 @@ async def test_rootless_panel_uses_its_existing_authorized_adb_route(
     _restart_into(entity, client, 772)
 
     await entity._async_refresh_route()
-    entity._schedule_route_refresh()
-    await hass.async_block_till_done(wait_background_tasks=True)
-    if not target_installed:
-        assert entity.latest_version == entity.installed_version
-        adb_install.assert_not_awaited()
-        client.async_backup_panel.assert_not_awaited()
-        return
-    assert entity.latest_version == "0.9.7-rc4 build 772"
-    await entity.async_install(None, False)
+    try:
+        entity._schedule_route_refresh()
+        await hass.async_block_till_done(wait_background_tasks=True)
+        if not target_installed:
+            assert entity.latest_version == entity.installed_version
+            adb_install.assert_not_awaited()
+            client.async_backup_panel.assert_not_awaited()
+            return
+        assert entity.latest_version == "0.9.7-rc4 build 772"
+        await entity.async_install(None, False)
 
-    adb_install.assert_awaited_once()
-    launch.assert_awaited_once()
-    preflight.assert_awaited()
-    client.async_stage_apk.assert_not_awaited()
-    client.async_commit_apk.assert_not_awaited()
-    assert entity.extra_state_attributes == {
-        "update_route": "installed_by_home_assistant_adb"
-    }
+        adb_install.assert_awaited_once()
+        launch.assert_awaited_once()
+        preflight.assert_awaited()
+        client.async_stage_apk.assert_not_awaited()
+        client.async_commit_apk.assert_not_awaited()
+        assert entity.extra_state_attributes == {
+            "update_route": "installed_by_home_assistant_adb"
+        }
+    finally:
+        entity._cancel_route_refresh()
+        await hass.async_block_till_done(wait_background_tasks=True)
 
 
 async def test_same_number_from_another_app_does_not_verify_the_install(

@@ -10,7 +10,7 @@ import pytest
 from custom_components.panel_assistant import local_adb_bootstrap as bootstrap
 from custom_components.panel_assistant.adb_protocol import InstallAdbError
 
-# Panels own these files as root or the shell user; the private CI runs as root.
+# Every damage variant changes file ownership to model Android app UIDs.
 needs_root = pytest.mark.skipif(
     os.geteuid() != 0, reason="needs root to own files as the panel does"
 )

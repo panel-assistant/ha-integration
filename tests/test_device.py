@@ -386,6 +386,57 @@ async def test_the_card_shows_the_panels_firmware_android_release_and_serial(
     assert hardware["serial_number"] != "G000000000000000001"
 
 
+async def test_explicit_none_clears_a_fact_while_an_unset_field_keeps_it(
+    hass: HomeAssistant,
+) -> None:
+    """The registry's explicit clear value must remain distinct from omission."""
+    entry = _loaded_entry(hass)
+    device = await _card_after_setup(hass, entry, _status_body('{"firmware":"1.11.0"}'))
+    registry = dr.async_get(hass)
+
+    async_refresh_panel_device(
+        hass,
+        entry.entry_id,
+        dr.DeviceInfo(manufacturer=None, configuration_url=None),
+    )
+    current = registry.async_get(device.id)
+    assert current is not None
+    assert current.manufacturer is None
+    assert current.configuration_url is None
+    assert current.model == "NSPanel Pro"
+    assert current.hw_version == "1.11.0"
+    assert current.sw_version == "0.9.0 (1144)"
+
+
+async def test_setup_registers_the_card_before_any_entity_is_added(
+    hass: HomeAssistant,
+) -> None:
+    """The integration owns registration even when no entity platform is loaded."""
+    entry = _loaded_entry(hass)
+    with patch("custom_components.panel_assistant.PLATFORMS", []):
+        device = await _card_after_setup(
+            hass,
+            entry,
+            _status_body(
+                '{"firmware":"1.11.0","serial_number":"panel-serial",'
+                f'"network_macs":["{SHELLY_MAC}"]}}'
+            ),
+        )
+
+    assert device.identifiers == {(DOMAIN, entry.entry_id)}
+    assert device.config_entry_id == entry.entry_id
+    assert device.name == "Alpha panel"
+    assert device.manufacturer == "Sonoff"
+    assert device.model == "NSPanel Pro"
+    assert device.sw_version == "0.9.0 (1144)"
+    assert device.hw_version == "1.11.0"
+    assert device.serial_number == "panel-serial"
+    assert device.connections == {(dr.CONNECTION_NETWORK_MAC, SHELLY_MAC)}
+    assert device.configuration_url == (
+        f"homeassistant://panel-assistant/{entry.entry_id}"
+    )
+
+
 async def test_a_panel_without_hardware_facts_keeps_the_card_it_had(
     hass: HomeAssistant,
 ) -> None:
@@ -585,6 +636,70 @@ async def test_a_poll_that_learns_nothing_new_leaves_the_card_alone(
     assert [update["changes"] for update in updates] == [
         {"connections": {(dr.CONNECTION_NETWORK_MAC, SHELLY_MAC)}}
     ]
+
+
+async def test_sparse_polls_keep_metadata_and_an_empty_address_list_clears_links(
+    hass: HomeAssistant,
+) -> None:
+    """Missing facts keep the last report; an explicit empty list withdraws MACs."""
+    entry = _loaded_entry(hass)
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=HEALTH),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(
+                return_value=_status_body(
+                    '{"firmware":"1.11.0","android_release":"8.1.0",'
+                    '"serial_number":"panel-serial",'
+                    f'"network_macs":["{SHELLY_MAC}"]}}'
+                )
+            ),
+        ) as get_status,
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        registry = dr.async_get(hass)
+        device = registry.async_get_device_by_identifier(
+            (DOMAIN, entry.entry_id), entry.entry_id
+        )
+        assert device is not None
+        study = ar.async_get(hass).async_create("Study")
+        registry.async_update_device(
+            device.id, name_by_user="My wall panel", area_id=study.id
+        )
+        coordinator = entry.runtime_data.coordinator
+
+        for hardware, connections in (
+            (None, {(dr.CONNECTION_NETWORK_MAC, SHELLY_MAC)}),
+            ('{"network_macs":[]}', set()),
+            (None, set()),
+        ):
+            # A sparse report omits even product/name facts, as older apps do.
+            get_status.return_value = parse_status_response(
+                '{"warnings":[],"capabilities":[]'
+                + (
+                    f',"panel_assistant_hardware":{hardware}'
+                    if hardware is not None
+                    else ""
+                )
+                + "}"
+            )
+            await coordinator.async_refresh()
+            await hass.async_block_till_done()
+            current = registry.async_get(device.id)
+            assert current is not None
+            assert current.name == "Alpha panel"
+            assert current.name_by_user == "My wall panel"
+            assert current.area_id == study.id
+            assert current.manufacturer == "Sonoff"
+            assert current.model == "NSPanel Pro"
+            assert current.hw_version == "1.11.0 · Android 8.1.0"
+            assert current.serial_number == "panel-serial"
+            assert current.sw_version == HEALTH.version
+            assert current.connections == connections
 
 
 @pytest.mark.parametrize(

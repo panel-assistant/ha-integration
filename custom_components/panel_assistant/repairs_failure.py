@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 import secrets
 import traceback
@@ -21,15 +22,20 @@ from homeassistant.helpers.storage import Store
 
 from .build import INTEGRATION_BUILD
 from .build_feed import parse_build_request
-from .client import is_newer_stable_version, is_version_at_least
+from .client import InvalidResponseError, is_newer_stable_version, is_version_at_least
 from .const import CONF_TRANSPORT_USER_ID, DOMAIN, INTEGRATION_VERSION, help_url
 from .device import panel_display_name
+from .install_adb import InstallAdbTransferError
 from .transport_protocol import CAPABILITY_UI_SUBSCRIBE, OUTCOME_APPLIED
 from .transport_sessions import async_get_sessions, session_manages
+from .transport_sessions import async_manage as async_observe_management
 from .ui_relay import async_manage
+from .webview import parse_webview
 
 if TYPE_CHECKING:
     from .install_receipt import InstallJobReceipt
+
+_LOGGER = logging.getLogger(__name__)
 
 ISSUE_INSTALLER_FAILURE = "installer_failure"
 ISSUE_ADB_AUTHORIZATION = "adb_update_authorization"
@@ -298,6 +304,8 @@ def _issue(
     kind: str,
     reason: str,
     entry_id: str | None = None,
+    *,
+    transfer_rate: str | None = None,
 ) -> None:
     if kind == "install" and reason in _INSTALL_CAUSES:
         translation_key = f"{ISSUE_INSTALLER_FAILURE}_{reason}"
@@ -305,14 +313,16 @@ def _issue(
         translation_key = "installer_failure_adb_authorization"
     elif kind == "update" and reason == "update_webview_unfinished":
         translation_key = f"{ISSUE_INSTALLER_FAILURE}_update_webview"
+    elif kind == "update" and transfer_rate is not None:
+        translation_key = f"{ISSUE_INSTALLER_FAILURE}_update_slow_transfer"
     elif kind == "update":
         translation_key = f"{ISSUE_INSTALLER_FAILURE}_update"
     elif kind == "retry_hold":
         translation_key = f"{ISSUE_INSTALLER_FAILURE}_retry_hold"
     else:
         translation_key = ISSUE_INSTALLER_FAILURE
-    # The WebView wording shares the update Repair's help page.
-    anchor = translation_key.removesuffix("_webview")
+    # These update explanations share the update Repair's help page.
+    anchor = translation_key.removesuffix("_webview").removesuffix("_slow_transfer")
     if translation_key == "installer_failure_adb_authorization" and entry_id:
         ir.async_delete_issue(hass, DOMAIN, adb_authorization_issue_id(entry_id))
     ir.async_create_issue(
@@ -330,6 +340,7 @@ def _issue(
             "learn_more_url": help_url("repair", issue=anchor),
             "guide_url": help_url("support-report"),
             "approval_url": help_url("repair", issue="adb_update_authorization"),
+            **({"transfer_rate": transfer_rate} if transfer_rate is not None else {}),
         },
         data={"key": issue_id, **({"entry_id": entry_id} if entry_id else {})},
     )
@@ -402,6 +413,40 @@ async def async_record_update_bundle(
     )
 
 
+async def _async_failure_webview(hass: HomeAssistant, entry_id: str) -> dict[str, Any]:
+    """Read bounded failure-time facts without submitting any provider work."""
+    unavailable = {"status": "unavailable"}
+    entry = hass.config_entries.async_get_entry(entry_id)
+    session = async_get_sessions(hass).get(entry_id)
+    if (
+        entry is None
+        or not session_manages(session)
+        or session is None
+        or session.did != entry.unique_id
+        or session.user_id != entry.data.get(CONF_TRANSPORT_USER_ID)
+    ):
+        return unavailable
+    try:
+        async with asyncio.timeout(_PANEL_LOG_TIMEOUT):
+            status = parse_webview(
+                await async_observe_management(hass, session, "webview.observe")
+            )
+        if (
+            hass.config_entries.async_get_entry(entry_id) is not entry
+            or async_get_sessions(hass).get(entry_id) is not session
+            or session.did != entry.unique_id
+            or session.user_id != entry.data.get(CONF_TRANSPORT_USER_ID)
+        ):
+            return unavailable
+        return {
+            "reason": status.reason,
+            "transaction_state": status.transaction_state,
+            "transaction_reason": status.transaction_reason,
+        }
+    except HomeAssistantError, TimeoutError, InvalidResponseError:
+        return unavailable
+
+
 async def async_record_update_failure(
     hass: HomeAssistant,
     entry_id: str,
@@ -432,6 +477,23 @@ async def async_record_update_failure(
         "target_version": target_version,
         "exception": "".join(traceback.format_exception(error))[-12000:],
     }
+    # The update service wraps transport failures for its toast. Keep only
+    # structured transfer details in the Repair, never raw exception messages.
+    cause: BaseException | None = error
+    seen: set[int] = set()
+    while cause is not None and id(cause) not in seen:
+        seen.add(id(cause))
+        if isinstance(cause, InstallAdbTransferError):
+            event["transfer"] = {
+                "reason": cause.reason,
+                "bytes_sent": cause.bytes_sent,
+                "total_bytes": cause.total_bytes,
+                "elapsed_seconds": cause.elapsed_seconds,
+                "bytes_per_second": cause.bytes_per_second,
+                "slow": cause.slow,
+            }
+            break
+        cause = cause.__cause__ or cause.__context__
     event["panel_logs"] = await _async_panel_logs(hass, entry_id)
     if artifact is not None:
         event["artifact"] = artifact
@@ -439,6 +501,8 @@ async def async_record_update_failure(
         event["observed_before"] = list(observed_before)
     if webview_pending:
         event["webview_pending"] = True
+        if raise_issue:
+            event["webview"] = await _async_failure_webview(hass, entry_id)
     if isinstance(cause := getattr(error, "translation_key", None), str):
         # A restart restores the same wording from the saved report.
         event["translation_key"] = cause
@@ -456,10 +520,20 @@ async def async_record_update_failure(
             entry_id
             if getattr(error, "translation_key", None) == "adb_authorization_required"
             else None,
+            transfer_rate=_slow_transfer_rate(event),
         ),
         # An entry removed during the awaits above keeps neither report nor Repair.
         lambda: hass.config_entries.async_get_entry(entry_id) is entry,
     )
+
+
+def _slow_transfer_rate(event: dict[str, Any]) -> str | None:
+    transfer = event.get("transfer")
+    if isinstance(transfer, dict) and transfer.get("slow") is True:
+        rate = transfer.get("bytes_per_second")
+        if isinstance(rate, (int, float)) and rate >= 0:
+            return f"{rate / 1000:.0f}"
+    return None
 
 
 def async_refresh_update_failure_name(hass: HomeAssistant, entry_id: str) -> None:
@@ -483,9 +557,14 @@ def async_refresh_update_failure_name(hass: HomeAssistant, entry_id: str) -> Non
         kind,
         "adb_authorization_required"
         if issue.translation_key == "installer_failure_adb_authorization"
+        else "update_webview_unfinished"
+        if issue.translation_key == "installer_failure_update_webview"
         else "",
         entry_id
         if issue.translation_key == "installer_failure_adb_authorization"
+        else None,
+        transfer_rate=(issue.translation_placeholders or {}).get("transfer_rate")
+        if issue.translation_key == "installer_failure_update_slow_transfer"
         else None,
     )
 
@@ -505,8 +584,10 @@ async def async_clear_update_failure_if_installed(
     issue_id = panel_failure_issue_id(f"update:{entry_id}")
     # A record can exist without its Repair (an update still running, or one
     # restored at startup), so the record decides, not the registry.
+    cleared_event: dict[str, Any] | None = None
 
     def reached(record: dict[str, Any]) -> bool:
+        nonlocal cleared_event
         if is_current is not None and not is_current():
             return False
         events = record.get("events", [])
@@ -520,6 +601,7 @@ async def async_clear_update_failure_if_installed(
             ),
             None,
         )
+        cleared_event = previous
         if (
             previous is not None
             and previous.get("webview_pending")
@@ -555,11 +637,34 @@ async def async_clear_update_failure_if_installed(
             return installed_code is not None and installed_code >= target_code
         return is_version_at_least(installed_version, target) is True
 
-    await _failure_store(hass).clear(
-        issue_id,
-        lambda: ir.async_delete_issue(hass, DOMAIN, issue_id),
-        reached,
-    )
+    def cleared() -> None:
+        if (
+            not verified_success
+            and cleared_event is not None
+            and ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+        ):
+            elapsed = "unknown"
+            at = cleared_event.get("at")
+            if isinstance(at, str):
+                try:
+                    started = datetime.fromisoformat(at)
+                    if started.tzinfo is None:
+                        started = started.replace(tzinfo=UTC)
+                    elapsed = (
+                        f"{max(0, (datetime.now(UTC) - started).total_seconds()):.0f}s"
+                    )
+                except ValueError:
+                    pass
+            _LOGGER.warning(
+                "Cleared update failure for %s after observing target build %s; "
+                "elapsed since failure: %s",
+                cleared_event.get("panel", entry_id),
+                cleared_event.get("target_version") or "unknown",
+                elapsed,
+            )
+        ir.async_delete_issue(hass, DOMAIN, issue_id)
+
+    await _failure_store(hass).clear(issue_id, cleared, reached)
 
 
 async def async_failure_events(
@@ -657,9 +762,22 @@ async def async_restore_update_failure(hass: HomeAssistant, entry_id: str) -> No
         latest = next(
             (event for event in reversed(events) if isinstance(event, dict)), {}
         )
-        kind = "retry_hold" if latest.get("kind") == "retry_hold" else "update"
+        kind = (
+            "retry_hold"
+            if latest.get("kind") == "retry_hold"
+            and latest.get("translation_key") != "update_webview_unfinished"
+            else "update"
+        )
         reason = str(latest.get("translation_key") or latest.get("reason", ""))
-        _issue(hass, issue_id, panel_display_name(hass, entry), kind, reason, entry_id)
+        _issue(
+            hass,
+            issue_id,
+            panel_display_name(hass, entry),
+            kind,
+            reason,
+            entry_id,
+            transfer_rate=_slow_transfer_rate(latest),
+        )
 
 
 async def async_record_retry_hold(
@@ -687,10 +805,24 @@ async def async_record_retry_hold(
     }
     if entry_id is not None:
         event["entry_id"] = entry_id
+    webview_failure = (
+        previous.get("webview_pending")
+        and entry_id is not None
+        and str(error) in {"webview_deferred", "webview_unavailable"}
+    )
+    if webview_failure and entry_id is not None:
+        event["webview"] = await _async_failure_webview(hass, entry_id)
+        event["translation_key"] = "update_webview_unfinished"
     await _failure_store(hass).append(
         issue_id,
         event,
-        lambda: _issue(hass, issue_id, panel, "retry_hold", reason),
+        lambda: _issue(
+            hass,
+            issue_id,
+            panel,
+            "update" if webview_failure else "retry_hold",
+            "update_webview_unfinished" if webview_failure else reason,
+        ),
         # A panel removed while its Retry ran took its Repair with it; an
         # update Retry records nothing once its entry is no longer current.
         None

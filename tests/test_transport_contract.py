@@ -49,7 +49,7 @@ VOICE_SCHEMAS = {
 }
 
 _HA_VECTOR_REVISION = "502dc6575cdd214a3cc0890ea3594e60758c8b97"
-_ANDROID_PRODUCER_REVISION = "40e71cb7e29bd74c67b3ce1f5a1a46ae0b9b7e74"
+_ANDROID_PRODUCER_REVISION = "41aebe13c3b8f77323b75941d50186f640d12c73"
 
 
 def test_shared_vectors_name_the_ha_source_revision_vendored_by_android() -> None:
@@ -79,7 +79,7 @@ def test_android_producer_fixture_names_its_exact_source_revision() -> None:
                 Path(__file__).parent / "fixtures" / "android_producer_v1.json"
             ).read_bytes()
         ).hexdigest()
-        == "391d7549784e7fdd9fb87454964d1a72606f11ba2962e0819837801f9f2da81f"
+        == "ad68a7e6fc515a523ad1cba968d5fa96dd1e073573cb4f14a5bbcf136504ac86"
     )
 
 

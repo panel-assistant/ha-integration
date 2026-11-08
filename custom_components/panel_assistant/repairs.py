@@ -18,6 +18,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.translation import async_get_translations
 
 from .build_feed import parse_build_request
 from .client import (
@@ -30,7 +31,7 @@ from .client import (
     normalize_address,
 )
 from .config_flow import AdbAuthorization, async_authorize_adb_form
-from .const import CONF_TRANSPORT_USER_ID, DOMAIN, update_unique_id
+from .const import CONF_TRANSPORT_USER_ID, DOMAIN, help_url, update_unique_id
 from .coordinator import HaPaneldDataUpdateCoordinator, PanelSnapshot
 from .device import PROXIMITY_SETUP_ANCHOR, panel_display_name, sidebar_url
 from .identity import (
@@ -330,13 +331,54 @@ class InstallerFailureFlow(RepairsFlow):
         entry = self._adb_entry()
         if entry is not None:
             options.insert(1, "authorize_adb")
+        placeholders = await self._async_webview_guidance()
+        if entry is not None:
+            placeholders["panel"] = panel_display_name(self.hass, entry)
         return self.async_show_menu(
             step_id="init",
             menu_options=options,
-            description_placeholders=(
-                {"panel": panel_display_name(self.hass, entry)} if entry else None
-            ),
+            description_placeholders=placeholders,
         )
+
+    async def _async_webview_guidance(self) -> dict[str, str]:
+        """Explain the latest saved panel observation without starting more work."""
+        # A retry can replace the registry issue while its original WebView
+        # dialog stays open. Supply a fallback even for that older dialog;
+        # other installer descriptions simply do not use these placeholders.
+        events = await async_failure_events(self.hass, self.issue_id)
+        latest = events[-1] if events else {}
+        value = latest.get("webview")
+        webview = value if isinstance(value, dict) else {}
+        reason = webview.get("transaction_reason")
+        action = "unknown"
+        if webview.get("reason") == "current":
+            action = "current"
+        elif (
+            webview.get("reason") == "no_install_route"
+            or reason == "install_unavailable"
+        ):
+            action = "installer"
+        elif reason == "install_refused":
+            action = "refused"
+        elif reason == "artifact_mismatch":
+            action = "mismatch"
+        elif webview.get("transaction_state") == "submitted_unknown":
+            action = "uncertain"
+        elif reason in {
+            "interrupted",
+            "staging_failed",
+            "operation_failed",
+            "download_failed",
+        }:
+            action = "retry"
+        strings = await async_get_translations(
+            self.hass, self.hass.config.language, "common", [DOMAIN]
+        )
+        prefix = f"component.{DOMAIN}.common.webview_recovery_"
+        return {
+            "webview_guidance": strings[f"{prefix}{action}"],
+            "webview_guide_url": help_url("update-webview"),
+        }
 
     def _adb_entry(self) -> ConfigEntry | None:
         issue = ir.async_get(self.hass).async_get_issue(DOMAIN, self.issue_id)
@@ -459,6 +501,7 @@ class InstallerFailureFlow(RepairsFlow):
             step_id="retry_error",
             data_schema=vol.Schema({}),
             errors={"base": reason},
+            description_placeholders=await self._async_webview_guidance(),
         )
 
     async def async_step_retry_error(
@@ -566,12 +609,10 @@ class InstallerFailureFlow(RepairsFlow):
                 and isinstance(installed, str)
                 and offered == installed
             ):
-                if previous.get("webview_pending"):
+                if previous.get("webview_pending") or not app_reached:
                     # A missing offer is not proof that the saved app target landed.
                     return "retry_cannot_prove_safe"
-                # The panel already runs the newest build on offer: the update
-                # that failed to report back has since landed, or nothing newer
-                # exists. There is nothing to install, so the failure is over;
+                # The panel reached the saved target and nothing newer is offered;
                 # asking Home Assistant to install would only be refused.
                 return None
             current_retry = (

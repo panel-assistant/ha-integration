@@ -107,17 +107,16 @@ def emulate_home_assistant_store_file(
     hass_storage: dict[str, Any],
 ) -> Generator[None]:
     """Model the Store file hidden by HA's in-memory test storage manager."""
-    observed_paths: set[str] = set()
 
     def _presence(path: str) -> tuple[bool, bool]:
         exists, corrupt = _REAL_STORE_PRESENCE(path)
         if exists or corrupt:
             return exists, corrupt
-        if path.endswith(f"{DOMAIN}.install_jobs.details"):
-            return f"{DOMAIN}.install_jobs.details" in hass_storage, False
-        if path in observed_paths:
-            return True, False
-        observed_paths.add(path)
+        # Presence follows the same document the readers below return, so a
+        # read that finds no file never meets a reader that finds no data.
+        key = Path(path).name
+        if key in {f"{DOMAIN}.install_jobs", f"{DOMAIN}.install_jobs.details"}:
+            return key in hass_storage, False
         return False, False
 
     def _durable_reader(_path: str) -> dict[str, InstallJobReceipt]:
@@ -710,6 +709,9 @@ async def test_restart_reclaims_pre_mutation_but_quarantines_ambiguous_phase(
         install_target=target("risky.local", "RISKY-SERIAL", "192.168.1.24"),
     )
     risky = await transition_to_staging(restarted, risky.job_id)
+    risky = await restarted.async_transition(
+        risky.job_id, risky.revision, InstallPhase.INSTALLING
+    )
     after_crash = InstallJobManager(hass, now=clock)
     with pytest.raises(InstallJobCleanupRequiredError):
         await after_crash.async_claim(risky.job_id, risky.revision)
@@ -728,7 +730,7 @@ async def test_restart_reclaims_pre_mutation_but_quarantines_ambiguous_phase(
     "phase", [InstallPhase.STAGING, InstallPhase.INSTALLING, InstallPhase.LAUNCHING]
 )
 @pytest.mark.parametrize("tag", ["v0.1.0", "v0.9.7-rc3"])
-async def test_restart_quarantines_every_ambiguous_mutation_phase(
+async def test_restart_settles_every_interrupted_mutation_phase(
     hass: HomeAssistant, phase: InstallPhase, tag: str
 ) -> None:
     """A new process never replays a phase whose side effect may have started."""
@@ -764,8 +766,12 @@ async def test_restart_quarantines_every_ambiguous_mutation_phase(
         cleanup_confirmed_revision=receipt.revision,
     )
 
-    assert quarantined.phase is InstallPhase.RECOVERY_REQUIRED
-    assert quarantined.result_code is InstallResultCode.VERIFICATION_REQUIRED
+    if phase is InstallPhase.STAGING:
+        assert quarantined.phase is InstallPhase.FAILED
+        assert quarantined.result_code is InstallResultCode.TRANSPORT_FAILED
+    else:
+        assert quarantined.phase is InstallPhase.RECOVERY_REQUIRED
+        assert quarantined.result_code is InstallResultCode.VERIFICATION_REQUIRED
 
 
 @pytest.mark.parametrize("phase", [InstallPhase.INSTALLED, InstallPhase.HEALTH_CHECK])
@@ -903,6 +909,9 @@ async def test_restart_quarantine_prunes_full_terminal_history_before_save(
         install_target=target("active.local", "ACTIVE-SERIAL", "192.168.4.100"),
     )
     active = await transition_to_staging(manager, active.job_id)
+    active = await manager.async_transition(
+        active.job_id, active.revision, InstallPhase.INSTALLING
+    )
     clock.advance()
 
     restarted = InstallJobManager(hass, now=clock)

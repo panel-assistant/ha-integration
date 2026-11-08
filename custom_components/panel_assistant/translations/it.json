@@ -2,7 +2,14 @@
   "title": "Panel Assistant",
   "common": {
     "remove_from_panel_notification_title": "Rimuovi Panel Assistant da {panel}",
-    "remove_from_panel_notification_message": "Per rimuovere Panel Assistant da {panel}, apri [Riparazioni]({repairs_url}) e conferma lì. Sul pannello non è ancora cambiato nulla."
+    "remove_from_panel_notification_message": "Per rimuovere Panel Assistant da {panel}, apri [Riparazioni]({repairs_url}) e conferma lì. Sul pannello non è ancora cambiato nulla.",
+    "webview_recovery_unknown": "Non è stato possibile leggere lo stato di WebView del pannello. Mantienilo connesso, poi seleziona Riprova. Se il problema persiste, salva un rapporto di assistenza prima di cancellare questo errore.",
+    "webview_recovery_current": "Il pannello ora indica che WebView è aggiornato. Seleziona Riprova per verificarlo e cancellare questo errore senza reinstallare WebView.",
+    "webview_recovery_installer": "L’app non dispone di un metodo autorizzato per installare WebView. Selezionare ripetutamente Riprova non può concederle tale autorizzazione. Aggiorna WebView manualmente seguendo la guida specifica per il tuo modello, poi seleziona Riprova per verificare. Su un NSPanel Pro con firmware originale si utilizza ADB; la sola attivazione di ADB non concede all’app l’autorizzazione a installare.",
+    "webview_recovery_refused": "Android ha rifiutato l’installazione di WebView. Segui la guida all’aggiornamento di WebView specifica per il tuo modello e verifica la compatibilità del pacchetto, della versione di Android e della firma. Salva un rapporto di assistenza se il rifiuto persiste; ripetere i tentativi non può risolvere un’incompatibilità del pacchetto.",
+    "webview_recovery_mismatch": "Il WebView scaricato non corrispondeva all’aggiornamento verificato. Mantieni il pannello connesso e seleziona Riprova per scaricarlo di nuovo. Se il problema si ripete, salva un rapporto di assistenza; non installare un APK non verificato.",
+    "webview_recovery_uncertain": "Non è stato possibile confermare il risultato dell’installazione. Mantieni il pannello connesso e seleziona Riprova: viene prima verificato il WebView installato e viene avviato un nuovo tentativo solo se l’aggiornamento soddisfa ancora i requisiti.",
+    "webview_recovery_retry": "L’operazione WebView è stata interrotta o non ha potuto completare la preparazione. Controlla la connessione del pannello e lo spazio di archiviazione disponibile, poi seleziona Riprova. Salva un rapporto di assistenza se il problema si ripete."
   },
   "config": {
     "flow_title": "{name}",
@@ -732,6 +739,16 @@
           "always_on": "Sempre visibile",
           "swipe_reveal": "Mostra con scorrimento",
           "native": "Nativa"
+        }
+      },
+      "presence": {
+        "name": "Presenza",
+        "state": {
+          "automatic": "Automatico",
+          "home_assistant": "Dispositivo Home Assistant",
+          "manual": "Manuale (procedura guidata di configurazione)",
+          "hybrid": "Ibrido",
+          "off": "Disattivato"
         }
       },
       "update_channel": {
@@ -1525,13 +1542,13 @@
         }
       }
     },
-    "installer_failure_update_webview": {
-      "title": "L'aggiornamento di WebView su {panel} non è stato completato",
+    "installer_failure_update_slow_transfer": {
+      "title": "Il trasferimento lento a {panel} non è stato completato",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Risolvi l'errore del pannello",
-            "description": "L'app del pannello è installata, ma il suo aggiornamento di WebView (motore del browser) non è stato completato.\n\nPer risolvere:\n1. Segui i [passaggi di ripristino]({repair_url}).\n2. Mantieni il pannello connesso, poi seleziona **Riprova** per ripetere solo il passaggio relativo a WebView.\n\n[Scopri di più]({learn_more_url})",
+            "description": "Il trasferimento dell’aggiornamento procedeva a circa {transfer_rate} KB/s prima di interrompersi.\n\nPer risolvere:\n1. Riavvia il pannello, poi seleziona **Riprova**.\n2. Se il problema si ripete, consulta **Rapporto di assistenza** e segui i [passaggi di ripristino]({repair_url}).\n\n[Scopri di più]({learn_more_url})",
             "menu_options": {
               "retry": "Riprova",
               "authorize_adb": "Consenti aggiornamenti",
@@ -1550,6 +1567,71 @@
           "retry_error": {
             "title": "Nuovo tentativo incompleto",
             "description": "Il nuovo tentativo non è stato completato, quindi questo errore e il suo rapporto rimangono in Riparazioni.\n\nPer risolvere:\n1. Segui i [passaggi di ripristino]({repair_url}).\n2. Seleziona **Invia**, poi **Rapporto di assistenza** per verificare la causa prima di riprovare.\n\n[Scopri di più]({learn_more_url})"
+          },
+          "authorize_adb": {
+            "title": "Consenti aggiornamenti",
+            "description": "Home Assistant ha bisogno dell'autorizzazione di Android per aggiornare {panel}.\n\nPer risolvere:\n1. Leggi i [passaggi per autorizzare ADB]({approval_url}).\n2. Seleziona **Invia**, poi su {panel} spunta **Consenti sempre da questo computer** e tocca **Consenti**.\n3. Dopo l'autorizzazione, seleziona **Riprova** da questa riparazione per ritentare l'aggiornamento.\n\n[Scopri di più]({learn_more_url})"
+          }
+        },
+        "progress": {
+          "retrying": "Home Assistant sta controllando il pannello e ritentando l'operazione salvata.\n\nPer risolvere:\n1. Leggi le [indicazioni per il nuovo tentativo]({repair_url}) se necessario.\n2. Attendi qui il risultato prima di decidere come procedere.\n\n[Scopri di più]({learn_more_url})",
+          "authorize_adb": "È ancora necessaria l'autorizzazione di Android su {panel}.\n\nPer risolvere:\n1. Leggi i [passaggi per autorizzare ADB]({approval_url}).\n2. Su {panel}, spunta **Consenti sempre da questo computer**, poi tocca **Consenti**.\n\nLa procedura prosegue automaticamente dopo l'autorizzazione.\n\n[Scopri di più]({learn_more_url})"
+        },
+        "error": {
+          "retry_target_changed": "Il pannello non corrisponde più alla destinazione salvata. Controllalo prima di riprovare.",
+          "retry_release_changed": "La versione scelta non corrisponde più a quella salvata. Avvia una nuova installazione.",
+          "retry_credential_changed": "Le credenziali ADB di Home Assistant sono cambiate. Controlla il pannello prima di riprovare.",
+          "retry_panel_ambiguous": "Non è stato possibile verificare l'app installata sul pannello. Non è stata avviata una nuova installazione.",
+          "retry_cannot_prove_safe": "Non è stato possibile controllare abbastanza il pannello per riprovare in sicurezza. Riprova più tardi.",
+          "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
+          "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
+          "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
+          "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna.",
+          "cannot_connect": "Impossibile connettersi a un endpoint valido sullo stato di funzionamento di Panel Assistant.",
+          "invalid_install_address": "Inserisci solo il nome host o l’indirizzo IP del pannello.",
+          "install_resolution_failed": "Home Assistant non è riuscito a risolvere l'indirizzo di questo pannello. Controlla l'indirizzo e il DNS locale, quindi riprova.",
+          "install_resolution_timeout": "La risoluzione locale del nome non è stata completata in tempo per fissare in modo sicuro l'indirizzo del pannello. Controlla il DNS locale, quindi riprova.",
+          "install_too_many_addresses": "Questo nome host è stato risolto in troppi indirizzi per poterlo fissare in modo sicuro. Usa un nome host locale dedicato o un indirizzo IP privato.",
+          "unsafe_install_target": "L'installazione è consentita solo su un indirizzo IPv4 locale privato o su un indirizzo IPv6 univoco locale. Non è stata tentata alcuna connessione ADB.",
+          "install_target_changed": "Il nome host non si risolve più nello stesso indirizzo del pannello fissato in precedenza. Non è stata inviata alcuna chiave ADB e non è stata avviata alcuna installazione. Controlla l'indirizzo e ricomincia.",
+          "adb_unreachable": "Il pannello ha risposto, ma nulla ha risposto sulla sua porta Android Debug Bridge (5555). Sul pannello attiva Android Debug Bridge e consentilo via rete, poi riprova. Se puoi collegare il pannello al computer da cui stai navigando, installa invece tramite USB.",
+          "adb_still_unauthorized": "Il pannello non ha ancora accettato questa istanza di Home Assistant. Approva la richiesta ADB sul pannello, quindi riprova.",
+          "adb_credential_error": "Home Assistant non è riuscito a caricare o conservare in modo sicuro le proprie credenziali ADB. Non è stata tentata alcuna modifica del pannello. Controlla lo spazio di archiviazione e i registri di Home Assistant prima di riprovare.",
+          "retained_or_ambiguous": "Il pannello potrebbe contenere un record conservato del pacchetto Panel Assistant oppure non è stato possibile dimostrare che il pacchetto sia assente. Il pannello non è stato modificato. Riprova una volta se la connessione era instabile; in caso contrario, segui i passaggi all'indirizzo {recovery_address}. Non disinstallare o reimpostare l'app senza un backup verificato.",
+          "unknown": "Errore imprevisto",
+          "panel_identity_changed": "L’indirizzo non risponde più come questo pannello configurato. Controlla il pannello e il suo indirizzo prima di riprovare."
+        },
+        "abort": {
+          "entry_removed": "Questo pannello non è più configurato in Home Assistant.\n\nPer risolvere:\n1. [Apri i dispositivi di Panel Assistant](/config/integrations/integration/panel_assistant) se vuoi aggiungerlo di nuovo.\n2. Altrimenti, chiudi questa finestra.\n\n[Scopri di più]({learn_more_url})"
+        }
+      }
+    },
+    "installer_failure_update_webview": {
+      "title": "L'aggiornamento di WebView su {panel} non è stato completato",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Risolvi l'errore del pannello",
+            "description": "L'app del pannello è installata, ma il suo aggiornamento di WebView (motore del browser) non è stato completato.\n\n{webview_guidance}\n\nPer risolvere:\n1. Segui la [guida all’aggiornamento di WebView specifica per il tuo modello]({webview_guide_url}).\n2. Seleziona **Rapporto di assistenza** per consultare la causa salvata dal pannello prima di riprovare.\n\n[Scopri di più]({learn_more_url})",
+            "menu_options": {
+              "retry": "Riprova",
+              "authorize_adb": "Consenti aggiornamenti",
+              "support_report": "Rapporto di assistenza",
+              "clear_error": "Cancella errore"
+            }
+          },
+          "support_report": {
+            "title": "Rapporto di assistenza",
+            "description": "Questo rapporto contiene i dettagli salvati dell'installazione o dell'aggiornamento non riuscito.\n\nPer risolvere:\n1. Leggi [come usare questo rapporto di assistenza]({guide_url}).\n2. Controlla se il rapporto contiene informazioni private, poi copialo in una [nuova segnalazione per l'integrazione Panel Assistant]({issue_url}).\n\n{report}\n\n[Scopri di più]({learn_more_url})"
+          },
+          "clear_error": {
+            "title": "Cancella errore",
+            "description": "Cancellare questo errore elimina il rapporto salvato senza modificare il pannello.\n\nPer risolvere:\n1. [Salva prima un rapporto di assistenza]({guide_url}) se ti serve.\n2. Seleziona **Invia** per rimuovere questo errore e il rapporto.\n\n[Scopri di più]({learn_more_url})"
+          },
+          "retry_error": {
+            "title": "Nuovo tentativo incompleto",
+            "description": "Il nuovo tentativo non è stato completato, quindi questo errore e il suo rapporto rimangono in Riparazioni.\n\n{webview_guidance}\n\nPer risolvere:\n1. Segui la [guida all’aggiornamento di WebView specifica per il tuo modello]({webview_guide_url}).\n2. Seleziona **Invia**, poi **Rapporto di assistenza** per verificare la causa prima di riprovare.\n\n[Scopri di più]({learn_more_url})"
           },
           "authorize_adb": {
             "title": "Consenti aggiornamenti",
@@ -1858,7 +1940,8 @@
           "authorize_adb": "Consenti aggiornamenti",
           "updates": "Aggiornamenti del pannello",
           "remove_app": "Rimuovi da questo pannello",
-          "panel_logs": "Log dei pannelli (tutti i pannelli)"
+          "panel_logs": "Log dei pannelli (tutti i pannelli)",
+          "owner_report": "Rapporto hardware del proprietario"
         },
         "menu_option_descriptions": {
           "remove_app": "Restituisce la schermata iniziale al launcher del pannello, poi disinstalla l'app."
@@ -1901,6 +1984,11 @@
         "data_description": {
           "also_home_assistant": "Si applica alle destinazioni UDP, TCP o HTTP."
         }
+      },
+      "owner_report": {
+        "title": "Rapporto hardware del proprietario",
+        "description": "Apri un [rapporto GitHub precompilato]({issue_url}), controlla i dati del dispositivo e indica i test effettivamente eseguiti prima di inviarlo. Il profilo inizialmente è sconosciuto e tutti i test sono non eseguiti. Sono inclusi solo dati memorizzati che non identificano il dispositivo. Nulla viene pubblicato finché non invii il rapporto su GitHub. Creare la bozza non contatta né modifica il pannello.",
+        "submit": "Fine"
       }
     },
     "error": {

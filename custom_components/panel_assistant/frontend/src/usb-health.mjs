@@ -8,6 +8,8 @@ export class UsbHealthError extends Error {
 const fail = code => { throw new UsbHealthError(code); };
 const malformed = () => fail('health_malformed');
 const encoder = new TextEncoder();
+// Match the app's readiness probe and the integration's HTTP health reader.
+const MAX_HEALTH_RESPONSE_BYTES = 1024;
 const versionPattern = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?$/;
 const releaseVersion = value => typeof value === 'string' && value.length <= 63 && versionPattern.test(value) && !value.includes('\n');
 // A dev build from the signed feed reports its own versionName, which is free-form.
@@ -16,7 +18,7 @@ const knownFields = new Set(['panel', 'build', 'cfg', 'ha', 'ha_net', 'ha_resp',
 
 // The native endpoint returns a text line, not a JSON status document.
 function healthVersion(body) {
-  if (encoder.encode(body).length > 512) malformed();
+  if (encoder.encode(body).length > MAX_HEALTH_RESPONSE_BYTES) malformed();
   const line = body.endsWith('\n') ? body.slice(0, -1) : body;
   if (/[^\x20-\x7e]/.test(line)) malformed();
   const tokens = line.split(' ');
@@ -140,7 +142,7 @@ async function readUsbApp(adb, path, parse, {
 export async function readUsbHealth(adb, descriptor, options = {}) {
   const expected = descriptor?.versionName;
   if (!validVersion(expected)) fail('invalid_request');
-  return readUsbApp(adb, '/api/v1/health', text => healthVersion(parseHttp(text, 512)) === expected, options);
+  return readUsbApp(adb, '/api/v1/health', text => healthVersion(parseHttp(text, MAX_HEALTH_RESPONSE_BYTES)) === expected, options);
 }
 
 // Optional provider operation on the same authenticated ADB connection. Older

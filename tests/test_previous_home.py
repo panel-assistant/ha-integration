@@ -16,7 +16,7 @@ from custom_components.panel_assistant.previous_home import (
     transfer_previous_home,
 )
 
-# Panels own these files as root or the shell user; the private CI runs as root.
+# These cases need records owned by root or the Android shell user (UID 2000).
 needs_root = pytest.mark.skipif(
     os.geteuid() != 0, reason="needs root to own files as the panel does"
 )
@@ -246,7 +246,6 @@ def test_usb_retry_cannot_launch_before_original_home_is_durable(
     assert Path(apk + ".previous-home").exists()
 
 
-@needs_root
 @pytest.mark.parametrize(
     "query_response,query_status,package_status,legacy",
     [
@@ -256,7 +255,8 @@ def test_usb_retry_cannot_launch_before_original_home_is_durable(
             0,
             False,
         ),
-        ("No receivers found", 0, 0, True),
+        # Only successful legacy cleanup needs an accepted record owner.
+        pytest.param("No receivers found", 0, 0, True, marks=needs_root),
         ("No receivers found", 1, 0, False),
         ("", 0, 0, False),
         ("Unknown command: query-receivers", 0, 0, False),
