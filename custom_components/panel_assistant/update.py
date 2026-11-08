@@ -52,6 +52,7 @@ from .feed_coordinator import (
 from .native import NativeEntity, async_setup_native_platform
 from .panel_operations import claim_panel_operation, release_panel_operation
 from .release import ReleaseArtifact, is_feed_build_tag
+from .release_summaries import async_release_notes as async_app_release_notes
 from .repairs_failure import (
     async_clear_update_failure_if_installed,
     async_record_update_bundle,
@@ -130,7 +131,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
     _attr_device_class = UpdateDeviceClass.FIRMWARE
     _attr_has_entity_name = True
     _attr_supported_features = (
-        UpdateEntityFeature.INSTALL | UpdateEntityFeature.PROGRESS
+        UpdateEntityFeature.INSTALL
+        | UpdateEntityFeature.PROGRESS
+        | UpdateEntityFeature.RELEASE_NOTES
     )
     _attr_translation_key = "paneld_update"
     _attr_title = "Panel Assistant"
@@ -658,6 +661,15 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         if latest is not None and self._webview_only_offer(latest):
             return f"{latest}{WEBVIEW_ONLY_SUFFIX}"
         return latest
+
+    async def async_release_notes(self) -> str | None:
+        """What changed in the offered app release, with a link to the full notes."""
+        if not self._has_install_route():
+            return None
+        artifact = self._offer.host_release()
+        if artifact is None:
+            return None
+        return await async_app_release_notes(self.hass, artifact.tag, artifact.version)
 
     def _webview_only_offer(self, app_latest: str | None) -> bool:
         """The app is current, but the panel offers a WebView it has not installed.
