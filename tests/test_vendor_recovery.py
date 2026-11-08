@@ -526,3 +526,70 @@ async def test_local_witness_survives_app_death_until_independent_adb_recovers(
     assert network_attempts == 2
     assert panel.state.homes == 1
     assert panel.coordinator.reachable
+
+
+async def test_typed_witness_reads_recovery_and_keeps_network_adb_only(
+    panel: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from custom_components.panel_assistant import local_adb
+    from custom_components.panel_assistant.adb_protocol import AdbInstallTarget
+
+    calls: list[tuple[str, tuple[str, ...]]] = []
+
+    class Commands:
+        async def run(self, verb: str, args: tuple[str, ...] = ()) -> dict[str, str]:
+            calls.append((verb, tuple(args)))
+            return {
+                "model": "Test Panel",
+                "serial": "SERIAL-1",
+                "abi": "arm64-v8a",
+                "sdk": "34",
+                "uid": "0",
+                "secure": "1",
+                "debuggable": "0",
+                "su": "absent",
+                "boot_id": panel.state.boot,
+                "uptime": f"{panel.state.now:.2f}",
+                "home": HOME,
+                "vendor_pid": str(panel.state.vendor_pid),
+                "stopped": "false",
+            }
+
+    class NoShell:
+        async def streaming_shell(self, *args: Any, **kwargs: Any) -> Any:
+            raise AssertionError("a typed witness sent shell text")
+            yield  # pragma: no cover
+
+        async def close(self) -> None:
+            """Nothing to close."""
+
+    target = AdbInstallTarget(
+        panel.coordinator.client.address,
+        "SERIAL-1",
+        "Test Panel",
+        "arm64-v8a",
+        34,
+        local_shell=NoShell(),  # type: ignore[arg-type]
+        local_commands=Commands(),
+    )
+    monkeypatch.setattr(local_adb, "async_target", AsyncMock(return_value=target))
+    monkeypatch.setattr(
+        vendor_recovery,
+        "async_probe_install_target",
+        AsyncMock(side_effect=AssertionError("typed witness must not probe")),
+    )
+    recovery = panel.coordinator._vendor_recovery
+    recovery._witness = None
+    session = replace(
+        panel.session,
+        token="typed-session",
+        local_adb_identity=("SERIAL-1", "Test Panel", "arm64-v8a", 34),
+    )
+    panel.sessions.open(session)
+    await panel.coordinator.async_refresh()
+    await panel.coordinator.hass.async_block_till_done()
+    assert calls and set(calls) == {("PA_OBSERVE", ("recovery",))}
+    witness = recovery._witness
+    assert witness is not None
+    assert witness.target.local_commands is None
+    assert witness.target.local_shell is None

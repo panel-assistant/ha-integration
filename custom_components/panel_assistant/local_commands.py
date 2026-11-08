@@ -13,7 +13,6 @@ import re
 from typing import Any, Final
 
 from .adb_protocol import (
-    _SERVICE_COMPONENT,
     AdbInstallTarget,
     AdbRootMode,
     InstallAdbError,
@@ -77,7 +76,6 @@ REFUSAL_EXPIRED: Final = "expired"
 
 _GRANT_STATES: Final = ("granted", "unsupported", "unknown")
 _OP_STATE = re.compile(r"[a-z_]{1,32}", flags=re.ASCII)
-_DEVICE = re.compile(r"[A-Za-z0-9_.-]{1,64}", flags=re.ASCII)
 # "none" means no policy broadcast reply was recognised; the shell route
 # deferred then too.
 _HOME_POLICIES: Final = ("builtin", "retained", "restore", "claimed", "shell", "none")
@@ -209,10 +207,8 @@ def permission_grant_from_fields(
         or enabled not in ("0", "1", "unknown")
         or any(_OP_STATE.fullmatch(op) is None for op in ops)
         or any(state not in _GRANT_STATES for state in states)
-        or (device != "unknown" and _DEVICE.fullmatch(device) is None)
         or vendor not in ("shelly", "meta", "other")
         or policy not in _HOME_POLICIES
-        or (current != "unknown" and _SERVICE_COMPONENT.fullmatch(current) is None)
     ):
         return refused
     camera, microphone, secure_settings = states

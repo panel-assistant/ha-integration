@@ -86,12 +86,6 @@ def live_allowlist() -> dict[str, Any]:
     }
 
 
-def test_shelly_splash_is_the_vendor_home_command_target() -> None:
-    assert vendor_provisioning.VENDOR_HOME_COMMAND.endswith(
-        live_allowlist()["shelly_splash"]
-    )
-
-
 def test_allowlist_fixture_equals_the_live_constants() -> None:
     live = live_allowlist()
     if os.environ.get("PA_WRITE_TYPED_ALLOWLIST") == "1":

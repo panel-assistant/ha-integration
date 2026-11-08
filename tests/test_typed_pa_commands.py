@@ -35,7 +35,7 @@ from custom_components.panel_assistant.vendor_provisioning import (
     VendorSetup,
 )
 
-from .install_adb_fakes import _identity_root_output
+from .install_adb_fakes import _identity_root_output, _single_output
 from .test_native import _setup
 from .test_transport import WsClientFactory, _receive
 from .test_transport_commands import _connect
@@ -313,6 +313,47 @@ async def test_typed_vendor_home_hands_to_the_fixed_splash() -> None:
     )
     assert observed.home == "cloud.shelly.stargate"
     assert commands.calls == [("PA_HANDBACK", ("vendor",))]
+
+
+async def test_typed_vendor_home_not_handed_is_read_back_like_the_shell() -> None:
+    """Removal judges an unhanded vendor HOME from ``.home``, as on the shell."""
+    commands = FakeCommands(
+        {
+            "PA_HANDBACK": {
+                "handed": "0",
+                "legacy": "absent",
+                "new": "installed",
+                "shelly": "absent",
+                "home": "com.vendor/com.vendor.Launcher",
+                "firmware": "V1",
+            }
+        }
+    )
+    observed = await install_adb.async_move_step(
+        _target(commands), None, install_adb.MoveStep.VENDOR_HOME
+    )
+    assert observed.home == "com.vendor"
+    assert not observed.shelly_installed
+
+
+@pytest.mark.parametrize("home", ["", "No activity found"])
+def test_typed_grant_with_a_non_component_home_is_not_homed(home: str) -> None:
+    grant = local_commands.permission_grant_from_fields(
+        GRANTED, {**HOMED, "home": home}, LAUNCH
+    )
+    assert grant.missing == ()
+    assert grant.home is False
+    assert grant.chooser == "set"
+
+
+@pytest.mark.parametrize("device", ["", "odd device!"])
+def test_typed_grant_with_any_device_is_a_non_meta_device(device: str) -> None:
+    grant = local_commands.permission_grant_from_fields(
+        {**GRANTED, "device": device}, HOMED, LAUNCH
+    )
+    assert grant.missing == ()
+    assert grant.home is True
+    assert grant.vendor_setup is False
 
 
 @pytest.mark.parametrize("result", ["restored", "unrestored", "none"])
@@ -739,6 +780,125 @@ async def test_unknown_command_disables_typed_commands_for_the_session(
     await _answer_ready(panel)
     await _answer_identity_shells(panel)
     assert (await task).local_commands is None
+    # A command object built before the refusal honours it on every later run.
+    with pytest.raises(InstallAdbError):
+        await local_adb.LocalAdbCommands(hass, entry, session).run(
+            "PA_RESTORE", ("vendor",)
+        )
+    await panel.nothing_sent()
+
+
+async def test_operation_after_unknown_command_reruns_over_shell_text(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+) -> None:
+    entry, panel = await _panel(
+        hass,
+        hass_ws_client,
+        hass_read_only_user,
+        hass_read_only_access_token,
+        ["management", "local_adb", "local_adb_commands_v1"],
+    )
+    task = asyncio.create_task(
+        local_adb.async_target(hass, entry, normalize_address("panel.local"))
+    )
+    await _answer_ready(panel)
+    await _answer_identity_cmd(panel)
+    typed_target = await task
+    assert typed_target is not None and typed_target.local_commands is not None
+    restore = asyncio.create_task(
+        install_adb.async_restore_vendor_setup(typed_target, None)
+    )
+    event = (await _receive(panel.client))["event"]
+    assert event["op"] == "adb.cmd"
+    await panel.answer(event["command_id"], "refused", code="unknown_command")
+    with pytest.raises(InstallAdbError):
+        await restore
+    # The retry builds a fresh target, which now carries shell text.
+    task = asyncio.create_task(
+        local_adb.async_target(hass, entry, normalize_address("panel.local"))
+    )
+    await _answer_ready(panel)
+    await _answer_identity_shells(panel)
+    shell_target = await task
+    assert shell_target is not None and shell_target.local_commands is None
+    restore = asyncio.create_task(
+        install_adb.async_restore_vendor_setup(shell_target, None)
+    )
+    for prefix in ("POSTURE", "VENDOR_RESTORE"):
+        event = (await _receive(panel.client))["event"]
+        assert event["op"] == "adb.shell"
+        nonce = re.search(
+            rf"HAPANELD_{prefix}_BEGIN:([a-f0-9]{{32}})", event["args"]["command"]
+        )[1]
+        body = (
+            _identity_root_output(nonce, uid="0")
+            if prefix == "POSTURE"
+            else _single_output(prefix, nonce, ["none"], 0)
+        )
+        await panel.answer(
+            event["command_id"],
+            "applied",
+            result={
+                "stdout_b64": base64.b64encode(body).decode(),
+                "exit_code": 0,
+                "timed_out": False,
+                "truncated": False,
+            },
+        )
+    assert await restore == "none"
+
+
+async def test_app_busy_reply_reaches_the_busy_refusal(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+) -> None:
+    """The app reports a held HOME lock as failed/busy; PA reads it as busy."""
+    entry, panel = await _panel(
+        hass,
+        hass_ws_client,
+        hass_read_only_user,
+        hass_read_only_access_token,
+        ["management", "local_adb", "local_adb_commands_v1"],
+    )
+    session = async_get_sessions(hass).get(entry.entry_id)
+    assert session is not None
+    run = asyncio.create_task(
+        local_adb.LocalAdbCommands(hass, entry, session).run("PA_HOME", (LAUNCH,))
+    )
+    event = (await _receive(panel.client))["event"]
+    assert event["op"] == "adb.cmd"
+    # The wire code must be one of the contract's; the helper's reason rides
+    # in the result, as the app already sends it.
+    await panel.answer(
+        event["command_id"], "failed", code="failed", result={"code": "busy"}
+    )
+    with pytest.raises(local_commands.LocalCommandRefused) as err:
+        await run
+    assert err.value.refusal == "busy"
+
+
+async def test_typed_remove_app_stays_on_network_adb(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    commands = FakeCommands({})
+    reached = []
+
+    async def connect(*_args: Any, **_kwargs: Any) -> Any:
+        reached.append("network")
+        raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE)
+
+    monkeypatch.setattr(install_adb, "_async_connect", connect)
+    with pytest.raises(InstallAdbError):
+        await install_adb.async_move_step(
+            _target(commands), None, install_adb.MoveStep.REMOVE_APP
+        )
+    assert commands.calls == []
+    assert reached == ["network"]
 
 
 async def test_helper_args_refusal_surfaces_as_a_failure_not_a_shell(

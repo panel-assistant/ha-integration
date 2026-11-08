@@ -254,6 +254,11 @@ class LocalAdbCommands:
                 else str(outcome.code or "refused")
             )
         if outcome.outcome != OUTCOME_APPLIED:
+            result = outcome.result if isinstance(outcome.result, dict) else {}
+            if outcome.code == "busy" or result.get("code") == "busy":
+                # A held helper lock (the app answers failed/busy) clears by
+                # itself; callers defer, as the shell's failed flock did.
+                raise typed.LocalCommandRefused("busy")
             raise _failure()
         return typed.bounded_fields(outcome.result)
 

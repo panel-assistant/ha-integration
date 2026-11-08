@@ -1879,7 +1879,9 @@ async def async_move_step(
                         "component",
                         str(home_target),
                     )
-                return _fields_to_move(fields, handback=mutation_started)
+                # Only a component hand-back is verified here; removal judges
+                # a vendor HOME from ``.home``, as on the shell route.
+                return _fields_to_move(fields, handback=step is MoveStep.HAND_BACK_HOME)
             device = await _async_connect(target, signer)
             # Every connection proves the device at the address is the one the
             # removal started on before any command can change it.
