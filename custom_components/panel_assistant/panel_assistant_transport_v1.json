@@ -225,6 +225,14 @@
       "attributes": []
     },
     {
+      "channel": "presence",
+      "family": null,
+      "platform": "select",
+      "translation_key": "presence",
+      "unique_suffix": "presence",
+      "attributes": []
+    },
+    {
       "channel": "update_channel",
       "family": null,
       "platform": "select",

@@ -355,6 +355,16 @@
           "native": "Native"
         }
       },
+      "presence": {
+        "name": "Presence",
+        "state": {
+          "automatic": "Automatic",
+          "home_assistant": "Home Assistant device",
+          "manual": "Manual (setup wizard)",
+          "hybrid": "Hybrid",
+          "off": "Off"
+        }
+      },
       "update_channel": {
         "name": "Panel Assistant auto-update channel",
         "state": {
