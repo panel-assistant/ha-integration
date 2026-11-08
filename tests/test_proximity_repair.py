@@ -1,10 +1,12 @@
 """Proximity setup is raised as a Repair until the panel reports it calibrated."""
 
+import asyncio
 import json
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.translation import async_get_translations
@@ -16,6 +18,8 @@ from custom_components.panel_assistant.status import parse_status_response
 from tests.test_repair_links import assert_repair_links
 
 from .test_permission_repairs import HEALTH, _panel
+from .test_upgrade_repairs import CURRENT, _entry
+from .test_upgrade_repairs import _panel as _upgrade_panel
 
 pytest_plugins = ["tests.test_voice"]
 
@@ -201,3 +205,75 @@ async def test_proximity_repair_has_translated_guidance(
         "proximity_unreadable",
     ):
         assert strings[f"{prefix}.fix_flow.error.{error}"]
+
+
+@pytest.mark.parametrize("reloaded", [True, False])
+async def test_only_the_current_runtime_owner_can_finish_the_repair(
+    hass: HomeAssistant, hass_client: Any, hass_read_only_user: Any, reloaded: bool
+) -> None:
+    """A read awaited across a reload of the same entry belongs to the old runtime.
+
+    The flow awaits its coordinator's refresh directly, so Home Assistant's
+    reload neither cancels that read nor stops it publishing its result. Only
+    the coordinator that now owns the entry may say the sensor is calibrated.
+    """
+    assert await async_setup_component(hass, "repairs", {})
+    entry = _entry(hass, hass_read_only_user.id)
+    uncalibrated = _status({"state": "calibration_required", "wake_ready": False})
+    calibrated = _status({"state": "ready", "wake_ready": True})
+    held = asyncio.Event()
+    release = asyncio.Event()
+    reads: list[str] = []
+
+    async def status(self: Any, **kwargs: Any) -> Any:
+        reads.append("read")
+        if len(reads) == 2:
+            # The Repair's own read: hold it at the panel until released.
+            held.set()
+            await release.wait()
+            return calibrated
+        return uncalibrated
+
+    with (
+        _upgrade_panel(CURRENT),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            status,
+        ),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        assert entry.state is ConfigEntryState.LOADED
+        assert _issue(hass, entry) is not None
+        retired = entry.runtime_data.coordinator
+        admin = await hass_client()
+        response = await admin.post(
+            "/api/repairs/issues/fix",
+            json={
+                "handler": DOMAIN,
+                "issue_id": f"panel_proximity_setup_{entry.entry_id}",
+            },
+        )
+        flow = await response.json()
+        submit = asyncio.ensure_future(
+            admin.post(f"/api/repairs/issues/fix/{flow['flow_id']}", json={})
+        )
+        await asyncio.wait_for(held.wait(), 5)
+        if reloaded:
+            assert await hass.config_entries.async_reload(entry.entry_id)
+            await hass.async_block_till_done()
+            assert hass.config_entries.async_get_entry(entry.entry_id) is entry
+            assert entry.runtime_data.coordinator is not retired
+        release.set()
+        result = await (await submit).json()
+        # The retired read did complete, and successfully: nothing stopped it.
+        assert retired.last_update_success
+        assert retired.data.status.proximity == {"state": "ready", "wake_ready": True}
+
+    if reloaded:
+        assert result["type"] == "form"
+        assert result["errors"] == {"base": "proximity_unreadable"}
+    else:
+        assert result["type"] == "create_entry"
+        assert _issue(hass, entry) is None
+    assert await hass.config_entries.async_unload(entry.entry_id)

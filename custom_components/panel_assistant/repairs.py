@@ -763,6 +763,12 @@ class ProximitySetupFlow(RepairsFlow):
                     and snapshot is not previous
                     and snapshot is not None
                     and snapshot.status is not None
+                    # A refresh awaited across a reload of the same entry belongs
+                    # to the retired runtime; only the current owner may finish.
+                    and getattr(
+                        getattr(entry, "runtime_data", None), "coordinator", None
+                    )
+                    is coordinator
                 ):
                     fresh = True
                     state = proximity_state(snapshot.status)
