@@ -17,6 +17,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from . import adb_protocol as adb
+from . import local_commands as typed
 from .client import (
     _PACKAGE_NAME_PATTERN,
     HandBackRefusedError,
@@ -27,6 +28,7 @@ from .client import (
 )
 from .transport_protocol import (
     CAPABILITY_LOCAL_ADB,
+    CAPABILITY_LOCAL_ADB_COMMANDS,
     ERR_APPROVAL_PENDING,
     OUTCOME_APPLIED,
     OUTCOME_REFUSED,
@@ -90,7 +92,7 @@ async def _request(
             wait_seconds,
             args=args,
             approval_seconds=LOCAL_ADB_APPROVAL_SECONDS
-            if op in ("adb.shell", "adb.recover")
+            if op in ("adb.shell", "adb.recover", "adb.cmd")
             else 0,
             wait_for_approval=approval,
         )
@@ -197,6 +199,83 @@ class LocalAdbDevice(AdbDeviceAsync):
     async def push(self, *args: Any, **kwargs: Any) -> None:
         """File streaming belongs to the original admitted installation route."""
         raise adb.InstallAdbError(adb.InstallAdbErrorCode.INVALID_REQUEST)
+
+
+class LocalAdbCommands:
+    """Typed helper commands on the session, approved exactly like a shell.
+
+    Chosen from the session's capability, never from a refusal: ``expired``
+    (the helper is being replaced) fails the call and changes nothing, and
+    only ``unknown_command`` turns typed commands off for this session.
+    """
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        session: PanelSession,
+        approval: bool = True,
+    ) -> None:
+        self.hass, self.entry, self.session = hass, entry, session
+        self.approval = approval
+
+    async def run(self, verb: str, args: tuple[str, ...] = ()) -> dict[str, str]:
+        """Run one command; return its bounded fields or raise its refusal."""
+        if not typed.valid_args(verb, args):
+            raise adb.InstallAdbError(adb.InstallAdbErrorCode.INVALID_REQUEST)
+        session = self.session
+        if (
+            session_for(self.hass, self.entry) is not session
+            or CAPABILITY_LOCAL_ADB_COMMANDS not in session.capabilities
+            or session.local_adb_commands_disabled
+        ):
+            raise _failure()
+        try:
+            outcome = await async_manage_outcome(
+                self.hass,
+                session,
+                "adb.cmd",
+                typed.WAIT_SECONDS[verb],
+                args={"verb": verb, "args": list(args)},
+                approval_seconds=LOCAL_ADB_APPROVAL_SECONDS,
+                wait_for_approval=self.approval,
+            )
+        except HomeAssistantError as err:
+            raise _failure() from err
+        if outcome.outcome == OUTCOME_REFUSED:
+            if outcome.code == typed.REFUSAL_UNKNOWN_COMMAND:
+                # A backstop only: the capability promised the command.
+                session.local_adb_commands_disabled = True
+            result = outcome.result if isinstance(outcome.result, dict) else {}
+            helper = result.get("code")
+            raise typed.LocalCommandRefused(
+                helper
+                if isinstance(helper, str) and helper
+                else str(outcome.code or "refused")
+            )
+        if outcome.outcome != OUTCOME_APPLIED:
+            result = outcome.result if isinstance(outcome.result, dict) else {}
+            if outcome.code == "busy" or result.get("code") == "busy":
+                # A held helper lock (the app answers failed/busy) clears by
+                # itself; callers defer, as the shell's failed flock did.
+                raise typed.LocalCommandRefused("busy")
+            raise _failure()
+        return typed.bounded_fields(outcome.result)
+
+
+def commands_for(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    session: PanelSession,
+    approval: bool = True,
+) -> LocalAdbCommands | None:
+    """Typed commands when the session was granted them and has not lost them."""
+    if (
+        CAPABILITY_LOCAL_ADB_COMMANDS not in session.capabilities
+        or session.local_adb_commands_disabled
+    ):
+        return None
+    return LocalAdbCommands(hass, entry, session, approval)
 
 
 def _ready(result: dict[str, Any]) -> bool:
@@ -344,6 +423,47 @@ async def async_target(
     ):
         return None
     device = LocalAdbDevice(hass, entry, session, approval)
+    commands = commands_for(hass, entry, session, approval)
+    if commands is not None:
+        target = await _typed_identity(commands, address)
+    else:
+        target = await _shell_identity(hass, entry, session, address, approval)
+    identity = (target.serial, target.model, target.primary_abi, target.android_sdk)
+    if (
+        session.local_adb_identity is not None
+        and session.local_adb_identity != identity
+    ):
+        raise adb.InstallAdbError(adb.InstallAdbErrorCode.TARGET_CHANGED)
+    session.local_adb_identity = identity
+    return replace(target, local_shell=device, local_commands=commands)
+
+
+async def _typed_identity(
+    commands: LocalAdbCommands, address: PanelAddress
+) -> adb.AdbInstallTarget:
+    """One typed read gives the identity and posture the two shells read."""
+    fields = await commands.run(typed.VERB_IDENTITY)
+    try:
+        observed = typed.identity_from_fields(fields)
+        typed.root_mode_from_fields(fields)
+    except adb._MalformedAdbResponse as err:
+        raise _failure() from err
+    return adb.AdbInstallTarget(
+        address,
+        observed.serial,
+        observed.model,
+        observed.primary_abi,
+        observed.android_sdk,
+    )
+
+
+async def _shell_identity(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    session: PanelSession,
+    address: PanelAddress,
+    approval: bool,
+) -> adb.AdbInstallTarget:
     nonce = token_hex(16)
     try:
         observed = adb._parse_identity(
@@ -380,14 +500,7 @@ async def async_target(
         )
     except adb._MalformedAdbResponse as err:
         raise _failure() from err
-    identity = (target.serial, target.model, target.primary_abi, target.android_sdk)
-    if (
-        session.local_adb_identity is not None
-        and session.local_adb_identity != identity
-    ):
-        raise adb.InstallAdbError(adb.InstallAdbErrorCode.TARGET_CHANGED)
-    session.local_adb_identity = identity
-    return replace(target, local_shell=device)
+    return target
 
 
 async def async_recover(
