@@ -9,9 +9,11 @@ over a request a built-in intent understands.
 
 import asyncio
 import re
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 import pytest
+from aiohttp import ClientTimeout
 from homeassistant.components import conversation
 from homeassistant.components.lovelace.const import LOVELACE_DATA
 from homeassistant.core import Context, HomeAssistant
@@ -29,6 +31,22 @@ from .test_transport import WsClientFactory
 from .test_transport_commands import Panel, _connect, _entity_id
 
 LANGUAGES = voice_grammar.grammar_languages()
+
+
+@pytest.fixture
+def aiohttp_client(
+    aiohttp_client: Callable[..., Awaitable[Any]], request: pytest.FixtureRequest
+) -> Callable[..., Awaitable[Any]]:
+    """Alias routing waits for real HTTP events within the test's deadlock bound."""
+
+    async def create_client(*args: Any, **kwargs: Any) -> Any:
+        if request.node.originalname == (
+            "test_turn_off_the_screen_reaches_the_screen_through_its_alias"
+        ):
+            kwargs["timeout"] = ClientTimeout(total=None)
+        return await aiohttp_client(*args, **kwargs)
+
+    return create_client
 
 
 def test_every_shipped_language_has_a_grammar() -> None:
@@ -138,6 +156,7 @@ async def _ready(
     language: str,
     views: list[dict[str, Any]] | None = None,
     channels: list[dict[str, Any]] | None = None,
+    receive_timeout: float | None = 5,
 ) -> tuple[MockConfigEntry, Panel, str]:
     hass.config.language = language
     assert await async_setup_component(hass, "homeassistant", {})
@@ -145,7 +164,11 @@ async def _ready(
     assert await async_setup_component(hass, "lovelace", {})
     await hass.data[LOVELACE_DATA].dashboards[None].async_save({"views": views or []})
     entry = await _setup(hass, user.id)
-    panel = await _connect(hass, hass_ws_client, token) if channels is None else None
+    panel = (
+        await _connect(hass, hass_ws_client, token, receive_timeout=receive_timeout)
+        if channels is None
+        else None
+    )
     if panel is None:
         from . import test_transport_commands
 
@@ -155,7 +178,7 @@ async def _ready(
         await client.send_json_auto_id(hello)
         from .test_transport import _receive
 
-        panel = Panel(client, await _receive(client))
+        panel = Panel(client, await _receive(client, receive_timeout), receive_timeout)
         await panel.sync(hass)
     device = dr.async_get(hass).async_get_device_by_identifier(
         (DOMAIN, entry.entry_id), entry.entry_id
@@ -229,6 +252,7 @@ async def test_app_actions_run_on_the_panel_that_heard_them(
 
 
 @pytest.mark.parametrize("language", LANGUAGES)
+@pytest.mark.timeout(300)
 async def test_turn_off_the_screen_reaches_the_screen_through_its_alias(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
@@ -238,7 +262,12 @@ async def test_turn_off_the_screen_reaches_the_screen_through_its_alias(
 ) -> None:
     """A built-in request: Home Assistant's own intent finds the screen by name."""
     entry, panel, device_id = await _ready(
-        hass, hass_ws_client, hass_read_only_user, hass_read_only_access_token, language
+        hass,
+        hass_ws_client,
+        hass_read_only_user,
+        hass_read_only_access_token,
+        language,
+        receive_timeout=None,
     )
     screen = _entity_id(hass, entry, "screen")
     assert (

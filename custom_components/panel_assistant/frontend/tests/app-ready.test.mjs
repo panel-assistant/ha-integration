@@ -12,10 +12,7 @@ const nonce = 'f'.repeat(32);
 const frame = (status, port = null) =>
   `HAPANELD_READY_BEGIN:${nonce}\n${port === null ? '' : `${port}\n`}HAPANELD_READY_END:${nonce}:${status}\n`;
 
-test('the app wait accepts either socket tool, retries only its port, and stops after one minute', t => {
-  const root = mkdtempSync(join(tmpdir(), 'app-ready-'));
-  t.after(() => rmSync(root, {recursive: true, force: true}));
-  let scenario = 0;
+test('the app wait accepts either socket tool, retries only its port, and stops after one minute', () => {
   for (const [tool, port, readyAt, expected, attempts] of [
     ['ss', 8888, 1, true, 1],
     ['netstat', 8888, 3, true, 3],
@@ -23,15 +20,16 @@ test('the app wait accepts either socket tool, retries only its port, and stops 
     ['netstat', 8889, 1, false, 30],
     ['ss', 8888, 31, false, 30],
   ]) {
-    // Execute the same shell program used by the USB ports. Only the panel's
-    // socket tools and clock are replaced; the loop, matching and framing run.
-    const state = join(root, String(scenario++));
+    // Execute the same shell program used by the USB ports. UID lookup is
+    // unavailable; socket tools and the clock are replaced. Matching and framing run.
+    // Advance a virtual clock on sleep; readiness never depends on host time.
     const result = spawnSync('/bin/sh', ['-c', `
 exec 3>&2
-attempt() { n=$(cat "${state}-$1" 2>/dev/null || echo 0); n=$((n+1)); echo "$n" > "${state}-$1"; }
-ss() { echo ss >&3; attempt ss; ${tool === 'ss' ? `if [ "$n" -ge ${readyAt} ]; then echo 'LISTEN 0 128 0.0.0.0:${port} 0.0.0.0:*'; fi` : ':'}; }
-netstat() { echo netstat >&3; attempt netstat; ${tool === 'netstat' ? `if [ "$n" -ge ${readyAt} ]; then echo 'tcp 0 0 0.0.0.0:${port} 0.0.0.0:* LISTEN'; fi` : ':'}; }
-sleep() { echo "sleep $*" >&2; }
+elapsed=0
+stat() { :; }; dumpsys() { :; }; sed() { :; }; head() { :; }
+ss() { echo ss >&3; ${tool === 'ss' ? `if [ "$elapsed" -ge ${(readyAt - 1) * 2} ]; then echo 'LISTEN 0 128 0.0.0.0:${port} 0.0.0.0:*'; fi` : ':'}; }
+netstat() { echo netstat >&3; ${tool === 'netstat' ? `if [ "$elapsed" -ge ${(readyAt - 1) * 2} ]; then echo 'tcp 0 0 0.0.0.0:${port} 0.0.0.0:* LISTEN'; fi` : ':'}; }
+sleep() { elapsed=$((elapsed+$1)); echo "sleep $*" >&2; }
 am() { echo mutation >&2; }; pm() { echo mutation >&2; }; kill() { echo mutation >&2; }
 rm() { echo mutation >&2; }; settings() { echo mutation >&2; }
 ${buildAppReady(nonce, PACKAGE_ID)}`], {encoding: 'utf8', timeout: 2000});
