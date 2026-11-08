@@ -741,6 +741,16 @@
           "native": "Nativ"
         }
       },
+      "presence": {
+        "name": "Anwesenheit",
+        "state": {
+          "automatic": "Automatisch",
+          "home_assistant": "Home Assistant-Gerät",
+          "manual": "Manuell (Einrichtungsassistent)",
+          "hybrid": "Hybrid",
+          "off": "Aus"
+        }
+      },
       "update_channel": {
         "name": "Kanal für automatische Panel Assistant-Updates",
         "state": {

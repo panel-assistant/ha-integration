@@ -741,6 +741,16 @@
           "swipe_reveal": "Tonen met veegbeweging"
         }
       },
+      "presence": {
+        "name": "Aanwezigheid",
+        "state": {
+          "automatic": "Automatisch",
+          "home_assistant": "Home Assistant-apparaat",
+          "manual": "Handmatig (instelwizard)",
+          "hybrid": "Hybride",
+          "off": "Uit"
+        }
+      },
       "update_channel": {
         "name": "Kanaal voor automatische Panel Assistant-updates",
         "state": {

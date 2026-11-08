@@ -741,6 +741,16 @@
           "native": "原生"
         }
       },
+      "presence": {
+        "name": "在场感应",
+        "state": {
+          "automatic": "自动",
+          "home_assistant": "Home Assistant 设备",
+          "manual": "手动（设置向导）",
+          "hybrid": "混合",
+          "off": "关闭"
+        }
+      },
       "update_channel": {
         "name": "Panel Assistant 自动更新渠道",
         "state": {

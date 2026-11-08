@@ -355,6 +355,16 @@
           "native": "Nativní"
         }
       },
+      "presence": {
+        "name": "Přítomnost",
+        "state": {
+          "automatic": "Automaticky",
+          "home_assistant": "Zařízení Home Assistant",
+          "manual": "Ručně (průvodce nastavením)",
+          "hybrid": "Hybridní",
+          "off": "Vypnuto"
+        }
+      },
       "update_channel": {
         "name": "Kanál automatických aktualizací Panel Assistant",
         "state": {

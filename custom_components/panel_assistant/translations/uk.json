@@ -741,6 +741,16 @@
           "swipe_reveal": "Показувати проведенням"
         }
       },
+      "presence": {
+        "name": "Присутність",
+        "state": {
+          "automatic": "Автоматично",
+          "home_assistant": "Пристрій Home Assistant",
+          "manual": "Вручну (майстер налаштування)",
+          "hybrid": "Гібридний",
+          "off": "Вимкнено"
+        }
+      },
       "update_channel": {
         "name": "Канал автооновлення Panel Assistant",
         "state": {

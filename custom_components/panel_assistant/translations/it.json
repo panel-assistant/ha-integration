@@ -741,6 +741,16 @@
           "native": "Nativa"
         }
       },
+      "presence": {
+        "name": "Presenza",
+        "state": {
+          "automatic": "Automatico",
+          "home_assistant": "Dispositivo Home Assistant",
+          "manual": "Manuale (procedura guidata di configurazione)",
+          "hybrid": "Ibrido",
+          "off": "Disattivato"
+        }
+      },
       "update_channel": {
         "name": "Canale di aggiornamento automatico di Panel Assistant",
         "state": {

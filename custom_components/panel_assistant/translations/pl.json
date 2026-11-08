@@ -741,6 +741,16 @@
           "swipe_reveal": "Pokaż po przesunięciu"
         }
       },
+      "presence": {
+        "name": "Obecność",
+        "state": {
+          "automatic": "Automatyczny",
+          "home_assistant": "Urządzenie Home Assistant",
+          "manual": "Ręczny (kreator konfiguracji)",
+          "hybrid": "Hybrydowy",
+          "off": "Wyłączony"
+        }
+      },
       "update_channel": {
         "name": "Kanał automatycznych aktualizacji Panel Assistant",
         "state": {
