@@ -58,6 +58,8 @@ for (const locale of ['en', 'de']) test(`a failed handoff from Home Assistant of
     assert.equal(node('step-error').hidden, false);
     assert.equal(node('error-text').textContent, ${JSON.stringify(FRONTEND_TRANSLATIONS[locale].installer.handoffFailure)});
     assert.equal(node('retry').textContent, ${JSON.stringify(FRONTEND_TRANSLATIONS[locale].installer.backToHa)});
+    // The installer's own pending timers (the 15 s slow-preparation notice) would otherwise hold the process open.
+    process.exit(0);
   `;
   execFileSync(process.execPath, ['--input-type=module', '-e', script], { stdio: 'pipe' });
 });
