@@ -53,7 +53,7 @@ async def _poll(hass: HomeAssistant, coordinator: Any, proximity: Any) -> None:
     [
         [],
         "ready",
-        {"state": "learning"},
+        {"state": "unknown"},
         {"state": "ready", "wake_ready": "yes"},
         {"wake_ready": True},
     ],
@@ -92,6 +92,18 @@ async def test_an_uncalibrated_sensor_raises_one_warning_until_it_is_calibrated(
     assert _issue(hass, entry) is None
 
 
+async def test_a_self_calibrating_sensor_clears_the_warning(
+    hass: HomeAssistant,
+) -> None:
+    entry, coordinator = _panel(hass)
+
+    await _poll(hass, coordinator, {"state": "calibration_required"})
+    assert _issue(hass, entry) is not None
+
+    await _poll(hass, coordinator, {"state": "learning", "wake_ready": False})
+    assert _issue(hass, entry) is None
+
+
 @pytest.mark.parametrize(
     "proximity",
     [
@@ -99,6 +111,7 @@ async def test_an_uncalibrated_sensor_raises_one_warning_until_it_is_calibrated(
         {"state": "ready", "wake_ready": True},
         {"state": "source_unavailable", "wake_ready": False},
         {"state": "calibrating"},
+        {"state": "learning", "wake_ready": False},
     ],
 )
 async def test_no_warning_without_a_sensor_that_needs_setup(
