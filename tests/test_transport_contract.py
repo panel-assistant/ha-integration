@@ -79,7 +79,7 @@ def test_android_producer_fixture_names_its_exact_source_revision() -> None:
                 Path(__file__).parent / "fixtures" / "android_producer_v1.json"
             ).read_bytes()
         ).hexdigest()
-        == "ad68a7e6fc515a523ad1cba968d5fa96dd1e073573cb4f14a5bbcf136504ac86"
+        == "fcddd42ad18913235636f93ed4828921f195e03e9f27a0820c3fb13ff7f60a2c"
     )
 
 

@@ -15,7 +15,7 @@ import shlex
 from contextlib import suppress
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any
+from typing import Any, Protocol
 
 from adb_shell.adb_device_async import AdbDeviceAsync
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
@@ -211,6 +211,13 @@ class LaunchOutcome(StrEnum):
     REFUSED = "refused"
 
 
+class LocalCommands(Protocol):
+    """Runs one typed helper command and returns its bounded reply fields."""
+
+    async def run(self, verb: str, args: tuple[str, ...] = ()) -> dict[str, str]:
+        """Return the reply fields, identity first; raise on any refusal."""
+
+
 @dataclass(frozen=True, slots=True)
 class AdbInstallTarget:
     """One pre-pinned private address and its previously observed identity."""
@@ -221,6 +228,10 @@ class AdbInstallTarget:
     primary_abi: str
     android_sdk: int
     local_shell: AdbDeviceAsync | None = field(default=None, repr=False, compare=False)
+    #: Typed helper commands on the same session, when the app offers them.
+    local_commands: LocalCommands | None = field(
+        default=None, repr=False, compare=False
+    )
 
 
 def same_physical_target(observed: Any, expected: Any) -> bool:
@@ -1191,10 +1202,15 @@ def _parse_identity(body: bytes, nonce: str, prefix: str) -> _ObservedTarget:
         if status_code != 0 or len(lines) != 1:
             raise _MalformedAdbResponse
         values[name] = lines[0]
-    model = values["MODEL"]
-    serial = values["SERIAL"]
-    primary_abi = values["ABI"]
-    sdk = values["SDK"]
+    return _observed_target(
+        values["MODEL"], values["SERIAL"], values["ABI"], values["SDK"]
+    )
+
+
+def _observed_target(
+    model: str, serial: str, primary_abi: str, sdk: str
+) -> _ObservedTarget:
+    """Bound one identity reading, from a framed shell or a typed reply alike."""
     if (
         model != model.strip()
         or not 1 <= len(model) <= 128

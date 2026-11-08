@@ -16,11 +16,12 @@ from homeassistant.const import CONF_ADDRESS
 
 from . import adb_protocol as adb
 from . import local_adb
+from . import local_commands as typed
 from .adb_credentials import AdbCredentialError, async_get_durable_adb_credential
 from .app_identity import EQUIVALENT_HOME_COMPONENTS, LAUNCH_COMPONENTS
 from .client import CannotConnectError, HaPaneldError
 from .home_chooser import HOME_QUERY
-from .install_adb import _async_target_section
+from .install_adb import _async_target_section, _async_typed_section
 from .install_jobs import async_get_install_job_manager
 from .install_network import (
     InstallNetworkError,
@@ -105,6 +106,24 @@ def _read(lines: list[str]) -> tuple[str, float, str, int, bool]:
     if len(stopped) != 1:
         raise ValueError("unknown stopped state")
     return lines[0], uptime, lines[2], pid, stopped[0] == "true"
+
+
+def _read_fields(fields: dict[str, str]) -> tuple[str, float, str, int, bool]:
+    """The typed recovery observation, bounded like ``_read``."""
+    try:
+        boot, uptime_text, home = fields["boot_id"], fields["uptime"], fields["home"]
+        pid_text, stopped = fields["vendor_pid"], fields["stopped"]
+    except KeyError:
+        raise ValueError("incomplete vendor observation") from None
+    if str(UUID(boot)) != boot:
+        raise ValueError("incomplete vendor observation")
+    if not re.fullmatch(r"\d+\.\d+", uptime_text) or float(uptime_text) <= 0:
+        raise ValueError("invalid uptime")
+    if not re.fullmatch(r"\d+", pid_text):
+        raise ValueError("ambiguous vendor process")
+    if stopped not in ("true", "false"):
+        raise ValueError("unknown stopped state")
+    return boot, float(uptime_text), home, int(pid_text), stopped == "true"
 
 
 def _vendor_stop(lines: list[str], witness: _Witness, now: float) -> str | None:
@@ -263,13 +282,20 @@ class VendorRecovery:
                         or target is None
                     ):
                         return
-                lines = await _async_target_section(
-                    target,
-                    credential.signer,
-                    lambda nonce: _observation(nonce, context.package),
-                    "RECOVERY",
-                )
-                boot, uptime, home, vendor_pid, stopped = _read(lines)
+                if target.local_commands is not None:
+                    boot, uptime, home, vendor_pid, stopped = _read_fields(
+                        await _async_typed_section(
+                            target, typed.VERB_OBSERVE, "recovery"
+                        )
+                    )
+                else:
+                    lines = await _async_target_section(
+                        target,
+                        credential.signer,
+                        lambda nonce: _observation(nonce, context.package),
+                        "RECOVERY",
+                    )
+                    boot, uptime, home, vendor_pid, stopped = _read(lines)
                 homes = {
                     home
                     for launch in LAUNCH_COMPONENTS[context.package]
@@ -289,7 +315,8 @@ class VendorRecovery:
                 ):
                     self._witness = _Witness(
                         context,
-                        replace(target, local_shell=None),
+                        # Recovery itself runs over network ADB only.
+                        replace(target, local_shell=None, local_commands=None),
                         credential.generation_id,
                         boot,
                         uptime,

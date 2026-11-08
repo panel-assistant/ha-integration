@@ -162,6 +162,9 @@ class PanelSession:
     local_adb_deferred: bool = False
     # A nonce-framed local read proved the recovery route and physical identity.
     local_adb_identity: tuple[str, str, str, int] | None = None
+    # The app answered ``unknown_command`` to a typed helper command: this
+    # session uses shell text from then on. ``expired`` never sets it.
+    local_adb_commands_disabled: bool = False
 
     def count(self, name: str) -> None:
         """Count one command fact for diagnostics."""

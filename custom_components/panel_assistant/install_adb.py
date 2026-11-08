@@ -37,6 +37,7 @@ from adb_shell.exceptions import (
     TcpTimeoutException,
 )
 
+from . import local_commands as typed
 from .adb_protocol import (
     _ABI_PATTERN,
     _ADB_EXCEPTIONS,
@@ -45,6 +46,7 @@ from .adb_protocol import (
     _RESIDUE_PROBES,
     _ROOT_DATA_BASES,
     _SERIAL_PATTERN,
+    _SERVICE_COMPONENT,
     _SU_PREFIXES,
     _SU_TIMEOUT_SECONDS,
     _TRANSPORT_TIMEOUT_SECONDS,
@@ -85,6 +87,7 @@ from .adb_protocol import (
     _parse_status,
     _path_state_command,
     _permission_grant_command,
+    _PermissionGrant,
     _preflight_command,
     _remote_artifact_command,
     _su_attempt_command,
@@ -502,13 +505,26 @@ async def _async_prove_su(
     )
 
 
-async def _async_require_identity_root(
-    device: AdbDeviceAsync,
-    target: AdbInstallTarget,
-    expected_root_mode: AdbRootMode,
-) -> None:
+async def _async_typed(
+    target: AdbInstallTarget, verb: str, *args: str
+) -> dict[str, str]:
+    """Run one typed command and pin its reply to the proved panel."""
+    if target.local_commands is None:
+        raise InstallAdbError(InstallAdbErrorCode.INVALID_REQUEST)
+    fields = await target.local_commands.run(verb, args)
+    typed.require_target(fields, target)
+    return fields
+
+
+async def _async_identity_root(
+    device: AdbDeviceAsync, target: AdbInstallTarget
+) -> AdbRootMode:
+    """Prove the panel's identity and read its posture, typed or by shell."""
+    if target.local_commands is not None:
+        fields = await target.local_commands.run(typed.VERB_IDENTITY)
+        return typed.require_target(fields, target)
     nonce = token_hex(16)
-    observed_root_mode = _parse_identity_root(
+    return _parse_identity_root(
         await _async_shell(
             device,
             _identity_root_command(nonce),
@@ -517,6 +533,27 @@ async def _async_require_identity_root(
         nonce,
         target,
     )
+
+
+async def _async_typed_section(
+    target: AdbInstallTarget, verb: str, *args: str
+) -> dict[str, str]:
+    """A typed read-only or restore command, with the shell section's errors."""
+    _validate_target(target)
+    try:
+        return await _async_typed(target, verb, *args)
+    except InstallAdbError:
+        raise
+    except TimeoutError, _MalformedAdbResponse:
+        raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE) from None
+
+
+async def _async_require_identity_root(
+    device: AdbDeviceAsync,
+    target: AdbInstallTarget,
+    expected_root_mode: AdbRootMode,
+) -> None:
+    observed_root_mode = await _async_identity_root(device, target)
     _require_expected_root_mode(observed_root_mode, expected_root_mode)
     if observed_root_mode is AdbRootMode.ROOT_SU:
         await _async_prove_su(device, admitted=None)
@@ -1157,6 +1194,10 @@ async def _async_repair_app_permissions(
 
     Returns what the HOME claim did (``home_chooser.CHOOSER_OUTCOMES``).
     """
+    if target.local_commands is not None:
+        return await _async_repair_typed(
+            device, target, package_id, launch_component, deferred_setup
+        )
     nonce = token_hex(16)
     _parse_package_present(
         await _async_shell(
@@ -1178,12 +1219,7 @@ async def _async_repair_app_permissions(
             ),
             nonce,
         ):
-            _LOGGER.warning(
-                "The panel did not grant %s the notification permission. "
-                "The app runs without it; allow it on the panel in Android "
-                "Settings, under the app's Notifications",
-                package_id,
-            )
+            _warn_notifications(package_id)
     # The same rule as notifications: a refusal is reported, never fatal.
     nonce = token_hex(16)
     grant = _parse_permission_grant(
@@ -1198,6 +1234,55 @@ async def _async_repair_app_permissions(
         nonce,
         launch_component,
     )
+    return await _async_finish_grant(device, target, package_id, grant, deferred_setup)
+
+
+def _warn_notifications(package_id: str) -> None:
+    _LOGGER.warning(
+        "The panel did not grant %s the notification permission. "
+        "The app runs without it; allow it on the panel in Android "
+        "Settings, under the app's Notifications",
+        package_id,
+    )
+
+
+async def _async_repair_typed(
+    device: AdbDeviceAsync,
+    target: AdbInstallTarget,
+    package_id: str,
+    launch_component: str,
+    deferred_setup: bool,
+) -> str | None:
+    """REPAIR then HOME, read back as the one grant the shell program prints."""
+    launch = typed.launch_index(package_id, launch_component)
+    # The helper re-checks whether the build asks for secure settings.
+    repair = await _async_typed(target, typed.VERB_REPAIR, launch, "1")
+    if target.android_sdk >= _NOTIFICATIONS_RUNTIME_SDK and (
+        not typed.notifications_granted(repair)
+    ):
+        _warn_notifications(package_id)
+    try:
+        home = await _async_typed(
+            target, typed.VERB_HOME, launch, "deferred" if deferred_setup else "repair"
+        )
+    except typed.LocalCommandRefused as err:
+        if err.refusal != "busy":
+            raise
+        # Another process holds the /system HOME lock: the shell claim's
+        # flock failed then too, left the chooser deferred and went on.
+        home = {"policy": "none", "chooser": "deferred", "home": "unknown"}
+    grant = typed.permission_grant_from_fields(repair, home, launch_component)
+    return await _async_finish_grant(device, target, package_id, grant, deferred_setup)
+
+
+async def _async_finish_grant(
+    device: AdbDeviceAsync,
+    target: AdbInstallTarget,
+    package_id: str,
+    grant: _PermissionGrant,
+    deferred_setup: bool,
+) -> str | None:
+    """Report a grant readback and finish vendor setup, on either route."""
     if not grant.home and grant.chooser not in ("deferred", "retained"):
         _LOGGER.warning(
             "The panel did not make %s its home screen (%s). It still runs; "
@@ -1210,7 +1295,7 @@ async def _async_repair_app_permissions(
         and grant.chooser != "deferred"
         and (not deferred_setup or grant.home)
     ):
-        await _async_vendor_setup(device)
+        await _async_vendor_setup(device, target)
     if not grant.granted:
         _LOGGER.warning(
             "The panel did not grant %s every permission it needs "
@@ -1228,9 +1313,19 @@ async def _async_repair_app_permissions(
 
 
 async def _async_vendor_setup(
-    device: AdbDeviceAsync,
+    device: AdbDeviceAsync, target: AdbInstallTarget | None = None
 ) -> VendorSetup | ShellySetup | None:
-    """Apply a vendor's setup; a refusal is reported, never fatal."""
+    """Apply a vendor's setup; a refusal is reported, never fatal.
+
+    The typed route reports convergence only, so it returns None.
+    """
+    if target is not None and target.local_commands is not None:
+        warning = typed.vendor_setup_warning(
+            await _async_typed(target, typed.VERB_VENDOR, "setup")
+        )
+        if warning is not None:
+            _LOGGER.warning(warning)
+        return None
     nonce = token_hex(16)
     body = await _async_shell(
         device, vendor_setup_command(nonce), read_timeout=_READ_TIMEOUT_SECONDS
@@ -1264,16 +1359,7 @@ async def _async_target_section(
             None if target.local_shell is not None else _LAUNCH_TIMEOUT_SECONDS
         ):
             device = await _async_connect(target, signer, authorize=False)
-            nonce = token_hex(16)
-            _parse_identity_root(
-                await _async_shell(
-                    device,
-                    _identity_root_command(nonce),
-                    read_timeout=_READ_TIMEOUT_SECONDS,
-                ),
-                nonce,
-                target,
-            )
+            await _async_identity_root(device, target)
             nonce = token_hex(16)
             lines, status = _parse_single_section(
                 await _async_shell(
@@ -1321,6 +1407,10 @@ async def async_restore_display_sizing(
 
     Returns ``restored``, ``unrestored`` or ``none`` (nothing was changed).
     """
+    if target.local_commands is not None:
+        return typed.restore_from_fields(
+            await _async_typed_section(target, typed.VERB_RESTORE, "display")
+        )
     lines = await _async_target_section(
         target, signer, display_restore_command, "DISPLAY_RESTORE"
     )
@@ -1391,6 +1481,10 @@ async def async_restore_vendor_setup(
 
     Returns ``restored``, ``unrestored`` or ``none`` (nothing was changed).
     """
+    if target.local_commands is not None:
+        return typed.restore_from_fields(
+            await _async_typed_section(target, typed.VERB_RESTORE, "vendor")
+        )
     lines = await _async_target_section(
         target, signer, vendor_restore_command, "VENDOR_RESTORE"
     )
@@ -1719,6 +1813,31 @@ def _parse_move(body: bytes, nonce: str) -> MoveObservation:
     )
 
 
+def _fields_to_move(fields: dict[str, str], *, handback: bool) -> MoveObservation:
+    """The typed observation, read by the shell observation's rules."""
+    states = [fields.get(key) for key in ("legacy", "new", "shelly")]
+    home = fields.get("home")
+    firmware = fields.get("firmware")
+    if (
+        any(state not in ("installed", "absent") for state in states)
+        or home is None
+        or firmware is None
+        or (handback and fields.get("handed") != "1")
+    ):
+        raise _MalformedAdbResponse
+    package, slash, _activity = home.partition("/")
+    component = _SERVICE_COMPONENT.fullmatch(home) is not None
+    return MoveObservation(
+        shelly_installed=states[2] == "installed",
+        legacy_installed=states[0] == "installed",
+        successor_installed=states[1] == "installed",
+        # The system chooser and an empty answer are not a HOME.
+        home=package if component and slash and package != "android" else None,
+        # The helper answers ``unknown`` for a value it could not read.
+        firmware=None if firmware == "unknown" else _firmware(firmware),
+    )
+
+
 def _firmware(value: str) -> str | None:
     """Keep a firmware number a help page could match, and nothing else."""
     value = value.strip()
@@ -1746,6 +1865,21 @@ async def async_move_step(
         async with asyncio.timeout(
             None if target.local_shell is not None else _INSTALL_TIMEOUT_SECONDS
         ):
+            if target.local_commands is not None and step is not MoveStep.REMOVE_APP:
+                # Removal itself always runs over network ADB (``removal``).
+                mutation_started = step is not MoveStep.OBSERVE
+                if step is MoveStep.OBSERVE:
+                    fields = await _async_typed(target, typed.VERB_OBSERVE, "move")
+                elif step is MoveStep.VENDOR_HOME:
+                    fields = await _async_typed(target, typed.VERB_HANDBACK, "vendor")
+                else:
+                    fields = await _async_typed(
+                        target,
+                        typed.VERB_HANDBACK,
+                        "component",
+                        str(home_target),
+                    )
+                return _fields_to_move(fields, handback=mutation_started)
             device = await _async_connect(target, signer)
             # Every connection proves the device at the address is the one the
             # removal started on before any command can change it.

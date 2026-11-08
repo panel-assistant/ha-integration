@@ -8,6 +8,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from secrets import token_hex
 from time import monotonic
+from typing import Any
 
 from adb_shell.adb_device_async import AdbDeviceAsync
 from homeassistant.config_entries import ConfigEntry
@@ -82,6 +83,50 @@ def _webview_done(status: PanelStatus) -> bool:
     """
     webview = status.webview
     return webview is not None and webview.settled
+
+
+async def _async_admin_claim(
+    device: AdbDeviceAsync, target: Any, package: str
+) -> tuple[bool, str]:
+    """Claim the device admin if absent; return its readback and the HOME seen.
+
+    Only a successful, matching readback proves the admin, on either route.
+    """
+    from . import adb_protocol as adb
+    from . import local_commands as typed
+    from .app_identity import DEVICE_ADMIN_RECEIVER
+    from .home_chooser import HOME_QUERY
+    from .install_adb import _async_typed
+
+    if target.local_commands is not None:
+        return typed.admin_from_fields(await _async_typed(target, typed.VERB_ADMIN))
+    listed = f"{package}/{DEVICE_ADMIN_RECEIVER.removeprefix(package)}:"
+
+    def command(nonce: str) -> str:
+        return "; ".join(
+            (
+                f"echo HAPANELD_ADMIN_BEGIN:{nonce}",
+                adb.device_admin_claim_command(package),
+                # Only a successful, matching readback proves admin.
+                "policy=$(dumpsys device_policy 2>/dev/null); result=$?",
+                f'case "$result:$policy" in 0:*"{listed}"*) echo active ;; '
+                "*) echo unknown ;; esac",
+                f'echo "home:$({HOME_QUERY})"',
+                f"echo HAPANELD_ADMIN_END:{nonce}:0",
+            )
+        )
+
+    nonce = token_hex(16)
+    lines, status = adb._parse_single_section(
+        await adb._async_shell(
+            device, command(nonce), read_timeout=adb._READ_TIMEOUT_SECONDS
+        ),
+        prefix="ADMIN",
+        nonce=nonce,
+    )
+    if status != 0 or len(lines) != 2:
+        return False, ""
+    return lines[0] == "active", lines[1].removeprefix("home:")
 
 
 @dataclass(frozen=True, slots=True)
@@ -358,12 +403,14 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             async_get_durable_adb_credential,
         )
         from .app_identity import (
-            DEVICE_ADMIN_RECEIVER,
             EQUIVALENT_HOME_COMPONENTS,
             LAUNCH_COMPONENTS,
         )
-        from .home_chooser import HOME_QUERY
-        from .install_adb import _async_repair_app_permissions, _async_vendor_setup
+        from .install_adb import (
+            _async_identity_root,
+            _async_repair_app_permissions,
+            _async_vendor_setup,
+        )
         from .install_jobs import async_get_install_job_manager
         from .install_network import (
             InstallNetworkError,
@@ -470,16 +517,10 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                 if self._entry() is not entry or entry.data[CONF_ADDRESS] != address:
                     return
                 device = await adb._async_connect(target, signer, authorize=False)
-                nonce = token_hex(16)
-                self._admin_root = adb._parse_identity_root(
-                    await adb._async_shell(
-                        device,
-                        adb._identity_root_command(nonce),
-                        read_timeout=adb._READ_TIMEOUT_SECONDS,
-                    ),
-                    nonce,
-                    target,
-                ) in (adb.AdbRootMode.ROOT_ADBD, adb.AdbRootMode.ROOT_SU)
+                self._admin_root = await _async_identity_root(device, target) in (
+                    adb.AdbRootMode.ROOT_ADBD,
+                    adb.AdbRootMode.ROOT_SU,
+                )
                 if health.home_pending:
                     # Only initial setup's durable pending intent permits a HOME
                     # takeover here. Explicit handback clears it, across HA reloads.
@@ -490,47 +531,19 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                         LAUNCH_COMPONENTS[package][-1],
                         deferred_setup=True,
                     )
-                listed = f"{package}/{DEVICE_ADMIN_RECEIVER.removeprefix(package)}:"
-
-                def command(nonce: str) -> str:
-                    return "; ".join(
-                        (
-                            f"echo HAPANELD_ADMIN_BEGIN:{nonce}",
-                            adb.device_admin_claim_command(package),
-                            # Only a successful, matching readback proves admin.
-                            "policy=$(dumpsys device_policy 2>/dev/null); result=$?",
-                            f'case "$result:$policy" in 0:*"{listed}"*) echo active ;; '
-                            "*) echo unknown ;; esac",
-                            f'echo "home:$({HOME_QUERY})"',
-                            f"echo HAPANELD_ADMIN_END:{nonce}:0",
-                        )
-                    )
-
-                nonce = token_hex(16)
-                lines, status = adb._parse_single_section(
-                    await adb._async_shell(
-                        device, command(nonce), read_timeout=adb._READ_TIMEOUT_SECONDS
-                    ),
-                    prefix="ADMIN",
-                    nonce=nonce,
-                )
-                self._admin_done = (
-                    status == 0 and len(lines) == 2 and lines[0] == "active"
+                self._admin_done, home = await _async_admin_claim(
+                    device, target, package
                 )
                 own_homes = {
                     home
                     for launch in LAUNCH_COMPONENTS[package]
                     for home in EQUIVALENT_HOME_COMPONENTS[launch]
                 }
-                if (
-                    self._admin_done
-                    and not health.home_pending
-                    and lines[1].removeprefix("home:") in own_homes
-                ):
+                if self._admin_done and not health.home_pending and home in own_homes:
                     # Native completion can finish HOME before this poll. Finish
                     # vendor commissioning only while the app still owns HOME;
                     # a deliberate handback must never be undone by HA reload.
-                    await _async_vendor_setup(device)
+                    await _async_vendor_setup(device, target)
         except (
             AdbCredentialError,
             InstallNetworkError,

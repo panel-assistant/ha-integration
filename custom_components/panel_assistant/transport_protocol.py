@@ -49,6 +49,10 @@ CAPABILITY_VOICE_STREAM_SESSION: Final = "voice_stream_session"
 # without it is read and written over HTTP.
 CAPABILITY_MANAGEMENT: Final = "management"
 CAPABILITY_LOCAL_ADB: Final = "local_adb"
+# A panel that offers this, with ``local_adb``, answers ``adb.cmd``: fixed,
+# typed helper commands in place of the shell programs ``adb.shell`` carries.
+# Granted only together with ``local_adb``.
+CAPABILITY_LOCAL_ADB_COMMANDS: Final = "local_adb_commands_v1"
 # A panel that offers this answers ``subscribe`` with ``ui_update`` requests,
 # which Panel Assistant forwards to the sidebar that subscribed (see
 # ``ui_relay.py``).
@@ -73,6 +77,7 @@ KNOWN_CAPABILITIES: Final = frozenset(
         CAPABILITY_VOICE_STREAM_SESSION,
         CAPABILITY_MANAGEMENT,
         CAPABILITY_LOCAL_ADB,
+        CAPABILITY_LOCAL_ADB_COMMANDS,
         CAPABILITY_UI_SUBSCRIBE,
         CAPABILITY_UI_BUNDLE,
         CAPABILITY_UNKNOWN_STATE,

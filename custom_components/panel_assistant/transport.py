@@ -75,6 +75,7 @@ from .transport_binding import (
 )
 from .transport_protocol import (
     _VALUE_VALIDATORS,
+    CAPABILITY_LOCAL_ADB_COMMANDS,
     CAPABILITY_VOICE_STREAM_SESSION,
     COMMAND_RESULT_SCHEMA,
     ERR_ENTRY_REMOVED,
@@ -498,6 +499,9 @@ def _accept_hello(
     capabilities = KNOWN_CAPABILITIES.intersection(offered)
     if "management" not in capabilities or not local_adb_allowed:
         capabilities -= {"local_adb"}
+    if "local_adb" not in capabilities:
+        # Typed helper commands travel only on the local channel itself.
+        capabilities -= {CAPABILITY_LOCAL_ADB_COMMANDS}
     voice_stream = async_get_voice_stream(hass)
     stream_client_id = (msg.get("voice_stream_session") or {}).get("client_id")
     if stream_client_id is None or voice_stream is None:
