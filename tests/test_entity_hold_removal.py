@@ -1,13 +1,19 @@
 """A refresh finishing after entry removal must not leave a panel Repair."""
 
 import asyncio
+from datetime import timedelta
 from typing import Any
 from unittest.mock import patch
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.util import dt as dt_util
 
 from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.repairs_entity_hold import (
+    DATA_UNFILTERED_SINCE,
+    UNFILTERED_REPAIR_AFTER,
+)
 from custom_components.panel_assistant.repairs_failure import (
     _failure_store,
     async_record_update_failure,
@@ -49,6 +55,11 @@ async def test_native_refresh_finishing_after_removal_leaves_no_repair(
                 "entity_hold": "learning",
                 "entity_hold_age_ms": 95_000,
             }
+            # Unfiltered long enough that this poll would raise the Repair, so
+            # only the removed-entry check can keep it from being created.
+            hass.data.setdefault(DOMAIN, {}).setdefault(DATA_UNFILTERED_SINCE, {})[
+                entry.entry_id
+            ] = dt_util.utcnow() - UNFILTERED_REPAIR_AFTER - timedelta(minutes=1)
             store = _failure_store(hass)
             saving = asyncio.Event()
             release_save = asyncio.Event()
