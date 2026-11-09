@@ -105,9 +105,9 @@ async def test_explicit_retry_recovers_uncertain_receipt(
             if receipt == "downloading" and reads > 1:
                 return observation("installed", eligible=False)
             return observation(receipt, eligible=not provider_current)
-        request_ids.append(fields["request_id"])
-        assert fields["request_id"] != "prior"
-        assert fields["artifact_sha256"] == "c" * 64
+        request_ids.append(fields["args"]["request_id"])
+        assert fields["args"]["request_id"] != "prior"
+        assert fields["args"]["artifact_sha256"] == "c" * 64
         return observation("installed", eligible=False)
 
     service = AsyncMock()

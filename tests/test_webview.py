@@ -230,7 +230,7 @@ async def test_combined_repair_retries_provider_without_reinstalling_current_app
             if compatibility == "legacy":
                 raise InvalidResponseError
             return observation(receipt)
-        assert fields["artifact_sha256"] == "c" * 64
+        assert fields["args"]["artifact_sha256"] == "c" * 64
         if compatibility == "unpublished":
             # The WebView files are not published yet: the app update is done.
             document = observation("deferred")
@@ -319,7 +319,7 @@ async def test_bundle_observes_one_submission_through_reconnect_and_binding_reti
         nonlocal reads
         operations.append(op)
         if op == "webview.install":
-            assert fields["artifact_sha256"] == "c" * 64
+            assert fields["args"]["artifact_sha256"] == "c" * 64
             return observation("installing")
         reads += 1
         if reads == 1:

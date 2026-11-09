@@ -296,14 +296,23 @@ async def test_poll_with_no_webview_candidate_clears_an_interrupted_update(
 async def test_poll_unsure_how_a_webview_install_ended_keeps_the_update_report(
     hass: HomeAssistant,
 ) -> None:
-    """A lost answer leaves the WebView outcome unknown, even with no candidate left."""
-    document = observation("submitted_unknown", eligible=False)
-    document.update(reason="no_candidate", candidate=None)
+    """A lost answer leaves the WebView outcome unknown while the panel can act."""
+    document = observation("submitted_unknown")
     issue_id = await _poll(hass, document, pending=True)
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
     # The report still names the build the update was sent to install.
     events = await async_failure_events(hass, issue_id)
     assert events and events[0].get("target_version") == HEALTH.version
+
+
+async def test_poll_clears_an_unsure_webview_the_panel_no_longer_offers(
+    hass: HomeAssistant,
+) -> None:
+    """With its pin retired the panel refuses any attempt: no Repair is left."""
+    document = observation("submitted_unknown", eligible=False)
+    document.update(reason="no_candidate", candidate=None)
+    issue_id = await _poll(hass, document, pending=True)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
 
 
 async def test_running_webview_install_after_setup_raises_no_repair(
@@ -489,7 +498,7 @@ async def test_app_updated_first_is_offered_the_webview_alone(
     sent: list[tuple[str, Any]] = []
 
     async def manage(_hass: Any, _session: Any, operation: str, **fields: Any) -> Any:
-        sent.append((operation, fields.get("artifact_sha256")))
+        sent.append((operation, fields.get("args", {}).get("artifact_sha256")))
         if operation == "webview.observe":
             return observation()
         return observation("installed", eligible=False)

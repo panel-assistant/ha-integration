@@ -32,15 +32,23 @@ class WebViewStatus:
     request_id: str | None
 
     @property
+    def refused(self) -> bool:
+        """The panel will not start this WebView update now, whatever its owner retries.
+
+        Already current, not enough storage, no install route, an unsupported
+        provider: a stale unfinished transaction no longer needs the owner,
+        because a Retry could only be refused again.
+        """
+        return (
+            not self.eligible
+            and self.reason is not None
+            and self.transaction_state not in ACTIVE_STATES
+        )
+
+    @property
     def needs_attention(self) -> bool:
         """A known candidate or deferred operation needs its owner's attention."""
-        if self.reason == "current" and self.transaction_state in (
-            None,
-            "installed",
-            "deferred",
-            "rejected",
-            "submitted_unknown",
-        ):
+        if self.refused:
             return False
         return (
             self.supported
@@ -65,10 +73,7 @@ class WebViewStatus:
         """No WebView work is running or left for the owner to finish."""
         return (
             self.transaction_state not in ACTIVE_STATES
-            and (
-                self.transaction_state != "submitted_unknown"
-                or (self.reason == "current" and self.candidate_sha256 is not None)
-            )
+            and (self.transaction_state != "submitted_unknown" or self.refused)
             and (not self.needs_attention or self.download_unpublished)
         )
 
