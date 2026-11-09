@@ -189,8 +189,11 @@ async def async_update_webview(
                         hass,
                         current,
                         "webview.install",
-                        request_id=f"pa-update-{token_hex(16)}",
-                        artifact_sha256=status.candidate_sha256,
+                        # The panel reads a request's arguments only from args.
+                        args={
+                            "request_id": f"pa-update-{token_hex(16)}",
+                            "artifact_sha256": status.candidate_sha256,
+                        },
                     )
                 )
                 session()
@@ -220,16 +223,18 @@ async def async_update_webview(
                     status.candidate_sha256,
                 )
                 return "webview_download_deferred"
-            return (
-                "webview_deferred"
-                if status.transaction_state == "submitted_unknown"
-                or status.needs_attention
-                else None
-            )
+            return None if status.settled else "webview_deferred"
     except Exception as err:
         # An accepted request may have lost its answer. The durable panel record
         # owns the outcome; a later explicit retry observes before resubmitting.
         # With no WebView work on the panel, or once this panel left the entry,
         # nothing is pending that the entry still owns.
         retired = isinstance(err, ValueError) and str(err) == "panel_unavailable"
-        return "webview_deferred" if pending and not retired else "webview_unavailable"
+        if pending and not retired:
+            _LOGGER.warning(
+                "%s did not finish its WebView update: %s",
+                entry.title,
+                repr(err),
+            )
+            return "webview_deferred"
+        return "webview_unavailable"

@@ -146,7 +146,7 @@ async def test_owner_app_update_retains_and_finishes_successor_provider_bundle(
                 )
             return document
         submitted = True
-        assert fields["artifact_sha256"] == "c" * 64
+        assert fields["args"]["artifact_sha256"] == "c" * 64
         if outcome == "cancel_provider":
             raise asyncio.CancelledError
         return observation(outcome, eligible=outcome != "installed")

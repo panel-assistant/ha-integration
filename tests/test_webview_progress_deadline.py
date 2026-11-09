@@ -62,7 +62,7 @@ async def test_update_waits_for_active_webview_but_bounds_lost_contact(
     async def manage(_hass: Any, _session: Any, op: str, **fields: Any) -> Any:
         operations.append(op)
         if op == "webview.install":
-            assert fields["artifact_sha256"] == "c" * 64
+            assert fields["args"]["artifact_sha256"] == "c" * 64
             return observation("downloading")
         if len(operations) == 1:
             return observation()

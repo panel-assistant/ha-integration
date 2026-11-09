@@ -77,7 +77,6 @@ async def _retry(
                 "eligible",
                 "could not be confirmed",
             ),
-            ("deferred", "interrupted", "no_install_route", "no permitted route"),
         ]
     ]
     + [
@@ -213,7 +212,7 @@ async def test_terminal_webview_repair_explains_the_next_action_and_keeps_retry_
         report = (await response.json())["description_placeholders"]["report"]
         assert "events[2].webview.transaction_reason: install_refused" in report
 
-        if route == "no_install_route":
+        if reason == "install_unavailable":
             # A safety hold can replace the issue under a still-open WebView
             # dialog; it still needs every placeholder and must not install.
             open_menu = await open_repair(client)

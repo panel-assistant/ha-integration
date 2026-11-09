@@ -489,7 +489,7 @@ async def test_app_updated_first_is_offered_the_webview_alone(
     sent: list[tuple[str, Any]] = []
 
     async def manage(_hass: Any, _session: Any, operation: str, **fields: Any) -> Any:
-        sent.append((operation, fields.get("artifact_sha256")))
+        sent.append((operation, fields.get("args", {}).get("artifact_sha256")))
         if operation == "webview.observe":
             return observation()
         return observation("installed", eligible=False)
