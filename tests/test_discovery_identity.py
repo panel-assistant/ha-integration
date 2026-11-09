@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from homeassistant import config_entries
 from homeassistant.const import CONF_ADDRESS
+from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
@@ -636,3 +637,38 @@ async def test_discovery_updates_the_verified_port_even_while_old_port_answers(
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "already_configured"
     assert entry.data[CONF_ADDRESS] == f"{_NEW}:9999"
+
+
+async def test_zeroconf_offers_a_dual_stack_panel_by_its_ipv4_address(
+    hass: HomeAssistant,
+) -> None:
+    """Core can pick the IPv6 address; the card offers the panel's IPv4 one."""
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=DISCOVERY_HEALTH),
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_status",
+            AsyncMock(side_effect=CannotConnectError),
+        ),
+    ):
+        form = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_ZEROCONF},
+            data=_zeroconf_info(
+                host="fd00:5041::10",
+                ip_addresses=["fd00:5041::10", "192.168.1.23"],
+                friendly_name="Kitchen",
+            ),
+        )
+        assert form["description_placeholders"] == {
+            "address": "192.168.1.23",
+            "panel_name": "Kitchen",
+        }
+
+        result = await hass.config_entries.flow.async_configure(form["flow_id"], {})
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["title"] == "Kitchen"
+    assert result["data"] == {CONF_ADDRESS: "192.168.1.23"}
