@@ -26,7 +26,7 @@ from custom_components.panel_assistant import (
 )
 from custom_components.panel_assistant.adb_protocol import AdbInstallTarget, AdbRootMode
 from custom_components.panel_assistant.app_identity import HOME_COMPONENTS, PACKAGE_ID
-from custom_components.panel_assistant.client import PanelSetupState
+from custom_components.panel_assistant.client import CannotConnectError, PanelSetupState
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.install_executor import (
     FinalizationOutcome,
@@ -70,18 +70,28 @@ class _AppPanel(_RoutingFakeDevice):
 
 
 def _app_panel(
-    monkeypatch: pytest.MonkeyPatch, state: Path, *, setup_complete: bool
+    monkeypatch: pytest.MonkeyPatch,
+    state: Path,
+    *,
+    setup_complete: bool,
+    vendor_in_front: bool = False,
 ) -> Harness:
-    """Run the real launch over ADB, and answer status as the app does."""
+    """Run the real launch over ADB, and answer status as the app does.
+
+    ``vendor_in_front`` keeps the vendor launcher over the app, as a stock
+    panel can: the setup screen is never in front, whatever is asked.
+    """
     if not setup_complete:
         (state / "incomplete.setup").touch()
     harness = Harness(monkeypatch)
     harness.setup_state = PanelSetupState(complete=setup_complete)
-    monkeypatch.setattr(
-        install_executor,
-        "async_start_installed_app",
-        install_adb.async_start_installed_app,
-    )
+    harness.app_launches = []
+
+    async def start(*args: Any, **kwargs: Any) -> Any:
+        harness.app_launches.append(kwargs.get("previous_home_job_id"))
+        return await install_adb.async_start_installed_app(*args, **kwargs)
+
+    monkeypatch.setattr(install_executor, "async_start_installed_app", start)
     monkeypatch.setattr(
         adb_protocol, "AdbDeviceAsync", lambda *_args, **_kwargs: _AppPanel(state)
     )
@@ -102,7 +112,13 @@ def _app_panel(
             home = state / "home"
             owned = home.exists() and home.read_text().startswith(f"{PACKAGE_ID}/")
             incomplete = (state / "incomplete.setup").exists()
-            if owned or (setup_foreground and incomplete):
+            if vendor_in_front:
+                home_ui = {
+                    "state": "blocked",
+                    "reason": "dashboard_background",
+                    "evidence": "foreground",
+                }
+            elif owned or (setup_foreground and incomplete):
                 home_ui = {
                     "state": "setup" if incomplete else "ready",
                     "reason": "activity",
@@ -325,3 +341,86 @@ async def test_no_other_home_claim_outcome_relaxes_the_proof(
     assert harness.setup_foreground_requests == [False] * (
         install_executor._HEALTH_ATTEMPTS
     )
+
+
+async def test_a_deferred_claim_behind_the_vendor_launcher_installs_with_setup_left(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A stock panel whose launcher hides the setup screen still installs.
+
+    The app is started once more, and the healthy install is not turned into
+    a recovery because only its setup screen is out of sight.
+    """
+    harness = _app_panel(
+        monkeypatch, tmp_path, setup_complete=False, vendor_in_front=True
+    )
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.HEALTHY_UNCLAIMED
+    assert completed.result_code is None
+    assert completed.home_claim_deferred
+    assert len(harness.app_launches) == 2, "the setup screen is launched once more"
+    assert harness.setup_foreground_requests == [True] * (
+        install_executor._HEALTH_ATTEMPTS
+    )
+
+    assert await _finalize(hass, receipt.job_id) is FinalizationOutcome.VERIFIED
+
+
+async def test_a_claimed_home_behind_the_vendor_launcher_still_fails_strictly(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Without a deferred claim, a hidden app is not relaunched or accepted."""
+    harness = _app_panel(
+        monkeypatch, tmp_path, setup_complete=True, vendor_in_front=True
+    )
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert not completed.home_claim_deferred
+    assert completed.phase is InstallPhase.RECOVERY_REQUIRED
+    assert completed.result_code is InstallResultCode.VERIFICATION_REQUIRED
+    assert completed.result_subcode == "home_ui:not_ready"
+    assert len(harness.app_launches) == 1
+
+
+async def test_a_hidden_setup_screen_does_not_excuse_an_app_that_stops_answering(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Only the last answer counts: an app that went silent is not installed."""
+    harness = _app_panel(
+        monkeypatch, tmp_path, setup_complete=False, vendor_in_front=True
+    )
+    hidden_client = install_executor.HaPaneldClient
+
+    class FallsSilentClient(hidden_client):  # type: ignore[misc,valid-type]
+        async def async_get_status(
+            self, *, home_proof: bool = False, setup_foreground: bool = False
+        ) -> PanelStatus:
+            status = await super().async_get_status(
+                home_proof=home_proof, setup_foreground=setup_foreground
+            )
+            if len(harness.setup_foreground_requests) == 20:
+                harness.health_error = CannotConnectError()
+            return status
+
+    monkeypatch.setattr(install_executor, "HaPaneldClient", FallsSilentClient)
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert completed.phase is InstallPhase.RECOVERY_REQUIRED
+    assert completed.result_code is InstallResultCode.VERIFICATION_REQUIRED
+    assert completed.result_subcode == "health:cannot_connect"

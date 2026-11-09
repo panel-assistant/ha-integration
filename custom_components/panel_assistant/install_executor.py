@@ -97,7 +97,7 @@ from .install_receipt import (
     _now_timestamp,
 )
 from .release import InstallDescriptor, ReleaseArtifact, is_feed_build_tag
-from .status import home_ui_allows
+from .status import PanelStatus, home_ui_allows
 from .update_policy import build_allowed, prereleases_allowed
 
 _LOGGER = logging.getLogger(__name__)
@@ -119,6 +119,9 @@ _REMOTE_STAGING_PREFIX = "/data/local/tmp/ha-paneld-install-"
 # so the long budget costs nothing when the panel is quick.
 _HEALTH_ATTEMPTS = 90
 _HEALTH_RETRY_SECONDS = 2.0
+# A fresh panel whose vendor launcher kept the screen hides the app's setup
+# screen; after this many such answers the app is started once more.
+_SETUP_RELAUNCH_ATTEMPT = 10
 _FINALIZER_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$", flags=re.ASCII)
 
 _SAFE_RESUME_PHASES = frozenset(
@@ -230,6 +233,19 @@ class _FinalizerLease:
     owner: str
     verifying: bool = False
     release_requested: bool = False
+
+
+def _setup_screen_hidden(status: PanelStatus, home_claim_deferred: bool) -> bool:
+    """Whether a fresh panel only has its setup screen behind another app.
+
+    Only a HOME claim the app deferred until its first setup may pass this way;
+    a claimed HOME keeps the strict proof.
+    """
+    return (
+        home_claim_deferred
+        and status.home_ui is not None
+        and status.home_ui.get("state") == "blocked"
+    )
 
 
 class _CancellationObserved(Exception):
@@ -601,7 +617,9 @@ class InstallExecutor:
             return FinalizationResult(FinalizationOutcome.RETRY)
         except InvalidResponseError:
             return await self._async_reject_healthy(receipt, "home_ui:invalid_response")
-        if not home_ui_allows(status, setup=True):
+        if not home_ui_allows(status, setup=True) and not _setup_screen_hidden(
+            status, receipt.home_claim_deferred
+        ):
             return await self._async_reject_healthy(receipt, "home_ui:not_ready")
         return FinalizationResult(FinalizationOutcome.VERIFIED, health)
 
@@ -985,7 +1003,7 @@ class InstallExecutor:
                         async_get_clientsession(self._hass), execution.pinned.pinned
                     )
                     health, health_subcode = await self._async_health(
-                        execution, panel, receipt.home_claim_deferred
+                        execution, panel, receipt
                     )
                     if health is None or not health_is_installed_app(
                         health, receipt.artifact
@@ -1249,9 +1267,7 @@ class InstallExecutor:
                 InstallResultCode.VERIFICATION_REQUIRED,
                 _result_subcode(err),
             )
-        health, subcode = await self._async_health(
-            execution, panel, receipt.home_claim_deferred
-        )
+        health, subcode = await self._async_health(execution, panel, receipt)
         if health is None or not health_is_installed_app(health, receipt.artifact):
             return await self._async_recovery(
                 receipt,
@@ -1483,12 +1499,16 @@ class InstallExecutor:
         self,
         execution: _FrozenExecution,
         client: HaPaneldClient,
-        setup_foreground: bool,
+        receipt: InstallJobReceipt,
     ) -> tuple[PanelHealth | None, str | None]:
         artifact = execution.descriptor
+        setup_foreground = receipt.home_claim_deferred
         attempts = _HEALTH_ATTEMPTS
         failure_subcode = "health:unavailable"
+        setup_hidden = 0
+        hidden_health: PanelHealth | None = None
         for attempt in range(attempts):
+            hidden_health = None
             last = attempt + 1 >= attempts
             try:
                 await _require_pin(self._hass, execution.pinned)
@@ -1517,6 +1537,11 @@ class InstallExecutor:
                     if home_ui_allows(status, setup=True):
                         return health, None
                     failure_subcode = "home_ui:not_ready"
+                    if _setup_screen_hidden(status, setup_foreground):
+                        hidden_health = health
+                        setup_hidden += 1
+                        if setup_hidden == _SETUP_RELAUNCH_ATTEMPT:
+                            await self._async_relaunch_setup(receipt, execution)
                 if not last:
                     await asyncio.sleep(_HEALTH_RETRY_SECONDS)
                 continue
@@ -1524,7 +1549,31 @@ class InstallExecutor:
                 return health, None
             # Something healthy answered, but not yet as the app just installed.
             await asyncio.sleep(_HEALTH_RETRY_SECONDS)
+        if hidden_health is not None:
+            # The installed app is running and healthy; only its setup screen
+            # is behind the vendor launcher, so setup is left to the panel.
+            return hidden_health, None
         return None, failure_subcode
+
+    async def _async_relaunch_setup(
+        self, receipt: InstallJobReceipt, execution: _FrozenExecution
+    ) -> None:
+        """Start the installed app once more so its setup screen comes to front."""
+        try:
+            credential, receipt = await self._async_mutation_authority(
+                receipt, execution
+            )
+            await async_start_installed_app(
+                execution.adb_target,
+                credential.signer,
+                execution.descriptor,
+                expected_root_mode=_root_mode(receipt),
+            )
+        except _CancellationObserved:
+            # The phase loop observes the cancel; a relaunch is only a nudge.
+            return
+        except (AdbCredentialError, InstallAdbError, InstallNetworkError) as err:
+            _LOGGER.debug("Setup screen relaunch failed: %s", _result_subcode(err))
 
     async def _async_cancel_requested(
         self,
