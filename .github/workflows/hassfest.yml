@@ -33,3 +33,25 @@ jobs:
       - name: Run Hassfest
         if: steps.gate.outputs.run == 'true'
         uses: home-assistant/actions/hassfest@86d4564712fa02543c808e3a693dd04f9d3f8361 # master
+
+  # Warns, never fails, when this push to main has taken longer than the
+  # workflow's budget in .github/ci-budget.json, so a slowdown shows on the push
+  # that caused it rather than in the next weekly check. GitHub-hosted on purpose.
+  budget:
+    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    needs: [validate]
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Check out the budget
+        continue-on-error: true
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          sparse-checkout: .github
+      - name: Compare this run's time with its budget
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/check_ci_budget.py --this-run

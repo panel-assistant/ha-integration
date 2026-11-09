@@ -2,7 +2,11 @@
 
 CI slowdown is gradual, so nobody notices it in the run they are looking at.
 This turns it into something that fails on a schedule instead: the median of
-recent successful runs on main, per workflow, against a recorded ceiling.
+recent successful push runs on main, per workflow, against a recorded ceiling.
+
+With --this-run it instead warns, never fails, when the current run on main has
+already taken longer than its workflow's budget, so a slow push is seen the day
+it lands rather than at the next weekly check.
 """
 
 from __future__ import annotations
@@ -14,7 +18,7 @@ import statistics
 import sys
 import urllib.parse
 import urllib.request
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -73,6 +77,30 @@ def verdicts(
     return rows
 
 
+def this_run_warning(
+    workflow: str, created_at: str, now: datetime, budgets: dict[str, int]
+) -> str | None:
+    """Return the warning for a run that has outlasted its budget, or None.
+
+    The run is timed from its creation to now by the same wall-clock rule the
+    weekly median uses. A workflow without a budget, or a creation time that
+    cannot be read, gives no warning: this check advises and never blocks.
+    """
+    budget = budgets.get(workflow)
+    if budget is None:
+        return None
+    seconds = run_seconds(
+        {"run_started_at": created_at, "updated_at": now.strftime(_TIMESTAMP)}
+    )
+    if seconds is None or seconds <= budget:
+        return None
+    return (
+        f"{workflow} took {seconds:.0f}s on this push, over its budget of "
+        f"{budget}s in .github/ci-budget.json. Find what got slower before "
+        "raising the number."
+    )
+
+
 def summary_lines(*, over: bool, no_data: bool) -> list[str]:
     """Return the closing advice for each failure that actually occurred.
 
@@ -110,14 +138,54 @@ def _fetch(url: str, token: str) -> dict[str, Any]:
         return json.loads(response.read())
 
 
+def check_this_run(args: argparse.Namespace) -> int:
+    """Warn when this run is over its workflow's budget; always return 0."""
+    now = datetime.now(UTC).replace(tzinfo=None)
+    try:
+        token = os.environ.get("GITHUB_TOKEN")
+        run_id = os.environ.get("GITHUB_RUN_ID")
+        workflow = os.environ.get("GITHUB_WORKFLOW")
+        if not token or not args.repository or not run_id or not workflow:
+            print("CI budget: no token, repository, run or workflow; not checked")
+            return 0
+        config = json.loads(args.budget_file.read_text(encoding="utf-8"))
+        run = _fetch(f"{_API}/repos/{args.repository}/actions/runs/{run_id}", token)
+        warning = this_run_warning(
+            workflow, run.get("created_at") or "", now, config["budgets"]
+        )
+        if warning is None:
+            print(f"CI budget: {workflow} is within its budget")
+            return 0
+        print(f"::warning title=CI budget::{warning}")
+        summary = os.environ.get("GITHUB_STEP_SUMMARY")
+        if summary:
+            with open(summary, "a", encoding="utf-8") as handle:
+                handle.write(f"{warning}\n")
+    except Exception as error:  # this check must never fail a run
+        print(f"CI budget: not checked ({type(error).__name__}: {error})")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repository", default=os.environ.get("GITHUB_REPOSITORY"))
     parser.add_argument("--branch", default="main")
     parser.add_argument(
+        "--event",
+        default="push",
+        help="count only runs started by this event, so trials never skew the median",
+    )
+    parser.add_argument(
         "--budget-file", type=Path, default=Path(".github/ci-budget.json")
     )
+    parser.add_argument(
+        "--this-run",
+        action="store_true",
+        help="warn, never fail, when the current run is over its workflow's budget",
+    )
     args = parser.parse_args(argv)
+    if args.this_run:
+        return check_this_run(args)
 
     token = os.environ.get("GITHUB_TOKEN")
     if not token or not args.repository:
@@ -154,6 +222,7 @@ def main(argv: list[str] | None = None) -> int:
             query = urllib.parse.urlencode(
                 {
                     "branch": args.branch,
+                    "event": args.event,
                     "status": "success",
                     "per_page": 100,
                     "page": page,

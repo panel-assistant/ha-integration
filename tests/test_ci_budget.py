@@ -159,6 +159,7 @@ def test_main_measures_each_workflows_own_usable_history(
             return {"workflow_runs": [fast | {"name": "Busy"}] * 100}
         assert parsed.path.endswith("/actions/workflows/7/runs")
         assert query["branch"] == ["main"]
+        assert query["event"] == ["push"]
         assert query["status"] == ["success"]
         page = int(query["page"][0])
         pages.append(page)
@@ -186,3 +187,171 @@ def test_main_measures_each_workflows_own_usable_history(
         assert "NO DATA" in output
         if history == "unusable":
             assert 1 <= len(pages) <= 10
+
+
+def test_manual_and_scheduled_runs_do_not_count_toward_the_median(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A slow trial run on another runner must not push main's median over budget."""
+    from urllib.parse import parse_qs, urlparse
+
+    budget = tmp_path / "budget.json"
+    budget.write_text(json.dumps({"sample_size": 10, "budgets": {"Quiet": 120}}))
+    monkeypatch.setenv("GITHUB_TOKEN", "test-token")
+    push = _run("2026-09-12T16:00:00Z", "2026-09-12T16:01:00Z") | {"event": "push"}
+    trial = _run("2026-09-12T16:00:00Z", "2026-09-12T16:30:00Z") | {
+        "event": "workflow_dispatch"
+    }
+
+    def fetch(url: str, _token: str) -> dict:
+        parsed = urlparse(url)
+        if parsed.path.endswith("/actions/workflows"):
+            return {"workflows": [{"name": "Quiet", "id": 7}]}
+        # The API filters by event only when asked; otherwise it returns every event.
+        event = parse_qs(parsed.query).get("event", [None])[0]
+        runs = [push] * 3 + [trial] * 7
+        return {"workflow_runs": [r for r in runs if event in (None, r["event"])]}
+
+    monkeypatch.setattr(check_ci_budget, "_fetch", fetch)
+    result = check_ci_budget.main(
+        ["--repository", "example/repo", "--budget-file", str(budget)]
+    )
+    assert result == 0
+    assert "median 60s" in capsys.readouterr().out
+
+
+_NOW = check_ci_budget.datetime(2026, 11, 9, 12, 1, 0)
+
+
+def test_this_run_over_its_budget_is_warned() -> None:
+    warning = check_ci_budget.this_run_warning(
+        "Hassfest", "2026-11-09T12:00:00Z", _NOW, {"Hassfest": 45}
+    )
+    assert warning is not None
+    assert "Hassfest took 60s" in warning
+    assert "45s" in warning
+
+
+def test_this_run_exactly_at_its_budget_is_not_warned() -> None:
+    warning = check_ci_budget.this_run_warning(
+        "Hassfest", "2026-11-09T12:00:00Z", _NOW, {"Hassfest": 60}
+    )
+    assert warning is None
+
+
+@pytest.mark.parametrize(
+    ("workflow", "created_at"),
+    [
+        ("CI budget", "2026-11-09T12:00:00Z"),
+        ("Hassfest", ""),
+        ("Hassfest", "not a timestamp"),
+        ("Hassfest", "2026-11-09T12:05:00Z"),
+    ],
+)
+def test_this_run_without_a_usable_budget_or_time_is_not_warned(
+    workflow: str, created_at: str
+) -> None:
+    """Advice only: what cannot be measured is left alone, never guessed at."""
+    assert (
+        check_ci_budget.this_run_warning(workflow, created_at, _NOW, {"Hassfest": 1})
+        is None
+    )
+
+
+def _this_run_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fetch: object
+) -> tuple[Path, Path]:
+    budget = tmp_path / "budget.json"
+    budget.write_text(json.dumps({"sample_size": 10, "budgets": {"Hassfest": 45}}))
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_TOKEN", "test-token")
+    monkeypatch.setenv("GITHUB_RUN_ID", "99")
+    monkeypatch.setenv("GITHUB_WORKFLOW", "Hassfest")
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    monkeypatch.setattr(check_ci_budget, "_fetch", fetch)
+    return budget, summary
+
+
+@pytest.mark.parametrize(("age", "warned"), [(3600, True), (5, False)])
+def test_this_run_mode_annotates_only_a_slow_run(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    age: int,
+    warned: bool,
+) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    created = (datetime.now(UTC) - timedelta(seconds=age)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+    urls = []
+
+    def fetch(url: str, _token: str) -> dict:
+        urls.append(url)
+        return {"created_at": created}
+
+    budget, summary = _this_run_env(tmp_path, monkeypatch, fetch)
+    result = check_ci_budget.main(
+        ["--this-run", "--repository", "example/repo", "--budget-file", str(budget)]
+    )
+    output = capsys.readouterr().out
+    assert result == 0
+    assert urls == ["https://api.github.com/repos/example/repo/actions/runs/99"]
+    assert ("::warning title=CI budget::Hassfest took" in output) is warned
+    assert (summary.exists() and "over its budget" in summary.read_text()) is warned
+
+
+@pytest.mark.parametrize("failure", ["api", "token", "budget-file"])
+def test_this_run_mode_never_fails_the_run(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    failure: str,
+) -> None:
+    """A warning-only step that can go red would turn a slow push into a failed one."""
+
+    def fetch(_url: str, _token: str) -> dict:
+        raise OSError("HTTP Error 502")
+
+    budget, summary = _this_run_env(tmp_path, monkeypatch, fetch)
+    if failure == "token":
+        monkeypatch.delenv("GITHUB_TOKEN")
+    if failure == "budget-file":
+        budget.write_text("{not json")
+    result = check_ci_budget.main(
+        ["--this-run", "--repository", "example/repo", "--budget-file", str(budget)]
+    )
+    assert result == 0
+    assert "not checked" in capsys.readouterr().out
+    assert not summary.exists()
+
+
+# Source-text reason: the workflow YAML is the artifact GitHub Actions runs; the
+# job's trigger, runner, dependencies and permissions are the contract.
+def test_every_budgeted_workflow_warns_on_its_own_slow_push() -> None:
+    """A budget that is only checked weekly lets a slow week repeat unseen."""
+    import yaml
+
+    budgets = json.loads((ROOT / ".github/ci-budget.json").read_text(encoding="utf-8"))
+    checked = set()
+    for path in sorted((ROOT / ".github/workflows").glob("*.yml")):
+        workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
+        jobs = workflow["jobs"]
+        for name, job in jobs.items():
+            steps = " ".join(step.get("run", "") for step in job.get("steps", []))
+            if "check_ci_budget.py --this-run" not in steps:
+                continue
+            checked.add(workflow["name"])
+            assert job["runs-on"] == "ubuntu-24.04", path.name
+            assert job["if"].startswith("${{ always() && "), path.name
+            assert "github.event_name == 'push'" in job["if"], path.name
+            assert "github.ref == 'refs/heads/main'" in job["if"], path.name
+            assert set(job["needs"]) == set(jobs) - {name}, path.name
+            assert job["permissions"]["actions"] == "read", path.name
+            assert all(step.get("continue-on-error") for step in job["steps"]), (
+                path.name
+            )
+    assert checked == set(budgets["budgets"])

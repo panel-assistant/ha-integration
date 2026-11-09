@@ -53,3 +53,25 @@ jobs:
         uses: hacs/action@1ebf01c408f29afcb6406bd431bc98fd8cbb15aa # main
         with:
           category: integration
+
+  # Warns, never fails, when this push to main has taken longer than the
+  # workflow's budget in .github/ci-budget.json, so a slowdown shows on the push
+  # that caused it rather than in the next weekly check. GitHub-hosted on purpose.
+  budget:
+    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    needs: [validate]
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Check out the budget
+        continue-on-error: true
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          sparse-checkout: .github
+      - name: Compare this run's time with its budget
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/check_ci_budget.py --this-run
