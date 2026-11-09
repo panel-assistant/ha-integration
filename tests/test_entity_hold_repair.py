@@ -1,9 +1,13 @@
-"""A dashboard released unfiltered from an entity hold raises a Repair."""
+"""A dashboard released unfiltered from an entity hold is logged at once, and
+raises a Repair only when it stays unfiltered."""
 
 import json
+from datetime import timedelta
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
+import pytest
+from freezegun.api import FrozenDateTimeFactory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 
@@ -47,8 +51,43 @@ async def _poll(hass: HomeAssistant, coordinator: Any, status: Any) -> None:
     assert coordinator.last_update_success
 
 
-async def test_a_released_hold_raises_one_warning_until_the_panel_filters_again(
+RELEASED = {
+    "entity_hold": "scan_failed",
+    "entity_hold_state": "released",
+    "entity_hold_age_ms": 95_000,
+}
+
+
+async def test_a_short_release_is_a_log_line_not_a_repair(
     hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A panel that filters again on its own within the half hour needs nothing."""
+    entry, coordinator = _panel(hass)
+
+    await _poll(hass, coordinator, _status(**RELEASED))
+    freezer.tick(timedelta(minutes=29))
+    await _poll(hass, coordinator, _status(**RELEASED))
+
+    assert _issue(hass, entry) is None
+    logged = [
+        record
+        for record in caplog.records
+        if "without entity filtering" in record.getMessage()
+    ]
+    assert len(logged) == 1 and logged[0].levelname == "WARNING"
+    assert "Kitchen display" in logged[0].getMessage()
+
+    # Filtered again; a later release starts its own half hour.
+    await _poll(hass, coordinator, _status(entity_hold=None, entity_hold_state=None))
+    freezer.tick(timedelta(minutes=5))
+    await _poll(hass, coordinator, _status(**RELEASED))
+    assert _issue(hass, entry) is None
+
+
+async def test_a_released_hold_raises_one_warning_until_the_panel_filters_again(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
 ) -> None:
     entry, coordinator = _panel(hass)
 
@@ -64,12 +103,10 @@ async def test_a_released_hold_raises_one_warning_until_the_panel_filters_again(
     )
     assert _issue(hass, entry) is None
 
-    released = _status(
-        entity_hold="scan_failed",
-        entity_hold_state="released",
-        entity_hold_age_ms=95_000,
-    )
+    released = _status(**RELEASED)
     await _poll(hass, coordinator, released)
+    assert _issue(hass, entry) is None
+    freezer.tick(timedelta(minutes=30))
     await _poll(hass, coordinator, released)
 
     issue = _issue(hass, entry)
