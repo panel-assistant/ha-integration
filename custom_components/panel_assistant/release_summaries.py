@@ -127,11 +127,65 @@ def _releases_between(
     return [(version, text) for _, version, text in picked[:_MAX_RELEASES]]
 
 
+def _latest_release_before(summaries: dict[str, str], offered: str) -> str | None:
+    """The newest published version older than a test build, release or candidate."""
+    newest = _version_key(offered)
+    if newest is None:
+        return None
+    earlier = [
+        (key, version)
+        for version in (tag.removeprefix("v") for tag in summaries)
+        if (key := _version_key(version)) is not None and key < newest
+    ]
+    return max(earlier)[1] if earlier else None
+
+
+def _test_build_note(offered: str, build: int) -> str:
+    """Say what a feed build is when its version has no published notes yet."""
+    release = offered.partition("-")[0] if _version_key(offered) else None
+    if release is None:
+        return (
+            f"This is a test build of the panel app (build {build}), made before "
+            "its version is released. Its changes will be described in the "
+            "release notes."
+        )
+    return (
+        f"This is a test build of the panel app (build {build}), made before "
+        f"version {release} is released. Its changes will be described in the "
+        f"{release} release notes."
+    )
+
+
 async def async_release_notes(
-    hass: HomeAssistant, offered: str, installed: str | None = None
+    hass: HomeAssistant,
+    offered: str,
+    installed: str | None = None,
+    *,
+    test_build: int | None = None,
 ) -> str:
-    """What changed since the installed version, always with the full notes link."""
+    """What changed since the installed version, always with the full notes link.
+
+    A test build (a feed build, passed as its version code) whose version has no
+    published summary says what it is, and links the notes of the newest release
+    before it, because the website has nothing under the test build's version.
+    """
     releases = _releases_between(await _async_summaries(hass), installed, offered)
+    if test_build is not None and offered not in (v for v, _ in releases):
+        notes = "\n\n".join(
+            [_test_build_note(offered, test_build)]
+            + [f"## {version}\n\n{text}" for version, text in releases]
+        )
+        # The website has no notes for test builds: link the newest release before it.
+        earlier = _latest_release_before(await _async_summaries(hass), offered)
+        if earlier is None:
+            page = URL("https://panel-assistant.io/go/release-notes").with_query(
+                component="panel-app"
+            )
+            return f"{notes}\n\n[Release notes]({page})"
+        return (
+            f"{notes}\n\n[Release notes for {earlier}, the last release]"
+            f"({full_notes_url(earlier)})"
+        )
     if len(releases) == 1:
         notes = releases[0][1]
     else:

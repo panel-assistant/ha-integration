@@ -674,6 +674,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             self.hass,
             artifact.version,
             snapshot.health.version if snapshot is not None else None,
+            test_build=(
+                artifact.descriptor.version_code
+                if is_feed_build_tag(artifact.tag) and artifact.descriptor
+                else None
+            ),
         )
         # With release notes the dialog no longer shows release_summary.
         if self._awaiting_confirmation():
