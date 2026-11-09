@@ -6,6 +6,7 @@ import asyncio
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from secrets import token_hex
 from time import monotonic
 from typing import Any
@@ -22,6 +23,7 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
 )
+from homeassistant.util import dt as dt_util
 
 from .address import (
     ISSUE_PANEL_ADDRESS_UNREACHABLE,
@@ -70,6 +72,9 @@ _ADMIN_APPROVAL_BACKOFF_MAX = 86400.0
 # Refused senders are hints, not sessions. Repeated hellos replace only their
 # own hint, and a bound account cannot grow an unreachable entry's memory forever.
 _MAX_REFUSED_HELLOS = 16
+# How long a panel may answer polls without a session before it is reported as
+# not signed in: a fresh install signs in within this, and a restart reconnects.
+NOT_SIGNED_IN_GRACE = timedelta(minutes=2)
 # A reported port the stored endpoint does not use is tried once per session,
 # then this often: a forwarded port keeps answering while those never do.
 _PORT_PROBE_INTERVAL = 3600.0
@@ -193,6 +198,8 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
 
         self._vendor_recovery = VendorRecovery(self)
         self._port_probe: tuple[PanelSession, float] | None = None
+        # When the panel was last without a session; None while it holds one.
+        self._no_session_since: datetime | None = dt_util.utcnow()
 
     @property
     def connected(self) -> bool:
@@ -203,6 +210,37 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
     def available(self) -> bool:
         """Return whether the panel is reachable outbound or connected inbound."""
         return self.reachable or self.connected
+
+    @property
+    def not_signed_in(self) -> bool:
+        """Return whether the panel answers polls but has not connected for a while.
+
+        Every entity beyond the static ones, and the sidebar page, need the
+        panel's session, so a panel that answers health without one is not
+        online. An app too old to connect, or one waiting on a user binding,
+        has its own Repair and is left to it.
+        """
+        from .repairs_upgrade import runs_old_app, speaks_this_protocol
+        from .transport import _panel_did
+        from .transport_binding import async_binding_request
+
+        since = self._no_session_since
+        entry = self._entry()
+        if (
+            entry is None
+            or since is None
+            or self.connected
+            or not self.reachable
+            or self.data is None
+            or dt_util.utcnow() - since < NOT_SIGNED_IN_GRACE
+        ):
+            return False
+        health = self.data.health
+        return (
+            speaks_this_protocol(health)
+            and not runs_old_app(health)
+            and not async_binding_request(self.hass, _panel_did(entry))
+        )
 
     @property
     def restart_notice(self) -> RestartNotice | None:
@@ -244,13 +282,17 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
 
         @callback
         def _remember() -> None:
-            if (session := self._session()) is not None:
-                self._last_hello = (
-                    session.remote,
-                    session.addresses,
-                    session.http_port,
-                )
-                self._refused_hellos.clear()
+            if (session := self._session()) is None:
+                if self._no_session_since is None:
+                    self._no_session_since = dt_util.utcnow()
+                return
+            self._no_session_since = None
+            self._last_hello = (
+                session.remote,
+                session.addresses,
+                session.http_port,
+            )
+            self._refused_hellos.clear()
 
         @callback
         def _changed() -> None:

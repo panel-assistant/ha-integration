@@ -2103,3 +2103,52 @@ async def test_hello_advertises_cloud_after_local_and_external(
         "https://external.example.com",
         "https://cloud.example.com",
     ]
+
+
+async def test_a_panel_that_never_signs_in_says_so_until_its_hello(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    freezer: FrozenDateTimeFactory,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """Answering polls without a session is not online: the owner is told.
+
+    A fresh panel whose Home Assistant sign-in never finished answers its
+    health but sends no hello, so its device card stays at the static
+    entities and its sidebar page never loads.
+    """
+    from pytest_homeassistant_custom_component.common import async_fire_time_changed
+
+    status = er.async_get(hass).async_get_entity_id(
+        "sensor", DOMAIN, f"{entry.entry_id}_status"
+    )
+    assert status is not None
+    issue_id = f"not_signed_in_{entry.entry_id}"
+    registry = ir.async_get(hass)
+    assert hass.states.get(status).state == "online"
+
+    freezer.tick(timedelta(minutes=1))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    # Inside the grace a panel that is still signing in is left alone.
+    assert hass.states.get(status).state == "online"
+    assert registry.async_get_issue(DOMAIN, issue_id) is None
+
+    freezer.tick(timedelta(minutes=2))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(status).state == "not_signed_in"
+    issue = registry.async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert not issue.is_fixable and not issue.is_persistent
+    assert issue.translation_key == "not_signed_in"
+    assert_repair_links(issue)
+
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await _open(client)
+    await hass.async_block_till_done()
+
+    assert registry.async_get_issue(DOMAIN, issue_id) is None
+    assert hass.states.get(status).state == "online"

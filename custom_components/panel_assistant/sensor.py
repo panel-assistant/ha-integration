@@ -84,6 +84,8 @@ class HaPaneldStatusSensor(PanelCoordinatorEntity, SensorEntity):
             is not None
         ):
             return "another_home_assistant"
+        if self.coordinator.not_signed_in:
+            return "not_signed_in"
         return "online" if self.coordinator.reachable else "connected"
 
     @property

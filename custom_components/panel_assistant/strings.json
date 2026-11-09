@@ -597,7 +597,8 @@
           "restarting_settings": "Restarting (settings)",
           "restarting_recovery": "Restarting (recovery)",
           "restarting_reboot": "Restarting (reboot)",
-          "another_home_assistant": "Signed in to another Home Assistant"
+          "another_home_assistant": "Signed in to another Home Assistant",
+          "not_signed_in": "Not signed in to Home Assistant"
         }
       },
       "storage_health": {
@@ -1928,6 +1929,10 @@
           "restart_started": "The restart command was accepted. This warning will clear when {panel} reports that root is restored.\n\nTo fix:\n1. Read the [restart guidance]({learn_more_url}).\n2. Try this Repair again when the panel is available.\n\n[Learn more]({learn_more_url})"
         }
       }
+    },
+    "not_signed_in": {
+      "title": "{panel} has not connected to Home Assistant",
+      "description": "{panel} answers on the network but has not connected to Home Assistant, so its controls and its sidebar page are missing.\n\nTo fix:\n1. [Open the panel’s setup page]({panel_page}) and sign in to this Home Assistant.\n2. Wait for the panel to connect; this Repair then goes away."
     }
   },
   "options": {

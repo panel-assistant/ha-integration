@@ -119,6 +119,8 @@ async def test_every_issue_has_a_repair_map_entry(hass: HomeAssistant) -> None:
         "installer_failure_update_webview",
         "installer_failure_update_slow_transfer",
         "panel_root_lost",
+        # Uses the generic /go/repair destination until its page is added.
+        "not_signed_in",
     }
     assert fault_issues and fault_issues == set(pinned)
     assert len(set(pinned.values())) == len(fault_issues)
