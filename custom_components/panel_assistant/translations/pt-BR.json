@@ -968,22 +968,7 @@
     },
     "panel_proximity_setup": {
       "title": "Configurar a proximidade em {panel}.",
-      "fix_flow": {
-        "step": {
-          "set_up_proximity": {
-            "title": "Configurar proximidade",
-            "description": "{panel} não pode despertar com um aceno até que seu sensor de proximidade seja configurado.\n\nPara corrigir:\n1. Abra a [configuração de proximidade]({configure_url}) e selecione Configurar proximidade no painel.\n2. Fique em frente a {panel} e siga as instruções na tela dele (cerca de um minuto).\n3. Quando a calibração for salva, volte aqui e selecione Enviar.\n\n[Saiba mais]({learn_more_url})"
-          }
-        },
-        "error": {
-          "proximity_not_calibrated": "O painel ainda informa que a proximidade não está configurada. Conclua a configuração no painel e envie novamente.",
-          "proximity_calibrating": "A configuração ainda está em andamento no painel. Conclua-a e envie novamente.",
-          "proximity_unreadable": "O Home Assistant não conseguiu ler o estado de proximidade do painel. Verifique se o painel está conectado e envie novamente."
-        },
-        "abort": {
-          "entry_removed": "Este painel não está mais configurado no Home Assistant.\n\nPara corrigir:\n1. [Abra os dispositivos do Panel Assistant](/config/integrations/integration/panel_assistant) se quiser adicioná-lo novamente.\n2. Caso contrário, feche esta caixa de diálogo.\n\n[Saiba mais]({learn_more_url})"
-        }
-      }
+      "description": "{panel} não pode despertar com um aceno até que seu sensor de proximidade seja configurado.\n\nPara corrigir:\n1. Abra a [configuração de proximidade]({configure_url}) e selecione Configurar proximidade no painel.\n2. Fique em frente a {panel} e siga as instruções na tela dele (cerca de um minuto).\n3. Quando a calibração for salva, volte aqui e selecione Enviar.\n\n[Saiba mais]({learn_more_url})"
     },
     "voice_microphone_silent": {
       "title": "O assistente de voz em {panel} não está ouvindo.",

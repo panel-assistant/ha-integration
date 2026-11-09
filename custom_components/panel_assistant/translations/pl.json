@@ -968,22 +968,7 @@
     },
     "panel_proximity_setup": {
       "title": "Skonfiguruj czujnik zbliżeniowy na panelu {panel}.",
-      "fix_flow": {
-        "step": {
-          "set_up_proximity": {
-            "title": "Skonfiguruj czujnik zbliżeniowy",
-            "description": "Panel {panel} nie może wybudzać się po machnięciu, dopóki jego czujnik zbliżeniowy nie zostanie skonfigurowany.\n\nAby rozwiązać problem:\n1. Otwórz [konfigurację czujnika zbliżeniowego]({configure_url}) i wybierz Skonfiguruj czujnik zbliżeniowy na panelu.\n2. Stań przed panelem {panel} i postępuj zgodnie z instrukcjami na jego ekranie (około minuty).\n3. Po zapisaniu kalibracji wróć tutaj i wybierz Zatwierdź.\n\n[Dowiedz się więcej]({learn_more_url})"
-          }
-        },
-        "error": {
-          "proximity_not_calibrated": "Panel nadal zgłasza, że czujnik zbliżeniowy nie jest skonfigurowany. Dokończ konfigurację na panelu i wyślij ponownie.",
-          "proximity_calibrating": "Konfiguracja na panelu nadal trwa. Dokończ ją i wyślij ponownie.",
-          "proximity_unreadable": "Home Assistant nie mógł odczytać stanu czujnika zbliżeniowego panelu. Sprawdź, czy panel jest połączony, i wyślij ponownie."
-        },
-        "abort": {
-          "entry_removed": "Ten panel nie jest już skonfigurowany w Home Assistant.\n\nAby rozwiązać problem:\n1. [Otwórz urządzenia Panel Assistant](/config/integrations/integration/panel_assistant), jeśli chcesz dodać go ponownie.\n2. W przeciwnym razie zamknij to okno.\n\n[Dowiedz się więcej]({learn_more_url})"
-        }
-      }
+      "description": "Panel {panel} nie może wybudzać się po machnięciu, dopóki jego czujnik zbliżeniowy nie zostanie skonfigurowany.\n\nAby rozwiązać problem:\n1. Otwórz [konfigurację czujnika zbliżeniowego]({configure_url}) i wybierz Skonfiguruj czujnik zbliżeniowy na panelu.\n2. Stań przed panelem {panel} i postępuj zgodnie z instrukcjami na jego ekranie (około minuty).\n3. Po zapisaniu kalibracji wróć tutaj i wybierz Zatwierdź.\n\n[Dowiedz się więcej]({learn_more_url})"
     },
     "voice_microphone_silent": {
       "title": "Asystent głosowy na {panel} nie nasłuchuje.",

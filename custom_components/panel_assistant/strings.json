@@ -967,23 +967,8 @@
       "description": "The panel app on {panel} stopped part way through restoring a backup, so some settings or panel state from the backup may be missing.\n\nTo fix:\n1. Open the [Install tab]({install_url}) on the panel's page in the Panel Assistant sidebar.\n2. Restore the same backup again.\n\n[Learn more]({learn_more_url})"
     },
     "panel_proximity_setup": {
-      "title": "Set up proximity on {panel}.",
-      "fix_flow": {
-        "step": {
-          "set_up_proximity": {
-            "title": "Set up proximity",
-            "description": "{panel} cannot wake on a wave until its proximity sensor is set up.\n\nTo fix:\n1. Open [proximity setup]({configure_url}) and select Set up proximity on panel.\n2. Stand in front of {panel} and follow its screen instructions (about a minute).\n3. When calibration is saved, return here and select Submit.\n\n[Learn more]({learn_more_url})"
-          }
-        },
-        "error": {
-          "proximity_not_calibrated": "The panel still reports that proximity is not set up. Finish setup on the panel, then submit again.",
-          "proximity_calibrating": "Setup is still running on the panel. Finish it, then submit again.",
-          "proximity_unreadable": "Home Assistant could not read the panel's proximity state. Check that the panel is connected, then submit again."
-        },
-        "abort": {
-          "entry_removed": "This panel is no longer set up in Home Assistant.\n\nTo fix:\n1. [Open Panel Assistant devices](/config/integrations/integration/panel_assistant) if you want to add it again.\n2. Otherwise, close this dialog.\n\n[Learn more]({learn_more_url})"
-        }
-      }
+      "title": "Optional: set up proximity on {panel}.",
+      "description": "{panel} cannot wake on a wave until its proximity sensor is set up. Proximity is optional: touching the screen always wakes the panel.\n\nTo fix:\n1. Open [proximity setup]({configure_url}) and select Set up proximity on panel.\n2. Stand in front of {panel} and follow its screen instructions (about a minute). This Repair clears itself when the calibration is saved.\n3. If you don't want to wake {panel} with a wave, turn off its Wake on wave switch or select Ignore instead.\n\n[Learn more]({learn_more_url})"
     },
     "voice_microphone_silent": {
       "title": "The voice assistant on {panel} is not listening.",

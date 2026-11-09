@@ -968,22 +968,7 @@
     },
     "panel_proximity_setup": {
       "title": "Näherung auf {panel} einrichten.",
-      "fix_flow": {
-        "step": {
-          "set_up_proximity": {
-            "title": "Näherung einrichten",
-            "description": "{panel} kann erst durch Winken aufgeweckt werden, wenn sein Näherungssensor eingerichtet ist.\n\nSo behebst du das Problem:\n1. Öffne die [Näherungseinrichtung]({configure_url}) und wähle „Näherung auf dem Panel einrichten“.\n2. Stelle dich vor {panel} und folge den Anweisungen auf seinem Bildschirm (etwa eine Minute).\n3. Wenn die Kalibrierung gespeichert ist, kehre hierher zurück und wähle „OK“.\n\n[Mehr erfahren]({learn_more_url})"
-          }
-        },
-        "error": {
-          "proximity_not_calibrated": "Das Panel meldet weiterhin, dass die Näherung nicht eingerichtet ist. Schließe die Einrichtung am Panel ab und sende dann erneut.",
-          "proximity_calibrating": "Die Einrichtung läuft noch auf dem Panel. Schließe sie ab und sende dann erneut.",
-          "proximity_unreadable": "Home Assistant konnte den Näherungsstatus des Panels nicht lesen. Prüfe, ob das Panel verbunden ist, und sende dann erneut."
-        },
-        "abort": {
-          "entry_removed": "Dieses Panel ist nicht mehr in Home Assistant eingerichtet.\n\nSo behebst du das Problem:\n1. [Öffne die Panel Assistant-Geräte](/config/integrations/integration/panel_assistant), wenn du es erneut hinzufügen möchtest.\n2. Schließe andernfalls diesen Dialog.\n\n[Mehr erfahren]({learn_more_url})"
-        }
-      }
+      "description": "{panel} kann erst durch Winken aufgeweckt werden, wenn sein Näherungssensor eingerichtet ist.\n\nSo behebst du das Problem:\n1. Öffne die [Näherungseinrichtung]({configure_url}) und wähle „Näherung auf dem Panel einrichten“.\n2. Stelle dich vor {panel} und folge den Anweisungen auf seinem Bildschirm (etwa eine Minute).\n3. Wenn die Kalibrierung gespeichert ist, kehre hierher zurück und wähle „OK“.\n\n[Mehr erfahren]({learn_more_url})"
     },
     "voice_microphone_silent": {
       "title": "Der Sprachassistent auf {panel} hört nicht zu.",

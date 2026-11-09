@@ -968,22 +968,7 @@
     },
     "panel_proximity_setup": {
       "title": "Configurez la proximité sur {panel}.",
-      "fix_flow": {
-        "step": {
-          "set_up_proximity": {
-            "title": "Configurer la proximité",
-            "description": "{panel} ne peut pas se réveiller d’un geste tant que son capteur de proximité n’est pas configuré.\n\nPour corriger le problème :\n1. Ouvrez la [configuration de la proximité]({configure_url}) et sélectionnez Configurer la proximité sur le panneau.\n2. Placez-vous devant {panel} et suivez les instructions à l’écran (environ une minute).\n3. Une fois l’étalonnage enregistré, revenez ici et sélectionnez Valider.\n\n[En savoir plus]({learn_more_url})"
-          }
-        },
-        "error": {
-          "proximity_not_calibrated": "Le panneau indique toujours que la proximité n’est pas configurée. Terminez la configuration sur le panneau, puis validez à nouveau.",
-          "proximity_calibrating": "La configuration est toujours en cours sur le panneau. Terminez-la, puis validez à nouveau.",
-          "proximity_unreadable": "Home Assistant n’a pas pu lire l’état de proximité du panneau. Vérifiez sa connexion, puis validez à nouveau."
-        },
-        "abort": {
-          "entry_removed": "Ce panneau n’est plus configuré dans Home Assistant.\n\nPour corriger le problème :\n1. [Ouvrez les appareils Panel Assistant](/config/integrations/integration/panel_assistant) si vous souhaitez l’ajouter à nouveau.\n2. Sinon, fermez cette boîte de dialogue.\n\n[En savoir plus]({learn_more_url})"
-        }
-      }
+      "description": "{panel} ne peut pas se réveiller d’un geste tant que son capteur de proximité n’est pas configuré.\n\nPour corriger le problème :\n1. Ouvrez la [configuration de la proximité]({configure_url}) et sélectionnez Configurer la proximité sur le panneau.\n2. Placez-vous devant {panel} et suivez les instructions à l’écran (environ une minute).\n3. Une fois l’étalonnage enregistré, revenez ici et sélectionnez Valider.\n\n[En savoir plus]({learn_more_url})"
     },
     "voice_microphone_silent": {
       "title": "L'assistant vocal de {panel} n'écoute pas.",

@@ -1,12 +1,14 @@
-"""Proximity setup is raised as a Repair until the panel reports it calibrated."""
+"""Proximity setup is raised as a Repair until the panel reports it calibrated.
 
-import asyncio
+Proximity is optional, so the Repair can always be ignored: Home Assistant shows
+its Ignore button only for an issue without a fix flow.
+"""
+
 import json
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.translation import async_get_translations
@@ -18,8 +20,6 @@ from custom_components.panel_assistant.status import parse_status_response
 from tests.test_repair_links import assert_repair_links
 
 from .test_permission_repairs import HEALTH, _panel
-from .test_upgrade_repairs import CURRENT, _entry
-from .test_upgrade_repairs import _panel as _upgrade_panel
 
 pytest_plugins = ["tests.test_voice"]
 
@@ -81,10 +81,13 @@ async def test_an_uncalibrated_sensor_raises_one_warning_until_it_is_calibrated(
 
     issue = _issue(hass, entry)
     assert issue is not None
-    assert issue.is_fixable and issue.severity is ir.IssueSeverity.WARNING
+    assert not issue.is_fixable and issue.severity is ir.IssueSeverity.WARNING
     assert_repair_links(issue)
+    # The Repair links straight to the panel's Presence & wake card in the sidebar.
     assert {
-        "panel": "Kitchen display"
+        "panel": "Kitchen display",
+        "configure_url": f"/panel-assistant/{entry.entry_id}"
+        "/configure/cfg-proximity-learning",
     }.items() <= issue.translation_placeholders.items()
     assert sum(domain == DOMAIN for domain, _ in ir.async_get(hass).issues) == 1
 
@@ -128,62 +131,73 @@ async def test_no_warning_without_a_sensor_that_needs_setup(
     assert _issue(hass, entry) is None
 
 
-@pytest.mark.parametrize(
-    ("after", "outcome"),
-    [
-        ({"state": "ready", "wake_ready": True}, None),
-        ({"state": "calibration_required"}, "proximity_not_calibrated"),
-        ({"state": "calibrating"}, "proximity_calibrating"),
-        ("unreadable", "proximity_unreadable"),
-    ],
-)
-async def test_the_repair_completes_only_on_a_fresh_calibrated_read(
-    hass: HomeAssistant, hass_client: Any, after: Any, outcome: str | None
+async def test_the_owner_can_ignore_the_repair_and_it_stays_ignored(
+    hass: HomeAssistant, hass_ws_client: Any
 ) -> None:
+    """Through Home Assistant's Repairs API, as its Repairs page uses it."""
     assert await async_setup_component(hass, "repairs", {})
-    assert await async_setup_component(hass, DOMAIN, {})
-    await hass.async_block_till_done()
     entry, coordinator = _panel(hass)
-    status = AsyncMock(return_value=_status({"state": "calibration_required"}))
-    with (
-        patch.object(
-            coordinator.client, "async_get_health", AsyncMock(return_value=HEALTH)
-        ),
-        patch.object(coordinator.client, "async_get_status", status),
-    ):
-        await coordinator.async_refresh()
-        assert _issue(hass, entry) is not None
-        admin = await hass_client()
-        response = await admin.post(
-            "/api/repairs/issues/fix",
-            json={
-                "handler": DOMAIN,
-                "issue_id": f"panel_proximity_setup_{entry.entry_id}",
-            },
+    issue_id = f"panel_proximity_setup_{entry.entry_id}"
+    client = await hass_ws_client(hass)
+
+    async def listed() -> Any:
+        await client.send_json_auto_id({"type": "repairs/list_issues"})
+        message = await client.receive_json()
+        assert message["success"]
+        return next(
+            (
+                issue
+                for issue in message["result"]["issues"]
+                if issue["domain"] == DOMAIN and issue["issue_id"] == issue_id
+            ),
+            None,
         )
-        flow = await response.json()
-        assert flow["type"] == "form"
-        assert flow["step_id"] == "set_up_proximity"
-        # The step links straight to the panel's Presence & wake card in the sidebar.
-        assert flow["description_placeholders"] == {
-            "panel": "Kitchen display",
-            "configure_url": f"/panel-assistant/{entry.entry_id}"
-            "/configure/cfg-proximity-learning",
+
+    await _poll(
+        hass, coordinator, {"state": "calibration_required", "wake_ready": False}
+    )
+    issue = await listed()
+    # A fixable issue opens its fix flow and has no Ignore button.
+    assert issue is not None and issue["is_fixable"] is False
+    assert issue["ignored"] is False
+
+    await client.send_json_auto_id(
+        {
+            "type": "repairs/ignore_issue",
+            "domain": DOMAIN,
+            "issue_id": issue_id,
+            "ignore": True,
         }
-        if after == "unreadable":
-            status.side_effect = InvalidResponseError
-        else:
-            status.return_value = _status(after)
-        response = await admin.post(
-            f"/api/repairs/issues/fix/{flow['flow_id']}", json={}
-        )
-        result = await response.json()
-    if outcome is None:
-        assert result["type"] == "create_entry"
-        assert _issue(hass, entry) is None
-    else:
-        assert result["type"] == "form"
-        assert result["errors"] == {"base": outcome}
+    )
+    assert (await client.receive_json())["success"]
+
+    # A sensor that is briefly unreadable has not been set up either: the
+    # ignored Repair is kept rather than raised afresh when it reads again.
+    for proximity in (
+        {"state": "source_unavailable", "wake_ready": False},
+        {"state": "calibration_required", "wake_ready": False},
+    ):
+        await _poll(hass, coordinator, proximity)
+        issue = await listed()
+        assert issue is not None and issue["ignored"] is True
+
+    # A panel that no longer asks for setup (presence off, Wake on wave off)
+    # sends no proximity state, and the Repair goes.
+    await _poll(hass, coordinator, None)
+    assert await listed() is None
+
+
+async def test_a_briefly_unreadable_sensor_keeps_an_open_repair(
+    hass: HomeAssistant,
+) -> None:
+    entry, coordinator = _panel(hass)
+
+    await _poll(hass, coordinator, {"state": "calibration_required"})
+    created = _issue(hass, entry).created
+    await _poll(hass, coordinator, {"state": "source_unavailable"})
+    await _poll(hass, coordinator, {"state": "calibration_required"})
+
+    assert _issue(hass, entry).created == created
 
 
 @pytest.mark.parametrize(
@@ -196,84 +210,7 @@ async def test_proximity_repair_has_translated_guidance(
     strings = await async_get_translations(hass, language, "issues", {DOMAIN})
     prefix = f"component.{DOMAIN}.issues.panel_proximity_setup"
     assert "{panel}" in strings[f"{prefix}.title"]
-    description = strings[f"{prefix}.fix_flow.step.set_up_proximity.description"]
+    description = strings[f"{prefix}.description"]
     assert "{panel}" in description
     assert "]({configure_url})" in description
-    for error in (
-        "proximity_not_calibrated",
-        "proximity_calibrating",
-        "proximity_unreadable",
-    ):
-        assert strings[f"{prefix}.fix_flow.error.{error}"]
-
-
-@pytest.mark.parametrize("reloaded", [True, False])
-async def test_only_the_current_runtime_owner_can_finish_the_repair(
-    hass: HomeAssistant, hass_client: Any, hass_read_only_user: Any, reloaded: bool
-) -> None:
-    """A read awaited across a reload of the same entry belongs to the old runtime.
-
-    The flow awaits its coordinator's refresh directly, so Home Assistant's
-    reload neither cancels that read nor stops it publishing its result. Only
-    the coordinator that now owns the entry may say the sensor is calibrated.
-    """
-    assert await async_setup_component(hass, "repairs", {})
-    entry = _entry(hass, hass_read_only_user.id)
-    uncalibrated = _status({"state": "calibration_required", "wake_ready": False})
-    calibrated = _status({"state": "ready", "wake_ready": True})
-    held = asyncio.Event()
-    release = asyncio.Event()
-    reads: list[str] = []
-
-    async def status(self: Any, **kwargs: Any) -> Any:
-        reads.append("read")
-        if len(reads) == 2:
-            # The Repair's own read: hold it at the panel until released.
-            held.set()
-            await release.wait()
-            return calibrated
-        return uncalibrated
-
-    with (
-        _upgrade_panel(CURRENT),
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
-            status,
-        ),
-    ):
-        assert await hass.config_entries.async_setup(entry.entry_id)
-        await hass.async_block_till_done()
-        assert entry.state is ConfigEntryState.LOADED
-        assert _issue(hass, entry) is not None
-        retired = entry.runtime_data.coordinator
-        admin = await hass_client()
-        response = await admin.post(
-            "/api/repairs/issues/fix",
-            json={
-                "handler": DOMAIN,
-                "issue_id": f"panel_proximity_setup_{entry.entry_id}",
-            },
-        )
-        flow = await response.json()
-        submit = asyncio.ensure_future(
-            admin.post(f"/api/repairs/issues/fix/{flow['flow_id']}", json={})
-        )
-        await asyncio.wait_for(held.wait(), 5)
-        if reloaded:
-            assert await hass.config_entries.async_reload(entry.entry_id)
-            await hass.async_block_till_done()
-            assert hass.config_entries.async_get_entry(entry.entry_id) is entry
-            assert entry.runtime_data.coordinator is not retired
-        release.set()
-        result = await (await submit).json()
-        # The retired read did complete, and successfully: nothing stopped it.
-        assert retired.last_update_success
-        assert retired.data.status.proximity == {"state": "ready", "wake_ready": True}
-
-    if reloaded:
-        assert result["type"] == "form"
-        assert result["errors"] == {"base": "proximity_unreadable"}
-    else:
-        assert result["type"] == "create_entry"
-        assert _issue(hass, entry) is None
-    assert await hass.config_entries.async_unload(entry.entry_id)
+    assert not any(key.startswith(f"{prefix}.fix_flow") for key in strings)

@@ -33,7 +33,7 @@ from .client import (
 from .config_flow import AdbAuthorization, async_authorize_adb_form
 from .const import CONF_TRANSPORT_USER_ID, DOMAIN, help_url, update_unique_id
 from .coordinator import HaPaneldDataUpdateCoordinator, PanelSnapshot
-from .device import PROXIMITY_SETUP_ANCHOR, panel_display_name, sidebar_url
+from .device import panel_display_name
 from .identity import (
     ISSUE_IDENTITY,
     can_confirm_identity,
@@ -65,11 +65,6 @@ from .repairs_permission import (
     permission_issue_id,
     permission_observations,
     permissions_held,
-)
-from .repairs_proximity import (
-    ISSUE_PROXIMITY_SETUP,
-    proximity_issue_id,
-    proximity_state,
 )
 from .repairs_removal import (
     ISSUE_REMOVE_FROM_PANEL,
@@ -724,76 +719,6 @@ class PanelPermissionFlow(RepairsFlow):
         )
 
 
-class ProximitySetupFlow(RepairsFlow):
-    """Say how to set up proximity, then check what the panel now reports."""
-
-    def __init__(self, entry_id: str) -> None:
-        self._entry_id = entry_id
-
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> RepairsFlowResult:
-        return await self.async_step_set_up_proximity()
-
-    async def async_step_set_up_proximity(
-        self, user_input: dict[str, Any] | None = None
-    ) -> RepairsFlowResult:
-        entry = self.hass.config_entries.async_get_entry(self._entry_id)
-        if entry is None or entry.domain != DOMAIN:
-            return await _async_entry_removed(self)
-        errors = {}
-        if user_input is not None:
-            coordinator = getattr(
-                getattr(entry, "runtime_data", None), "coordinator", None
-            )
-            fresh = False
-            state = None
-            if isinstance(coordinator, HaPaneldDataUpdateCoordinator):
-                previous = coordinator.data
-                # A fresh read, never the poll that raised the issue.
-                await coordinator.async_refresh()
-                if (
-                    self.hass.config_entries.async_get_entry(self._entry_id)
-                    is not entry
-                ):
-                    return await _async_entry_removed(self)
-                snapshot: PanelSnapshot | None = coordinator.data
-                if (
-                    coordinator.last_update_success
-                    and snapshot is not previous
-                    and snapshot is not None
-                    and snapshot.status is not None
-                    # A refresh awaited across a reload of the same entry belongs
-                    # to the retired runtime; only the current owner may finish.
-                    and getattr(
-                        getattr(entry, "runtime_data", None), "coordinator", None
-                    )
-                    is coordinator
-                ):
-                    fresh = True
-                    state = proximity_state(snapshot.status)
-            if fresh and state not in ("calibration_required", "calibrating"):
-                return self.async_create_entry(data={})
-            errors["base"] = (
-                "proximity_unreadable"
-                if not fresh
-                else "proximity_calibrating"
-                if state == "calibrating"
-                else "proximity_not_calibrated"
-            )
-        return self.async_show_form(
-            step_id="set_up_proximity",
-            data_schema=vol.Schema({}),
-            description_placeholders={
-                "panel": panel_display_name(self.hass, entry),
-                "configure_url": sidebar_url(
-                    self._entry_id, "configure", PROXIMITY_SETUP_ANCHOR
-                ),
-            },
-            errors=errors,
-        )
-
-
 class AdbAuthorizationFlow(RepairsFlow):
     """Offer the configured panel the same authorization as its Options flow."""
 
@@ -864,11 +789,6 @@ async def async_create_fix_flow(
         if not isinstance(entry_id, str) or issue_id != permission_issue_id(entry_id):
             raise UnknownStep
         return PanelPermissionFlow(entry_id)
-    if issue_id.startswith(f"{ISSUE_PROXIMITY_SETUP}_"):
-        entry_id = values.get("entry_id")
-        if not isinstance(entry_id, str) or issue_id != proximity_issue_id(entry_id):
-            raise UnknownStep
-        return ProximitySetupFlow(entry_id)
     if issue_id.startswith(f"{ISSUE_ADB_AUTHORIZATION}_"):
         entry_id = values.get("entry_id")
         if not isinstance(entry_id, str) or issue_id != adb_authorization_issue_id(

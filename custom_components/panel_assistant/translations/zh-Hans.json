@@ -968,22 +968,7 @@
     },
     "panel_proximity_setup": {
       "title": "请在 {panel} 上设置接近传感器。",
-      "fix_flow": {
-        "step": {
-          "set_up_proximity": {
-            "title": "设置接近传感器",
-            "description": "{panel} 的接近传感器尚未设置，无法通过挥手唤醒。\n\n解决方法：\n1. 打开[接近传感器设置]({configure_url})，选择“在面板上设置接近传感器”。\n2. 站在 {panel} 前，按照屏幕上的说明操作（约一分钟）。\n3. 校准保存后，返回此处并选择“提交”。\n\n[了解更多]({learn_more_url})"
-          }
-        },
-        "error": {
-          "proximity_not_calibrated": "面板仍显示接近传感器尚未设置。请在面板上完成设置，然后再次提交。",
-          "proximity_calibrating": "面板上的设置仍在进行中。请完成设置，然后再次提交。",
-          "proximity_unreadable": "Home Assistant 无法读取面板的接近传感器状态。请检查面板是否已连接，然后再次提交。"
-        },
-        "abort": {
-          "entry_removed": "Home Assistant 中已不再配置此面板。\n\n解决方法：\n1. 如果希望重新添加，请[打开 Panel Assistant 设备页面](/config/integrations/integration/panel_assistant)。\n2. 否则，请关闭此对话框。\n\n[了解更多]({learn_more_url})"
-        }
-      }
+      "description": "{panel} 的接近传感器尚未设置，无法通过挥手唤醒。\n\n解决方法：\n1. 打开[接近传感器设置]({configure_url})，选择“在面板上设置接近传感器”。\n2. 站在 {panel} 前，按照屏幕上的说明操作（约一分钟）。\n3. 校准保存后，返回此处并选择“提交”。\n\n[了解更多]({learn_more_url})"
     },
     "voice_microphone_silent": {
       "title": "{panel} 上的语音助手未在聆听。",

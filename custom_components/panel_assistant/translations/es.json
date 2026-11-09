@@ -968,22 +968,7 @@
     },
     "panel_proximity_setup": {
       "title": "Configura la proximidad en {panel}.",
-      "fix_flow": {
-        "step": {
-          "set_up_proximity": {
-            "title": "Configurar la proximidad",
-            "description": "{panel} no puede activarse al pasar la mano hasta que se configure su sensor de proximidad.\n\nPara solucionarlo:\n1. Abre la [configuración de proximidad]({configure_url}) y selecciona Configurar proximidad en el panel.\n2. Ponte delante de {panel} y sigue las instrucciones de su pantalla (aproximadamente un minuto).\n3. Cuando se guarde la calibración, vuelve aquí y selecciona Enviar.\n\n[Más información]({learn_more_url})"
-          }
-        },
-        "error": {
-          "proximity_not_calibrated": "El panel sigue indicando que la proximidad no está configurada. Termina la configuración en el panel y vuelve a enviar.",
-          "proximity_calibrating": "La configuración sigue en curso en el panel. Termínala y vuelve a enviar.",
-          "proximity_unreadable": "Home Assistant no pudo leer el estado de proximidad del panel. Comprueba que esté conectado y vuelve a enviar."
-        },
-        "abort": {
-          "entry_removed": "Este panel ya no está configurado en Home Assistant.\n\nPara solucionarlo:\n1. [Abre los dispositivos de Panel Assistant](/config/integrations/integration/panel_assistant) si quieres volver a añadirlo.\n2. En caso contrario, cierra este diálogo.\n\n[Más información]({learn_more_url})"
-        }
-      }
+      "description": "{panel} no puede activarse al pasar la mano hasta que se configure su sensor de proximidad.\n\nPara solucionarlo:\n1. Abre la [configuración de proximidad]({configure_url}) y selecciona Configurar proximidad en el panel.\n2. Ponte delante de {panel} y sigue las instrucciones de su pantalla (aproximadamente un minuto).\n3. Cuando se guarde la calibración, vuelve aquí y selecciona Enviar.\n\n[Más información]({learn_more_url})"
     },
     "voice_microphone_silent": {
       "title": "El asistente de voz de {panel} no está escuchando.",

@@ -968,22 +968,7 @@
     },
     "panel_proximity_setup": {
       "title": "Stel nabijheid in op {panel}.",
-      "fix_flow": {
-        "step": {
-          "set_up_proximity": {
-            "title": "Nabijheid instellen",
-            "description": "{panel} kan pas met een handgebaar worden gewekt als de nabijheidssensor is ingesteld.\n\nOm dit op te lossen:\n1. Open de [nabijheidsinstellingen]({configure_url}) en selecteer Nabijheid instellen op paneel.\n2. Ga voor {panel} staan en volg de aanwijzingen op het scherm (ongeveer een minuut).\n3. Kom hier terug zodra de kalibratie is opgeslagen en selecteer Verzenden.\n\n[Meer informatie]({learn_more_url})"
-          }
-        },
-        "error": {
-          "proximity_not_calibrated": "Het paneel meldt nog steeds dat nabijheid niet is ingesteld. Rond het instellen op het paneel af en verzend opnieuw.",
-          "proximity_calibrating": "Het instellen loopt nog op het paneel. Rond het af en verzend opnieuw.",
-          "proximity_unreadable": "Home Assistant kon de nabijheidsstatus van het paneel niet lezen. Controleer of het paneel verbonden is en verzend opnieuw."
-        },
-        "abort": {
-          "entry_removed": "Dit paneel is niet meer ingesteld in Home Assistant.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten](/config/integrations/integration/panel_assistant) als je het opnieuw wilt toevoegen.\n2. Sluit anders dit dialoogvenster.\n\n[Meer informatie]({learn_more_url})"
-        }
-      }
+      "description": "{panel} kan pas met een handgebaar worden gewekt als de nabijheidssensor is ingesteld.\n\nOm dit op te lossen:\n1. Open de [nabijheidsinstellingen]({configure_url}) en selecteer Nabijheid instellen op paneel.\n2. Ga voor {panel} staan en volg de aanwijzingen op het scherm (ongeveer een minuut).\n3. Kom hier terug zodra de kalibratie is opgeslagen en selecteer Verzenden.\n\n[Meer informatie]({learn_more_url})"
     },
     "voice_microphone_silent": {
       "title": "De spraakassistent op {panel} luistert niet.",

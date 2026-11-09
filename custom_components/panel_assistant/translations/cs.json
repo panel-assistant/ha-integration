@@ -968,22 +968,7 @@
     },
     "panel_proximity_setup": {
       "title": "Nastavte detekci přiblížení na panelu {panel}.",
-      "fix_flow": {
-        "step": {
-          "set_up_proximity": {
-            "title": "Nastavit detekci přiblížení",
-            "description": "Panel {panel} se nemůže probouzet mávnutím, dokud není nastaven jeho senzor přiblížení.\n\nPostup opravy:\n1. Otevřete [nastavení detekce přiblížení]({configure_url}) a zvolte Nastavit detekci přiblížení na panelu.\n2. Postavte se před panel {panel} a postupujte podle pokynů na jeho obrazovce (asi minutu).\n3. Po uložení kalibrace se vraťte sem a zvolte Odeslat.\n\n[Další informace]({learn_more_url})"
-          }
-        },
-        "error": {
-          "proximity_not_calibrated": "Panel stále hlásí, že detekce přiblížení není nastavena. Dokončete nastavení na panelu a poté formulář znovu odešlete.",
-          "proximity_calibrating": "Nastavení na panelu stále probíhá. Dokončete ho a poté formulář znovu odešlete.",
-          "proximity_unreadable": "Home Assistant nemohl zjistit stav detekce přiblížení na panelu. Zkontrolujte, že je panel připojený, a poté formulář znovu odešlete."
-        },
-        "abort": {
-          "entry_removed": "Tento panel již není nastaven v Home Assistant.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant](/config/integrations/integration/panel_assistant), pokud ho chcete znovu přidat.\n2. Jinak tento dialog zavřete.\n\n[Další informace]({learn_more_url})"
-        }
-      }
+      "description": "Panel {panel} se nemůže probouzet mávnutím, dokud není nastaven jeho senzor přiblížení.\n\nPostup opravy:\n1. Otevřete [nastavení detekce přiblížení]({configure_url}) a zvolte Nastavit detekci přiblížení na panelu.\n2. Postavte se před panel {panel} a postupujte podle pokynů na jeho obrazovce (asi minutu).\n3. Po uložení kalibrace se vraťte sem a zvolte Odeslat.\n\n[Další informace]({learn_more_url})"
     },
     "voice_microphone_silent": {
       "title": "Hlasový asistent na panelu {panel} neposlouchá.",
