@@ -17,6 +17,21 @@ _SHA256 = re.compile(r"[0-9a-f]{64}")
 ACTIVE_STATES = frozenset({"downloading", "verified", "installing"})
 ATTENTION_STATES = frozenset({"submitted_unknown", "deferred", "rejected"})
 TRANSACTION_STATES = ACTIVE_STATES | ATTENTION_STATES | {"installed"}
+# The panel's refusals of a new attempt that a Retry cannot change.
+FINAL_REFUSALS = frozenset(
+    {
+        "current",
+        "no_candidate",
+        "insufficient_storage",
+        "no_install_route",
+        "unsupported_install_class",
+        "unsupported_sdk",
+        "unsupported_abi",
+        "different_provider",
+        "play_managed",
+        "signer_mismatch",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,13 +50,13 @@ class WebViewStatus:
     def refused(self) -> bool:
         """The panel will not start this WebView update now, whatever its owner retries.
 
-        Already current, not enough storage, no install route, an unsupported
-        provider: a stale unfinished transaction no longer needs the owner,
-        because a Retry could only be refused again.
+        Only a reason the panel decided from facts it read counts: an observation
+        it could not make (unknown version or installer, unreadable receipt) may
+        change, so it still leaves the owner a Retry.
         """
         return (
             not self.eligible
-            and self.reason is not None
+            and self.reason in FINAL_REFUSALS
             and self.transaction_state not in ACTIVE_STATES
         )
 
@@ -73,7 +88,11 @@ class WebViewStatus:
         """No WebView work is running or left for the owner to finish."""
         return (
             self.transaction_state not in ACTIVE_STATES
-            and (self.transaction_state != "submitted_unknown" or self.refused)
+            and (
+                self.transaction_state != "submitted_unknown"
+                # Only the panel's own current provider proves how it ended.
+                or (self.reason == "current" and self.candidate_sha256 is not None)
+            )
             and (not self.needs_attention or self.download_unpublished)
         )
 

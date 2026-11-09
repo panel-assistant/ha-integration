@@ -295,3 +295,39 @@ async def test_retry_clears_a_repair_the_panel_cannot_act_on(
     assert panel.installs == []
     assert done["type"] == "create_entry"
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
+@pytest.mark.parametrize(
+    ("state", "reason"),
+    [
+        ("submitted_unknown", "version_unknown"),
+        ("submitted_unknown", "installer_unknown"),
+        ("submitted_unknown", "insufficient_storage"),
+        ("deferred", "receipt_unreadable"),
+        ("rejected", "version_unknown"),
+    ],
+)
+async def test_unproven_webview_outcome_keeps_its_repair(
+    hass: HomeAssistant, hass_client: Any, state: str, reason: str
+) -> None:
+    """A panel that cannot read its provider, or an unconfirmed install, keeps Retry."""
+    entry, coordinator, issue_id = await _reported_unfinished_webview(hass)
+    unproven = snapshot(state, reason=reason, transaction_reason="reply_lost")
+    panel = Panel(unproven)
+    first, second, third = _through_the_panel(panel, entry)
+    with (
+        first,
+        second,
+        third,
+        patch.object(
+            coordinator.client,
+            "async_get_status",
+            AsyncMock(return_value=status(unproven)),
+        ),
+    ):
+        done = await _retry(hass, hass_client, issue_id)
+        await async_reconcile_webview_issue(hass, entry, status(unproven))
+
+    assert panel.installs == []
+    assert done["type"] != "create_entry"
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None

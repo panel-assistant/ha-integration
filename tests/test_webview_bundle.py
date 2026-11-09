@@ -86,6 +86,7 @@ async def test_owner_app_update_retains_and_finishes_successor_provider_bundle(
         outcome
         in {
             "submitted_unknown",
+            "unknown_without_candidate",
             "cancel_app",
             "cancel_provider",
         }
@@ -134,8 +135,7 @@ async def test_owner_app_update_retains_and_finishes_successor_provider_bundle(
             if outcome == "legacy":
                 raise InvalidResponseError
             if outcome == "unknown_without_candidate":
-                # Its pin is retired: the panel refuses any new attempt, so an
-                # uncertain old receipt is not left for the owner to clear.
+                # A durable receipt remains authoritative after its pin is retired.
                 document = observation("submitted_unknown", eligible=False)
                 document["candidate"] = None
                 return document
@@ -164,7 +164,10 @@ async def test_owner_app_update_retains_and_finishes_successor_provider_bundle(
         if outcome.startswith("cancel_"):
             with pytest.raises(asyncio.CancelledError):
                 await entity.async_install(None, backup=False)
-        elif outcome == "submitted_unknown" or legacy_unavailable:
+        elif (
+            outcome in {"submitted_unknown", "unknown_without_candidate"}
+            or legacy_unavailable
+        ):
             with pytest.raises(HomeAssistantError):
                 await entity.async_install(None, backup=False)
         else:
