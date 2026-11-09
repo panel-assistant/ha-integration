@@ -121,6 +121,9 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         # sent on: one that ends first cannot finish it.
         self._announcements: dict[str, tuple[str, asyncio.Future[bool]]] = {}
         self._continue_conversation = False
+        # How the turn ended, sent on its "end" event when known.
+        self._outcome: str | None = None
+        self._code: str | None = None
         # The reply as the conversation agent writes it, and whose words the
         # latest chat log delta carries.
         self._reply_text = ""
@@ -398,6 +401,8 @@ class PanelAssistSatellite(AssistSatelliteEntity):
         self._reply_session = None
         self._reply_streamed = False
         self._continue_conversation = False
+        self._outcome = None
+        self._code = None
         cancelled = False
         try:
             await self.async_accept_pipeline_from_satellite(
@@ -417,10 +422,19 @@ class PanelAssistSatellite(AssistSatelliteEntity):
             if (reply := self._reply) is not None:
                 self._reply = None
                 await reply
-            run.send({"kind": "end"})
+            run.send(self._end_event())
             # A turn that speaks ends when its reply has played.
             if cancelled or self.state != AssistSatelliteState.RESPONDING:
                 self._duck.end(follow_up=self._continue_conversation and not cancelled)
+
+    def _end_event(self) -> dict[str, Any]:
+        """The end of the turn, saying how it ended when that is known."""
+        end: dict[str, Any] = {"kind": "end"}
+        if self._outcome is not None:
+            end["outcome"] = self._outcome
+        if self._code is not None:
+            end["code"] = self._code
+        return end
 
     @callback
     def on_pipeline_event(self, event: PipelineEvent) -> None:
@@ -461,6 +475,11 @@ class PanelAssistSatellite(AssistSatelliteEntity):
             self._continue_conversation = bool(
                 intent_output.get("continue_conversation")
             )
+            response = intent_output.get("response") or {}
+            if isinstance(response_type := response.get("response_type"), str):
+                self._outcome = response_type
+            if isinstance(code := (response.get("data") or {}).get("code"), str):
+                self._code = code
             speech = (
                 ((intent_output.get("response") or {}).get("speech") or {}).get("plain")
                 or {}
@@ -490,7 +509,9 @@ class PanelAssistSatellite(AssistSatelliteEntity):
                     self._reply_session = session.token
                     run.send(play)
         elif event.type is PipelineEventType.ERROR:
-            run.send({"kind": "error", "code": str(data.get("code", "error"))})
+            code = str(data.get("code", "error"))
+            self._code = code
+            run.send({"kind": "error", "code": code})
 
     async def _async_stream_reply(
         self, run: VoiceRun, play: dict[str, Any], url: str, session: PanelSession
