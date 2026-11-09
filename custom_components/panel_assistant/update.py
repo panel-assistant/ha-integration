@@ -669,7 +669,16 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         artifact = self._offer.host_release()
         if artifact is None:
             return None
-        return await async_app_release_notes(self.hass, artifact.tag, artifact.version)
+        snapshot: PanelSnapshot | None = self.coordinator.data
+        notes = await async_app_release_notes(
+            self.hass,
+            artifact.version,
+            snapshot.health.version if snapshot is not None else None,
+        )
+        # With release notes the dialog no longer shows release_summary.
+        if self._awaiting_confirmation():
+            return f"<ha-alert>{_AWAITING_CONFIRMATION_SUMMARY}</ha-alert>\n\n{notes}"
+        return notes
 
     def _webview_only_offer(self, app_latest: str | None) -> bool:
         """The app is current, but the panel offers a WebView it has not installed.

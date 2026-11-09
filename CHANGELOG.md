@@ -6,7 +6,7 @@ Each section is what Home Assistant shows in its update dialog: a short, friendl
 
 ## 1.0.1-rc1
 
-- A panel's update in Home Assistant shows a short summary of what changed in the panel app, with a link to the full release notes.
+- A panel's update in Home Assistant shows a short summary of what changed in the panel app, with a link to the full release notes. A panel that skipped releases sees each one, and the summary still shows when the website cannot be reached.
 - Update route checks close their TCP connections even when ADB close fails, run without delaying Home Assistant startup, and recheck every ten minutes or on reconnect instead of on every health update.
 
 ## 1.0.0 - 2026-11-06

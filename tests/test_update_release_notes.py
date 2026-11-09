@@ -7,6 +7,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 
 from custom_components.panel_assistant import release_summaries
+from custom_components.panel_assistant.client import PanelInstallStatus
 from custom_components.panel_assistant.release import ReleaseDownloadError
 from custom_components.panel_assistant.update import UpdateEntityFeature
 
@@ -76,3 +77,60 @@ async def test_a_panel_with_nothing_to_offer_shows_no_notes(
     entity, _ = _entity(hass, install_capability="none")
     assert await entity.async_release_notes() is None
     assert fetch.await_count == 0
+
+
+async def test_the_last_summaries_read_still_show_after_a_restart_without_the_website(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, hass_storage: dict
+) -> None:
+    _site(monkeypatch, return_value=_summaries(**{"v0.9.10": "Faster panels."}))
+    entity, _ = _entity(hass)
+    await entity.async_release_notes()
+    await hass.async_block_till_done()
+
+    # A restart: nothing is kept in memory, and the website cannot be reached.
+    hass.data.pop(release_summaries._CACHE)
+    _site(monkeypatch, side_effect=ReleaseDownloadError("offline"))
+    restarted, _ = _entity(hass)
+    assert await restarted.async_release_notes() == (
+        f"Faster panels.\n\n[Full release notes]({LINK})"
+    )
+
+
+async def test_a_panel_that_skipped_releases_sees_each_one_newest_first(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _site(
+        monkeypatch,
+        return_value=_summaries(
+            **{
+                "v0.9.11": "Not offered yet.",
+                "v0.9.10": "Faster panels.",
+                "v0.9.10-rc1": "A candidate the stable release covers.",
+                "v0.9.9": "Quieter logs.",
+                "v0.9.8": "Already installed.",
+            }
+        ),
+    )
+    entity, _ = _entity(hass, version="0.9.8")
+    assert await entity.async_release_notes() == (
+        "## 0.9.10\n\nFaster panels.\n\n"
+        "## 0.9.9\n\nQuieter logs.\n\n"
+        f"[Full release notes]({LINK})"
+    )
+
+
+async def test_an_update_waiting_for_a_tap_says_so_above_what_changed(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _site(monkeypatch, return_value=_summaries(**{"v0.9.10": "Faster panels."}))
+    entity, _ = _entity(
+        hass,
+        operation=PanelInstallStatus(
+            running=True, component="APK", awaiting_confirmation=True
+        ),
+    )
+    # The dialog shows release notes instead of the summary when an entity has them.
+    assert await entity.async_release_notes() == (
+        "<ha-alert>Tap Install on the panel to finish the update.</ha-alert>\n\n"
+        f"Faster panels.\n\n[Full release notes]({LINK})"
+    )
