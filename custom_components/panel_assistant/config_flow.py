@@ -1541,14 +1541,18 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         if health.discovery_id is not None:
             # A discovery card for this panel may be pending; it must not
             # refuse the person who is adding the panel by hand, and Core
-            # closes that card itself when the entry is created.
+            # closes that card itself when the entry is created. A person who
+            # pressed another channel's card for the panel asked as plainly.
             known = self.hass.config_entries.async_entry_for_domain_unique_id(
                 DOMAIN, health.discovery_id
             )
             replace_ignore = (
                 known is not None
                 and known.source == SOURCE_IGNORE
-                and self.source in {SOURCE_USER, SOURCE_USB_INSTALL}
+                and (
+                    self.source in {SOURCE_USER, SOURCE_USB_INSTALL}
+                    or CONFIRMED in self.context.get("title_placeholders", {})
+                )
             )
             if known is not None and not is_installation(known) and not replace_ignore:
                 return self.async_abort(reason="already_configured")

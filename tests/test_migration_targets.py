@@ -485,6 +485,37 @@ async def test_network_adb_device_is_discovered_and_installs_at_its_address(
     assert result["data"] == {CONF_ADDRESS: "192.168.1.50"}
 
 
+async def test_panel_ignored_on_another_card_is_added_from_its_adb_card(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """Pressing the panel's other card replaces the Ignore on its first one."""
+    MockConfigEntry(
+        domain=DOMAIN,
+        source=config_entries.SOURCE_IGNORE,
+        unique_id="panel-discovery-id",
+        data={},
+    ).add_to_hass(hass)
+    adb_open.open.add("192.168.1.50")
+
+    await _adb_advertised(hass, "192.168.1.50")
+
+    card = _cards(hass)["Android 1234567890123"]
+    health = replace(HEALTH, discovery_id="panel-discovery-id")
+    with (
+        patch(HEALTH_CHECK, AsyncMock(return_value=health)),
+        patch("custom_components.panel_assistant.async_setup_entry", return_value=True),
+    ):
+        found = await hass.config_entries.flow.async_configure(card["flow_id"], {})
+        result = await hass.config_entries.flow.async_configure(
+            found["flow_id"], {"next_step_id": "connect_found"}
+        )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"] == {CONF_ADDRESS: "192.168.1.50"}
+    assert [entry.source for entry in hass.config_entries.async_entries(DOMAIN)] == [
+        config_entries.SOURCE_ZEROCONF
+    ]
+
+
 async def test_network_adb_device_another_app_knows_is_one_card(
     hass: HomeAssistant, adb_open: SimpleNamespace
 ) -> None:

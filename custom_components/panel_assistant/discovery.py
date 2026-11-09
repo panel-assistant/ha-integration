@@ -573,10 +573,7 @@ async def _async_discovered_app(
     advertised_name: object,
 ) -> ConfigFlowResult:
     """Offer, or move to its new address, the panel with this discovery id."""
-    # An IPv6 literal must be bracketed before a port can follow it; bare, its
-    # colons read as a port and every IPv6-only panel was refused here.
-    advertised = discovery_info.ip_address
-    host = f"[{advertised}]" if advertised.version == 6 else str(advertised)
+    host = _discovered_host(discovery_info)
     try:
         # A vendor's SRV port is its own service, not the panel HTTP listener.
         address = normalize_address(
@@ -666,8 +663,7 @@ async def _async_discovered_adb(
     flow: HaPaneldConfigFlow, discovery_info: ZeroconfServiceInfo
 ) -> ConfigFlowResult:
     """Offer an Android device whose network ADB Android itself advertises."""
-    advertised = discovery_info.ip_address
-    host = f"[{advertised}]" if advertised.version == 6 else str(advertised)
+    host = _discovered_host(discovery_info)
     serial = discovery_info.name.removesuffix(f".{ADB_SERVICE_TYPE}")
     candidate = (
         adb_candidate(flow.hass, host, serial.removeprefix("adb-"))
@@ -695,8 +691,7 @@ async def _async_discovered_vendor(
     panel is then handled as if it had announced itself; a panel whose app
     does not answer is offered for installation like a network ADB device.
     """
-    advertised = discovery_info.ip_address
-    host = f"[{advertised}]" if advertised.version == 6 else str(advertised)
+    host = _discovered_host(discovery_info)
     try:
         health = await HaPaneldClient(
             async_get_clientsession(flow.hass), normalize_address(host)
@@ -714,6 +709,26 @@ async def _async_discovered_vendor(
     if health.discovery_id is None:
         return flow.async_abort(reason="invalid_discovery")
     return await _async_discovered_app(flow, discovery_info, health.discovery_id, None)
+
+
+def _discovered_host(discovery_info: ZeroconfServiceInfo) -> str:
+    """The announced host, by its LAN IPv4 address whenever it has one.
+
+    The app answers each address family from its own responder, and Core keeps
+    whichever address it heard last, so a dual-stack panel could be offered by
+    IPv6 alone while every other channel names it by IPv4.
+    """
+    advertised = next(
+        (
+            address
+            for address in (discovery_info.ip_address, *discovery_info.ip_addresses)
+            if address.version == 4 and is_allowed_install_address(address)
+        ),
+        discovery_info.ip_address,
+    )
+    # An IPv6 literal must be bracketed before a port can follow it; bare, its
+    # colons read as a port and every IPv6-only panel was refused here.
+    return f"[{advertised}]" if advertised.version == 6 else str(advertised)
 
 
 def _apply_discovery_title(flow: HaPaneldConfigFlow) -> None:

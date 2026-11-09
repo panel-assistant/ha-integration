@@ -155,6 +155,7 @@ def _zeroconf_info(
     port: int | None = 8888,
     friendly_name: object = None,
     host: str = "192.168.1.23",
+    ip_addresses: list[str] | None = None,
 ) -> ZeroconfServiceInfo:
     """Return a local advertisement with only the stable test contract."""
     address = ip_address(host)
@@ -163,7 +164,7 @@ def _zeroconf_info(
         properties["name"] = friendly_name
     return ZeroconfServiceInfo(
         ip_address=address,
-        ip_addresses=[address],
+        ip_addresses=[ip_address(a) for a in ip_addresses or [host]],
         port=port,
         hostname="alpha.local.",
         type="_ha-paneld._tcp.local.",
