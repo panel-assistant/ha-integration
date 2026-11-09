@@ -63,6 +63,10 @@ from .removed_panels import (
     async_remember_removed_panel,
 )
 from .repairs_microphone import async_delete_microphone_issue
+from .repairs_not_signed_in import (
+    async_delete_not_signed_in_issue,
+    async_evaluate_not_signed_in,
+)
 from .repairs_removal import async_dismiss_removal_notification
 from .repairs_restart import async_setup_restart_check
 from .repairs_restore import async_reconcile_restore_issue
@@ -335,6 +339,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     async_evaluate_old_app(hass, entry)
     entry.async_on_unload(
         coordinator.async_add_listener(lambda: async_evaluate_old_app(hass, entry))
+    )
+    async_evaluate_not_signed_in(hass, entry)
+    entry.async_on_unload(
+        coordinator.async_add_listener(
+            lambda: async_evaluate_not_signed_in(hass, entry)
+        )
+    )
+    entry.async_on_unload(
+        lambda: async_delete_not_signed_in_issue(hass, entry.entry_id)
     )
     # After the old-app refusal, which stands in for this when both apply.
     async_evaluate_app_too_old(hass, entry)

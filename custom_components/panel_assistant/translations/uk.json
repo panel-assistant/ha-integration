@@ -190,7 +190,8 @@
           "restarting_recovery": "Перезапускається (відновлення)",
           "restarting_settings": "Перезапускається (налаштування)",
           "restarting_update": "Перезапускається (оновлення)",
-          "another_home_assistant": "Виконано вхід в інший екземпляр Home Assistant"
+          "another_home_assistant": "Виконано вхід в інший екземпляр Home Assistant",
+          "not_signed_in": "Not signed in to Home Assistant"
         }
       },
       "panel_assistant_version": {
@@ -1913,6 +1914,10 @@
           "restart_started": "Команду перезапуску прийнято. Попередження зникне, коли панель {panel} повідомить про відновлення доступу root.\n\nЩоб виправити:\n1. Прочитайте [вказівки щодо перезапуску]({learn_more_url}).\n2. Спробуйте це виправлення знову, коли панель буде доступна.\n\n[Докладніше]({learn_more_url})"
         }
       }
+    },
+    "not_signed_in": {
+      "title": "{panel} has not connected to Home Assistant",
+      "description": "{panel} answers on the network but has not connected to Home Assistant, so its controls and its sidebar page are missing.\n\nTo fix:\n1. [Open the panel’s setup page]({panel_page}) and sign in to this Home Assistant.\n2. Wait for the panel to connect; this Repair then goes away."
     }
   },
   "options": {
