@@ -2152,3 +2152,38 @@ async def test_a_panel_that_never_signs_in_says_so_until_its_hello(
 
     assert registry.async_get_issue(DOMAIN, issue_id) is None
     assert hass.states.get(status).state == "online"
+
+
+async def test_a_panel_whose_session_drops_is_never_reported_not_signed_in(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    freezer: FrozenDateTimeFactory,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """A panel that has connected once is not told to sign in when it drops.
+
+    A dropped session that comes back is a recovered fault, so it never
+    raises a Repair, however long the panel keeps answering its polls.
+    """
+    from pytest_homeassistant_custom_component.common import async_fire_time_changed
+
+    status = er.async_get(hass).async_get_entity_id(
+        "sensor", DOMAIN, f"{entry.entry_id}_status"
+    )
+    assert status is not None
+    issue_id = f"not_signed_in_{entry.entry_id}"
+    registry = ir.async_get(hass)
+
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await _open(client)
+    await hass.async_block_till_done()
+    await client.close()
+    await hass.async_block_till_done()
+
+    freezer.tick(timedelta(minutes=5))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    assert registry.async_get_issue(DOMAIN, issue_id) is None
+    assert hass.states.get(status).state != "not_signed_in"

@@ -198,7 +198,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
 
         self._vendor_recovery = VendorRecovery(self)
         self._port_probe: tuple[PanelSession, float] | None = None
-        # When the panel was last without a session; None while it holds one.
+        # Since setup while the panel has never connected; None once it has.
         self._no_session_since: datetime | None = dt_util.utcnow()
 
     @property
@@ -283,8 +283,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         @callback
         def _remember() -> None:
             if (session := self._session()) is None:
-                if self._no_session_since is None:
-                    self._no_session_since = dt_util.utcnow()
+                # Only a panel that has never connected since setup is reported:
+                # a session that drops and returns is a recovered fault, logged
+                # elsewhere, never a Repair.
                 return
             self._no_session_since = None
             self._last_hello = (
