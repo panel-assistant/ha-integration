@@ -219,7 +219,11 @@ hp_settle_vendor_display() {
   hp_home=$(cmd package resolve-activity --brief \
     -a android.intent.action.MAIN -c android.intent.category.HOME) || return 1
   hp_home=$(printf '%s\n' "$hp_home" | tail -n 1)
-  case "$hp_home" in __HOME_PACKAGE__/*) ;; *) return 1 ;; esac
+  # A first setup that deferred its HOME claim leaves Android's chooser;
+  # pressing HOME then still pauses the vendor, and the launch that follows
+  # brings the app back, so only another launcher refuses.
+  case "$hp_home" in __HOME_PACKAGE__/*) ;;
+    android/com.android.internal.app.ResolverActivity) ;; *) return 1 ;; esac
   hp_deadline=$(( $(date +%s) + 20 ))
   hp_matched=
   for hp_attempt in 1 2; do

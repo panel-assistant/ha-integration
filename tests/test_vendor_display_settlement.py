@@ -25,6 +25,8 @@ pm() {
 cmd() {
   echo priority=0
   if [ "$MODE" = wrong-home ]; then echo other.app/.Home
+  elif [ "$MODE" = chooser-home ]; then
+    echo android/com.android.internal.app.ResolverActivity
   else echo io.panelassistant.android/.DashboardActivity; fi
 }
 wm() { echo 'Physical density: 240'; echo 'Override density: 216'; }
@@ -189,6 +191,22 @@ def test_no_positive_native_completion_refuses_setup(
         assert "resume" not in calls
     else:
         assert calls.count("resume") == 1
+
+
+def test_a_deferred_home_claim_still_settles_behind_the_chooser(
+    native_panel: Path, settlement_program: str
+) -> None:
+    """A fresh rootless install leaves Android's HOME chooser, not the app.
+
+    The first setup defers its HOME claim to the owner, so HOME resolves to
+    the chooser; the pending vendor restart must still settle, or the install
+    ends as "may have changed the panel" with the app running.
+    """
+    (native_panel / "pending").touch()
+    lines, calls = _run(native_panel, "chooser-home", settlement_program)
+    assert parse_vendor_display_settlement(lines) == "settled"
+    assert calls == ["resume", "shutdown", "resume", "home", "resume"]
+    assert not (native_panel / "pending").exists()
 
 
 def test_other_vendors_do_not_change_home_or_start_stargate(
