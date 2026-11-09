@@ -989,3 +989,67 @@ async def test_a_microphone_report_never_refuses_the_configuration(
         assert _microphone_issue(hass, entry) is not None
     else:
         assert _microphone_issue(hass, entry) is None
+
+
+@pytest.mark.parametrize(
+    ("events", "tail"),
+    [
+        (
+            [
+                PipelineEvent(
+                    PipelineEventType.INTENT_END,
+                    {
+                        "intent_output": {
+                            "response": {
+                                "response_type": "action_done",
+                                "speech": {"plain": {"speech": "Done."}},
+                            }
+                        }
+                    },
+                ),
+            ],
+            {"kind": "end", "outcome": "action_done"},
+        ),
+        (
+            [
+                PipelineEvent(
+                    PipelineEventType.INTENT_END,
+                    {
+                        "intent_output": {
+                            "response": {
+                                "response_type": "error",
+                                "data": {"code": "no_intent_match"},
+                            }
+                        }
+                    },
+                ),
+            ],
+            {"kind": "end", "outcome": "error", "code": "no_intent_match"},
+        ),
+        (
+            [
+                PipelineEvent(
+                    PipelineEventType.ERROR, {"code": "stt-no-text-recognized"}
+                )
+            ],
+            {"kind": "end", "code": "stt-no-text-recognized"},
+        ),
+    ],
+)
+async def test_the_end_event_says_how_the_turn_ended(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    entry: MockConfigEntry,
+    pipeline: FakePipeline,
+    events: list[PipelineEvent],
+    tail: dict[str, Any],
+) -> None:
+    pipeline.events = [*events, PipelineEvent(PipelineEventType.RUN_END)]
+    panel, _entity_id = await _ready(
+        hass, hass_ws_client, hass_read_only_access_token, entry
+    )
+    run_id, handler = await _run(panel, "hey_jarvis")
+    await panel.client.send_bytes(bytes([handler]))
+
+    assert (await _turn_events(panel, run_id))[-1] == tail

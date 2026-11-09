@@ -15,7 +15,10 @@ Three requests and one event kind carry it, all on the panel's session:
   listening (``listen_end``), what speech-to-text heard (``transcript``, its
   ``text``), the reply as the agent writes it (``reply``, its ``text`` so far
   and ``final`` once the reply is complete), what to play (``play``) and that
-  the turn is over (``end``).
+  the turn is over (``end``). ``end`` may carry ``outcome``, how the
+  conversation agent's response ended (``action_done``, ``query_answer`` or
+  ``error``), and ``code``, the agent's error code or the pipeline's error
+  code; both are absent when the turn produced neither.
 - ``voice_played``: the panel finished playing a reply or an announcement, with
   ``outcome: "stopped"`` when the owner stopped it.
 - ``voice_announce`` events on the hello subscription ask the panel to play an
