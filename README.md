@@ -22,6 +22,12 @@ Android wall panels are genuinely good hardware wrapped in genuinely bad softwar
 
 This repository is the Home Assistant integration. The panel app it installs is [ha-paneld](https://github.com/panel-assistant/android). Everything else, from choosing a panel to keeping it running, is at [panel-assistant.io](https://panel-assistant.io).
 
+## Everything happens in Home Assistant
+
+- **Install, update and repair from Home Assistant.** You add a panel from **Settings**, update it from its update entity, and put problems right from the Repairs Home Assistant raises, which name the panel and say what to do.
+- **Nothing to install on your computer.** No Android developer tools and no command line. A USB install runs from Home Assistant in Chrome or Edge, and a network install needs only the panel's address. The one step on the panel itself is switching on debugging in its own Settings; the [hardware page](https://panel-assistant.io/hardware/) for your model says where that switch is.
+- **Repeatable results.** An interrupted install is safe to run again: it checks what already happened on the panel before it changes anything, and carries on from there. Every update arrives the same way, through Panel Assistant, which backs up the panel's settings first and confirms the panel came back healthy.
+
 ## What you get
 
 - **Performance you can feel.** Your existing dashboards, fed only the data they actually use, so the panel answers the moment you touch it. Panel Assistant's entity filter learns which entities your dashboard depends on and asks Home Assistant to send only those.
@@ -54,7 +60,7 @@ The Marketplace and HACS offer the latest release. To try new versions before th
 
 The hard part of any panel is the first hour. Panel Assistant does that hour for you, from inside Home Assistant.
 
-**Over the network.** [Enable ADB on your panel](https://panel-assistant.io/go/panel-access), add the integration and enter the panel's address. Panel Assistant checks the panel, offers the ha-paneld versions it can install, and connects the panel when its setup is done. A panel that already runs ha-paneld is connected rather than reinstalled.
+**Over the network.** Switch on network debugging in the panel's own Settings ([how](https://panel-assistant.io/go/panel-access)), add the integration and enter the panel's address. Panel Assistant checks the panel, offers the ha-paneld versions it can install, and connects the panel when its setup is done. A panel that already runs ha-paneld is connected rather than reinstalled.
 
 **Over USB.** Choose **Add panel** in the **Panel Assistant** sidebar page (or add the integration), pick **Install using USB on this computer**, then **Open the USB installer** and follow the wizard. Use Chrome or Edge on a computer, and plug the panel into that computer, not into the Home Assistant server. Home Assistant itself does not need a certificate. Either way you approve one prompt on the panel and watch it through.
 
