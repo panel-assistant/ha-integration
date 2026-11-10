@@ -688,8 +688,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
     def _webview_only_offer(self, app_latest: str | None) -> bool:
         """The app is current, but the panel offers a WebView it has not installed.
 
-        Covers an owner who updated the app before Panel Assistant itself, so
-        no app update will carry the WebView. Only the owner's Install starts it.
+        Covers an app updated before Panel Assistant, or a WebView rolled back
+        since: eligible outweighs a finished install. Only Install starts it.
         """
         entry = self.hass.config_entries.async_get_entry(self._entry_id)
         snapshot: PanelSnapshot | None = self.coordinator.data
@@ -706,7 +706,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             and observation.supported
             and observation.eligible
             and observation.candidate_sha256 is not None
-            and observation.transaction_state is None
+            and observation.transaction_state in (None, "installed")
         )
 
     def _app_latest_version(self) -> str | None:
