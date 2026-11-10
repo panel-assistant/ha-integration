@@ -62,6 +62,7 @@ from .adb_protocol import (
     _async_connect,
     _async_shell,
     _async_wait_for_completion,
+    _boot_port_command,
     _cleanup_command,
     _decode_lines,
     _identity_root_command,
@@ -71,6 +72,7 @@ from .adb_protocol import (
     _notification_grant_command,
     _package_command,
     _parse_artifact_observation,
+    _parse_boot_port,
     _parse_cleanup,
     _parse_identity_root,
     _parse_install_outcome,
@@ -1544,6 +1546,27 @@ async def async_launch_installed_app(
     return launch.outcome
 
 
+async def _async_keep_boot_port(device: AdbDeviceAsync) -> None:
+    """Keep network ADB after a reboot even if the app never runs to arm it."""
+    nonce = token_hex(16)
+    try:
+        kept = _parse_boot_port(
+            await _async_shell(
+                device, _boot_port_command(nonce), read_timeout=_READ_TIMEOUT_SECONDS
+            ),
+            nonce,
+        )
+    except _MalformedAdbResponse:
+        kept = None
+    if kept is None:
+        _LOGGER.warning(
+            "Could not keep network ADB enabled after a reboot on this panel; "
+            "the app's helper sets it when it first runs"
+        )
+    elif kept == "written":
+        _LOGGER.info("Kept network ADB enabled after a reboot on this panel")
+
+
 async def async_start_installed_app(
     target: AdbInstallTarget,
     signer: PythonRSASigner,
@@ -1578,6 +1601,12 @@ async def async_start_installed_app(
             home_chooser = await _async_repair_app_permissions(
                 device, target, descriptor.package_id, descriptor.launch_component
             )
+            # The app's own session runs its helper, which keeps this itself.
+            if (
+                expected_root_mode is AdbRootMode.ROOT_ADBD
+                and target.local_shell is None
+            ):
+                await _async_keep_boot_port(device)
             nonce = token_hex(16)
             mutation_started = True
             outcome = _parse_launch_outcome(

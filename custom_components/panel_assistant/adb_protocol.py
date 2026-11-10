@@ -1102,6 +1102,41 @@ def _parse_permission_grant(
     )
 
 
+_BOOT_PORT_PROPERTY = "persist.adb.tcp.port"
+
+
+def _boot_port_command(nonce: str) -> str:
+    """Keep boot-time network ADB on the port this install is connected to.
+
+    Root adbd only. The panel's own helper writes the same property when it
+    arms, but an install that stops before the app first runs never reaches
+    it, and some vendor images clear network ADB at boot without it. An
+    existing value belongs to the owner or vendor and is never overwritten.
+    """
+    prop = _BOOT_PORT_PROPERTY
+    return (
+        f"echo HAPANELD_BOOTPORT_BEGIN:{nonce}; "
+        f'if [ -z "$(getprop {prop})" ]; then '
+        f"echo written; setprop {prop} {ADB_PORT}; status=$?; "
+        "else echo kept; status=0; fi; "
+        f"getprop {prop}; "
+        f"echo HAPANELD_BOOTPORT_END:{nonce}:$status"
+    )
+
+
+def _parse_boot_port(body: bytes, nonce: str) -> str | None:
+    """Return ``written`` or ``kept``, or None when the port is not in place."""
+    lines, status_code = _parse_single_section(body, prefix="BOOTPORT", nonce=nonce)
+    if status_code != 0 or len(lines) != 2:
+        return None
+    action, value = lines
+    if action == "written" and value == str(ADB_PORT):
+        return action
+    if action == "kept":
+        return action
+    return None
+
+
 def _launch_command(nonce: str, package_id: str, launch_component: str) -> str:
     """Start the installed build by the exact component its descriptor names.
 
