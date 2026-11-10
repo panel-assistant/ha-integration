@@ -360,7 +360,10 @@ def test_every_budgeted_workflow_warns_on_its_own_slow_push() -> None:
 _RULE = {
     "budget_seconds": 10,
     "prefixes": ["Set up ", "Pull ", "Restore "],
-    "exempt": {"Pull unavoidable": "pulled before the first step"},
+    "exempt": {
+        "Pull unavoidable": "pulled before the first step",
+        "hosted / Restore slow": "no cache on this runner",
+    },
 }
 
 
@@ -401,6 +404,18 @@ def test_work_steps_and_exempt_steps_are_not_setup() -> None:
         _RULE,
     )
     assert times == {}
+
+
+def test_a_job_scoped_exemption_holds_only_in_that_job() -> None:
+    """The same step can be cut on one runner and not on another."""
+    times = check_ci_budget.setup_step_times(
+        [
+            _job("hosted", _step("Restore slow", 30)),
+            _job("blacksmith", _step("Restore slow", 30)),
+        ],
+        _RULE,
+    )
+    assert times == {("blacksmith", "Restore slow"): 30.0}
 
 
 def test_a_skipped_install_cost_nothing() -> None:

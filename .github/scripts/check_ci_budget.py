@@ -117,10 +117,15 @@ def step_seconds(step: dict[str, Any]) -> float | None:
     )
 
 
-def is_setup_step(name: str, rule: dict[str, Any]) -> bool:
-    """Tell whether a step only prepares the job (budgeted) or does its work."""
-    return any(name.startswith(prefix) for prefix in rule["prefixes"]) and (
-        name not in rule.get("exempt", {})
+def is_setup_step(job: str, name: str, rule: dict[str, Any]) -> bool:
+    """Tell whether a step only prepares the job (budgeted) or does its work.
+
+    An exemption names the step in every job, or "<job> / <step>" in one job,
+    since the same step can be cut on one runner and not on another.
+    """
+    exempt = rule.get("exempt", {})
+    return any(name.startswith(prefix) for prefix in rule["prefixes"]) and not (
+        name in exempt or f"{job} / {name}" in exempt
     )
 
 
@@ -141,8 +146,9 @@ def setup_step_times(
             # A skipped step (a cache hit skips its install) cost nothing.
             skipped = step.get("conclusion") == "skipped"
             seconds = 0.0 if skipped else step_seconds(step)
-            if seconds is not None and is_setup_step(name, rule):
-                times[(job.get("name") or "", name)] = seconds
+            job_name = job.get("name") or ""
+            if seconds is not None and is_setup_step(job_name, name, rule):
+                times[(job_name, name)] = seconds
     return times
 
 
