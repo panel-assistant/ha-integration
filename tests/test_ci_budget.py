@@ -355,3 +355,188 @@ def test_every_budgeted_workflow_warns_on_its_own_slow_push() -> None:
                 path.name
             )
     assert checked == set(budgets["budgets"])
+
+
+_RULE = {
+    "budget_seconds": 10,
+    "prefixes": ["Set up ", "Pull ", "Restore "],
+    "exempt": {
+        "Pull unavoidable": "pulled before the first step",
+        "hosted / Restore slow": "no cache on this runner",
+    },
+}
+
+
+def _step(name: str, seconds: int, conclusion: str = "success") -> dict[str, str]:
+    return {
+        "name": name,
+        "conclusion": conclusion,
+        "started_at": "2026-11-10T00:00:00Z",
+        "completed_at": f"2026-11-10T00:00:{seconds:02d}Z",
+    }
+
+
+def _job(name: str, *steps: dict[str, str], status: str = "completed") -> dict:
+    return {"name": name, "status": status, "steps": list(steps)}
+
+
+def test_a_slow_setup_step_is_reported_with_its_job() -> None:
+    times = check_ci_budget.setup_step_times(
+        [_job("tests · 1/2", _step("Set up Python", 12), _step("Run tests", 59))],
+        _RULE,
+    )
+    assert check_ci_budget.slow_setup_steps([times], 10) == [
+        ("tests · 1/2", "Set up Python", 12.0)
+    ]
+
+
+def test_a_setup_step_exactly_at_its_budget_passes() -> None:
+    times = check_ci_budget.setup_step_times(
+        [_job("tests", _step("Set up Python", 10))], _RULE
+    )
+    assert check_ci_budget.slow_setup_steps([times], 10) == []
+
+
+def test_work_steps_and_exempt_steps_are_not_setup() -> None:
+    """Only preparation is budgeted: not the tests, not a reasoned exemption."""
+    times = check_ci_budget.setup_step_times(
+        [_job("validate", _step("Pull unavoidable", 40), _step("Run tests", 50))],
+        _RULE,
+    )
+    assert times == {}
+
+
+def test_a_job_scoped_exemption_holds_only_in_that_job() -> None:
+    """The same step can be cut on one runner and not on another."""
+    times = check_ci_budget.setup_step_times(
+        [
+            _job("hosted", _step("Restore slow", 30)),
+            _job("blacksmith", _step("Restore slow", 30)),
+        ],
+        _RULE,
+    )
+    assert times == {("blacksmith", "Restore slow"): 30.0}
+
+
+def test_a_skipped_install_cost_nothing() -> None:
+    """A cache hit skips its install step; that run counts as fast, not absent."""
+    samples = [
+        check_ci_budget.setup_step_times(
+            [_job("tests", _step("Restore env", seconds, conclusion))], _RULE
+        )
+        for seconds, conclusion in [(50, "success"), (50, "skipped"), (50, "skipped")]
+    ]
+    assert check_ci_budget.slow_setup_steps(samples, 10) == []
+
+
+def test_one_cold_cache_run_does_not_fail_the_weekly_check() -> None:
+    samples = [{("tests", "Set up Python"): s} for s in (40.0, 2.0, 3.0)]
+    assert check_ci_budget.slow_setup_steps(samples, 10) == []
+    samples.append({("tests", "Set up Python"): 30.0})
+    samples.append({("tests", "Set up Python"): 30.0})
+    assert check_ci_budget.slow_setup_steps(samples, 10) == [
+        ("tests", "Set up Python", 30.0)
+    ]
+
+
+def test_an_unfinished_job_is_left_out() -> None:
+    """In --this-run the budget job itself is still running and has no verdict yet."""
+    times = check_ci_budget.setup_step_times(
+        [_job("budget", _step("Set up job", 30), status="in_progress")], _RULE
+    )
+    assert times == {}
+
+
+def test_a_setup_warning_names_the_levers_before_an_exemption() -> None:
+    warning = check_ci_budget.setup_step_warning("tests", "Set up Python", 12.0, 10)
+    assert "'Set up Python'" in warning and "'tests'" in warning
+    assert "12s" in warning and "10s" in warning
+    assert warning.index("cache") < warning.index("exempt")
+
+
+def test_this_run_mode_warns_on_a_slow_setup_step(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from datetime import UTC, datetime
+
+    created = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    urls = []
+
+    def fetch(url: str, _token: str) -> dict:
+        urls.append(url)
+        if "/jobs" in url:
+            return {
+                "jobs": [
+                    _job("validate", _step("Set up Python", 12)),
+                    _job("budget", _step("Set up job", 30), status="in_progress"),
+                ]
+            }
+        return {"created_at": created}
+
+    budget, summary = _this_run_env(tmp_path, monkeypatch, fetch)
+    budget.write_text(
+        json.dumps(
+            {"sample_size": 10, "budgets": {"Hassfest": 45}, "setup_step": _RULE}
+        )
+    )
+    result = check_ci_budget.main(
+        ["--this-run", "--repository", "example/repo", "--budget-file", str(budget)]
+    )
+    output = capsys.readouterr().out
+    assert result == 0
+    assert urls[1].endswith("/actions/runs/99/jobs?filter=latest&per_page=100")
+    assert "::warning title=CI budget::Set-up step 'Set up Python'" in output
+    assert "Set up job" not in output
+    assert "Hassfest took" not in output
+    assert "Set up Python" in summary.read_text()
+
+
+@pytest.mark.parametrize(("seconds", "failed"), [(25, True), (4, False)])
+def test_the_weekly_check_fails_on_a_slow_setup_step(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    seconds: int,
+    failed: bool,
+) -> None:
+    """A workflow inside its wall budget can still hide one download that grew."""
+    from urllib.parse import urlparse
+
+    budget = tmp_path / "budget.json"
+    budget.write_text(
+        json.dumps({"sample_size": 3, "budgets": {"Quiet": 120}, "setup_step": _RULE})
+    )
+    monkeypatch.setenv("GITHUB_TOKEN", "test-token")
+    fast = _run("2026-09-12T16:00:00Z", "2026-09-12T16:01:00Z")
+    jobs_fetched = []
+
+    def fetch(url: str, _token: str) -> dict:
+        path = urlparse(url).path
+        if path.endswith("/actions/workflows"):
+            return {"workflows": [{"name": "Quiet", "id": 7}]}
+        if path.endswith("/jobs"):
+            jobs_fetched.append(path)
+            return {"jobs": [_job("tests", _step("Set up Python", seconds))]}
+        return {"workflow_runs": [fast | {"id": n} for n in range(3)]}
+
+    monkeypatch.setattr(check_ci_budget, "_fetch", fetch)
+    result = check_ci_budget.main(
+        ["--repository", "example/repo", "--budget-file", str(budget)]
+    )
+    output = capsys.readouterr().out
+    assert sorted(jobs_fetched) == [
+        f"/repos/example/repo/actions/runs/{n}/jobs" for n in range(3)
+    ]
+    assert result == (1 if failed else 0)
+    assert ("SETUP    Quiet / tests / Set up Python: median 25s" in output) is failed
+
+
+def test_every_setup_exemption_carries_its_reason() -> None:
+    config = json.loads((ROOT / ".github/ci-budget.json").read_text(encoding="utf-8"))
+    rule = config["setup_step"]
+    assert rule["budget_seconds"] == 10
+    assert rule["prefixes"]
+    for step, reason in rule["exempt"].items():
+        assert len(reason.split()) >= 8, step

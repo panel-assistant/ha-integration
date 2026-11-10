@@ -7,6 +7,12 @@ recent successful push runs on main, per workflow, against a recorded ceiling.
 With --this-run it instead warns, never fails, when the current run on main has
 already taken longer than its workflow's budget, so a slow push is seen the day
 it lands rather than at the next weekly check.
+
+Both modes also hold each set-up step (checkout, toolchain, image pull, cache
+restore) to a per-step budget, "setup_step" in the budget file. A whole
+workflow can stay inside its budget while one download grows from 2 s to 30 s,
+and that is the slowdown nobody looks for. The weekly check fails on a step
+whose median over the sampled runs is over; --this-run warns on this run's.
 """
 
 from __future__ import annotations
@@ -101,6 +107,87 @@ def this_run_warning(
     )
 
 
+def step_seconds(step: dict[str, Any]) -> float | None:
+    """Return one job step's seconds, or None when it did not run to completion."""
+    return run_seconds(
+        {
+            "run_started_at": step.get("started_at"),
+            "updated_at": step.get("completed_at"),
+        }
+    )
+
+
+def is_setup_step(job: str, name: str, rule: dict[str, Any]) -> bool:
+    """Tell whether a step only prepares the job (budgeted) or does its work.
+
+    An exemption names the step in every job, or "<job> / <step>" in one job,
+    since the same step can be cut on one runner and not on another.
+    """
+    exempt = rule.get("exempt", {})
+    return any(name.startswith(prefix) for prefix in rule["prefixes"]) and not (
+        name in exempt or f"{job} / {name}" in exempt
+    )
+
+
+def setup_step_times(
+    jobs: list[dict[str, Any]], rule: dict[str, Any]
+) -> dict[tuple[str, str], float]:
+    """Return the seconds of every completed set-up step, keyed by (job, step).
+
+    A job still running is left out: in --this-run that is the budget job
+    itself, and an unfinished step has no duration to judge.
+    """
+    times = {}
+    for job in jobs:
+        if job.get("status") != "completed":
+            continue
+        for step in job.get("steps") or []:
+            name = step.get("name") or ""
+            # A skipped step (a cache hit skips its install) cost nothing.
+            skipped = step.get("conclusion") == "skipped"
+            seconds = 0.0 if skipped else step_seconds(step)
+            job_name = job.get("name") or ""
+            if seconds is not None and is_setup_step(job_name, name, rule):
+                times[(job_name, name)] = seconds
+    return times
+
+
+def slow_setup_steps(
+    samples: list[dict[tuple[str, str], float]], budget: int
+) -> list[tuple[str, str, float]]:
+    """Return (job, step, median seconds) for each set-up step over budget.
+
+    The median across the sampled runs, so one cold-cache run cannot fail the
+    weekly check on its own; a single sample is judged as it stands.
+    """
+    by_step: dict[tuple[str, str], list[float]] = {}
+    for sample in samples:
+        for key, seconds in sample.items():
+            by_step.setdefault(key, []).append(seconds)
+    rows = []
+    for (job, step), values in sorted(by_step.items()):
+        seconds = statistics.median(values)
+        if seconds > budget:
+            rows.append((job, step, seconds))
+    return rows
+
+
+def setup_step_warning(job: str, step: str, seconds: float, budget: int) -> str:
+    """Name the step and the three ways to cut it before any exemption."""
+    return (
+        f"Set-up step '{step}' in job '{job}' took {seconds:.0f}s, over the "
+        f"per-step budget of {budget}s in .github/ci-budget.json. Eliminate it, "
+        "prebuild it or cache it; only a step none of those can cut goes under "
+        "setup_step.exempt with the reason."
+    )
+
+
+def _jobs(api: str, run_id: object, token: str) -> list[dict[str, Any]]:
+    return _fetch(f"{api}/runs/{run_id}/jobs?filter=latest&per_page=100", token).get(
+        "jobs", []
+    )
+
+
 def summary_lines(*, over: bool, no_data: bool) -> list[str]:
     """Return the closing advice for each failure that actually occurred.
 
@@ -150,17 +237,31 @@ def check_this_run(args: argparse.Namespace) -> int:
             return 0
         config = json.loads(args.budget_file.read_text(encoding="utf-8"))
         run = _fetch(f"{_API}/repos/{args.repository}/actions/runs/{run_id}", token)
+        warnings = []
         warning = this_run_warning(
             workflow, run.get("created_at") or "", now, config["budgets"]
         )
-        if warning is None:
+        if warning is not None:
+            warnings.append(warning)
+        rule = config.get("setup_step")
+        if rule:
+            api = f"{_API}/repos/{args.repository}/actions"
+            times = setup_step_times(_jobs(api, run_id, token), rule)
+            warnings += [
+                setup_step_warning(job, step, seconds, rule["budget_seconds"])
+                for job, step, seconds in slow_setup_steps(
+                    [times], rule["budget_seconds"]
+                )
+            ]
+        if not warnings:
             print(f"CI budget: {workflow} is within its budget")
             return 0
-        print(f"::warning title=CI budget::{warning}")
         summary = os.environ.get("GITHUB_STEP_SUMMARY")
-        if summary:
-            with open(summary, "a", encoding="utf-8") as handle:
-                handle.write(f"{warning}\n")
+        for warning in warnings:
+            print(f"::warning title=CI budget::{warning}")
+            if summary:
+                with open(summary, "a", encoding="utf-8") as handle:
+                    handle.write(f"{warning}\n")
     except Exception as error:  # this check must never fail a run
         print(f"CI budget: not checked ({type(error).__name__}: {error})")
     return 0
@@ -245,6 +346,15 @@ def main(argv: list[str] | None = None) -> int:
 
     over = False
     no_data = False
+    rule = config.get("setup_step")
+    for workflow, runs in by_workflow.items() if rule else ():
+        samples = [setup_step_times(_jobs(api, run["id"], token), rule) for run in runs]
+        for job, step, seconds in slow_setup_steps(samples, rule["budget_seconds"]):
+            print(
+                f"SETUP    {workflow} / {job} / {step}: median {seconds:.0f}s "
+                f"> {rule['budget_seconds']}s per step ({len(samples)} runs)"
+            )
+            over = True
     for state, workflow, seconds, budget in verdicts(measured, budgets):
         sample = f" ({len(by_workflow[workflow])}/{sample_size} usable runs)"
         if state == "no-data":
