@@ -6,5 +6,25 @@
     "HACS": 75,
     "Hassfest": 45,
     "USB installer": 35
+  },
+  "setup_step": {
+    "_comment": "Ceiling in seconds for any one set-up step (a step whose name starts with one of the prefixes). The weekly check fails on a step whose median over the sampled push runs is over; each push's budget job warns on its own. Cut a slow step by eliminating, prebuilding or caching it; exempt a step only with the reason none of those can.",
+    "budget_seconds": 10,
+    "prefixes": [
+      "Set up ",
+      "Check out ",
+      "Pull ",
+      "Restore ",
+      "Build the test environment",
+      "Install ",
+      "Initialize ",
+      "Download ",
+      "Post ",
+      "Run actions/",
+      "Run astral-sh/"
+    ],
+    "exempt": {
+      "Pull ghcr.io/hacs/action:main": "The runner pulls a Docker action's image before the job's first step, so no cache or prebuilt image can reach it; HACS runs beside the longer Python tests, never on the push's critical path."
+    }
   }
 }

@@ -71,45 +71,32 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # setup-python downloads, unpacks and upgrades pip in this interpreter on
+      # every run (about 11 s); restored into the tool cache, it is found there.
+      - name: Restore the Python interpreter
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.tool_cache }}/Python/${{ env.PYTHON_VERSION }}
+          key: python-${{ env.PYTHON_VERSION }}-${{ runner.os }}-${{ runner.arch }}-ubuntu-24.04
       - name: Set up Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-          cache-dependency-path: pyproject.toml
       # The whole environment is cached, not just the downloads, so a hit skips
       # dependency resolution as well. The key carries everything that decides
-      # what gets installed, so it cannot serve a stale environment.
+      # what gets installed, so it cannot serve a stale environment, and nothing
+      # else: an edit elsewhere in this workflow must not rebuild it.
       - name: Restore the test environment
         id: venv
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.VENV }}
-          key: ci-venv-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-ha${{ matrix.home-assistant }}-fixture${{ matrix.fixture }}-${{ hashFiles('pyproject.toml', '.github/workflows/tests.yml') }}
+          key: ci-venv-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-ha${{ matrix.home-assistant }}-fixture${{ matrix.fixture }}-${{ hashFiles('pyproject.toml', '.github/scripts/build_test_env.sh') }}
       - name: Build the test environment
         if: steps.venv.outputs.cache-hit != 'true'
         env:
           FIXTURE: ${{ matrix.fixture }}
-        run: |
-          python -m venv "$VENV"
-          "$VENV/bin/python" -m pip install -e ".[test]"
-          # The two test packages supply the same fixtures; only one may be installed.
-          if [ "$FIXTURE" != "pytest-homeassistant-custom-component==0.13.357" ]; then
-            "$VENV/bin/python" -m pip uninstall -y pytest-homeassistant-custom-component
-            "$VENV/bin/python" -m pip install "$FIXTURE"
-          fi
-          frontend_requirement=$("$VENV/bin/python" -c 'import json, pathlib, homeassistant; path = pathlib.Path(homeassistant.__file__).parent / "components/frontend/manifest.json"; print(json.loads(path.read_text())["requirements"][0])')
-          "$VENV/bin/python" -m pip install "$frontend_requirement"
-          # Voice and camera tests import Home Assistant components whose
-          # requirements are installed only when Home Assistant sets them up, so install the versions this
-          # Home Assistant release declares.
-          voice_requirements=$("$VENV/bin/python" -c 'import json, pathlib, homeassistant; root = pathlib.Path(homeassistant.__file__).parent / "components"; seen, todo, reqs = set(), ["assist_satellite", "assist_pipeline", "conversation", "camera", "stream"], []
-          while todo:
-              c = todo.pop()
-              if c in seen or not (root / c / "manifest.json").exists(): continue
-              seen.add(c); m = json.loads((root / c / "manifest.json").read_text()); reqs += m.get("requirements", []); todo += m.get("dependencies", []) + m.get("after_dependencies", [])
-          print(" ".join(sorted(set(reqs))))')
-          if [ -n "$voice_requirements" ]; then "$VENV/bin/python" -m pip install $voice_requirements; fi
+        run: .github/scripts/build_test_env.sh
       - name: Use the test environment
         run: echo "$VENV/bin" >> "$GITHUB_PATH"
       # Runs on a restored environment too: a cache hit is not permission to skip
