@@ -4,7 +4,9 @@ All notable changes to this project will be documented in this file.
 
 Each section is what Home Assistant shows in its update dialog: a short, friendly summary, a few highlights and a link to the full notes on [panel-assistant.io](https://panel-assistant.io/go/release-notes). The full notes, including every pre-release, are kept on the website. From 1.0.0 onward; earlier sections are the full notes as they were released.
 
-## 1.0.1
+## 1.0.2-rc1
+
+## 1.0.1 - 2026-11-10
 
 - A panel's update in Home Assistant shows a short summary of what changed in the panel app, with a link to the full release notes. A panel that skipped releases sees each one, and the summary still shows when the website cannot be reached. A test build that arrives before its version is released says so, instead of linking notes that do not exist yet.
 - Update route checks close their TCP connections even when ADB close fails, run without delaying Home Assistant startup, and recheck every ten minutes or on reconnect instead of on every health update.
