@@ -552,6 +552,8 @@ def _transport_refusal(value: object) -> str | None:
     if isinstance(refusal, str) and re.fullmatch(r"[a-z_]{1,64}", refusal):
         return refusal
     return None
+
+
 def _network_adb(value: object) -> dict[str, Any]:
     """Keep the app's ADB lease report; anything malformed counts as absent."""
     if not isinstance(value, dict):
