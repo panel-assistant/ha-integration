@@ -53,6 +53,7 @@ from .repairs_permission import async_reconcile_permission_issue
 from .repairs_proximity import async_reconcile_proximity_issue
 from .repairs_root import async_reconcile_root_issue
 from .repairs_webview import async_reconcile_webview_issue
+from .saved_account import SavedAccount
 from .status import PanelStatus, parse_status_response
 from .transport_protocol import ERR_PANEL_UNAVAILABLE, MANAGE_SNAPSHOT
 from .transport_sessions import (
@@ -200,6 +201,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         self._port_probe: tuple[PanelSession, float] | None = None
         # Since setup while the panel has never connected; None once it has.
         self._no_session_since: datetime | None = dt_util.utcnow()
+        self._saved_account = SavedAccount(hass, lambda: self._no_session_since is None)
 
     @property
     def connected(self) -> bool:
@@ -213,6 +215,15 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
 
     @property
     def not_signed_in(self) -> bool:
+        """Return whether a panel that has not connected holds no account here."""
+        return self.unreached_ha_url is None and self._awaiting_session(True)
+
+    @property
+    def unreached_ha_url(self) -> str | None:
+        """Return the address a signed-in panel that never connected is trying."""
+        return self._saved_account.trying if self._awaiting_session(True) else None
+
+    def _awaiting_session(self, asked: bool = False) -> bool:
         """Return whether the panel answers polls but has not connected for a while.
 
         Every entity beyond the static ones, and the sidebar page, need the
@@ -232,6 +243,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             or self.connected
             or not self.reachable
             or self.data is None
+            or (asked and not self._saved_account.read)
             or dt_util.utcnow() - since < NOT_SIGNED_IN_GRACE
         ):
             return False
@@ -428,6 +440,10 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         self.reachable = False
         snapshot = await self._async_poll_address()
         self.reachable = True
+        if self._awaiting_session() and (entry := self._entry()) is not None:
+            await self._saved_account.async_read(
+                self.client, entry.title, snapshot.status
+            )
         self._vendor_recovery.observe(snapshot)
         await self._async_activate_completed_admin(snapshot.health)
         return snapshot
