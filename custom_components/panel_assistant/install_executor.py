@@ -380,11 +380,12 @@ class InstallExecutor:
         )
 
     async def async_resume_loaded_jobs(self) -> tuple[str, ...]:
-        """Resume durable jobs because an existing integration entry loaded us.
+        """Resume durable jobs when the domain starts, with or without an entry.
 
-        This function does not register an HA startup hook. With zero config
-        entries Home Assistant does not import the custom integration, so a
-        later config flow must call :meth:`async_ensure_job` to resume the job.
+        This function does not register an HA startup hook. With neither a
+        config entry nor YAML configuration Home Assistant does not set up the
+        custom integration, so a later config flow must call
+        :meth:`async_ensure_job` to resume the job.
         """
         async with self._resume_lock:
             resumed: list[str] = []
@@ -2198,7 +2199,7 @@ async def async_get_install_executor(hass: HomeAssistant) -> InstallExecutor:
 
 
 async def async_resume_loaded_install_jobs(hass: HomeAssistant) -> tuple[str, ...]:
-    """Resume safe jobs only after an existing config entry loaded the domain.
+    """Resume safe jobs when the domain starts, whether or not a panel is added.
 
     What could not be resumed and has stood too long is ended here, and the
     rest are looked at again when their time is up.

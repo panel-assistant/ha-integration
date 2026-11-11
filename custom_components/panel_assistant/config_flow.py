@@ -399,6 +399,41 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             },
         )
 
+    async def _async_unclaimed_install_of(
+        self, health: PanelHealth
+    ) -> InstallJobReceipt | None:
+        """A healthy install of this panel waiting under another of its addresses.
+
+        A receipt keeps the address its install used, so the panel reached by
+        another (its other address family, a card) misses it in the address
+        lookup. Asked at the receipt's own address, the app there names itself;
+        the same name is the same panel, which then meets its install rather
+        than being added beside it.
+        """
+        if health.discovery_id is None or self.source == SOURCE_USB_INSTALL:
+            # The USB installer's flow runs with nobody at a dialog; it adds its
+            # panel, and finishing the install later finds that entry instead.
+            return None
+        try:
+            receipts = await (
+                await async_get_install_job_manager(self.hass)
+            ).async_list()
+        except InstallJobError:
+            return None
+        for receipt in receipts:
+            if receipt.phase is not InstallPhase.HEALTHY_UNCLAIMED:
+                continue
+            try:
+                there = await HaPaneldClient(
+                    async_get_clientsession(self.hass),
+                    normalize_address(receipt.target.pinned_address),
+                ).async_get_health()
+            except HaPaneldError, InvalidAddressError:
+                continue
+            if there.discovery_id == health.discovery_id:
+                return receipt
+        return None
+
     async def _async_unfinished_install(self) -> InstallJobReceipt | None:
         """The unfinished install this flow met, as it stands now."""
         if self._unfinished_job_id is None:
@@ -702,6 +737,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         ):
             return await self._async_create_panel_entry(
                 self._pending_address, self._pending_health
+            )
+        if unclaimed := await self._async_unclaimed_install_of(self._pending_health):
+            return await self._async_show_unfinished_install(
+                unclaimed, {CONF_ADDRESS: self._pending_address.stored_value}
             )
         if runs_old_app(self._pending_health):
             return self.async_abort(
@@ -1692,6 +1731,23 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 return self.async_abort(reason="install_worker_stopped")  # type: ignore[unreachable]
             return await self.async_step_panel_setup()
 
+        known = (
+            self.hass.config_entries.async_entry_for_domain_unique_id(
+                DOMAIN, result.health.discovery_id
+            )
+            if result.health.discovery_id is not None
+            else None
+        )
+        if known is not None and known.source != SOURCE_IGNORE:
+            # The panel was added meanwhile under another of its addresses.
+            # That entry is what this install became; a second is never made.
+            await executor.async_consume_finalization(
+                receipt.job_id, self.flow_id, known.entry_id
+            )
+            self._finalizer_job_id = None
+            close_offers(self.hass, receipt.target.address, self.flow_id, pressed=True)
+            return self.async_abort(reason="already_configured")
+
         # The lease stays held through ConfigEntries' actual add.
         # async_on_create_entry hands HA's generated entry id to the executor,
         # which records it and releases the lease.
@@ -1842,6 +1898,12 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             )
             if known is not None and not is_installation(known) and not replace_ignore:
                 return self.async_abort(reason="already_configured")
+            if (known is None or replace_ignore) and (
+                unclaimed := await self._async_unclaimed_install_of(health)
+            ):
+                return await self._async_show_unfinished_install(
+                    unclaimed, {CONF_ADDRESS: address.stored_value}
+                )
             await self.async_set_unique_id(health.discovery_id, raise_on_progress=False)
             if not replace_ignore:
                 self._abort_if_unique_id_configured(
