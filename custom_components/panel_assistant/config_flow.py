@@ -62,6 +62,7 @@ from .client import (
     InvalidResponseError,
     PanelAddress,
     PanelHealth,
+    RequestRefusedError,
     is_valid_discovery_id,
     normalize_address,
 )
@@ -239,6 +240,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     _unfinished_input: dict[str, Any] | None = None
     # What the next refusal shown should give as its cause in the log.
     _refusal_cause: object = None
+    # The panel's refusal of the last setup read, shown on the setup form.
+    _setup_refusal: RequestRefusedError | None = None
     _progress_waiter: asyncio.Task[InstallJobReceipt] | None = None
     _progress_action = "installing"
     _authorization_task: asyncio.Task[InstallTargetProbe] | None = None
@@ -295,6 +298,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         )
         if isinstance(cause, InstallNetworkError):
             detail = cause.code.value
+        elif isinstance(cause, RequestRefusedError):
+            detail = f"{type(cause).__name__}: {cause}"
         elif isinstance(cause, BaseException):
             detail = type(cause).__name__
             if cause.__cause__ is not None:
@@ -810,11 +815,15 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         """
         client = self._found_client()
         errors: dict[str, str] = {}
+        placeholders = {"setup_url": client.setup_url}
+        refusal, self._setup_refusal = self._setup_refusal, None
         if user_input is None:
             await async_offer_ha_url(self.hass, client)
         else:
             try:
                 complete = await client.async_get_setup_complete()
+            except RequestRefusedError as err:
+                refusal, complete = err, False
             except HaPaneldError:
                 complete = False
             if complete:
@@ -825,10 +834,16 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                     return await self.async_step_install_result()
                 return await self.async_step_connect_found()
             errors["base"] = "panel_setup_not_finished"
+        if refusal is not None:
+            # A refusal is not "not finished yet": Submit can never get past it
+            # unless the person and the log are told what the panel answered.
+            self._refusal_cause = refusal
+            errors["base"] = "panel_setup_refused"
+            placeholders["refusal"] = str(refusal)
         return self.async_show_form(
             step_id="panel_setup",
             data_schema=vol.Schema({}),
-            description_placeholders={"setup_url": client.setup_url},
+            description_placeholders=placeholders,
             errors=errors,
         )
 
@@ -1718,8 +1733,17 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         # this flow or restarting HA must leave the same install retryable.
         self._pending_address = normalize_address(receipt.target.address)
         self._pending_health = result.health
+        # Read setup where the install reached the panel. A typed name the
+        # panel does not answer to (not its own host name, nor an allowed
+        # host) is refused there, though setup is done.
+        self._pending_install_target = PinnedPanelTarget(
+            original=self._pending_address,
+            pinned=normalize_address(receipt.target.pinned_address),
+        )
         try:
-            complete = await self._async_new_panel_setup_complete(self._pending_address)
+            complete = await self._async_new_panel_setup_complete(
+                self._pending_install_target.pinned
+            )
         except asyncio.CancelledError:
             executor.release_finalizer(receipt.job_id, self.flow_id)
             self._finalizer_job_id = None
@@ -1928,6 +1952,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             state = await HaPaneldClient(
                 async_get_clientsession(self.hass), address
             ).async_get_setup_state()
+        except RequestRefusedError as err:
+            # The setup form that follows shows it and logs it.
+            self._setup_refusal = err
+            return False
         except HaPaneldError:
             return False
         return state.complete

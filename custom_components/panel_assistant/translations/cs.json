@@ -139,6 +139,7 @@
     },
     "error": {
       "panel_setup_not_finished": "Panel ještě nedokončil nastavení. Dokončete stránku nastavení a poté znovu vyberte Odeslat.",
+      "panel_setup_refused": "The panel refused to say whether its setup is finished. It answered: {refusal}. Select Submit to try again.",
       "old_app_installed": "Na tomto panelu stále běží stará aplikace ha-paneld. Panel Assistant 1.0 ji nemůže převést na novou aplikaci a nic vedle ní nenainstaluje. Postupujte podle [kroků bezpečné obnovy]({old_app_help_url}) a dokončete přechod pomocí Panel Assistant 0.9.0. Pokud už na některém panelu běží aplikace verze 1.0 nebo nemáte zálohu z doby před aktualizací, požádejte před změnou verzí o pomoc.",
       "cannot_connect": "Nelze se připojit k platnému koncovému bodu kontroly stavu Panel Assistant.",
       "invalid_address": "Zadejte název hostitele nebo IP adresu bez schématu URL či cesty.",

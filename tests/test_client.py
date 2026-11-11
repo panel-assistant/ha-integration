@@ -15,6 +15,7 @@ from custom_components.panel_assistant.client import (
     InvalidAddressError,
     InvalidResponseError,
     PanelHealth,
+    RequestRefusedError,
     StagedApk,
     StagingUnavailableError,
     UpdateApprovalRequiredError,
@@ -356,6 +357,28 @@ async def test_client_rejects_non_success(status: int) -> None:
     )
     with pytest.raises(CannotConnectError):
         await client.async_get_health()
+
+
+async def test_a_refused_read_keeps_the_status_and_the_panels_words() -> None:
+    """A 4xx is the panel saying no; whoever reports it can say what it said."""
+    client = HaPaneldClient(  # type: ignore[arg-type]
+        _session(status=403, body=b"host not\n  allowed\n"),
+        normalize_address("panel.local"),
+    )
+    with pytest.raises(RequestRefusedError) as refused:
+        await client.async_get_setup_state()
+    assert refused.value.status == 403
+    assert str(refused.value) == "HTTP 403 host not allowed"
+
+
+async def test_a_failing_panel_is_not_a_refusal() -> None:
+    """A 5xx is the panel failing, not refusing; it stays a plain failure."""
+    client = HaPaneldClient(  # type: ignore[arg-type]
+        _session(status=500, body=b"boom"), normalize_address("panel.local")
+    )
+    with pytest.raises(CannotConnectError) as failed:
+        await client.async_get_setup_state()
+    assert not isinstance(failed.value, RequestRefusedError)
 
 
 async def test_client_maps_network_failure() -> None:

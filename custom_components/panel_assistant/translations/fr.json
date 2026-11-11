@@ -139,6 +139,7 @@
     },
     "error": {
       "panel_setup_not_finished": "Le panneau n’a pas encore terminé sa configuration. Complétez la page de configuration, puis sélectionnez à nouveau Valider.",
+      "panel_setup_refused": "The panel refused to say whether its setup is finished. It answered: {refusal}. Select Submit to try again.",
       "old_app_installed": "Ce panneau utilise encore l’ancienne application ha-paneld. Panel Assistant 1.0 ne peut pas le faire passer à la nouvelle application et n’installe rien à côté. Suivez les [étapes de récupération sécurisée]({old_app_help_url}) pour terminer la migration avec Panel Assistant 0.9.0. Si un panneau utilise déjà l’application 1.0, ou si vous n’avez aucune sauvegarde datant d’avant la mise à niveau, demandez de l’aide avant de changer de version.",
       "cannot_connect": "Impossible de se connecter à un point de terminaison d'état Panel Assistant valide.",
       "invalid_address": "Saisissez un nom d'hôte ou une adresse IP sans schéma d'URL ni chemin.",

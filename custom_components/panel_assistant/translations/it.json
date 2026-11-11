@@ -139,6 +139,7 @@
     },
     "error": {
       "panel_setup_not_finished": "Il pannello non ha ancora completato la configurazione. Completa la pagina di configurazione, poi seleziona di nuovo Invia.",
+      "panel_setup_refused": "The panel refused to say whether its setup is finished. It answered: {refusal}. Select Submit to try again.",
       "old_app_installed": "Questo pannello esegue ancora la vecchia app ha-paneld. Panel Assistant 1.0 non può migrarlo alla nuova app e non installa nulla accanto a quella vecchia. Segui i [passaggi di ripristino sicuro]({old_app_help_url}) per completare la migrazione con Panel Assistant 0.9.0. Se un qualsiasi pannello esegue già l'app 1.0, o non hai un backup precedente all'aggiornamento, chiedi aiuto prima di cambiare versione.",
       "cannot_connect": "Impossibile connettersi a un endpoint valido sullo stato di funzionamento di Panel Assistant.",
       "invalid_address": "Inserisci un nome host o un indirizzo IP senza schema URL né percorso.",

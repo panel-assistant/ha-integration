@@ -139,6 +139,7 @@
     },
     "error": {
       "panel_setup_not_finished": "Konfiguracja panelu nie została jeszcze ukończona. Dokończ konfigurację na stronie konfiguracji, a następnie ponownie wybierz Zatwierdź.",
+      "panel_setup_refused": "The panel refused to say whether its setup is finished. It answered: {refusal}. Select Submit to try again.",
       "old_app_installed": "Na tym panelu nadal działa stara aplikacja ha-paneld. Panel Assistant 1.0 nie może przeprowadzić migracji do nowej aplikacji i nie instaluje niczego obok starej. Wykonaj [kroki bezpiecznego odzyskiwania]({old_app_help_url}), aby dokończyć migrację za pomocą Panel Assistant 0.9.0. Jeśli na którymkolwiek panelu działa już aplikacja w wersji 1.0 lub nie masz kopii zapasowej sprzed aktualizacji, poproś o pomoc przed zmianą wersji.",
       "cannot_connect": "Nie udało się nawiązać połączenia z prawidłowym punktem końcowym stanu działania usługi Panel Assistant.",
       "invalid_address": "Wprowadź nazwę hosta lub adres IP bez schematu URL i ścieżki.",

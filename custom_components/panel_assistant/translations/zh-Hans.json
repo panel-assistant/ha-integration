@@ -139,6 +139,7 @@
     },
     "error": {
       "panel_setup_not_finished": "面板尚未完成设置。请完成设置页面，然后再次选择“提交”。",
+      "panel_setup_refused": "The panel refused to say whether its setup is finished. It answered: {refusal}. Select Submit to try again.",
       "old_app_installed": "此面板仍在运行旧版 ha-paneld 应用。Panel Assistant 1.0 无法将其迁移到新应用，也不会与其并存安装任何内容。请按照[安全恢复步骤]({old_app_help_url})，使用 Panel Assistant 0.9.0 完成迁移。如果任何面板已在运行 1.0 应用，或者您没有升级前的备份，请在更改版本之前寻求帮助。",
       "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
       "invalid_address": "请输入不含 URL 方案或路径的主机名或 IP 地址。",

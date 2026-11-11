@@ -139,6 +139,7 @@
     },
     "error": {
       "panel_setup_not_finished": "Het paneel is nog niet klaar met instellen. Rond de instelpagina af en selecteer daarna opnieuw Verzenden.",
+      "panel_setup_refused": "The panel refused to say whether its setup is finished. It answered: {refusal}. Select Submit to try again.",
       "old_app_installed": "Op dit paneel draait nog de oude ha-paneld-app. Panel Assistant 1.0 kan deze niet overzetten naar de nieuwe app en installeert er niets naast. Volg de [veilige herstelstappen]({old_app_help_url}) om de overstap met Panel Assistant 0.9.0 af te ronden. Als er op een paneel al de 1.0-app draait, of als je geen back-up van vóór de upgrade hebt, vraag dan om hulp voordat je van versie wisselt.",
       "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig Panel Assistant-status-eindpunt.",
       "invalid_address": "Voer een hostnaam of een IP-adres in zonder het URL-schema of een pad.",
