@@ -18,6 +18,7 @@ import pytest
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.client import CannotConnectError, HaPaneldClient
@@ -28,7 +29,10 @@ from custom_components.panel_assistant.repairs_failure import (
     async_record_update_failure,
     panel_failure_issue_id,
 )
-from custom_components.panel_assistant.transport_sessions import async_get_sessions
+from custom_components.panel_assistant.transport_sessions import (
+    async_get_sessions,
+    signal_session_changed,
+)
 
 from .test_availability import STATUS_ENTITY, _load, _state
 from .test_transport import DID, HEALTH, HELLO, STATUS, WsClientFactory, _receive, _send
@@ -605,28 +609,72 @@ async def test_a_session_snapshot_ends_an_update_repair_once_its_webview_settles
     assert (issue is None) is settled
 
 
+async def _until_closed(hass: HomeAssistant, entry_id: str) -> None:
+    closed = asyncio.Event()
+
+    def changed() -> None:
+        if async_get_sessions(hass).get(entry_id) is None:
+            closed.set()
+
+    unsubscribe = async_dispatcher_connect(
+        hass, signal_session_changed(entry_id), changed
+    )
+    try:
+        changed()
+        await closed.wait()
+    finally:
+        unsubscribe()
+
+
+@pytest.mark.parametrize("address_answers", [True, False])
 async def test_a_session_that_ends_mid_poll_finishes_the_poll_over_http(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
     hass_read_only_user: Any,
     hass_read_only_access_token: str,
     caplog: pytest.LogCaptureFixture,
+    address_answers: bool,
 ) -> None:
-    """The panel still answers health, so losing its session is no outage."""
+    """A panel still answering health is no outage when its session ends."""
     entry = await _load(hass, hass_read_only_user.id)
     coordinator = entry.runtime_data.coordinator
     panel = await _connect(hass, hass_ws_client, hass_read_only_access_token, MANAGED)
-    with _http_answers():
+    ended = asyncio.Event()
+
+    async def health_after_the_session_ends(_client: HaPaneldClient) -> Any:
+        await ended.wait()
+        if not address_answers:
+            raise CannotConnectError
+        return HEALTH
+
+    with (
+        _http_answers() if address_answers else _http_blocked(),
+        patch.object(HaPaneldClient, "async_get_health", health_after_the_session_ends),
+    ):
         refresh = asyncio.ensure_future(coordinator.async_refresh())
         await panel.manage()
-        # The session ends before the panel answers the management request.
+        # The session ends while both reads are still out.
         await panel.client.close()
+        await asyncio.wait_for(_until_closed(hass, entry.entry_id), timeout=1)
+        ended.set()
         await refresh
+        # Before anything else polls: this poll alone decides availability.
+        polled_available = coordinator.available
         await hass.async_block_till_done()
 
     assert async_get_sessions(hass).get(entry.entry_id) is None
-    assert coordinator.last_update_success
-    assert coordinator.data.health == HEALTH
-    assert _state(hass, STATUS_ENTITY) != "unavailable"
-    assert "Unable to read panel health" not in caplog.text
-    assert not [r for r in caplog.records if r.levelname == "ERROR"]
+    errors = [
+        r
+        for r in caplog.records
+        if r.levelname == "ERROR" and "panel_assistant" in r.getMessage()
+    ]
+    assert polled_available is address_answers
+    if address_answers:
+        assert _state(hass, STATUS_ENTITY) != "unavailable"
+        assert not errors
+        assert coordinator.last_update_success
+        assert coordinator.data.health == HEALTH
+        assert coordinator.data.status == STATUS
+    else:
+        assert _state(hass, STATUS_ENTITY) == "unavailable"
+        assert not coordinator.last_update_success

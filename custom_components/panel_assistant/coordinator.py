@@ -451,7 +451,6 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                 and isinstance(snapshot.__cause__, HomeAssistantError)
                 and snapshot.__cause__.translation_key == ERR_PANEL_UNAVAILABLE
                 and not session_manages(self._session())
-                and self._entry() is entry
             ):
                 for outcome in (health, snapshot):
                     if isinstance(outcome, BaseException):
