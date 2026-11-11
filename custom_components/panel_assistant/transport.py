@@ -66,6 +66,7 @@ from .device import panel_display_name
 from .ha_url import DATA_INSTANCE_ID, async_connection_urls
 from .lifecycle import DATA_LIFECYCLE
 from .native import shown_elsewhere
+from .refused_hellos import async_forget_refused_hello, async_record_refused_hello
 from .transport_binding import (
     _may_ask_to_bind,
     async_bind_user,
@@ -321,10 +322,23 @@ def ws_hello(
             async_record_binding_request(hass, did, connection.user.id)
         # An entry added again that failed setup still owns the panel, which then
         # retries as an unknown panel rather than slowly as a removed one.
-        if did in _removed_panels(hass) and not any(
-            _panel_did(other) == did
-            for other in hass.config_entries.async_entries(DOMAIN)
-        ):
+        code = (
+            ERR_ENTRY_REMOVED
+            if did in _removed_panels(hass)
+            and not any(
+                _panel_did(other) == did
+                for other in hass.config_entries.async_entries(DOMAIN)
+            )
+            else ERR_UNKNOWN_PANEL
+        )
+        async_record_refused_hello(
+            hass,
+            did,
+            code,
+            tuple(msg.get("addresses", ())),
+            connection.remote if isinstance(connection.remote, str) else None,
+        )
+        if code == ERR_ENTRY_REMOVED:
             connection.send_error(
                 msg["id"], ERR_ENTRY_REMOVED, "The panel's entry was removed."
             )
@@ -491,6 +505,7 @@ def _accept_hello(
     """Grant a session only after synchronous admission or completed address proof."""
     did = msg["did"]
     user_id = connection.user.id
+    async_forget_refused_hello(hass, did)
     async_delete_merged_identity_issue(hass, entry)
     async_delete_binding_issue(hass, entry.entry_id, user_id)
 

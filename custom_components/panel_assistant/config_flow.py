@@ -128,6 +128,7 @@ from .provisioning import (
     InstallTargetState,
     async_probe_install_target,
 )
+from .refused_hellos import async_refused_hello_at
 from .release import (
     ReleaseArtifact,
     ReleaseResolutionError,
@@ -1021,6 +1022,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             health = await client.async_get_health()
         except (CannotConnectError, InvalidResponseError) as err:
             app_port = _app_port_outcome(err)
+            health_error: Exception = err
         except Exception:
             _LOGGER.exception(
                 "Unexpected exception while checking for an existing ha-paneld"
@@ -1031,6 +1033,31 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 return await self._async_create_panel_entry(address, health)
             self._pending_health = health
             return await self._async_show_found_panel()
+
+        # A panel at this address has just opened a session, so it runs the app
+        # and reaches Home Assistant; only the way back to it is blocked.
+        if not custom_port and (
+            sighting := async_refused_hello_at(
+                self.hass,
+                address.host,
+                *((target.pinned.host,) if target is not None else ()),
+            )
+        ):
+            return self._show_add_panel_form(
+                user_input,
+                {"base": "panel_connected_unreachable"},
+                cause=(
+                    f"panel {sighting.did} opened a session from "
+                    f"{sighting.peer or 'unknown'} reporting "
+                    f"{','.join(sighting.addresses) or 'no addresses'}; "
+                    f"port {address.port}: {type(health_error).__name__}"
+                    + (
+                        f" from {health_error.__cause__!r}"
+                        if health_error.__cause__ is not None
+                        else ""
+                    )
+                ),
+            )
 
         # A fresh install chooses its listener; typing a custom port does not
         # configure it. Require health proof before using that endpoint, or a
