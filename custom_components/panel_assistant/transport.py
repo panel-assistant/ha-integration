@@ -322,22 +322,24 @@ def ws_hello(
             async_record_binding_request(hass, did, connection.user.id)
         # An entry added again that failed setup still owns the panel, which then
         # retries as an unknown panel rather than slowly as a removed one.
+        held = any(
+            _panel_did(other) == did
+            for other in hass.config_entries.async_entries(DOMAIN)
+        )
         code = (
             ERR_ENTRY_REMOVED
-            if did in _removed_panels(hass)
-            and not any(
-                _panel_did(other) == did
-                for other in hass.config_entries.async_entries(DOMAIN)
-            )
+            if did in _removed_panels(hass) and not held
             else ERR_UNKNOWN_PANEL
         )
-        async_record_refused_hello(
-            hass,
-            did,
-            code,
-            tuple(msg.get("addresses", ())),
-            connection.remote if isinstance(connection.remote, str) else None,
-        )
+        if not held:
+            # An entry that is not loaded yet, or is disabled, is not news.
+            async_record_refused_hello(
+                hass,
+                did,
+                code,
+                tuple(msg.get("addresses", ())),
+                connection.remote if isinstance(connection.remote, str) else None,
+            )
         if code == ERR_ENTRY_REMOVED:
             connection.send_error(
                 msg["id"], ERR_ENTRY_REMOVED, "The panel's entry was removed."

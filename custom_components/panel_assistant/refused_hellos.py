@@ -17,6 +17,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
+from .transport_protocol import ERR_ENTRY_REMOVED
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -85,13 +86,18 @@ def async_record_refused_hello(
         == (code, addresses, peer)
     ):
         return
-    _LOGGER.warning(
+    # A removed panel keeps calling until it is reset; that was the owner's
+    # choice, so it is noted once a window, not raised as a warning.
+    removed = code == ERR_ENTRY_REMOVED
+    _LOGGER.log(
+        logging.INFO if removed else logging.WARNING,
         "Panel Assistant refused a panel session: error=%s panel=%s "
-        "addresses=%s connected_from=%s; add the panel to accept it",
+        "addresses=%s connected_from=%s; %s",
         code,
         did,
         ",".join(addresses) or "none reported",
         peer or "unknown",
+        "its entry was removed" if removed else "add the panel to accept it",
     )
 
 
@@ -113,7 +119,8 @@ def async_refused_hello_at(hass: HomeAssistant, *hosts: str) -> RefusedHello | N
     ):
         if now - sighting.at > REFUSED_HELLO_TTL:
             continue
-        seen = {_ip(value) for value in (*sighting.addresses, sighting.peer)}
+        # Only what the panel reports: behind NAT its peer is the router.
+        seen = {_ip(value) for value in sighting.addresses}
         if wanted & seen:
             return sighting
     return None

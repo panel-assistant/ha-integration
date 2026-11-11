@@ -1022,7 +1022,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             health = await client.async_get_health()
         except (CannotConnectError, InvalidResponseError) as err:
             app_port = _app_port_outcome(err)
-            health_error: Exception = err
+            # Nothing answered, so the way back to the panel may be blocked.
+            unreached: CannotConnectError | None = (
+                err if isinstance(err, CannotConnectError) else None
+            )
         except Exception:
             _LOGGER.exception(
                 "Unexpected exception while checking for an existing ha-paneld"
@@ -1036,11 +1039,15 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
 
         # A panel at this address has just opened a session, so it runs the app
         # and reaches Home Assistant; only the way back to it is blocked.
-        if not custom_port and (
-            sighting := async_refused_hello_at(
-                self.hass,
-                address.host,
-                *((target.pinned.host,) if target is not None else ()),
+        if (
+            unreached is not None
+            and not custom_port
+            and (
+                sighting := async_refused_hello_at(
+                    self.hass,
+                    address.host,
+                    *((target.pinned.host,) if target is not None else ()),
+                )
             )
         ):
             return self._show_add_panel_form(
@@ -1050,10 +1057,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                     f"panel {sighting.did} opened a session from "
                     f"{sighting.peer or 'unknown'} reporting "
                     f"{','.join(sighting.addresses) or 'no addresses'}; "
-                    f"port {address.port}: {type(health_error).__name__}"
+                    f"port {address.port}: {type(unreached).__name__}"
                     + (
-                        f" from {health_error.__cause__!r}"
-                        if health_error.__cause__ is not None
+                        f" from {unreached.__cause__!r}"
+                        if unreached.__cause__ is not None
                         else ""
                     )
                 ),

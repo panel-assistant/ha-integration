@@ -26,6 +26,7 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import (
 
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.install_network import async_pin_install_target
+from custom_components.panel_assistant.refused_hellos import async_refused_hello_at
 
 from .config_flow_helpers import (
     _probe,
@@ -41,6 +42,7 @@ from .test_transport import (
     _send,
     entry,  # noqa: F401
 )
+from .test_upgrade_repairs import CURRENT, _entry, _set_up
 
 PINNED = "192.168.1.23"
 HEALTH_URL = f"http://{PINNED}:8888/api/v1/health"
@@ -198,26 +200,87 @@ async def test_a_panel_that_stopped_calling_in_is_not_named(
     assert result["errors"] == {"base": "panel_unreachable"}
 
 
-async def test_an_accepted_session_is_no_longer_a_calling_panel(
+async def test_an_address_where_something_else_answers_keeps_the_old_answer(
+    hass: HomeAssistant,
+    setup: AsyncMock,
+    aioclient_mock: AiohttpClientMocker,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """Port 8888 answered, but not as the app: nothing proves a blocked port."""
+    aioclient_mock.get(HEALTH_URL, text="not panel health")
+    await _call_in(hass, hass_ws_client, hass_read_only_access_token, [PINNED])
+
+    with patch(
+        "custom_components.panel_assistant.config_flow._async_host_answers",
+        AsyncMock(return_value=True),
+    ):
+        result = await _add(hass, "panel.local")
+
+    assert result["errors"] == {"base": "app_port_not_panel"}
+    setup.assert_awaited_once()
+
+
+async def test_a_panel_whose_entry_is_not_loaded_is_not_logged(
     hass: HomeAssistant,
     entry: Any,  # noqa: F811
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Once the panel has an entry, its earlier refusal explains nothing."""
-    from custom_components.panel_assistant.refused_hellos import (
-        async_refused_hello_at,
-    )
-
-    client = await hass_ws_client(hass, hass_read_only_access_token)
-    # Refused while its entry is not loaded yet, then accepted.
+    """At start-up or in setup retry the panel is known; it is not a new panel."""
     await hass.config_entries.async_unload(entry.entry_id)
-    response = await _send(client, _hello(addresses=[PINNED]))
-    assert response["error"]["code"] == "unknown_panel"
-    assert async_refused_hello_at(hass, PINNED) is not None
-    assert await hass.config_entries.async_setup(entry.entry_id)
-    await hass.async_block_till_done()
+    with caplog.at_level(logging.INFO):
+        await _call_in(hass, hass_ws_client, hass_read_only_access_token, [PINNED])
 
+    assert not [r for r in caplog.records if "refused a panel session" in r.message]
+    assert async_refused_hello_at(hass, PINNED) is None
+
+
+async def test_a_removed_panel_calling_in_is_noted_not_warned(
+    hass: HomeAssistant,
+    entry: Any,  # noqa: F811
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The owner removed it; it is still recorded, at INFO."""
+    await hass.config_entries.async_remove(entry.entry_id)
+    await hass.async_block_till_done()
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    with caplog.at_level(logging.INFO):
+        response = await _send(client, _hello(addresses=[PINNED]))
+
+    assert response["error"]["code"] == "entry_removed"
+    assert [
+        (record.levelno, record.getMessage())
+        for record in caplog.records
+        if "refused a panel session" in record.getMessage()
+    ] == [
+        (
+            logging.INFO,
+            "Panel Assistant refused a panel session: error=entry_removed "
+            f"panel={DID} addresses={PINNED} connected_from=unknown; "
+            "its entry was removed",
+        )
+    ]
+    assert async_refused_hello_at(hass, PINNED) is not None
+
+
+async def test_an_accepted_session_is_no_longer_a_calling_panel(
+    hass: HomeAssistant,
+    hass_read_only_user: Any,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """Refused while it had no entry, then added: its refusal explains nothing."""
+    assert await async_setup_component(hass, DOMAIN, {})
+    await _call_in(hass, hass_ws_client, hass_read_only_access_token, [PINNED])
+    assert async_refused_hello_at(hass, PINNED) is not None
+
+    added = _entry(hass, hass_read_only_user.id)
+    await _set_up(hass, added, CURRENT)
+    client = await hass_ws_client(hass, hass_read_only_access_token)
     await _open(client, addresses=[PINNED])
 
     assert async_refused_hello_at(hass, PINNED) is None
