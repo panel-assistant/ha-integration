@@ -236,7 +236,11 @@ async def test_permission_repair_stops_retrying_adb_the_app_keeps_off(
                 version=artifact.version, package="io.panelassistant.android"
             )
         ),
-        client=SimpleNamespace(address=SimpleNamespace(host="192.168.1.30", port=8888)),
+        # The coordinator's own client: the repair reads the app's port through it.
+        client=SimpleNamespace(
+            address=(address := SimpleNamespace(host="192.168.1.30", port=8888)),
+            async_get_status=port.client(None, address).async_get_status,
+        ),
     )
     monkeypatch.setattr(update_panel_install, "_PERMISSION_REPAIR_RETRY_SECONDS", 0)
     monkeypatch.setattr(

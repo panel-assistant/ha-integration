@@ -148,6 +148,7 @@ async def async_repair_update_permissions(
                     "Repairing permissions after an update",
                     # A restarted app that has not said so may yet reconnect.
                     reported_only=True,
+                    client=coordinator.client,
                 )
             ):
                 _LOGGER.debug(

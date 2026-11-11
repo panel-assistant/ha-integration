@@ -601,6 +601,7 @@ async def async_held_lease(
     purpose: str,
     *,
     reported_only: bool = False,
+    client: HaPaneldClient | None = None,
 ) -> HeldLease | None:
     """Whether ADB is closed by our own lease that no lapse will end.
 
@@ -611,8 +612,8 @@ async def async_held_lease(
     if entry is not None and session_for(hass, entry) is not None:
         return None
     try:
-        status = await HaPaneldClient(
-            async_get_clientsession(hass), address
+        status = await (
+            client or HaPaneldClient(async_get_clientsession(hass), address)
         ).async_get_status()
     except HaPaneldError, OSError, TimeoutError:
         return None
