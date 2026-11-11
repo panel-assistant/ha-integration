@@ -98,6 +98,62 @@ async def test_existing_panel_adb_consent_refuses_changed_http_identity(
     probe.assert_not_awaited()
 
 
+@pytest.mark.parametrize(
+    "address",
+    ["100.127.77.20", "100.127.77.20:8888", "[2001:db8:77::20]"],
+    ids=["cgnat", "cgnat_port_8888", "global_ipv6"],
+)
+async def test_panel_added_outside_install_range_is_never_offered_the_adb_key(
+    hass: HomeAssistant, address: str
+) -> None:
+    """Allowing ADB for such a panel stops at the address rule, before any contact."""
+    health = PanelHealth(
+        version="0.9.9",
+        panel_id="jenna",
+        build="998",
+        config_hash="abcd1234",
+        discovery_id="a" * 64,
+        protocol=(5, 5),
+    )
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test display",
+        unique_id="a" * 64,
+        data={CONF_ADDRESS: address},
+    )
+    entry.add_to_hass(hass)
+    entry.runtime_data = SimpleNamespace(
+        coordinator=SimpleNamespace(data=SimpleNamespace(health=health))
+    )
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=health),
+        ) as read_health,
+        patch(
+            "custom_components.panel_assistant.config_flow.async_get_adb_signer",
+            AsyncMock(),
+        ) as get_signer,
+        patch(
+            "custom_components.panel_assistant.config_flow.async_probe_install_target",
+            AsyncMock(),
+        ) as probe,
+    ):
+        opened = await hass.config_entries.options.async_init(entry.entry_id)
+        consent = await hass.config_entries.options.async_configure(
+            opened["flow_id"], {"next_step_id": "authorize_adb"}
+        )
+        refused = await hass.config_entries.options.async_configure(
+            consent["flow_id"], {}
+        )
+        refused = await _after_authorization_progress(hass, refused)
+    assert refused["step_id"] == "authorize_adb"
+    assert refused["errors"] == {"base": "unsafe_install_target"}
+    read_health.assert_not_awaited()
+    get_signer.assert_not_awaited()
+    probe.assert_not_awaited()
+
+
 @pytest.mark.parametrize("entry_did", ["a" * 64, None, "b" * 64])
 async def test_adb_authorization_repair_refuses_changed_panel(
     hass: HomeAssistant, hass_client: Any, entry_did: str | None

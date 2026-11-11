@@ -97,7 +97,6 @@ async def test_install_rejects_invalid_address_before_network_calls(
         (InstallNetworkErrorCode.RESOLUTION_FAILED, "install_resolution_failed"),
         (InstallNetworkErrorCode.RESOLUTION_TIMEOUT, "install_resolution_timeout"),
         (InstallNetworkErrorCode.TOO_MANY_RESULTS, "install_too_many_addresses"),
-        (InstallNetworkErrorCode.UNSAFE_TARGET, "unsafe_install_target"),
         (InstallNetworkErrorCode.PINNED_TARGET_REMOVED, "install_target_changed"),
     ],
 )

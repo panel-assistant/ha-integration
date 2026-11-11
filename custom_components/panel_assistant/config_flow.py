@@ -873,15 +873,22 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         host = f"[{address.host}]" if ":" in address.host else address.host
         custom_port = address.port != normalize_address(host).port
         target: PinnedPanelTarget | None = None
+        # Set when the address is one the installer refuses: a running panel
+        # there is still added, but nothing is ever installed over ADB to it.
+        install_refusal: InstallNetworkError | None = None
         try:
             target = await async_pin_install_target(self.hass, address)
         except InstallNetworkError as err:
-            if not custom_port:
+            if (
+                not custom_port
+                and err.code is not InstallNetworkErrorCode.UNSAFE_TARGET
+            ):
                 return self._show_add_panel_form(
                     user_input, {"base": _install_network_error(err)}, cause=err
                 )
             # Existing panels can be reached beyond the installer's LAN ranges.
             # A read-only health check grants no installation authority.
+            install_refusal = err
         except Exception:
             _LOGGER.exception("Unexpected exception while pinning install target")
             return self._show_add_panel_form(user_input, {"base": "unknown"})
@@ -942,6 +949,15 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         # A fresh install chooses its listener; typing a custom port does not
         # configure it. Require health proof before using that endpoint, or a
         # host-only first contact before offering installation.
+        if install_refusal is not None and not custom_port:
+            return self._show_add_panel_form(
+                user_input,
+                {"base": "not_answering_outside_install_range"},
+                cause=(
+                    f"{install_refusal.code.value}; "
+                    f"no panel answered on port {address.port}"
+                ),
+            )
         if custom_port or target is None:
             return self._show_add_panel_form(
                 user_input, {"base": "invalid_install_address"}

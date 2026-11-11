@@ -45,7 +45,10 @@ from custom_components.panel_assistant.coordinator import (
     PanelSnapshot,
 )
 from custom_components.panel_assistant.feed_coordinator import BuildFeedCoordinator
-from custom_components.panel_assistant.install_network import PinnedPanelTarget
+from custom_components.panel_assistant.install_network import (
+    PinnedPanelTarget,
+    async_pin_install_target,
+)
 from custom_components.panel_assistant.provisioning import (
     InstallTargetProbe,
     InstallTargetState,
@@ -291,6 +294,51 @@ async def test_a_route_answer_for_a_changed_panel_is_not_adopted(
     await entity._async_refresh_route()
 
     assert "update_unavailable_reason" not in (entity.extra_state_attributes or {})
+
+
+@pytest.mark.parametrize(
+    "address",
+    ["100.127.77.20", "100.127.77.20:8888", "[2001:db8:77::20]"],
+    ids=["cgnat", "cgnat_port_8888", "global_ipv6"],
+)
+async def test_panel_added_outside_install_range_is_never_an_adb_target(
+    route: SimpleNamespace,
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    address: str,
+) -> None:
+    """A running panel added at any address is updated only by its own route."""
+    entry = MockConfigEntry(
+        domain=DOMAIN, entry_id="entry-id", unique_id="a" * 64, data={}
+    )
+    entry.add_to_hass(hass)
+    route.client.address = normalize_address(address)
+    route.entity.coordinator.data = replace(
+        route.entity.coordinator.data, health=_health(discovery_id="a" * 64)
+    )
+    route.pinned_health.return_value = _health(discovery_id="a" * 64)
+    # The installer's own address rule, not the fixture's stand-in, decides.
+    monkeypatch.setattr(install_network, "async_pin_install_target", route.pin)
+    route.pin.side_effect = async_pin_install_target
+
+    await route.entity._async_refresh_route()
+    assert route.entity.latest_version == route.entity.installed_version
+    with pytest.raises(HomeAssistantError) as caught:
+        await route.entity.async_install(None, False)
+
+    assert caught.value.translation_key == "update_unavailable"
+    route.pin.assert_awaited()
+    route.pinned_health.assert_not_awaited()
+    route.probe_target.assert_not_awaited()
+    route.preflight.assert_not_awaited()
+    route.client.async_backup_panel.assert_not_awaited()
+    route.adb_install.assert_not_awaited()
+    assert (
+        ir.async_get(hass).async_get_issue(
+            DOMAIN, adb_authorization_issue_id("entry-id")
+        )
+        is None
+    )
 
 
 def _durable_store_writes() -> Any:
