@@ -300,6 +300,9 @@ class InstallExecutor:
         # Never restart it in the same process, whose manager still owns the old
         # in-memory claim. A new HA process will reclaim or quarantine durably.
         self._nonrestartable_workers: set[str] = set()
+        # Jobs being ended right now. Ending awaits the removal of the job's
+        # private download, and no finalizer may take the job in that gap.
+        self._ending: set[str] = set()
         # The next look at unfinished jobs nobody is advancing.
         self._end_timer: CALLBACK_TYPE | None = None
         self._stop_listener: CALLBACK_TYPE | None = None
@@ -467,6 +470,9 @@ class InstallExecutor:
         """
         if not isinstance(owner, str) or _FINALIZER_ID.fullmatch(owner) is None:
             return FinalizationResult(FinalizationOutcome.RECEIPT_ERROR)
+        if job_id in self._ending:
+            # The install is being ended; its panel is not verified under it.
+            return FinalizationResult(FinalizationOutcome.BUSY)
         # Reserved before the first await, so a release asked for while the
         # receipt is still being read is recorded rather than lost, and the
         # panel is never contacted for an owner that has already gone.
@@ -711,8 +717,11 @@ class InstallExecutor:
 
         The job's private download is removed first, exactly as before a
         restart claims an interrupted job; if that cannot be done the receipt
-        is left as it is, and the next look tries again.
+        is left as it is, and the next look tries again. The caller has just
+        seen that nobody holds the job; it is marked as ending before the
+        first await, so no finalizer takes it while the download is removed.
         """
+        self._ending.add(receipt.job_id)
         try:
             await self._async_cleanup_local(_execution_id(receipt))
             ended = await self._manager.async_end(
@@ -734,6 +743,8 @@ class InstallExecutor:
                 receipt.job_id,
             )
             return None
+        finally:
+            self._ending.discard(receipt.job_id)
         _LOGGER.warning(
             "Panel Assistant ended an unfinished install: panel=%s stage=%s "
             "reason=%s result=%s job=%s",

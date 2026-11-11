@@ -19,6 +19,7 @@ from custom_components.panel_assistant.install_artifacts import (
     ArtifactErrorCode,
 )
 from custom_components.panel_assistant.install_executor import (
+    FinalizationOutcome,
     async_get_install_executor,
 )
 from custom_components.panel_assistant.install_jobs import (
@@ -254,3 +255,40 @@ async def test_cancelling_an_install_that_had_changed_the_panel_still_raises_its
     assert ended.result_subcode == "job:cancelled_by_owner"
     issues = [i for (domain, i) in ir.async_get(hass).issues if domain == DOMAIN]
     assert len(issues) == 1
+
+
+@pytest.mark.parametrize("ending", ["owner_cancel", "expiry"])
+async def test_no_dialog_can_take_an_install_while_it_is_being_ended(
+    hass: HomeAssistant,
+    harness: Harness,
+    freezer: FrozenDateTimeFactory,
+    ending: str,
+) -> None:
+    """Ending waits on the download's removal; finishing is refused in that gap."""
+    receipt, _manager = await seed_phase(hass, InstallPhase.HEALTHY_UNCLAIMED)
+    executor = await async_get_install_executor(hass)
+    harness.local_cleanup_entered = asyncio.Event()
+    harness.local_cleanup_release = asyncio.Event()
+    if ending == "expiry":
+        freezer.tick(timedelta(hours=25))
+        ender = hass.async_create_task(executor.async_end_stalled_jobs())
+    else:
+        ender = hass.async_create_task(executor.async_cancel_job(receipt.job_id))
+    await harness.local_cleanup_entered.wait()
+    assert (await _stored(hass, receipt.job_id)).phase is InstallPhase.HEALTHY_UNCLAIMED
+
+    taken = await executor.async_verify_finalization(receipt.job_id, "dialog_one")
+
+    assert taken.outcome is FinalizationOutcome.BUSY
+    assert not executor.is_finalizer_active(receipt.job_id)
+    assert "pin" not in harness.events, "the panel is not verified under an ending job"
+    harness.local_cleanup_release.set()
+    await ender
+    await hass.async_block_till_done()
+    ended = await _stored(hass, receipt.job_id)
+    assert ended.phase is InstallPhase.RECOVERY_REQUIRED
+    assert ended.failure_stage is InstallPhase.HEALTHY_UNCLAIMED
+    # Once it has ended, a dialog that asks again is told so, not kept waiting.
+    late = await executor.async_verify_finalization(receipt.job_id, "dialog_one")
+    assert late.outcome is FinalizationOutcome.BUSY
+    assert not executor.is_finalizer_active(receipt.job_id)

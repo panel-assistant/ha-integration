@@ -681,3 +681,34 @@ async def test_cancelling_an_install_that_is_still_copying_stops_it(
     assert ended.phase is InstallPhase.CANCELLED
     assert ended.result_code is InstallResultCode.CANCELLED_AFTER_STAGING_CLEANUP
     assert "install" not in harness.events
+
+
+async def test_carrying_on_while_the_install_is_being_cancelled_is_told_to_wait(
+    hass: HomeAssistant, harness: Harness
+) -> None:
+    """Two dialogs on one healthy install: the cancel wins, the other never adds it."""
+    harness.expected_version = "0.1.0"
+    receipt, _manager = await seed_phase(hass, InstallPhase.HEALTHY_UNCLAIMED)
+    executor = await async_get_install_executor(hass)
+    menu = await _add(hass, SEEDED_IP)
+    harness.local_cleanup_entered = asyncio.Event()
+    harness.local_cleanup_release = asyncio.Event()
+    cancelling = hass.async_create_task(executor.async_cancel_job(receipt.job_id))
+    await harness.local_cleanup_entered.wait()
+
+    waiting = await _choose(hass, menu, "resume_install")
+    harness.local_cleanup_release.set()
+    await cancelling
+    await hass.async_block_till_done()
+    result = await hass.config_entries.flow.async_configure(waiting["flow_id"], {})
+
+    assert waiting["type"] is FlowResultType.FORM
+    assert waiting["step_id"] == "install_result"
+    assert waiting["errors"] == {"base": "install_finalization_busy"}
+    assert "pin" not in harness.events
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "install_verification_required"
+    assert hass.config_entries.async_entries(DOMAIN) == []
+    ended = await _stored(hass, receipt.job_id)
+    assert ended.phase is InstallPhase.RECOVERY_REQUIRED
+    assert ended.result_subcode == "job:cancelled_by_owner"
