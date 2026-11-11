@@ -710,15 +710,15 @@ class InstallJobManager:
             raise InstallJobStoreError from err
         for job_id, receipt in verified.items():
             previous = self._jobs.get(job_id) if self._jobs is not None else None
-            if receipt.phase in {
-                InstallPhase.FAILED,
-                InstallPhase.RECOVERY_REQUIRED,
-            } and (previous is None or not previous.is_terminal):
-                if not (
+            if (
+                receipt.phase in {InstallPhase.FAILED, InstallPhase.RECOVERY_REQUIRED}
+                and (previous is None or not previous.is_terminal)
+                and not (
                     receipt.failure_stage is InstallPhase.HEALTHY_UNCLAIMED
                     and receipt.result_subcode in _QUIET_END_SUBCODES
-                ):
-                    record_install_failure(self._hass, receipt)
+                )
+            ):
+                record_install_failure(self._hass, receipt)
                 _LOGGER.warning(
                     "Panel Assistant install failure panel=%s stage=%s "
                     "subcode=%s result=%s job=%s",

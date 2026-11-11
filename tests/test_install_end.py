@@ -9,9 +9,11 @@ from datetime import timedelta
 import pytest
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
+from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.install_artifacts import (
     ArtifactCustodyError,
     ArtifactErrorCode,
@@ -234,3 +236,21 @@ async def test_an_install_another_dialog_is_completing_is_left_to_it(
     ended = await _stored(hass, receipt.job_id)
     assert ended.phase is InstallPhase.RECOVERY_REQUIRED
     assert ended.result_subcode == "job:unclaimed_expired"
+
+
+async def test_cancelling_an_install_that_had_changed_the_panel_still_raises_its_repair(
+    hass: HomeAssistant,
+) -> None:
+    """Only a healthy install is let go quietly; a half-made one needs checking."""
+    receipt, _manager = await seed_phase(hass, InstallPhase.INSTALLING)
+    executor = await async_get_install_executor(hass)
+
+    ended = await executor.async_cancel_job(receipt.job_id)
+    await hass.async_block_till_done()
+
+    assert ended is not None
+    assert ended.phase is InstallPhase.RECOVERY_REQUIRED
+    assert ended.failure_stage is InstallPhase.INSTALLING
+    assert ended.result_subcode == "job:cancelled_by_owner"
+    issues = [i for (domain, i) in ir.async_get(hass).issues if domain == DOMAIN]
+    assert len(issues) == 1

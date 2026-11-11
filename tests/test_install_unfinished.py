@@ -73,6 +73,7 @@ CLEAN_PANEL = InstallTargetProbe(
 FLOW = "custom_components.panel_assistant.config_flow"
 FLOW_LOG = "custom_components.panel_assistant.config_flow"
 EXECUTOR_LOG = "custom_components.panel_assistant.install_executor"
+JOBS_LOG = "custom_components.panel_assistant.install_jobs"
 
 
 @pytest.fixture(autouse=True)
@@ -256,6 +257,7 @@ async def test_cancelling_a_healthy_unclaimed_install_lets_it_go_without_a_repai
     assert ended.result_subcode == "job:cancelled_by_owner"
     assert ended.health_checked_at is None
     assert _install_issues(hass) == []
+    assert not _logged(caplog, JOBS_LOG, "install failure")
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "choose_version"
     assert _logged(
