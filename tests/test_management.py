@@ -603,3 +603,30 @@ async def test_a_session_snapshot_ends_an_update_repair_once_its_webview_settles
     assert coordinator.last_update_success
     issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
     assert (issue is None) is settled
+
+
+async def test_a_session_that_ends_mid_poll_finishes_the_poll_over_http(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The panel still answers health, so losing its session is no outage."""
+    entry = await _load(hass, hass_read_only_user.id)
+    coordinator = entry.runtime_data.coordinator
+    panel = await _connect(hass, hass_ws_client, hass_read_only_access_token, MANAGED)
+    with _http_answers():
+        refresh = asyncio.ensure_future(coordinator.async_refresh())
+        await panel.manage()
+        # The session ends before the panel answers the management request.
+        await panel.client.close()
+        await refresh
+        await hass.async_block_till_done()
+
+    assert async_get_sessions(hass).get(entry.entry_id) is None
+    assert coordinator.last_update_success
+    assert coordinator.data.health == HEALTH
+    assert _state(hass, STATUS_ENTITY) != "unavailable"
+    assert "Unable to read panel health" not in caplog.text
+    assert not [r for r in caplog.records if r.levelname == "ERROR"]
