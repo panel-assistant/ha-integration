@@ -9,7 +9,13 @@ from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING, Any, NoReturn
 from urllib.parse import urlsplit
 
-from aiohttp import ClientError, ClientSession, ClientTimeout
+from aiohttp import (
+    ClientConnectorError,
+    ClientError,
+    ClientResponse,
+    ClientSession,
+    ClientTimeout,
+)
 from yarl import URL
 
 from .app_identity import LEGACY_PACKAGE_ID, PACKAGE_ID
@@ -100,6 +106,28 @@ class InvalidAddressError(HaPaneldError):
 
 class CannotConnectError(HaPaneldError):
     """Raised when a panel cannot be reached."""
+
+
+class RequestRefusedError(CannotConnectError):
+    """Raised when the panel answers a read with a refusal (HTTP 4xx).
+
+    Callers that only need "no usable answer" still catch it as
+    ``CannotConnectError``; the status and the panel's own words are kept for
+    whoever has to say why.
+    """
+
+    def __init__(self, status: int, reason: str) -> None:
+        super().__init__(f"HTTP {status} {reason}".rstrip())
+        self.status = status
+        self.reason = reason
+
+
+class NoAnswerError(CannotConnectError):
+    """Raised when the connection failed or timed out before any response began.
+
+    A firewall that refuses, drops or tarpits the port looks like this; an
+    HTTP status, a dropped reply or a stalled body means something answered.
+    """
 
 
 class InvalidResponseError(HaPaneldError):
@@ -579,6 +607,23 @@ def parse_update_approval_response(body: bytes) -> NoReturn:
 _MAX_DIAG_BYTES = 256 * 1024
 _MAX_LEGACY_INFO_BYTES = 256 * 1024
 _MAX_SETUP_BYTES = 64 * 1024
+_MAX_REFUSAL_REASON_BYTES = 256
+_MAX_REFUSAL_REASON_CHARS = 120
+
+
+async def _refusal_reason(response: ClientResponse) -> str:
+    """Return the start of a refusal's body as one short line, or nothing."""
+    body = bytearray()
+    try:
+        async for chunk in response.content.iter_chunked(_MAX_REFUSAL_REASON_BYTES):
+            body.extend(chunk)
+            if len(body) >= _MAX_REFUSAL_REASON_BYTES:
+                break
+    except ClientError, TimeoutError:
+        return ""
+    return " ".join(body.decode("utf-8", "replace").split())[:_MAX_REFUSAL_REASON_CHARS]
+
+
 _MAX_DISPLAY_BYTES = 16 * 1024
 # The panel verifies the address it is handed before answering, with its own
 # bounded probe, so this waits out that probe rather than the default request.
@@ -663,6 +708,7 @@ class HaPaneldClient:
         return self.address.base_url.with_path(INSTALL_STATUS_PATH)
 
     async def _async_get_bounded(self, url: URL, maximum_bytes: int) -> bytes:
+        started = False
         try:
             async with self._session.get(
                 url,
@@ -670,7 +716,12 @@ class HaPaneldClient:
                 headers={"Cache-Control": "no-cache"},
                 timeout=ClientTimeout(total=DEFAULT_TIMEOUT_SECONDS),
             ) as response:
+                started = True
                 if response.status != 200:
+                    if 400 <= response.status < 500:
+                        raise RequestRefusedError(
+                            response.status, await _refusal_reason(response)
+                        )
                     raise CannotConnectError
                 if url == self.health_url:
                     connection = response.connection
@@ -698,7 +749,11 @@ class HaPaneldClient:
                         break
         except CannotConnectError:
             raise
-        except (ClientError, TimeoutError) as err:
+        except (ClientConnectorError, TimeoutError) as err:
+            if started:
+                raise CannotConnectError from err
+            raise NoAnswerError from err
+        except ClientError as err:
             raise CannotConnectError from err
 
         if len(body) > maximum_bytes:

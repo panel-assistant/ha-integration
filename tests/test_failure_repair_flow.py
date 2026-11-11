@@ -603,6 +603,7 @@ async def test_every_localized_failure_opens_a_labeled_repair_flow(
         "health_check_failed",
         "ambiguous_mutation",
         "verification_required",
+        "health_unreachable",
         "update",
         "adb_authorization",
         "retry_hold",

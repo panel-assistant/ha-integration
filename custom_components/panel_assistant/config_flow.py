@@ -112,6 +112,7 @@ from .install_network import (
 )
 from .install_plan import InstallPlanError, build_install_plan
 from .install_receipt import (
+    HEALTH_UNREACHABLE_SUBCODE,
     InstallJobConflictError,
     InstallJobError,
     InstallJobReceipt,
@@ -2016,6 +2017,8 @@ def _install_terminal_abort_reason(receipt: InstallJobReceipt) -> str:
     if receipt.phase is InstallPhase.RECOVERY_REQUIRED:
         if result_code is None:
             return "install_recovery_required"
+        if receipt.result_subcode == HEALTH_UNREACHABLE_SUBCODE:
+            return "install_health_unreachable"
         return _RECOVERY_ABORT_REASONS.get(result_code, "install_recovery_required")
     return "install_failed"
 

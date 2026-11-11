@@ -189,6 +189,7 @@
       "install_health_check_failed": "APK je nainstalován, ale Panel Assistant neprošel kontrolou stavu. Neopakujte automatickou instalaci. Otevřete Panel Assistant na panelu; pokud se nespustí, postupujte podle kroků na adrese [{recovery_address}]({recovery_url}).",
       "install_ambiguous_mutation": "Příprava, instalace nebo spuštění přes ADB mohly změnit panel. Neopakujte automatickou instalaci, aplikaci neodinstalovávejte ani neresetujte. Postupujte podle kroků na adrese [{recovery_address}]({recovery_url}) a zkontrolujte panel.",
       "install_verification_required": "Panel se změnil, ale Home Assistant nedokázal ověřit nainstalovaný balíček nebo odstranit jeho konkrétní připravený soubor. Neopakujte automatickou instalaci, aplikaci neodinstalovávejte ani neresetujte. Postupujte podle kroků na adrese [{recovery_address}]({recovery_url}) a zkontrolujte panel.",
+      "install_health_unreachable": "Panel Assistant is installed on the panel, but Home Assistant could not reach it on port 8888. Check that your network lets Home Assistant reach the panel on port 8888, for example a firewall or VLAN rule, then add the panel again with the same address. There is no need to reinstall, uninstall or reset the app.",
       "install_failed": "Instalátor se zastavil s nerozpoznaným výsledkem. Nebyl vytvořen žádný záznam v Home Assistant. Neopakujte automatickou instalaci, dokud nezkontrolujete panel podle popisu na [{recovery_address}]({recovery_url}).",
       "install_worker_stopped": "Instalátor se zastavil a tuto úlohu v aktuálním procesu Home Assistant znovu neprovede. Restartujte Home Assistant, znovu otevřete nastavení a zadejte stejnou adresu panelu, abyste pokračovali nebo získali výsledek obnovy. Žádný záznam nebyl vytvořen.",
       "install_recovery_required": "Home Assistant nemůže prokázat, že je bezpečné automaticky pokračovat. Žádný záznam nebyl vytvořen. Neopakujte automatickou instalaci, aplikaci neodinstalovávejte ani neresetujte, dokud nebudete postupovat podle kroků na adrese [{recovery_address}]({recovery_url}).",
@@ -1448,6 +1449,49 @@
           "init": {
             "title": "Vyřešit chybu panelu",
             "description": "Další instalace je zablokována, dokud Home Assistant nemůže ověřit panel.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Zpráva pro podporu** a před dalším pokusem obnovte možnost ověření panelu. Aplikaci nepřeinstalovávejte ani neresetujte.\n\n[Další informace]({learn_more_url})",
+            "menu_options": {
+              "retry": "Zkusit znovu",
+              "support_report": "Zpráva pro podporu",
+              "clear_error": "Vymazat chybu"
+            }
+          },
+          "support_report": {
+            "title": "Zpráva pro podporu",
+            "description": "Tato zpráva obsahuje uložené podrobnosti o neúspěšné instalaci nebo aktualizaci.\n\nPostup opravy:\n1. Přečtěte si, [jak tuto zprávu pro podporu použít]({guide_url}).\n2. Zkontrolujte, zda zpráva neobsahuje soukromé informace, a poté ji zkopírujte do [nového hlášení problému integrace Panel Assistant]({issue_url}).\n\n{report}\n\n[Další informace]({learn_more_url})"
+          },
+          "clear_error": {
+            "title": "Vymazat chybu",
+            "description": "Vymazáním této chyby se odstraní její uložená zpráva, aniž by se panel změnil.\n\nPostup opravy:\n1. Pokud zprávu potřebujete, nejprve si [uložte zprávu pro podporu]({guide_url}).\n2. Zvolte **Odeslat** pro odstranění této chyby a zprávy.\n\n[Další informace]({learn_more_url})"
+          },
+          "retry_error": {
+            "title": "Opakovaný pokus nebyl dokončen",
+            "description": "Opakovaný pokus se nemohl dokončit, takže tato chyba a její zpráva zůstávají v Opravách.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Odeslat** a poté **Zpráva pro podporu**, abyste před dalším pokusem zjistili příčinu.\n\n[Další informace]({learn_more_url})"
+          }
+        },
+        "progress": {
+          "retrying": "Home Assistant kontroluje panel a opakuje uloženou operaci.\n\nPostup opravy:\n1. V případě potřeby si přečtěte [pokyny k opakování pokusu]({repair_url}).\n2. Než se rozhodnete, co udělat dál, počkejte zde na výsledek.\n\n[Další informace]({learn_more_url})"
+        },
+        "error": {
+          "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
+          "retry_release_changed": "Vybrané vydání už neodpovídá uloženému vydání. Zvolte nový pokus o instalaci.",
+          "retry_credential_changed": "Přihlašovací údaj ADB systému Home Assistant se změnil. Před opakovaným pokusem zkontrolujte panel.",
+          "retry_panel_ambiguous": "Nainstalovanou aplikaci na panelu se nepodařilo ověřit. Žádná nová instalace nebyla zahájena.",
+          "retry_cannot_prove_safe": "Panel se nepodařilo zkontrolovat dostatečně důkladně pro bezpečné opakování pokusu. Zkuste to znovu později.",
+          "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
+          "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
+          "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
+          "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
+        }
+      }
+    },
+    "installer_failure_health_unreachable": {
+      "title": "Home Assistant cannot reach Panel Assistant on {panel} on port 8888",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Vyřešit chybu panelu",
+            "description": "Panel Assistant is installed on the panel, but Home Assistant could not reach it on port 8888.\n\nTo fix:\n1. Let Home Assistant reach the panel on port 8888 in your network's firewall or VLAN rules ([help]({repair_url})).\n2. Add the panel again with the same address, then select **Clear error** here.\n\n[Learn more]({learn_more_url})",
             "menu_options": {
               "retry": "Zkusit znovu",
               "support_report": "Zpráva pro podporu",

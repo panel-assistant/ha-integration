@@ -189,6 +189,7 @@
       "install_health_check_failed": "De APK is geïnstalleerd, maar Panel Assistant is niet geslaagd voor de statuscontrole. Probeer de automatische installatie niet opnieuw. Open Panel Assistant op het paneel; als het niet start, volg dan de stappen op [{recovery_address}]({recovery_url}).",
       "install_ambiguous_mutation": "Het paneel is mogelijk gewijzigd door het klaarzetten, installeren of starten via ADB. Probeer de automatische installatie niet opnieuw en verwijder of reset de app niet. Volg de stappen op [{recovery_address}]({recovery_url}) om het paneel te controleren.",
       "install_verification_required": "Het paneel is gewijzigd, maar Home Assistant kon het geïnstalleerde pakket niet verifiëren of precies het klaargezette bestand niet opruimen. Probeer de automatische installatie niet opnieuw en verwijder of reset de app niet. Volg de stappen op [{recovery_address}]({recovery_url}) om het paneel te controleren.",
+      "install_health_unreachable": "Panel Assistant is installed on the panel, but Home Assistant could not reach it on port 8888. Check that your network lets Home Assistant reach the panel on port 8888, for example a firewall or VLAN rule, then add the panel again with the same address. There is no need to reinstall, uninstall or reset the app.",
       "install_failed": "Het installatieprogramma is gestopt met een onbekend resultaat. Er is geen Home Assistant-item aangemaakt. Probeer de automatische installatie pas opnieuw als je het paneel hebt gecontroleerd zoals beschreven op [{recovery_address}]({recovery_url}).",
       "install_worker_stopped": "Het installatieprogramma is gestopt en zal deze taak niet opnieuw uitvoeren in het huidige Home Assistant-proces. Start Home Assistant opnieuw op, open de installatie opnieuw en voer hetzelfde paneeladres in om door te gaan of een herstelresultaat te krijgen. Er is geen item aangemaakt.",
       "install_recovery_required": "Home Assistant kan niet aantonen dat het veilig is om automatisch door te gaan. Er is geen item aangemaakt. Probeer de automatische installatie niet opnieuw en verwijder of reset de app niet totdat je de stappen op [{recovery_address}]({recovery_url}) hebt gevolgd.",
@@ -1448,6 +1449,49 @@
           "init": {
             "title": "Paneelfout oplossen",
             "description": "Een nieuwe installatie is geblokkeerd totdat Home Assistant het paneel kan verifiëren.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Ondersteuningsrapport** en zorg dat het paneel weer kan worden geverifieerd voordat je het opnieuw probeert. Installeer de app niet opnieuw en reset deze niet.\n\n[Meer informatie]({learn_more_url})",
+            "menu_options": {
+              "retry": "Opnieuw proberen",
+              "support_report": "Ondersteuningsrapport",
+              "clear_error": "Fout wissen"
+            }
+          },
+          "support_report": {
+            "title": "Ondersteuningsrapport",
+            "description": "Dit rapport bevat de opgeslagen details van de mislukte installatie of update.\n\nOm dit op te lossen:\n1. Lees [hoe je dit ondersteuningsrapport gebruikt]({guide_url}).\n2. Controleer het rapport op privégegevens en kopieer het daarna naar een [nieuwe probleemmelding voor de Panel Assistant-integratie]({issue_url}).\n\n{report}\n\n[Meer informatie]({learn_more_url})"
+          },
+          "clear_error": {
+            "title": "Fout wissen",
+            "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
+          },
+          "retry_error": {
+            "title": "Opnieuw proberen niet voltooid",
+            "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
+          }
+        },
+        "progress": {
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
+        },
+        "error": {
+          "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen release komt niet meer overeen met de opgeslagen release. Kies een nieuwe installatiepoging.",
+          "retry_credential_changed": "De ADB-inloggegevens van Home Assistant zijn gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
+          "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
+          "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
+          "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
+          "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
+          "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
+        }
+      }
+    },
+    "installer_failure_health_unreachable": {
+      "title": "Home Assistant cannot reach Panel Assistant on {panel} on port 8888",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Paneelfout oplossen",
+            "description": "Panel Assistant is installed on the panel, but Home Assistant could not reach it on port 8888.\n\nTo fix:\n1. Let Home Assistant reach the panel on port 8888 in your network's firewall or VLAN rules ([help]({repair_url})).\n2. Add the panel again with the same address, then select **Clear error** here.\n\n[Learn more]({learn_more_url})",
             "menu_options": {
               "retry": "Opnieuw proberen",
               "support_report": "Ondersteuningsrapport",

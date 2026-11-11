@@ -118,6 +118,8 @@ async def test_every_issue_has_a_repair_map_entry(hass: HomeAssistant) -> None:
         "remove_from_panel",
         "installer_failure_update_webview",
         "installer_failure_update_slow_transfer",
+        # An unreachable panel shares the health check's page.
+        "installer_failure_health_unreachable",
         "panel_root_lost",
         # Uses the generic /go/repair destination until its page is added.
         "not_signed_in",

@@ -189,6 +189,7 @@
       "install_health_check_failed": "APK 已安装，但 Panel Assistant 未通过健康检查。请勿重试自动安装。请在面板上打开 Panel Assistant；如果无法启动，请按照 [{recovery_address}]({recovery_url}) 中的步骤操作。",
       "install_ambiguous_mutation": "ADB 暂存、安装或启动操作可能已经更改了面板。请勿重试自动安装、卸载或重置应用。请按照 [{recovery_address}]({recovery_url}) 中的步骤操作，以检查面板。",
       "install_verification_required": "面板已经发生更改，但 Home Assistant 无法验证已安装的软件包或清理此次安装所暂存的确切文件。请勿重试自动安装、卸载或重置应用。请按照 [{recovery_address}]({recovery_url}) 中的步骤操作，以检查面板。",
+      "install_health_unreachable": "Panel Assistant is installed on the panel, but Home Assistant could not reach it on port 8888. Check that your network lets Home Assistant reach the panel on port 8888, for example a firewall or VLAN rule, then add the panel again with the same address. There is no need to reinstall, uninstall or reset the app.",
       "install_failed": "安装程序因无法识别的结果而停止。未创建 Home Assistant 条目。在按照 [{recovery_address}]({recovery_url}) 中的说明检查面板之前，请勿重试自动安装。",
       "install_worker_stopped": "安装程序已停止，在当前 Home Assistant 进程中不会重新运行此任务。请重启 Home Assistant，重新打开集成设置流程并输入相同的面板地址，以恢复任务或获取恢复结果。未创建条目。",
       "install_recovery_required": "Home Assistant 无法确认可以安全地自动继续。未创建条目。在按照 [{recovery_address}]({recovery_url}) 中的步骤操作之前，请勿重试自动安装、卸载或重置应用。",
@@ -1448,6 +1449,49 @@
           "init": {
             "title": "解决面板错误",
             "description": "Home Assistant 能够验证面板之前，将阻止再次安装。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**支持报告**”，恢复面板验证后再重试。请勿重新安装或重置应用。\n\n[了解更多]({learn_more_url})",
+            "menu_options": {
+              "retry": "重试",
+              "support_report": "支持报告",
+              "clear_error": "清除错误"
+            }
+          },
+          "support_report": {
+            "title": "支持报告",
+            "description": "此报告包含已保存的安装或更新失败详情。\n\n解决方法：\n1. 阅读[如何使用此支持报告]({guide_url})。\n2. 检查报告中是否包含隐私信息，然后将其复制到[新的 Panel Assistant 集成问题]({issue_url})中。\n\n{report}\n\n[了解更多]({learn_more_url})"
+          },
+          "clear_error": {
+            "title": "清除错误",
+            "description": "清除此错误会删除其已保存的报告，不会更改面板。\n\n解决方法：\n1. 如果需要报告，请先[保存支持报告]({guide_url})。\n2. 选择“**提交**”，移除此错误和报告。\n\n[了解更多]({learn_more_url})"
+          },
+          "retry_error": {
+            "title": "重试未能完成",
+            "description": "重试未能完成，因此此错误及其报告仍保留在“修复”中。\n\n解决方法：\n1. 按照[恢复步骤]({repair_url})操作。\n2. 选择“**提交**”，然后选择“**支持报告**”，在重试前查看原因。\n\n[了解更多]({learn_more_url})"
+          }
+        },
+        "progress": {
+          "retrying": "Home Assistant 正在检查面板，并重试已保存的操作。\n\n解决方法：\n1. 如有需要，阅读[重试指南]({repair_url})。\n2. 请在此处等待结果，再决定下一步操作。\n\n[了解更多]({learn_more_url})"
+        },
+        "error": {
+          "retry_target_changed": "面板不再与保存的目标一致。重试前请检查面板。",
+          "retry_release_changed": "所选应用版本不再与保存的版本一致。请开始新的安装。",
+          "retry_credential_changed": "Home Assistant 的 ADB 凭据已更改。重试前请检查面板。",
+          "retry_panel_ambiguous": "无法验证面板上已安装的应用。未开始新的安装。",
+          "retry_cannot_prove_safe": "无法充分确认面板状态，暂不能安全重试。请稍后再试。",
+          "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
+          "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
+          "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
+          "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
+        }
+      }
+    },
+    "installer_failure_health_unreachable": {
+      "title": "Home Assistant cannot reach Panel Assistant on {panel} on port 8888",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "解决面板错误",
+            "description": "Panel Assistant is installed on the panel, but Home Assistant could not reach it on port 8888.\n\nTo fix:\n1. Let Home Assistant reach the panel on port 8888 in your network's firewall or VLAN rules ([help]({repair_url})).\n2. Add the panel again with the same address, then select **Clear error** here.\n\n[Learn more]({learn_more_url})",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",

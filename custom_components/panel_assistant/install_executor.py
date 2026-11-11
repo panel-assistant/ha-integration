@@ -19,6 +19,7 @@ from enum import StrEnum
 from functools import partial
 from hashlib import sha256
 from pathlib import Path
+from time import monotonic
 
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
@@ -47,10 +48,11 @@ from .client import (
     CannotConnectError,
     HaPaneldClient,
     InvalidResponseError,
+    NoAnswerError,
     PanelHealth,
     normalize_address,
 )
-from .const import ANDROID_RELEASE_DOWNLOAD_ROOT, DOMAIN
+from .const import ANDROID_RELEASE_DOWNLOAD_ROOT, DEFAULT_PORT, DOMAIN
 from .display_provisioning import async_read_recommended_sizing
 from .feed_coordinator import async_get_feed_coordinator
 from .ha_url import async_offer_ha_url
@@ -90,6 +92,7 @@ from .install_network import (
 from .install_receipt import (
     _CANCELLABLE_PHASES,
     _RESTART_INTERRUPTED_PHASES,
+    HEALTH_UNREACHABLE_SUBCODE,
     InstallArtifact,
     InstallEndReason,
     InstallJobCleanupRequiredError,
@@ -119,12 +122,23 @@ _REMOTE_STAGING_SLOT_ID = sha256(
 ).hexdigest()[:32]
 _RELEASE_DOWNLOAD_ROOT = ANDROID_RELEASE_DOWNLOAD_ROOT
 _REMOTE_STAGING_PREFIX = "/data/local/tmp/ha-paneld-install-"
-# The installed app restarts and may take a while to answer on 8888, so the wait
-# is long, about three minutes, and ends on the installed app's own identity
-# rather than on the first reply. A healthy install leaves on its first answer,
-# so the long budget costs nothing when the panel is quick.
+# The installed app restarts and may take a while to answer on 8888 and to
+# show its setup screen, so the wait ends on the installed app's own identity
+# rather than on the first reply. A healthy install leaves on its first
+# answer, so the long budget costs nothing when the panel is quick.
 _HEALTH_ATTEMPTS = 90
 _HEALTH_RETRY_SECONDS = 2.0
+# How long nothing may answer on 8888 before the install says so. Measured on
+# real panels, the app listens on 8888 within 5 to 14 seconds of starting; a
+# minute leaves four times the slowest. A clock bound, because a firewall that
+# drops the port makes every attempt also wait out its request timeout.
+_HEALTH_WAIT_SECONDS = 60.0
+# An app that answered on 8888 earlier in the job and then went silent has not
+# shown that the network blocks the port; that keeps the cautious result text.
+_HEALTH_STOPPED_ANSWERING = "health:stopped_answering"
+# Something answered on 8888 (an HTTP refusal or failure, a dropped reply, a
+# stalled body) but not with health: the port is open, so it is not blamed.
+_HEALTH_ANSWER_FAILED = "health:answer_failed"
 # A fresh panel whose vendor launcher kept the screen hides the app's setup
 # screen; after this many such answers the app is started once more.
 _SETUP_RELAUNCH_ATTEMPT = 10
@@ -1476,7 +1490,9 @@ class InstallExecutor:
                 InstallResultCode.VERIFICATION_REQUIRED,
                 _result_subcode(err),
             )
-        health, subcode = await self._async_health(execution, panel, receipt)
+        health, subcode = await self._async_health(
+            execution, panel, receipt, answered=True
+        )
         if health is None or not health_is_installed_app(health, receipt.artifact):
             return await self._async_recovery(
                 receipt,
@@ -1709,6 +1725,8 @@ class InstallExecutor:
         execution: _FrozenExecution,
         client: HaPaneldClient,
         receipt: InstallJobReceipt,
+        *,
+        answered: bool = False,
     ) -> tuple[PanelHealth | None, str | None]:
         artifact = execution.descriptor
         setup_foreground = receipt.home_claim_deferred
@@ -1716,24 +1734,45 @@ class InstallExecutor:
         failure_subcode = "health:unavailable"
         setup_hidden = 0
         hidden_health: PanelHealth | None = None
+        deadline = monotonic() + _HEALTH_WAIT_SECONDS
+        unanswered = False
         for attempt in range(attempts):
             hidden_health = None
             last = attempt + 1 >= attempts
             try:
                 await _require_pin(self._hass, execution.pinned)
                 health = await client.async_get_health()
+                answered = True
             except InstallNetworkError as err:
                 return None, _result_subcode(err)
             except (CannotConnectError, InvalidResponseError) as err:
-                failure_subcode = (
-                    "health:invalid_response"
-                    if isinstance(err, InvalidResponseError)
-                    else "health:cannot_connect"
-                )
+                if isinstance(err, NoAnswerError):
+                    failure_subcode = HEALTH_UNREACHABLE_SUBCODE
+                else:
+                    # A status, a dropped reply or a stalled body: something
+                    # answered on the port, so the network did not block it.
+                    answered = True
+                    failure_subcode = (
+                        "health:invalid_response"
+                        if isinstance(err, InvalidResponseError)
+                        else _HEALTH_ANSWER_FAILED
+                    )
+                if not unanswered and failure_subcode == HEALTH_UNREACHABLE_SUBCODE:
+                    unanswered = True
+                    _LOGGER.info(
+                        "Panel Assistant install is waiting for the panel to "
+                        "answer on port %s: panel=%s result=%s wait=%ds job=%s",
+                        DEFAULT_PORT,
+                        receipt.target.address,
+                        failure_subcode,
+                        int(_HEALTH_WAIT_SECONDS),
+                        receipt.job_id,
+                    )
                 # Nothing is answering on 8888 yet: the installed app is still
                 # starting, a reason to wait rather than to fail.
-                if not last:
-                    await asyncio.sleep(_HEALTH_RETRY_SECONDS)
+                if last or monotonic() >= deadline:
+                    break
+                await asyncio.sleep(_HEALTH_RETRY_SECONDS)
                 continue
             if health_is_installed_app(health, artifact):
                 try:
@@ -1762,6 +1801,8 @@ class InstallExecutor:
             # The installed app is running and healthy; only its setup screen
             # is behind the vendor launcher, so setup is left to the panel.
             return hidden_health, None
+        if answered and failure_subcode == HEALTH_UNREACHABLE_SUBCODE:
+            return None, _HEALTH_STOPPED_ANSWERING
         return None, failure_subcode
 
     async def _async_relaunch_setup(

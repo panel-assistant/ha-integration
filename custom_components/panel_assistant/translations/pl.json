@@ -189,6 +189,7 @@
       "install_health_check_failed": "Plik APK jest zainstalowany, ale Panel Assistant nie przeszedł kontroli stanu. Nie ponawiaj automatycznej instalacji. Otwórz Panel Assistant na panelu; jeśli się nie uruchomi, postępuj zgodnie z krokami opisanymi pod adresem [{recovery_address}]({recovery_url}).",
       "install_ambiguous_mutation": "Operacja ADB przygotowania, instalacji lub uruchomienia mogła zmienić panel. Nie ponawiaj automatycznej instalacji, nie odinstalowuj ani nie resetuj aplikacji. Postępuj zgodnie z krokami opisanymi pod adresem [{recovery_address}]({recovery_url}), aby sprawdzić panel.",
       "install_verification_required": "Panel został zmieniony, ale Home Assistant nie mógł zweryfikować zainstalowanego pakietu ani usunąć dokładnie tego przygotowanego pliku. Nie ponawiaj automatycznej instalacji, nie odinstalowuj ani nie resetuj aplikacji. Postępuj zgodnie z krokami opisanymi pod adresem [{recovery_address}]({recovery_url}), aby sprawdzić panel.",
+      "install_health_unreachable": "Panel Assistant is installed on the panel, but Home Assistant could not reach it on port 8888. Check that your network lets Home Assistant reach the panel on port 8888, for example a firewall or VLAN rule, then add the panel again with the same address. There is no need to reinstall, uninstall or reset the app.",
       "install_failed": "Instalator zatrzymał się z nierozpoznanym wynikiem. Nie utworzono wpisu Home Assistant. Nie ponawiaj automatycznej instalacji, dopóki nie sprawdzisz panelu zgodnie z opisem pod adresem [{recovery_address}]({recovery_url}).",
       "install_worker_stopped": "Instalator się zatrzymał i nie powtórzy tego zadania w bieżącym procesie Home Assistant. Uruchom ponownie Home Assistant, ponownie otwórz konfigurację i wprowadź ten sam adres panelu, aby wznowić lub otrzymać wynik odzyskiwania. Nie utworzono żadnego wpisu.",
       "install_recovery_required": "Home Assistant nie może dowieść, że automatyczne kontynuowanie jest bezpieczne. Nie utworzono żadnego wpisu. Nie ponawiaj automatycznej instalacji, nie odinstalowuj ani nie resetuj aplikacji, dopóki nie zastosujesz się do kroków opisanych pod adresem [{recovery_address}]({recovery_url}).",
@@ -1448,6 +1449,49 @@
           "init": {
             "title": "Rozwiąż błąd panelu",
             "description": "Kolejna instalacja jest zablokowana, dopóki Home Assistant nie będzie mógł zweryfikować panelu.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Raport pomocy technicznej** i przywróć możliwość weryfikacji panelu przed kolejną próbą. Nie instaluj ponownie ani nie resetuj aplikacji.\n\n[Dowiedz się więcej]({learn_more_url})",
+            "menu_options": {
+              "retry": "Spróbuj ponownie",
+              "support_report": "Raport dla pomocy technicznej",
+              "clear_error": "Usuń błąd"
+            }
+          },
+          "support_report": {
+            "title": "Raport dla pomocy technicznej",
+            "description": "Ten raport zawiera zapisane szczegóły nieudanej instalacji lub aktualizacji.\n\nAby rozwiązać problem:\n1. Przeczytaj, [jak korzystać z tego raportu pomocy technicznej]({guide_url}).\n2. Sprawdź, czy raport zawiera prywatne informacje, a następnie skopiuj go do [nowego zgłoszenia dotyczącego integracji Panel Assistant]({issue_url}).\n\n{report}\n\n[Dowiedz się więcej]({learn_more_url})"
+          },
+          "clear_error": {
+            "title": "Usuń błąd",
+            "description": "Wyczyszczenie tego błędu usuwa zapisany raport bez zmiany stanu panelu.\n\nAby rozwiązać problem:\n1. Najpierw [zapisz raport pomocy technicznej]({guide_url}), jeśli go potrzebujesz.\n2. Wybierz **Zatwierdź**, aby usunąć ten błąd i raport.\n\n[Dowiedz się więcej]({learn_more_url})"
+          },
+          "retry_error": {
+            "title": "Ponowna próba nieukończona",
+            "description": "Ponowna próba nie została ukończona, więc błąd i raport pozostają w Problemach.\n\nAby rozwiązać problem:\n1. Postępuj zgodnie z [instrukcją odzyskiwania]({repair_url}).\n2. Wybierz **Zatwierdź**, a następnie **Raport pomocy technicznej**, aby sprawdzić przyczynę przed kolejną próbą.\n\n[Dowiedz się więcej]({learn_more_url})"
+          }
+        },
+        "progress": {
+          "retrying": "Home Assistant sprawdza panel i ponawia zapisaną operację.\n\nAby rozwiązać problem:\n1. W razie potrzeby przeczytaj [wskazówki dotyczące ponownej próby]({repair_url}).\n2. Poczekaj tutaj na wynik, zanim zdecydujesz, co zrobić dalej.\n\n[Dowiedz się więcej]({learn_more_url})"
+        },
+        "error": {
+          "retry_target_changed": "Panel nie odpowiada już zapisanemu urządzeniu docelowemu. Sprawdź go przed ponowną próbą.",
+          "retry_release_changed": "Wybrane wydanie nie odpowiada już zapisanemu wydaniu. Rozpocznij nową instalację.",
+          "retry_credential_changed": "Dane uwierzytelniające ADB w Home Assistant zmieniły się. Sprawdź panel przed ponowną próbą.",
+          "retry_panel_ambiguous": "Nie udało się zweryfikować aplikacji zainstalowanej na panelu. Nie rozpoczęto nowej instalacji.",
+          "retry_cannot_prove_safe": "Nie udało się dostatecznie sprawdzić panelu, by bezpiecznie ponowić próbę. Spróbuj później.",
+          "retry_update_unavailable": "Sterowanie aktualizacją panelu jest niedostępne. Sprawdź połączenie i spróbuj ponownie.",
+          "retry_finalization": "Aplikacja jest gotowa, ale Home Assistant nie zakończył dodawania panelu. Spróbuj ponownie.",
+          "retry_failed": "Ponowna próba nie powiodła się. Szczegóły są w raporcie dla pomocy technicznej.",
+          "retry_panel_busy": "Ten panel jest nadal zajęty aktualizacją lub innym zadaniem. Poczekaj, aż się zakończy, i spróbuj ponownie. Jeśli aktualizacja się powiedzie, ta naprawa zamknie się sama.",
+          "retry_no_longer_needed": "Ta instalacja nie wymaga już ponawiania próby. Otwórz naprawę ponownie, jeśli błąd wróci."
+        }
+      }
+    },
+    "installer_failure_health_unreachable": {
+      "title": "Home Assistant cannot reach Panel Assistant on {panel} on port 8888",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Rozwiąż błąd panelu",
+            "description": "Panel Assistant is installed on the panel, but Home Assistant could not reach it on port 8888.\n\nTo fix:\n1. Let Home Assistant reach the panel on port 8888 in your network's firewall or VLAN rules ([help]({repair_url})).\n2. Add the panel again with the same address, then select **Clear error** here.\n\n[Learn more]({learn_more_url})",
             "menu_options": {
               "retry": "Spróbuj ponownie",
               "support_report": "Raport dla pomocy technicznej",

@@ -26,7 +26,10 @@ from custom_components.panel_assistant import (
 )
 from custom_components.panel_assistant.adb_protocol import AdbInstallTarget, AdbRootMode
 from custom_components.panel_assistant.app_identity import HOME_COMPONENTS, PACKAGE_ID
-from custom_components.panel_assistant.client import CannotConnectError, PanelSetupState
+from custom_components.panel_assistant.client import (
+    NoAnswerError,
+    PanelSetupState,
+)
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.install_executor import (
     FinalizationOutcome,
@@ -412,7 +415,7 @@ async def test_a_hidden_setup_screen_does_not_excuse_an_app_that_stops_answering
                 home_proof=home_proof, setup_foreground=setup_foreground
             )
             if len(harness.setup_foreground_requests) == 20:
-                harness.health_error = CannotConnectError()
+                harness.health_error = NoAnswerError()
             return status
 
     monkeypatch.setattr(install_executor, "HaPaneldClient", FallsSilentClient)
@@ -423,4 +426,4 @@ async def test_a_hidden_setup_screen_does_not_excuse_an_app_that_stops_answering
 
     assert completed.phase is InstallPhase.RECOVERY_REQUIRED
     assert completed.result_code is InstallResultCode.VERIFICATION_REQUIRED
-    assert completed.result_subcode == "health:cannot_connect"
+    assert completed.result_subcode == "health:stopped_answering"
