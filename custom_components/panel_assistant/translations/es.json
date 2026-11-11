@@ -111,6 +111,24 @@
       "install_result": {
         "title": "Finalizar la configuración del panel",
         "description": "Panel Assistant {version} se ha instalado en {address}.\n\nEnvía el formulario para repetir únicamente las comprobaciones finales de identidad y estado, que son de solo lectura. No se repetirá ningún paso de la instalación.\n\nCuando Home Assistant haya añadido el dispositivo, sigue el enlace de configuración en el navegador del cuadro de diálogo Añadir desde un ordenador que pueda acceder al panel por la red local. Si se solicita, autoriza ADB en el panel."
+      },
+      "install_unfinished": {
+        "title": "This panel has an unfinished install",
+        "description": "Home Assistant already started installing Panel Assistant {version} on this panel, as {existing_address}, and that install has not finished.\n\nYou can carry on with it, or cancel it and start again at {address}.",
+        "menu_options": {
+          "resume_install": "Carry on with that install",
+          "cancel_install": "Cancel it and start again"
+        },
+        "menu_option_descriptions": {
+          "cancel_install": "Nothing is removed from the panel. If the app is already installed it stays, and Home Assistant looks at the panel afresh."
+        }
+      },
+      "install_unfinished_busy": {
+        "title": "This panel has an unfinished install",
+        "description": "Home Assistant is installing Panel Assistant {version} on this panel right now, as {existing_address}. It cannot be cancelled while it is changing the panel.\n\nCarry on with it to see it finish.",
+        "menu_options": {
+          "resume_install": "Carry on with that install"
+        }
       }
     },
     "progress": {
@@ -141,7 +159,6 @@
       "install_candidate_changed": "La identidad del panel o el estado confirmado de ausencia del paquete han cambiado después de la vista previa. No se ha creado ninguna tarea de instalación. Comprueba el panel y vuelve a empezar.",
       "installed_artifact_mismatch": "La aplicación instalada no es idéntica byte a byte a la versión elegida, por lo que Home Assistant no la ha sobrescrito; elige su versión exacta o sigue los pasos de {recovery_address}.",
       "install_plan_rejected": "No se han podido vincular el panel y la versión firmada en un plan de instalación seguro. No se ha creado ninguna tarea de instalación.",
-      "install_job_conflict": "Otra tarea de instalación ya tiene reservada la identidad de este panel. No se ha creado una segunda tarea.",
       "install_receipt_error": "Home Assistant no ha podido cargar ni conservar de forma segura el comprobante de instalación. No se ha autorizado ninguna acción nueva en el panel.",
       "install_finalization_busy": "Otro cuadro de diálogo de configuración está completando la configuración de este panel. Espera a que termine y vuelve a intentarlo si es necesario.",
       "install_finalization_retry": "La instalación se ha completado, pero una comprobación final de solo lectura de la red, ADB o el estado no está disponible temporalmente. Comprueba el panel y vuelve a intentarlo; la instalación no se volverá a ejecutar.",

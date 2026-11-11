@@ -111,6 +111,24 @@
       "install_result": {
         "title": "Panel-Einrichtung abschließen",
         "description": "Panel Assistant {version} wurde unter {address} installiert.\n\nWähle Absenden, um ausschließlich die abschließenden schreibgeschützten Identitäts- und Funktionsprüfungen zu wiederholen. Kein Installationsschritt wird wiederholt.\n\nNachdem Home Assistant das Gerät hinzugefügt hat, öffne den Link zur Browser-Einrichtung im Hinzufügen-Dialog auf einem Computer, der das Panel im lokalen Netzwerk erreichen kann. Bestätige die ADB-Freigabe bei Aufforderung am Panel."
+      },
+      "install_unfinished": {
+        "title": "This panel has an unfinished install",
+        "description": "Home Assistant already started installing Panel Assistant {version} on this panel, as {existing_address}, and that install has not finished.\n\nYou can carry on with it, or cancel it and start again at {address}.",
+        "menu_options": {
+          "resume_install": "Carry on with that install",
+          "cancel_install": "Cancel it and start again"
+        },
+        "menu_option_descriptions": {
+          "cancel_install": "Nothing is removed from the panel. If the app is already installed it stays, and Home Assistant looks at the panel afresh."
+        }
+      },
+      "install_unfinished_busy": {
+        "title": "This panel has an unfinished install",
+        "description": "Home Assistant is installing Panel Assistant {version} on this panel right now, as {existing_address}. It cannot be cancelled while it is changing the panel.\n\nCarry on with it to see it finish.",
+        "menu_options": {
+          "resume_install": "Carry on with that install"
+        }
       }
     },
     "progress": {
@@ -141,7 +159,6 @@
       "install_candidate_changed": "Die Panelidentität oder der saubere Paketzustand hat sich nach der Vorschau geändert. Es wurde kein Installationsauftrag erstellt. Prüfe das Panel und beginne danach erneut.",
       "installed_artifact_mismatch": "Die installierte App ist nicht bytegleich mit dem gewählten Release, deshalb hat Home Assistant sie nicht überschrieben; wähle ihr exaktes Release oder folge den Schritten unter {recovery_address}.",
       "install_plan_rejected": "Das Panel und das signierte Release konnten nicht zu einem sicheren Installationsplan verknüpft werden. Es wurde kein Installationsauftrag erstellt.",
-      "install_job_conflict": "Ein anderer Installationsauftrag beansprucht bereits diese Panelidentität. Es wurde kein zweiter Auftrag erstellt.",
       "install_receipt_error": "Home Assistant konnte den Installationsbeleg nicht sicher laden oder dauerhaft speichern. Es wurde keine neue Aktion am Panel autorisiert.",
       "install_finalization_busy": "Ein anderer Einrichtungsdialog schließt die Einrichtung dieses Panels gerade ab. Warte, bis er fertig ist, und versuche es bei Bedarf erneut.",
       "install_finalization_retry": "Die Installation wurde abgeschlossen, aber eine abschließende, nur lesende Prüfung des Netzwerks, von ADB oder des Funktionsstatus ist vorübergehend nicht verfügbar. Prüfe das Panel und versuche es erneut; die Installation wird nicht noch einmal ausgeführt.",

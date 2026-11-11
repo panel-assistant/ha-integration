@@ -7,6 +7,7 @@ import os
 import re
 import shlex
 import subprocess
+import sys
 from collections.abc import AsyncIterator
 from dataclasses import replace
 from pathlib import Path
@@ -23,6 +24,7 @@ from custom_components.panel_assistant import (
     install_adb,
 )
 from custom_components.panel_assistant.adb_protocol import (
+    ADB_PORT,
     AdbInstallTarget,
     AdbRootMode,
     LaunchOutcome,
@@ -231,6 +233,12 @@ cmd() {
 getprop() {
   if [ -f "$STATE/prop.$1" ]; then cat "$STATE/prop.$1"; else echo generic; fi
 }
+setprop() {
+  echo "setprop $*" >> "$STATE/calls"
+  [ ! -f "$STATE/refuse.setprop" ] || return 1
+  echo "$2" > "$STATE/prop.$1"
+  [ ! -f "$STATE/fail.after.setprop" ] || return 1
+}
 sleep() { :; }
 # HOME opens the chooser in chooser.xml; tapping at chooser.tap presses its
 # Always, which makes chooser.home the preferred HOME.
@@ -354,10 +362,13 @@ class _RoutingFakeDevice(FakeDevice):
     this one lets the observed command list itself be the assertion.
     """
 
-    def __init__(self, state: Path, *, sdk: int = 34) -> None:
+    def __init__(
+        self, state: Path, *, sdk: int = 34, posture: dict[str, Any] | None = None
+    ) -> None:
         super().__init__([])
         self.sdk = sdk
         self.state = state
+        self.posture = posture or {}
 
     async def streaming_shell(
         self, command: str, **kwargs: Any
@@ -368,12 +379,12 @@ class _RoutingFakeDevice(FakeDevice):
         assert match is not None, command
         prefix, nonce = match.groups()
         if prefix == "POSTURE":
-            yield _identity_root_output(nonce, sdk=self.sdk)
+            yield _identity_root_output(nonce, sdk=self.sdk, **self.posture)
         elif prefix == "PACKAGE":
             yield _single_output(
                 "PACKAGE", nonce, ["package:/data/app/ha-paneld/base.apk"], 0
             )
-        elif prefix in ("NOTIFICATIONS", "PERMISSIONS", "VENDOR"):
+        elif prefix in ("NOTIFICATIONS", "PERMISSIONS", "VENDOR", "BOOTPORT"):
             yield _run_on_stand_in_panel(command, self.state)
         else:
             assert prefix == "LAUNCH", command
@@ -1608,3 +1619,174 @@ async def test_the_grant_warning_names_the_missing_grant_and_the_panel(
     assert len(messages) == 1
     assert "(missing: display over other apps; panel " in messages[0]
     assert f"panel {target.address.stored_value})" in messages[0]
+
+
+_BOOT_PORT = "persist.adb.tcp.port"
+_POSTURES: dict[AdbRootMode, dict[str, Any]] = {
+    AdbRootMode.ROOTLESS: {},
+    AdbRootMode.ROOT_ADBD: {"uid": "0"},
+    AdbRootMode.ROOT_SU: {"su_lines": ["present"]},
+}
+
+
+async def _start_on(
+    monkeypatch: pytest.MonkeyPatch,
+    target: AdbInstallTarget,  # noqa: F811
+    signer: PythonRSASigner,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    state: Path,
+    root_mode: AdbRootMode,
+    *,
+    local: bool = False,
+) -> list[str]:
+    monkeypatch.setattr(install_adb, "_async_prove_su", AsyncMock())
+    fake = _RoutingFakeDevice(state, posture=_POSTURES[root_mode])
+    _install_fakes(monkeypatch, [fake])
+    if local:
+        target = replace(target, local_shell=fake)
+    launch = await install_adb.async_start_installed_app(
+        target, signer, descriptor, expected_root_mode=root_mode
+    )
+    assert launch.outcome is LaunchOutcome.STARTED
+    return fake.commands
+
+
+def _boot_port_writes(state: Path) -> list[str]:
+    calls = state / "calls"
+    lines = calls.read_text().splitlines() if calls.exists() else []
+    return [line for line in lines if line.startswith("setprop ")]
+
+
+async def test_a_root_adbd_install_keeps_network_adb_on_its_port_before_the_start(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+) -> None:
+    # An unset property: toybox getprop prints an empty line.
+    (tmp_path / f"prop.{_BOOT_PORT}").write_text("\n")
+    caplog.set_level(logging.INFO)
+    commands = await _start_on(
+        monkeypatch, target, signer, descriptor, tmp_path, AdbRootMode.ROOT_ADBD
+    )
+    writes = [i for i, command in enumerate(commands) if "setprop" in command]
+    starts = [i for i, command in enumerate(commands) if "am start" in command]
+    assert len(writes) == 1
+    assert len(starts) == 1
+    assert writes[0] < starts[0]
+    assert _boot_port_writes(tmp_path) == [f"setprop {_BOOT_PORT} {ADB_PORT}"]
+    assert _panel_value(tmp_path, f"prop.{_BOOT_PORT}") == "5555"
+    assert "Kept network ADB enabled after a reboot" in caplog.text
+    assert "Could not keep network ADB" not in caplog.text
+
+    # A second start finds the port in place and changes nothing.
+    caplog.clear()
+    await _start_on(
+        monkeypatch, target, signer, descriptor, tmp_path, AdbRootMode.ROOT_ADBD
+    )
+    assert _boot_port_writes(tmp_path) == [f"setprop {_BOOT_PORT} {ADB_PORT}"]
+    assert caplog.text.count("network ADB") == 0
+
+
+async def test_a_root_adbd_install_never_overwrites_an_existing_boot_port(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+) -> None:
+    (tmp_path / f"prop.{_BOOT_PORT}").write_text("5037\n")
+    await _start_on(
+        monkeypatch, target, signer, descriptor, tmp_path, AdbRootMode.ROOT_ADBD
+    )
+    assert _boot_port_writes(tmp_path) == []
+    assert _panel_value(tmp_path, f"prop.{_BOOT_PORT}") == "5037"
+    assert "network ADB" not in caplog.text
+
+
+@pytest.mark.parametrize("root_mode", [AdbRootMode.ROOTLESS, AdbRootMode.ROOT_SU])
+async def test_only_root_adbd_installs_touch_the_boot_port(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    root_mode: AdbRootMode,
+) -> None:
+    (tmp_path / f"prop.{_BOOT_PORT}").write_text("\n")
+    commands = await _start_on(
+        monkeypatch, target, signer, descriptor, tmp_path, root_mode
+    )
+    assert sum(_BOOT_PORT in command for command in commands) == 0
+    assert _boot_port_writes(tmp_path) == []
+
+
+@pytest.mark.parametrize("failure", ["refuse.setprop", "fail.after.setprop"])
+async def test_a_refused_boot_port_write_is_reported_and_never_stops_the_start(
+    monkeypatch: pytest.MonkeyPatch,
+    failure: str,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+) -> None:
+    (tmp_path / f"prop.{_BOOT_PORT}").write_text("\n")
+    (tmp_path / failure).touch()
+    commands = await _start_on(
+        monkeypatch, target, signer, descriptor, tmp_path, AdbRootMode.ROOT_ADBD
+    )
+    assert _boot_port_writes(tmp_path) == [f"setprop {_BOOT_PORT} {ADB_PORT}"]
+    assert sum("am start" in command for command in commands) == 1
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert [r.getMessage() for r in warnings] == [
+        "Could not keep network ADB enabled after a reboot on this panel; "
+        "the app's helper sets it when it first runs"
+    ]
+
+
+async def test_a_boot_port_that_does_not_read_back_is_reported(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+) -> None:
+    # setprop reports success but the property stays empty (a vendor guard).
+    (tmp_path / f"prop.{_BOOT_PORT}").write_text("\n")
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "_STAND_IN_PANEL",
+        _STAND_IN_PANEL + 'setprop() { echo "setprop $*" >> "$STATE/calls"; }\n',
+    )
+    commands = await _start_on(
+        monkeypatch, target, signer, descriptor, tmp_path, AdbRootMode.ROOT_ADBD
+    )
+    assert _boot_port_writes(tmp_path) == [f"setprop {_BOOT_PORT} {ADB_PORT}"]
+    assert sum("am start" in command for command in commands) == 1
+    assert caplog.text.count("Could not keep network ADB enabled") == 1
+
+
+async def test_the_apps_own_session_leaves_the_boot_port_to_its_helper(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    (tmp_path / f"prop.{_BOOT_PORT}").write_text("\n")
+    commands = await _start_on(
+        monkeypatch,
+        target,
+        signer,
+        descriptor,
+        tmp_path,
+        AdbRootMode.ROOT_ADBD,
+        local=True,
+    )
+    assert sum(_BOOT_PORT in command for command in commands) == 0
+    assert sum("am start" in command for command in commands) == 1

@@ -8,7 +8,7 @@ from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, call, patch
 
 import aiohttp
 import pytest
@@ -94,6 +94,7 @@ from .config_flow_helpers import (
     RELEASE,
     _choose_version,
     _connect_found,
+    _executor_for,
     _probe,
     _start_step,
     _zeroconf_info,
@@ -1026,15 +1027,6 @@ def _manager_for(receipt: InstallJobReceipt) -> SimpleNamespace:
         async_create_or_join=AsyncMock(return_value=(receipt, True)),
         async_get=AsyncMock(return_value=receipt),
         async_transition=AsyncMock(return_value=receipt),
-    )
-
-
-def _executor_for() -> SimpleNamespace:
-    """Return the narrow detached-worker API the progress steps use."""
-    return SimpleNamespace(
-        async_ensure_job=AsyncMock(return_value=None),
-        async_wait=AsyncMock(),
-        is_updating_webview=MagicMock(return_value=False),
     )
 
 

@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 Each section is what Home Assistant shows in its update dialog: a short, friendly summary, a few highlights and a link to the full notes on [panel-assistant.io](https://panel-assistant.io/go/release-notes). The full notes, including every pre-release, are kept on the website. From 1.0.0 onward; earlier sections are the full notes as they were released.
 
+## 1.0.2
+
 ## 1.0.1 - 2026-11-10
 
 Panel Assistant 1.0.1 makes updates more dependable and includes the 1.0.1 Android app, which learns its proximity sensor from your touches, so setting up proximity is now optional.

@@ -146,6 +146,39 @@ async def test_webview_offered_alone_installs_on_the_panel(
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
 
 
+async def test_webview_rolled_back_after_its_install_is_offered_again(
+    hass: HomeAssistant,
+) -> None:
+    """A panel whose installed WebView was removed is offered + WebView again.
+
+    The panel calls the WebView eligible again; a finished install it still
+    reports (from an older app, or for an earlier pin) does not hide the
+    offer, and Install puts it back.
+    """
+    for kept in ("installed", None):
+        entity, _client, entry, issue_id = _native(hass)
+        rolled_back = snapshot(kept)
+        _app_current(entity, rolled_back)
+        assert entity.latest_version == f"{entity.installed_version} + WebView"
+        panel = Panel(rolled_back)
+
+        await _install(hass, entity, entry, panel)
+
+        entity._delivery.async_deliver_build.assert_not_awaited()
+        assert len(panel.installs) == 1
+        assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
+async def test_webview_still_installing_is_not_offered_again(
+    hass: HomeAssistant,
+) -> None:
+    """Work the panel still holds is never offered as a second install."""
+    for state in ("downloading", "verified", "installing", "submitted_unknown"):
+        entity, _client, _entry, _issue_id = _native(hass)
+        _app_current(entity, snapshot(state))
+        assert entity.latest_version == entity.installed_version
+
+
 async def test_app_update_installs_its_webview_on_the_panel(
     hass: HomeAssistant,
 ) -> None:

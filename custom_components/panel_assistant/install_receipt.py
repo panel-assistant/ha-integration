@@ -64,7 +64,15 @@ class InstallJobStoreError(InstallJobError):
 
 
 class InstallJobConflictError(InstallJobError):
-    """A target already has different active frozen installation facts."""
+    """A target already has different active frozen installation facts.
+
+    It carries the unfinished receipt that owns the panel, so a caller can
+    offer to carry on with it or end it instead of only refusing.
+    """
+
+    def __init__(self, receipt: InstallJobReceipt | None = None) -> None:
+        self.receipt = receipt
+        super().__init__()
 
 
 class InstallJobCapacityError(InstallJobError):
@@ -123,6 +131,19 @@ class InstallResultCode(StrEnum):
     HEALTH_CHECK_FAILED = "health_check_failed"
     AMBIGUOUS_MUTATION = "ambiguous_mutation"
     VERIFICATION_REQUIRED = "verification_required"
+
+
+class InstallEndReason(StrEnum):
+    """Why an unfinished job nobody was advancing was ended.
+
+    Stored as the receipt's ``job:<reason>`` subcode, so the log line, the
+    Repair and the support report all name it.
+    """
+
+    STALLED = "stalled"
+    WORKER_STOPPED = "worker_stopped"
+    UNCLAIMED_EXPIRED = "unclaimed_expired"
+    OWNER_CANCELLED = "cancelled_by_owner"
 
 
 _TERMINAL_PHASES = frozenset(
@@ -189,6 +210,18 @@ _CANCELLABLE_PHASES = frozenset(
         InstallPhase.ARTIFACT_READY,
         InstallPhase.REVALIDATING,
         InstallPhase.STAGING,
+    }
+)
+# Nothing has been sent to the panel yet, so ending the job here leaves the
+# panel exactly as it was.
+_PANEL_UNTOUCHED_PHASES = frozenset(
+    {
+        InstallPhase.APPROVED,
+        InstallPhase.AUTHORIZING,
+        InstallPhase.PREFLIGHT,
+        InstallPhase.DOWNLOADING,
+        InstallPhase.ARTIFACT_READY,
+        InstallPhase.REVALIDATING,
     }
 )
 _FAILURE_CODES = frozenset(

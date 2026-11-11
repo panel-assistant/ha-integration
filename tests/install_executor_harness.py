@@ -707,9 +707,12 @@ async def seed_phase(
         InstallPhase.INSTALLED,
         InstallPhase.LAUNCHING,
         InstallPhase.HEALTH_CHECK,
+        InstallPhase.HEALTHY_UNCLAIMED,
     )
     for next_phase in phases:
         transition_fields: dict[str, object] = {}
+        if next_phase is InstallPhase.HEALTHY_UNCLAIMED:
+            transition_fields["health_checked_at"] = install_jobs._now_timestamp()
         if next_phase is InstallPhase.ARTIFACT_READY:
             transition_fields["actual_apk_bytes"] = artifact().apk_size
         if next_phase is InstallPhase.DOWNLOADING:

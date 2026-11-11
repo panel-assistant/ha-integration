@@ -111,6 +111,24 @@
       "install_result": {
         "title": "完成面板设置",
         "description": "Panel Assistant {version} 已安装在 {address}。\n\n提交后只会重试最终的只读身份和健康检查，不会重复任何安装步骤。\n\nHome Assistant 添加设备后，请在能通过局域网访问面板的电脑上打开“添加”对话框中的浏览器设置链接。如有提示，请在面板上批准 ADB 调试。"
+      },
+      "install_unfinished": {
+        "title": "This panel has an unfinished install",
+        "description": "Home Assistant already started installing Panel Assistant {version} on this panel, as {existing_address}, and that install has not finished.\n\nYou can carry on with it, or cancel it and start again at {address}.",
+        "menu_options": {
+          "resume_install": "Carry on with that install",
+          "cancel_install": "Cancel it and start again"
+        },
+        "menu_option_descriptions": {
+          "cancel_install": "Nothing is removed from the panel. If the app is already installed it stays, and Home Assistant looks at the panel afresh."
+        }
+      },
+      "install_unfinished_busy": {
+        "title": "This panel has an unfinished install",
+        "description": "Home Assistant is installing Panel Assistant {version} on this panel right now, as {existing_address}. It cannot be cancelled while it is changing the panel.\n\nCarry on with it to see it finish.",
+        "menu_options": {
+          "resume_install": "Carry on with that install"
+        }
       }
     },
     "progress": {
@@ -141,7 +159,6 @@
       "install_candidate_changed": "预览后，面板身份或软件包的安装及残留状态发生了变化。未创建安装任务。请检查面板后重新开始。",
       "installed_artifact_mismatch": "已安装的应用与所选版本并非逐字节相同，因此 Home Assistant 没有覆盖它；请选择其确切版本，或按照 {recovery_address} 中的步骤操作。",
       "install_plan_rejected": "无法将面板和签名版本绑定为安全的安装计划。未创建安装任务。",
-      "install_job_conflict": "已有其他安装任务占用了此面板身份。未创建第二个任务。",
       "install_receipt_error": "Home Assistant 无法安全加载或持久保存安装回执。未授权任何新的面板操作。",
       "install_finalization_busy": "另一个设置对话框正在完成此面板的设置。请等待其完成，如有需要再重试。",
       "install_finalization_retry": "安装已完成，但最终的只读网络、ADB 或健康检查暂时不可用。请检查面板并重试；安装不会再次运行。",
