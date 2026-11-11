@@ -220,9 +220,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     _pending_health: PanelHealth | None = None
     _pending_discovery_id: str | None = None
     _pending_friendly_name: str | None = None
-    # An announced panel's addresses, best first, and whether its health is
-    # still being read at them (a later announcement then adds to them).
-    _discovery_addresses: list[PanelAddress] | None = None
+    # An announced panel's addresses, best first, each with the addresses its
+    # announcement carried, and whether its health is still being read at
+    # them (a later announcement of the same panel then adds to them).
+    _discovery_addresses: dict[PanelAddress, frozenset[str]] | None = None
     _discovery_probing: bool = False
     _pending_probe: InstallTargetProbe | None = None
     _pending_probe_state: str | None = None
@@ -285,7 +286,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             if self._pending_address is not None
             else self.context.get("title_placeholders", {}).get(
                 "address",
-                self._discovery_addresses[0].stored_value
+                next(iter(self._discovery_addresses)).stored_value
                 if self._discovery_addresses
                 else "unknown",
             )

@@ -20,7 +20,7 @@ import functools
 import ipaddress
 import logging
 import unicodedata
-from collections.abc import Awaitable, Callable, Iterable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -286,17 +286,13 @@ def announced_hosts(discovery_info: ZeroconfServiceInfo) -> frozenset[str]:
     return frozenset(
         str(address)
         for address in (discovery_info.ip_address, *discovery_info.ip_addresses)
-        if _names_one_device(address)
-    )
-
-
-def _names_one_device(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
-    return not (
-        address.is_link_local
-        or address.is_loopback
-        or address.is_multicast
-        or address.is_unspecified
-        or getattr(address, "scope_id", None) is not None
+        if not (
+            address.is_link_local
+            or address.is_loopback
+            or address.is_multicast
+            or address.is_unspecified
+            or getattr(address, "scope_id", None) is not None
+        )
     )
 
 
@@ -700,10 +696,11 @@ async def _async_discovered_app(
     if addresses is None:
         return flow.async_abort(reason="invalid_discovery")
     address = addresses[0]
+    hosts = announced_hosts(discovery_info)
 
     flow._pending_discovery_id = discovery_id
     flow._pending_friendly_name = _presentation_safe_name(advertised_name)
-    flow._discovery_addresses = addresses
+    flow._discovery_addresses = dict.fromkeys(addresses, hosts)
     if flow.hass.config_entries.flow.async_has_matching_flow(flow):
         return flow.async_abort(reason="already_in_progress")
     await flow.async_set_unique_id(discovery_id)
@@ -721,10 +718,9 @@ async def _async_discovered_app(
     # The panel has just answered as itself here: whatever happens next, an
     # install card naming any address this announcement carried is the same
     # panel on a weaker channel, in whichever address family it was heard.
-    # So is one naming an address a later announcement of it handed over.
-    hosts = announced_hosts(discovery_info) | _hosts_naming_one_device(
-        flow._discovery_addresses or ()
-    )
+    # The addresses trusted are those of the announcement that carried the
+    # address which answered, a later one of the same panel's included.
+    hosts = flow._discovery_addresses[address]
     close_offers(flow.hass, address.stored_value, flow.flow_id, hosts=hosts)
     await _async_close_cards_answering_as(flow, discovery_id)
     for existing in flow.hass.config_entries.async_entries(DOMAIN):
@@ -797,11 +793,12 @@ def _discovery_addresses(
         addresses = [normalize_address(f"{_discovered_host(discovery_info)}{port}")]
     except InvalidAddressError:
         return None
+    announced = announced_hosts(discovery_info)
     others = sorted(
         (
             a
             for a in (discovery_info.ip_address, *discovery_info.ip_addresses)
-            if _names_one_device(a)
+            if str(a) in announced
         ),
         key=lambda a: a.version,
     )
@@ -826,9 +823,9 @@ def hand_over_addresses(probing: HaPaneldConfigFlow, heard: HaPaneldConfigFlow) 
     addresses = probing._discovery_addresses
     if addresses is None:
         return
-    for address in heard._discovery_addresses or ():
+    for address, hosts in (heard._discovery_addresses or {}).items():
         if address not in addresses and len(addresses) < _DISCOVERY_ADDRESSES_MAX:
-            addresses.append(address)
+            addresses[address] = hosts
 
 
 async def _async_read_announced_health(
@@ -851,7 +848,8 @@ async def _async_read_announced_health(
     try:
         index = 0
         while index < len(addresses):
-            address = addresses[index]
+            # Keys in the order heard; a handover may add some meanwhile.
+            address = list(addresses)[index]
             index += 1
             try:
                 health = await HaPaneldClient(session, address).async_get_health()
@@ -887,18 +885,6 @@ async def _async_read_announced_health(
         if answered_otherwise or known is not None
         else "cannot_connect"
     )
-
-
-def _hosts_naming_one_device(addresses: Iterable[PanelAddress]) -> frozenset[str]:
-    hosts = set()
-    for address in addresses:
-        try:
-            literal = ipaddress.ip_address(address.host)
-        except ValueError:
-            continue
-        if _names_one_device(literal):
-            hosts.add(str(literal))
-    return frozenset(hosts)
 
 
 def _authority(address: PanelAddress) -> str:
