@@ -75,6 +75,8 @@ class WebViewSupply:
     hass: HomeAssistant
     directory: str
     files: dict[str, _File] = field(default_factory=dict)
+    # One per file: fetching it and removing an expired copy never overlap.
+    locks: dict[str, asyncio.Lock] = field(default_factory=dict)
     swept: bool = False
 
     @contextlib.asynccontextmanager
@@ -94,7 +96,9 @@ class WebViewSupply:
                 held.ready = self.hass.loop.create_future()
                 ready = held.ready
                 try:
-                    ready.set_result(await self._async_fetch(sha256, size))
+                    async with self.locks.setdefault(sha256, asyncio.Lock()):
+                        path = await self._async_fetch(sha256, size)
+                    ready.set_result(path)
                 except BaseException as err:
                     ready.set_exception(
                         err if isinstance(err, SupplyError) else SupplyError("failed")
@@ -109,7 +113,9 @@ class WebViewSupply:
                 @callback
                 def _expired(_now: datetime) -> None:
                     held.sweep = None
-                    self._forget(sha256)
+                    self.hass.async_create_background_task(
+                        self._async_forget(sha256), f"{DOMAIN} forget WebView file"
+                    )
 
                 held.sweep = async_call_later(
                     self.hass,
@@ -117,13 +123,14 @@ class WebViewSupply:
                     HassJob(_expired, cancel_on_shutdown=True),
                 )
 
-    @callback
-    def _forget(self, sha256: str) -> None:
-        held = self.files.get(sha256)
-        if held is None or held.users:
-            return
-        del self.files[sha256]
-        self.hass.async_add_executor_job(self._remove, sha256)
+    async def _async_forget(self, sha256: str) -> None:
+        """Remove an unused file; a panel that leases it meanwhile downloads anew."""
+        async with self.locks.setdefault(sha256, asyncio.Lock()):
+            held = self.files.get(sha256)
+            if held is None or held.users:
+                return
+            del self.files[sha256]
+            await self.hass.async_add_executor_job(self._remove, sha256)
 
     def _path(self, sha256: str) -> str:
         return os.path.join(self.directory, f"{sha256}.apk")

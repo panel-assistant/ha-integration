@@ -3,6 +3,7 @@
 import asyncio
 import hashlib
 import os
+import threading
 from datetime import timedelta
 from types import SimpleNamespace
 from typing import Any
@@ -18,6 +19,7 @@ from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
 from custom_components.panel_assistant.webview_supply import (
+    WebViewSupply,
     async_get_webview_supply,
     async_offer_webview,
 )
@@ -290,3 +292,28 @@ async def test_a_size_beyond_any_webview_is_never_downloaded(
         await _install(hass, panel.entity, panel.entry, manage, session=panel.session)
     assert "blob" not in sent[0]
     assert aioclient_mock.call_count == 0
+
+
+async def test_a_panel_that_leases_the_file_as_it_expires_keeps_it(
+    hass: HomeAssistant, aioclient_mock: Any
+) -> None:
+    """The removal of an expired copy never deletes the file a new lease holds."""
+    assert await async_setup_component(hass, "http", {})
+    aioclient_mock.get(URL, content=PAYLOAD)
+    async with async_offer_webview(hass, "one", SHA, len(PAYLOAD)):
+        pass
+    leased = threading.Event()
+    remove = WebViewSupply._remove
+
+    def held_back(supply: WebViewSupply, sha256: str) -> None:
+        # Hold the expired copy's removal until the next panel holds the file.
+        leased.wait(timeout=0.5)
+        remove(supply, sha256)
+
+    with patch.object(WebViewSupply, "_remove", held_back):
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=61))
+        await asyncio.sleep(0)
+        async with async_offer_webview(hass, "two", SHA, len(PAYLOAD)):
+            leased.set()
+            await hass.async_block_till_done(wait_background_tasks=True)
+            assert _files(hass) == [f"{SHA}.apk"]
