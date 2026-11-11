@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import errno
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field, replace
@@ -242,6 +243,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     _refusal_cause: object = None
     # The panel's refusal of the last setup read, shown on the setup form.
     _setup_refusal: RequestRefusedError | None = None
+    # The address as typed, for the log when nothing was pinned from it.
+    _typed_address: str | None = None
     _progress_waiter: asyncio.Task[InstallJobReceipt] | None = None
     _progress_action = "installing"
     _authorization_task: asyncio.Task[InstallTargetProbe] | None = None
@@ -289,7 +292,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         address = (
             self._pending_address.stored_value
             if self._pending_address is not None
-            else self.context.get("title_placeholders", {}).get(
+            else self._typed_address
+            or self.context.get("title_placeholders", {}).get(
                 "address",
                 next(iter(self._discovery_addresses)).stored_value
                 if self._discovery_addresses
@@ -906,6 +910,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self._pending_install_target = None
         self._pending_job_id = None
         self._authorization_errors = None
+        self._typed_address = None
 
     async def async_step_add_panel(
         self, user_input: dict[str, Any] | None = None
@@ -922,6 +927,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             )
 
         self._reset_pending_panel()
+        self._typed_address = "".join(
+            char if char.isprintable() else "?"
+            for char in str(user_input[CONF_ADDRESS]).strip()[:200]
+        )
         try:
             address = normalize_address(user_input[CONF_ADDRESS])
             self._pending_reinstall_entry = next(
@@ -1004,10 +1013,13 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             async_get_clientsession(self.hass),
             target.pinned if target is not None else address,
         )
+        # What the app's port did, kept for the text and the log: the ADB probe
+        # below says nothing about it.
+        app_port = "answered"
         try:
             health = await client.async_get_health()
-        except CannotConnectError, InvalidResponseError:
-            pass
+        except (CannotConnectError, InvalidResponseError) as err:
+            app_port = _app_port_outcome(err)
         except Exception:
             _LOGGER.exception(
                 "Unexpected exception while checking for an existing ha-paneld"
@@ -1028,7 +1040,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 {"base": "not_answering_outside_install_range"},
                 cause=(
                     f"{install_refusal.code.value}; "
-                    f"no panel answered on port {address.port}"
+                    f"no panel answered on port {address.port} ({app_port})"
                 ),
             )
         if custom_port or target is None:
@@ -1065,11 +1077,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             self._pending_probe_state = state
             return await self.async_step_choose_version()
         if state == "adb_unreachable":
-            errors["base"] = (
-                "adb_unreachable"
-                if await _async_host_answers(target.pinned)
-                else "panel_unreachable"
-            )
+            # Neither port gave an answer; say which failed and how.
+            errors["base"] = await _no_port_answered(app_port, target.pinned)
         else:
             errors["base"] = {
                 "retained_or_ambiguous": "retained_or_ambiguous",
@@ -1078,7 +1087,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         return self._show_add_panel_form(
             user_input,
             errors,
-            cause=f"adb_state={probe.state.value} pinned={target.pinned.stored_value}",
+            cause=(
+                f"port_{address.port}={app_port} adb_state={probe.state.value} "
+                f"pinned={target.pinned.stored_value}"
+            ),
         )
 
     async def async_step_add_known_panel(
@@ -2061,12 +2073,43 @@ def _same_install_target(
     )
 
 
+def _app_port_outcome(error: HaPaneldError) -> str:
+    """Name what the panel app's port did when its health was read."""
+    if isinstance(error, InvalidResponseError):
+        return "invalid_response"
+    cause = error.__cause__
+    if cause is None:
+        # It answered over HTTP, with a status other than the app's.
+        return "not_panel_app"
+    if isinstance(cause, TimeoutError):
+        return "timed_out"
+    os_error = getattr(cause, "os_error", cause)
+    if isinstance(os_error, ConnectionRefusedError) or (
+        getattr(os_error, "errno", None) == errno.ECONNREFUSED
+    ):
+        return "refused"
+    return "connection_failed"
+
+
+async def _no_port_answered(app_port: str, pinned: PanelAddress) -> str:
+    """The add-panel error when neither the app's port nor ADB answered."""
+    if app_port == "refused":
+        return "app_port_refused"
+    if app_port in ("invalid_response", "not_panel_app"):
+        return "app_port_not_panel"
+    if await _async_host_answers(pinned):
+        # The app's port took the connection and gave no answer in time.
+        return "app_port_no_answer"
+    return "panel_unreachable"
+
+
 async def _async_host_answers(address: PanelAddress) -> bool:
     """Whether anything at all answers at that address.
 
-    It tells apart "the panel is there but its Android Debug Bridge is not" from
-    "nothing is at that address", so each gets the advice that fits. A refused
-    connection is an answer: something is listening on the host.
+    After the app's health read timed out, it tells apart "the port took the
+    connection and gave no answer" from "nothing is at that address", so each
+    gets the advice that fits. A refused connection is an answer: something is
+    listening on the host.
     """
     try:
         async with asyncio.timeout(_HOST_PROBE_SECONDS):

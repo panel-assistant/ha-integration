@@ -542,10 +542,12 @@ async def test_an_ordinary_refusal_is_logged_with_what_the_panel_answered(
 ) -> None:
     """Every refusal a person sees has a log line a helper can read."""
     unreachable = InstallTargetProbe(state=InstallTargetState.ADB_UNREACHABLE)
+    timed_out = CannotConnectError()
+    timed_out.__cause__ = TimeoutError()
     with (
         patch(
             f"{FLOW}.HaPaneldClient.async_get_health",
-            AsyncMock(side_effect=CannotConnectError),
+            AsyncMock(side_effect=timed_out),
         ),
         patch(
             f"{FLOW}.async_probe_install_target", AsyncMock(return_value=unreachable)
@@ -563,7 +565,7 @@ async def test_an_ordinary_refusal_is_logged_with_what_the_panel_answered(
         "step=add_panel",
         "error=panel_unreachable",
         f"panel={OTHER_IP}",
-        f"cause=adb_state=adb_unreachable pinned={OTHER_IP}",
+        f"cause=port_8888=timed_out adb_state=adb_unreachable pinned={OTHER_IP}",
     )
 
 
