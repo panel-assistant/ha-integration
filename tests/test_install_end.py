@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import timedelta
+from unittest.mock import AsyncMock
 
 import pytest
 from freezegun.api import FrozenDateTimeFactory
@@ -13,6 +14,7 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
+from custom_components.panel_assistant import install_executor
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.install_artifacts import (
     ArtifactCustodyError,
@@ -262,9 +264,12 @@ async def test_no_dialog_can_take_an_install_while_it_is_being_ended(
     hass: HomeAssistant,
     harness: Harness,
     freezer: FrozenDateTimeFactory,
+    monkeypatch: pytest.MonkeyPatch,
     ending: str,
 ) -> None:
     """Ending waits on the download's removal; finishing is refused in that gap."""
+    # The panel would answer the final checks, so only the refusal stops them.
+    monkeypatch.setattr(install_executor, "async_verify_installed_target", AsyncMock())
     receipt, _manager = await seed_phase(hass, InstallPhase.HEALTHY_UNCLAIMED)
     executor = await async_get_install_executor(hass)
     harness.local_cleanup_entered = asyncio.Event()
@@ -278,13 +283,15 @@ async def test_no_dialog_can_take_an_install_while_it_is_being_ended(
     assert (await _stored(hass, receipt.job_id)).phase is InstallPhase.HEALTHY_UNCLAIMED
 
     taken = await executor.async_verify_finalization(receipt.job_id, "dialog_one")
-
-    assert taken.outcome is FinalizationOutcome.BUSY
-    assert not executor.is_finalizer_active(receipt.job_id)
-    assert "pin" not in harness.events, "the panel is not verified under an ending job"
+    held = executor.is_finalizer_active(receipt.job_id)
+    contacted = "pin" in harness.events
     harness.local_cleanup_release.set()
     await ender
     await hass.async_block_till_done()
+
+    assert taken.outcome is FinalizationOutcome.BUSY
+    assert not held
+    assert not contacted, "the panel is not verified under an ending job"
     ended = await _stored(hass, receipt.job_id)
     assert ended.phase is InstallPhase.RECOVERY_REQUIRED
     assert ended.failure_stage is InstallPhase.HEALTHY_UNCLAIMED
