@@ -10,11 +10,12 @@ from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from homeassistant.config_entries import ConfigEntryState
+from homeassistant.config_entries import ConfigEntryDisabler, ConfigEntryState
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant import repairs_webview
@@ -410,6 +411,64 @@ async def test_adb_authorization_update_repair_comes_back_as_itself_after_a_rest
     assert "adb_update_authorization" in (restored.translation_placeholders or {}).get(
         "approval_url", ""
     )
+
+
+@pytest.mark.parametrize("kind", ["update", "retry_hold", "adb_authorization"])
+async def test_update_repair_returns_through_fresh_setup_after_a_hard_stop(
+    hass: HomeAssistant, kind: str
+) -> None:
+    from custom_components.panel_assistant.repairs_failure import (
+        _DATA_KEY,
+        RetrySafetyHold,
+        async_record_retry_hold,
+    )
+    from custom_components.panel_assistant.update_errors import adb_authorization_error
+
+    _, _, entry, issue_id = _native(hass)
+    # Setup restores the report; the panel itself is not needed for that.
+    await hass.config_entries.async_set_disabled_by(
+        entry.entry_id, ConfigEntryDisabler.USER
+    )
+    if kind == "retry_hold":
+        await async_record_retry_hold(
+            hass, issue_id, {"entry_id": entry.entry_id}, RetrySafetyHold("receipt")
+        )
+    else:
+        error: Exception = (
+            adb_authorization_error(hass, entry.entry_id, "Panel")
+            if kind == "adb_authorization"
+            else RuntimeError("delivery failed")
+        )
+        await async_record_update_failure(
+            hass, entry.entry_id, "Panel", "0.9.10", error
+        )
+    registry = ir.async_get(hass)
+    before = registry.async_get_issue(DOMAIN, issue_id)
+    assert before is not None
+    expected_key = {
+        "update": "installer_failure_update",
+        "retry_hold": "installer_failure_retry_hold",
+        "adb_authorization": "installer_failure_adb_authorization",
+    }[kind]
+    assert before.translation_key == expected_key
+    ir.async_delete_issue(hass, DOMAIN, issue_id)
+    # A hard stop loses the registry's delayed save and the in-memory report
+    # cache; only the saved failure report remains.
+    hass.data.pop(_DATA_KEY)
+    hass.config.components.remove(DOMAIN)
+    assert await async_setup_component(hass, DOMAIN, {})
+    await hass.async_block_till_done()
+    restored = registry.async_get_issue(DOMAIN, issue_id)
+    assert restored is not None
+    assert restored.translation_key == before.translation_key
+    assert restored.data["key"] == issue_id
+    assert restored.data["entry_id"] == entry.entry_id
+    assert restored.translation_placeholders == before.translation_placeholders
+    if kind == "adb_authorization":
+        assert (
+            "adb_update_authorization"
+            in restored.translation_placeholders["approval_url"]
+        )
 
 
 class _NoPauseAsyncio:
