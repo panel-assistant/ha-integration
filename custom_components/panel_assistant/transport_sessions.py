@@ -58,6 +58,10 @@ _LOGGER = logging.getLogger(f"{__package__}.transport")
 DATA_TRANSPORT: Final = "transport"
 
 
+# A session the panel's connection ended, rather than Home Assistant.
+REASON_CONNECTION_CLOSED: Final = "connection_closed"
+
+
 def signal_session_changed(entry_id: str) -> str:
     """Return the dispatcher signal fired when an entry's session changes."""
     return f"{DOMAIN}_transport_session_{entry_id}"
@@ -135,6 +139,8 @@ class PanelSession:
     # observation of that channel is accepted.
     rejections: dict[str, str] = field(default_factory=dict)
     closed_at: datetime | None = None
+    # Why it ended: a reason sent to the panel, or the connection closing.
+    close_reason: str | None = None
     # The channel granted for this live session. A changed option revokes it.
     prerelease_panel_builds: bool | None = None
     # The sidebar subscriptions relayed on this session, by the panel's
@@ -331,7 +337,7 @@ class TransportSessions:
         self, session: PanelSession, reason: str, *, announce: bool = True
     ) -> None:
         """End a session from this side and tell the panel why."""
-        if not self._forget(session):
+        if not self._forget(session, reason):
             return
         connection = session.connection
         connection.subscriptions.pop(session.subscription_id, None)
@@ -366,17 +372,18 @@ class TransportSessions:
         def _teardown() -> None:
             # Home Assistant runs this when the connection closes, and when the
             # panel unsubscribes. Either way the panel is gone.
-            if self._forget(session):
+            if self._forget(session, REASON_CONNECTION_CLOSED):
                 self._changed(session.entry_id)
 
         return _teardown
 
-    def _forget(self, session: PanelSession) -> bool:
+    def _forget(self, session: PanelSession, reason: str) -> bool:
         if self._by_entry.get(session.entry_id) is not session:
             return False
         del self._by_entry[session.entry_id]
         self._by_token.pop(session.token, None)
         session.closed_at = dt_util.utcnow()
+        session.close_reason = reason
         self._last_by_entry[session.entry_id] = session
         # A command is never sent again on a later session, so every command
         # still waited for fails now.

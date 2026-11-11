@@ -355,3 +355,47 @@ async def test_a_panel_waiting_for_its_account_to_be_confirmed_is_left_to_that(
     assert _warnings(caplog) == []
     assert _repairs(hass, entry) == set()
     assert _status(hass, entry) == "online"
+
+
+async def test_a_panel_that_connected_once_and_then_cannot_is_told_what_to_allow(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,  # noqa: F811
+    freezer: FrozenDateTimeFactory,
+    aioclient_mock: Any,
+    caplog: pytest.LogCaptureFixture,
+    hass_ws_client: Any,
+    hass_read_only_access_token: str,
+) -> None:
+    """A firewall change after the first connection gets the same Repair.
+
+    The panel connected, then lost its path to Home Assistant while Home
+    Assistant can still read it. It keeps its account, so it is told the
+    address and port to allow, never to sign in again.
+    """
+    aioclient_mock.get(
+        f"{SAVED}/api/panel_assistant/instance",
+        json={"instance_id": hass.data[DOMAIN][DATA_INSTANCE_ID]},
+    )
+    # Connected only after the grace, so only the loss can start it again.
+    freezer.tick(timedelta(minutes=5))
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await _open(client)
+    await hass.async_block_till_done()
+    await client.close()
+    await hass.async_block_till_done()
+
+    with _saved_account(SAVED + "/"):
+        await _polls(hass, freezer, 3)
+        assert _repairs(hass, entry) == set()
+        await _polls(hass, freezer, 3)
+
+        assert _repairs(hass, entry) == {"cannot_reach_home_assistant"}
+        assert _status(hass, entry) == "cannot_reach_home_assistant"
+        (warning,) = _warnings(caplog)
+        assert "alpha" in warning and SAVED in warning
+
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await _open(client)
+    await hass.async_block_till_done()
+    assert _repairs(hass, entry) == set()
+    assert _status(hass, entry) == "online"

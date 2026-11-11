@@ -54,6 +54,7 @@ from .repairs_proximity import async_reconcile_proximity_issue
 from .repairs_root import async_reconcile_root_issue
 from .repairs_webview import async_reconcile_webview_issue
 from .saved_account import SavedAccount
+from .session_loss import SessionLossLog
 from .status import PanelStatus, parse_status_response
 from .transport_protocol import ERR_PANEL_UNAVAILABLE, MANAGE_SNAPSHOT
 from .transport_sessions import (
@@ -75,6 +76,9 @@ _ADMIN_APPROVAL_BACKOFF_MAX = 86400.0
 _MAX_REFUSED_HELLOS = 16
 # How long a panel may answer polls without a session before it is reported as
 # not signed in: a fresh install signs in within this, and a restart reconnects.
+# It also applies again from the moment a once-connected panel's session ends:
+# twice the app's reconnect backoff ceiling, so a panel whose path to Home
+# Assistant works has always reconnected before it.
 NOT_SIGNED_IN_GRACE = timedelta(minutes=2)
 # A reported port the stored endpoint does not use is tried once per session,
 # then this often: a forwarded port keeps answering while those never do.
@@ -199,7 +203,8 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
 
         self._vendor_recovery = VendorRecovery(self)
         self._port_probe: tuple[PanelSession, float] | None = None
-        # Since setup while the panel has never connected; None once it has.
+        # Since setup, or since the panel's last session ended; None while
+        # it is connected.
         self._no_session_since: datetime | None = dt_util.utcnow()
         self._saved_account = SavedAccount(hass, lambda: self._no_session_since is None)
 
@@ -276,6 +281,12 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             return None
         return async_get_sessions(self.hass).get(self._entry_id)
 
+    def _panel_name(self) -> str:
+        from .device import panel_display_name
+
+        entry = self._entry()
+        return panel_display_name(self.hass, entry) if entry else str(self._entry_id)
+
     def _entry(self) -> ConfigEntry | None:
         if self._entry_id is None:
             return None
@@ -291,13 +302,18 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         """
         assert self._entry_id is not None
         entry_id = self._entry_id
+        loss = SessionLossLog(
+            self.hass, entry_id, self._panel_name, lambda: self.expected_restart
+        )
 
         @callback
         def _remember() -> None:
             if (session := self._session()) is None:
-                # Only a panel that has never connected since setup is reported:
-                # a session that drops and returns is a recovered fault, logged
-                # elsewhere, never a Repair.
+                # A session that drops and returns is a recovered fault, logged
+                # and never a Repair; one that stays away for the whole grace
+                # is reported as a panel that has not connected.
+                if self._no_session_since is None:
+                    self._no_session_since = dt_util.utcnow()
                 return
             self._no_session_since = None
             self._last_hello = (
@@ -310,6 +326,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         @callback
         def _changed() -> None:
             _remember()
+            loss.changed()
             self.async_update_listeners()
             self._vendor_recovery.changed()
             session = self._session()
@@ -337,6 +354,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         self._vendor_recovery.observe(self.data)
 
         def stop_following() -> None:
+            loss.close()
             self._vendor_recovery.close()
             unsubscribe()
 
