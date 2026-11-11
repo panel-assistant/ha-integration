@@ -1683,11 +1683,12 @@ async def test_panel_outside_install_range_gets_no_adb_connection(
     """A running panel added at such an address is never installed over ADB."""
     _install_fakes(monkeypatch, [])
     connections: list[tuple[Any, ...]] = []
-    monkeypatch.setattr(
-        adb_protocol,
-        "AdbDeviceAsync",
-        lambda *args, **_kwargs: connections.append(args),
-    )
+
+    def connect(*args: Any, **_kwargs: Any) -> None:
+        connections.append(args)
+        raise AssertionError(f"ADB connection opened to {host}")
+
+    monkeypatch.setattr(adb_protocol, "AdbDeviceAsync", connect)
 
     with pytest.raises(InstallAdbError) as caught:
         await async_preflight_install(
