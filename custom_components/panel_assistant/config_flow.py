@@ -128,7 +128,7 @@ from .provisioning import (
     InstallTargetState,
     async_probe_install_target,
 )
-from .refused_hellos import async_refused_hello_at
+from .refused_hellos import async_refused_hello_at, never_answered
 from .release import (
     ReleaseArtifact,
     ReleaseResolutionError,
@@ -1022,10 +1022,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             health = await client.async_get_health()
         except (CannotConnectError, InvalidResponseError) as err:
             app_port = _app_port_outcome(err)
-            # Nothing answered, so the way back to the panel may be blocked.
-            unreached: CannotConnectError | None = (
-                err if isinstance(err, CannotConnectError) else None
-            )
+            # Only when nothing answered may the way back be blocked.
+            unreached = err if never_answered(err) else None
         except Exception:
             _LOGGER.exception(
                 "Unexpected exception while checking for an existing ha-paneld"

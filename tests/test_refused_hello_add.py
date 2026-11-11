@@ -8,11 +8,12 @@ address or the panel's power.
 
 import logging
 from datetime import timedelta
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from aiohttp import ClientConnectionError
+from aiohttp import ClientConnectorError, ServerDisconnectedError
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
@@ -46,6 +47,12 @@ from .test_upgrade_repairs import CURRENT, _entry, _set_up
 
 PINNED = "192.168.1.23"
 HEALTH_URL = f"http://{PINNED}:8888/api/v1/health"
+
+
+def _refused() -> ClientConnectorError:
+    """What a firewall that rejects the connection looks like to aiohttp."""
+    key = SimpleNamespace(host=PINNED, port=8888, ssl=True)
+    return ClientConnectorError(key, ConnectionRefusedError(111, "Connection refused"))
 
 
 @pytest.fixture
@@ -100,7 +107,7 @@ async def test_add_at_an_address_the_calling_panel_reported_names_port_8888(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """The hello is logged once with its addresses; the add names port 8888."""
-    aioclient_mock.get(HEALTH_URL, exc=ClientConnectionError)
+    aioclient_mock.get(HEALTH_URL, exc=_refused())
     with caplog.at_level(logging.WARNING):
         await _call_in(hass, hass_ws_client, hass_read_only_access_token, [PINNED])
         # The panel retries every 30 s; the log does not repeat with it.
@@ -127,7 +134,8 @@ async def test_add_at_an_address_the_calling_panel_reported_names_port_8888(
         "error=panel_connected_unreachable panel=panel.local "
         f"cause=panel {DID} opened a session from unknown reporting "
         f"{PINNED},fd00::23; "
-        "port 8888: CannotConnectError from ClientConnectionError()"
+        "port 8888: NoAnswerError from "
+        f"{_refused()!r}"
     ]
     strings = await async_get_translations(hass, "en", "config", {DOMAIN})
     text = strings[f"component.{DOMAIN}.config.error.panel_connected_unreachable"]
@@ -143,9 +151,7 @@ async def test_a_calling_panel_outside_the_install_range_names_port_8888(
     hass_read_only_access_token: str,
 ) -> None:
     """A carrier-grade NAT address it reported: the 8888 text, not the install rule."""
-    aioclient_mock.get(
-        "http://100.127.77.20:8888/api/v1/health", exc=ClientConnectionError
-    )
+    aioclient_mock.get("http://100.127.77.20:8888/api/v1/health", exc=TimeoutError())
     await _call_in(hass, hass_ws_client, hass_read_only_access_token, ["100.127.77.20"])
 
     with patch(
@@ -166,7 +172,7 @@ async def test_an_address_the_calling_panel_did_not_report_keeps_the_old_answer(
     hass_read_only_access_token: str,
 ) -> None:
     """Another panel's hello does not explain this address."""
-    aioclient_mock.get(HEALTH_URL, exc=ClientConnectionError)
+    aioclient_mock.get(HEALTH_URL, exc=_refused())
     await _call_in(hass, hass_ws_client, hass_read_only_access_token, ["192.168.1.99"])
 
     with patch(
@@ -175,7 +181,7 @@ async def test_an_address_the_calling_panel_did_not_report_keeps_the_old_answer(
     ):
         result = await _add(hass, "panel.local")
 
-    assert result["errors"] == {"base": "panel_unreachable"}
+    assert result["errors"] == {"base": "app_port_refused"}
     setup.assert_awaited_once()
 
 
@@ -188,7 +194,7 @@ async def test_a_panel_that_stopped_calling_in_is_not_named(
     freezer: FrozenDateTimeFactory,
 ) -> None:
     """A hello older than half an hour proves nothing about the panel now."""
-    aioclient_mock.get(HEALTH_URL, exc=ClientConnectionError)
+    aioclient_mock.get(HEALTH_URL, exc=_refused())
     await _call_in(hass, hass_ws_client, hass_read_only_access_token, [PINNED])
     freezer.tick(timedelta(minutes=31))
     with patch(
@@ -197,18 +203,37 @@ async def test_a_panel_that_stopped_calling_in_is_not_named(
     ):
         result = await _add(hass, "panel.local")
 
-    assert result["errors"] == {"base": "panel_unreachable"}
+    assert result["errors"] == {"base": "app_port_refused"}
 
 
+@pytest.mark.parametrize(
+    ("answer", "expected"),
+    [
+        ({"text": "not panel health"}, "app_port_not_panel"),
+        ({"status": 401}, "app_port_not_panel"),
+        ({"status": 404}, "app_port_not_panel"),
+        ({"status": 503}, "app_port_not_panel"),
+        ({"exc": ServerDisconnectedError()}, "app_port_no_answer"),
+    ],
+    ids=[
+        "not_health",
+        "http_401",
+        "http_404",
+        "http_503",
+        "dropped_reply",
+    ],
+)
 async def test_an_address_where_something_else_answers_keeps_the_old_answer(
     hass: HomeAssistant,
     setup: AsyncMock,
     aioclient_mock: AiohttpClientMocker,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
+    answer: dict[str, Any],
+    expected: str,
 ) -> None:
-    """Port 8888 answered, but not as the app: nothing proves a blocked port."""
-    aioclient_mock.get(HEALTH_URL, text="not panel health")
+    """Something answered on 8888, so no firewall is proved to block it."""
+    aioclient_mock.get(HEALTH_URL, **answer)
     await _call_in(hass, hass_ws_client, hass_read_only_access_token, [PINNED])
 
     with patch(
@@ -217,7 +242,7 @@ async def test_an_address_where_something_else_answers_keeps_the_old_answer(
     ):
         result = await _add(hass, "panel.local")
 
-    assert result["errors"] == {"base": "app_port_not_panel"}
+    assert result["errors"] == {"base": expected}
     setup.assert_awaited_once()
 
 
