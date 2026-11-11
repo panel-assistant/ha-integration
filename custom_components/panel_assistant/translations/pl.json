@@ -176,6 +176,7 @@
       "reinstall_identity_mismatch": "Aplikacja jest zainstalowana, ale nie udało się jej powiązać z zachowanym panelem. Jego historia i ustawienia w Home Assistant zostały zachowane. Sprawdź panel w Home Assistant, zanim spróbujesz ponownie.",
       "not_panel": "To nie jest panel, na którym Panel Assistant może instalować.",
       "invalid_discovery": "Wykryty panel nie okazał się tą samą, prawidłowo działającą instalacją Panel Assistant. Nie zmieniono żadnego wpisu Home Assistant ani ustawienia panelu.",
+      "cannot_connect": "Home Assistant heard this panel announce itself but could not connect to it at any address it announced. Check that Home Assistant can reach the panel on TCP port 8888. No Home Assistant entry or panel setting was changed.",
       "install_cancelled": "Instalacja została anulowana przed zainstalowaniem pliku APK. Nie utworzono wpisu Home Assistant. Aby spróbować ponownie, dodaj integrację Panel Assistant i wprowadź ten sam adres panelu.",
       "install_cancelled_after_staging_cleanup": "Instalacja została anulowana, a przygotowany plik APK został usunięty przed instalacją. Nie utworzono wpisu Home Assistant. Aby spróbować ponownie, dodaj integrację Panel Assistant i wprowadź ten sam adres panelu.",
       "install_authorization_failed": "Home Assistant nie mógł bezpiecznie wczytać ani zweryfikować zapisanych danych uwierzytelniających ADB. Nie zainstalowano pliku APK. Sprawdź pamięć i logi Home Assistant, a następnie dodaj integrację Panel Assistant i wprowadź ten sam adres, aby spróbować ponownie.",

@@ -45,6 +45,7 @@ from homeassistant.helpers.selector import (
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from .adb_protocol import ADB_PORT
+from .announced_addresses import announced_addresses, async_read_announced_health
 from .client import (
     CannotConnectError,
     HaPaneldClient,
@@ -688,19 +689,17 @@ async def _async_discovered_app(
     advertised_name: object,
 ) -> ConfigFlowResult:
     """Offer, or move to its new address, the panel with this discovery id."""
-    host = _discovered_host(discovery_info)
-    try:
-        # A vendor's SRV port is its own service, not the panel HTTP listener.
-        address = normalize_address(
-            f"{host}:{discovery_info.port}"
-            if discovery_info.type == "_ha-paneld._tcp.local."
-            else host
-        )
-    except InvalidAddressError:
+    hosts = announced_hosts(discovery_info)
+    addresses = announced_addresses(
+        _discovered_host(discovery_info), discovery_info, hosts
+    )
+    if addresses is None:
         return flow.async_abort(reason="invalid_discovery")
+    address = addresses[0]
 
     flow._pending_discovery_id = discovery_id
     flow._pending_friendly_name = _presentation_safe_name(advertised_name)
+    flow._discovery_addresses = dict.fromkeys(addresses, hosts)
     if flow.hass.config_entries.flow.async_has_matching_flow(flow):
         return flow.async_abort(reason="already_in_progress")
     await flow.async_set_unique_id(discovery_id)
@@ -711,21 +710,16 @@ async def _async_discovered_app(
         ):
             return flow.async_abort(reason="already_configured")
 
-    try:
-        health = await HaPaneldClient(
-            async_get_clientsession(flow.hass), address
-        ).async_get_health()
-    except CannotConnectError, InvalidResponseError:
-        return flow.async_abort(reason="invalid_discovery")
-    except Exception:
-        _LOGGER.exception("Unexpected exception while verifying discovered ha-paneld")
-        return flow.async_abort(reason="unknown")
-    if health.discovery_id != discovery_id:
-        return flow.async_abort(reason="invalid_discovery")
+    answer = await async_read_announced_health(flow, discovery_id)
+    if not isinstance(answer, tuple):
+        return answer
+    address, health = answer
     # The panel has just answered as itself here: whatever happens next, an
     # install card naming any address this announcement carried is the same
     # panel on a weaker channel, in whichever address family it was heard.
-    hosts = announced_hosts(discovery_info)
+    # The addresses trusted are those of the announcement that carried the
+    # address which answered, a later one of the same panel's included.
+    hosts = flow._discovery_addresses[address]
     close_offers(flow.hass, address.stored_value, flow.flow_id, hosts=hosts)
     await _async_close_cards_answering_as(flow, discovery_id)
     for existing in flow.hass.config_entries.async_entries(DOMAIN):

@@ -50,6 +50,7 @@ from .adb_credentials import (
     async_get_durable_adb_credential,
 )
 from .adb_protocol import InstallAdbError, same_physical_target
+from .announced_addresses import hand_over_addresses
 from .browser_delivery import async_register_browser_delivery
 from .browser_panel import PANEL_PATH, async_register_browser_panel
 from .client import (
@@ -219,6 +220,11 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     _pending_health: PanelHealth | None = None
     _pending_discovery_id: str | None = None
     _pending_friendly_name: str | None = None
+    # An announced panel's addresses, best first, each with the addresses its
+    # announcement carried, and whether its health is still being read at
+    # them (a later announcement of the same panel then adds to them).
+    _discovery_addresses: dict[PanelAddress, frozenset[str]] | None = None
+    _discovery_probing: bool = False
     _pending_probe: InstallTargetProbe | None = None
     _pending_probe_state: str | None = None
     _pending_release: ReleaseArtifact | None = None
@@ -251,8 +257,14 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         if (
             self._pending_discovery_id is None
             or self._pending_discovery_id != other_flow.unique_id
-            or other_flow._pending_health is None
         ):
+            return False
+        if other_flow._discovery_probing:
+            # The same panel, still being reached: this announcement's
+            # addresses, perhaps its other family, are tried there too.
+            hand_over_addresses(other_flow, self)
+            return True
+        if other_flow._pending_health is None:
             return False
         if (
             self._pending_friendly_name is not None
@@ -272,7 +284,12 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         address = (
             self._pending_address.stored_value
             if self._pending_address is not None
-            else self.context.get("title_placeholders", {}).get("address", "unknown")
+            else self.context.get("title_placeholders", {}).get(
+                "address",
+                next(iter(self._discovery_addresses)).stored_value
+                if self._discovery_addresses
+                else "unknown",
+            )
         )
         if isinstance(cause, InstallNetworkError):
             detail = cause.code.value

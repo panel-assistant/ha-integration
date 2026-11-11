@@ -176,6 +176,7 @@
       "reinstall_identity_mismatch": "The app is installed, but it could not be linked to the kept panel. Its Home Assistant history and settings have been kept. Check the panel in Home Assistant before trying again.",
       "not_panel": "Not a panel Panel Assistant can install on.",
       "invalid_discovery": "The discovered panel did not prove to be the same healthy Panel Assistant installation. No Home Assistant entry or panel setting was changed.",
+      "cannot_connect": "Home Assistant heard this panel announce itself but could not connect to it at any address it announced. Check that Home Assistant can reach the panel on TCP port 8888. No Home Assistant entry or panel setting was changed.",
       "install_cancelled": "The installation was cancelled before an APK was installed. No Home Assistant entry was created. To try again, add the Panel Assistant integration and enter the same panel address.",
       "install_cancelled_after_staging_cleanup": "The installation was cancelled and the staged APK was removed before installation. No Home Assistant entry was created. To try again, add the Panel Assistant integration and enter the same panel address.",
       "install_authorization_failed": "Home Assistant could not safely load or validate its stored ADB credential. No APK was installed. Check Home Assistant's storage and logs, then add the Panel Assistant integration and enter the same address to try again.",

@@ -176,6 +176,7 @@
       "reinstall_identity_mismatch": "Застосунок установлено, але його не вдалося пов’язати зі збереженою панеллю. Її історію та налаштування в Home Assistant збережено. Перевірте панель у Home Assistant, перш ніж повторити спробу.",
       "not_panel": "Це не панель, на яку Panel Assistant може встановлювати.",
       "invalid_discovery": "Виявлена панель не підтвердила, що вона та сама справна інсталяція Panel Assistant. Жоден запис Home Assistant і жодне налаштування панелі не змінено.",
+      "cannot_connect": "Home Assistant heard this panel announce itself but could not connect to it at any address it announced. Check that Home Assistant can reach the panel on TCP port 8888. No Home Assistant entry or panel setting was changed.",
       "install_cancelled": "Встановлення скасовано до того, як APK було встановлено. Запис Home Assistant не створено. Щоб спробувати ще раз, додайте інтеграцію Panel Assistant і введіть ту саму адресу панелі.",
       "install_cancelled_after_staging_cleanup": "Встановлення скасовано, а підготовлений APK видалено ще до встановлення. Запис Home Assistant не створено. Щоб спробувати ще раз, додайте інтеграцію Panel Assistant і введіть ту саму адресу панелі.",
       "install_authorization_failed": "Home Assistant не зміг безпечно завантажити або перевірити збережені облікові дані ADB. APK не встановлено. Перевірте сховище та журнали Home Assistant, а потім додайте інтеграцію Panel Assistant і введіть ту саму адресу, щоб спробувати ще раз.",
