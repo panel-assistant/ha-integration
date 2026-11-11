@@ -18,6 +18,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
@@ -75,7 +76,14 @@ _ADMIN_APPROVAL_BACKOFF_MAX = 86400.0
 _MAX_REFUSED_HELLOS = 16
 # How long a panel may answer polls without a session before it is reported as
 # not signed in: a fresh install signs in within this, and a restart reconnects.
+# It also applies again from the moment a once-connected panel's session ends:
+# twice the app's reconnect backoff ceiling, so a panel whose path to Home
+# Assistant works has always reconnected before it.
 NOT_SIGNED_IN_GRACE = timedelta(minutes=2)
+# How long a panel's session may stay ended before the loss is logged: the
+# app's reconnect backoff ceiling (`PanelAssistantTransportOwner.backoffMaxMs`),
+# by which time a panel whose path works has reconnected.
+SESSION_LOST_GRACE = timedelta(seconds=60)
 # A reported port the stored endpoint does not use is tried once per session,
 # then this often: a forwarded port keeps answering while those never do.
 _PORT_PROBE_INTERVAL = 3600.0
@@ -179,6 +187,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         # A Panel Assistant-driven update restarts the app on purpose, so its
         # failed polls are not reported as errors.
         self.expected_restart = False
+        self._session_lost_timer: Callable[[], None] | None = None
+        # Whether the current session loss was logged, so its end is too.
+        self._session_lost_logged = False
         self._admin_key: tuple[str, str, int | None, str] | None = None
         self._admin_done = False
         self._admin_retry_at = 0.0
@@ -199,7 +210,8 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
 
         self._vendor_recovery = VendorRecovery(self)
         self._port_probe: tuple[PanelSession, float] | None = None
-        # Since setup while the panel has never connected; None once it has.
+        # Since setup, or since the panel's last session ended; None while
+        # it is connected.
         self._no_session_since: datetime | None = dt_util.utcnow()
         self._saved_account = SavedAccount(hass, lambda: self._no_session_since is None)
 
@@ -295,9 +307,11 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         @callback
         def _remember() -> None:
             if (session := self._session()) is None:
-                # Only a panel that has never connected since setup is reported:
-                # a session that drops and returns is a recovered fault, logged
-                # elsewhere, never a Repair.
+                # A session that drops and returns is a recovered fault, logged
+                # and never a Repair; one that stays away for the whole grace
+                # is reported as a panel that has not connected.
+                if self._no_session_since is None:
+                    self._no_session_since = dt_util.utcnow()
                 return
             self._no_session_since = None
             self._last_hello = (
@@ -310,6 +324,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         @callback
         def _changed() -> None:
             _remember()
+            self._follow_session_loss()
             self.async_update_listeners()
             self._vendor_recovery.changed()
             session = self._session()
@@ -337,10 +352,79 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         self._vendor_recovery.observe(self.data)
 
         def stop_following() -> None:
+            self._cancel_session_lost_timer()
             self._vendor_recovery.close()
             unsubscribe()
 
         return stop_following
+
+    @callback
+    def _follow_session_loss(self) -> None:
+        """Log a session loss that outlasts the grace, and the panel's return."""
+        assert self._entry_id is not None
+        if self._session() is not None:
+            self._cancel_session_lost_timer()
+            if self._session_lost_logged:
+                self._session_lost_logged = False
+                _LOGGER.info(
+                    "%s restored its connection to Home Assistant", self._panel_name()
+                )
+            return
+        latest = async_get_sessions(self.hass).latest(self._entry_id)
+        if (
+            latest is None
+            or latest.closed_at is None
+            or self._session_lost_timer is not None
+            or self._session_lost_logged
+        ):
+            return
+        self._session_lost_timer = async_call_later(
+            self.hass, SESSION_LOST_GRACE, self._session_lost
+        )
+
+    @callback
+    def _session_lost(self, _now: datetime) -> None:
+        self._session_lost_timer = None
+        assert self._entry_id is not None
+        sessions = async_get_sessions(self.hass)
+        notice = sessions.restart_notice(self._entry_id)
+        if notice is not None or self.expected_restart:
+            # The panel said it is restarting, or an update Panel Assistant
+            # started is restarting it: it has until that bound.
+            remaining = (
+                max(0.0, notice.deadline - self.hass.loop.time())
+                if notice is not None
+                else 0.0
+            )
+            self._session_lost_timer = async_call_later(
+                self.hass,
+                remaining + SESSION_LOST_GRACE.total_seconds(),
+                self._session_lost,
+            )
+            return
+        latest = sessions.latest(self._entry_id)
+        if latest is None or latest.closed_at is None:
+            return
+        self._session_lost_logged = True
+        _LOGGER.warning(
+            "%s lost its connection to Home Assistant (%s) and has not "
+            "reconnected for %d seconds; its entities stay unavailable until it does",
+            self._panel_name(),
+            latest.close_reason,
+            (dt_util.utcnow() - latest.closed_at).total_seconds(),
+        )
+
+    @callback
+    def _cancel_session_lost_timer(self) -> None:
+        if self._session_lost_timer is not None:
+            self._session_lost_timer()
+            self._session_lost_timer = None
+
+    def _panel_name(self) -> str:
+        from .device import panel_display_name
+
+        entry = self._entry()
+        return panel_display_name(self.hass, entry) if entry else str(self._entry_id)
 
     @callback
     def async_follow_refused_hello(

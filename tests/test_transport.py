@@ -1,6 +1,7 @@
 """Native transport WebSocket command tests."""
 
 import asyncio
+import logging
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from copy import deepcopy
 from dataclasses import replace
@@ -2154,17 +2155,18 @@ async def test_a_panel_that_never_signs_in_says_so_until_its_hello(
     assert hass.states.get(status).state == "online"
 
 
-async def test_a_panel_whose_session_drops_is_never_reported_not_signed_in(
+async def test_a_panel_whose_session_stays_lost_is_reported_again(
     hass: HomeAssistant,
     entry: MockConfigEntry,
     freezer: FrozenDateTimeFactory,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
 ) -> None:
-    """A panel that has connected once is not told to sign in when it drops.
+    """A panel that connected once and then stays away is reported, as at setup.
 
-    A dropped session that comes back is a recovered fault, so it never
-    raises a Repair, however long the panel keeps answering its polls.
+    A short drop is a recovered fault and raises nothing; a panel that answers
+    its polls and has not reconnected for the whole not-connected grace (a
+    firewall change, say) is in the same state as one that never connected.
     """
     from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
@@ -2175,15 +2177,249 @@ async def test_a_panel_whose_session_drops_is_never_reported_not_signed_in(
     issue_id = f"not_signed_in_{entry.entry_id}"
     registry = ir.async_get(hass)
 
+    # Connected for longer than the grace, so only the drop can start it.
+    freezer.tick(timedelta(minutes=5))
     client = await hass_ws_client(hass, hass_read_only_access_token)
     await _open(client)
     await hass.async_block_till_done()
     await client.close()
     await hass.async_block_till_done()
 
+    freezer.tick(timedelta(minutes=1))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert registry.async_get_issue(DOMAIN, issue_id) is None
+
+    freezer.tick(timedelta(minutes=1, seconds=30))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert registry.async_get_issue(DOMAIN, issue_id) is not None
+    assert hass.states.get(status).state == "not_signed_in"
+
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await _open(client)
+    await hass.async_block_till_done()
+    assert registry.async_get_issue(DOMAIN, issue_id) is None
+    assert hass.states.get(status).state == "online"
+
+
+def _lost(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
+    return [
+        record
+        for record in caplog.records
+        if record.name.startswith("custom_components.panel_assistant")
+        and "connection to Home Assistant" in record.getMessage()
+    ]
+
+
+async def test_a_lost_session_is_warned_after_the_grace_and_its_return_noted(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    freezer: FrozenDateTimeFactory,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A session that ends and is not replaced is logged once, naming the panel."""
+    from pytest_homeassistant_custom_component.common import async_fire_time_changed
+
+    caplog.set_level(logging.INFO, logger="custom_components.panel_assistant")
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await _open(client)
+    await hass.async_block_till_done()
+    await client.close()
+    await hass.async_block_till_done()
+
+    freezer.tick(timedelta(seconds=45))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    # A panel that is still reconnecting is left alone.
+    assert _lost(caplog) == []
+
+    freezer.tick(timedelta(seconds=30))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
     freezer.tick(timedelta(minutes=5))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
+    [warning] = _lost(caplog)
+    assert warning.levelno == logging.WARNING
+    message = warning.getMessage()
+    assert "alpha" in message
+    assert "connection_closed" in message
 
-    assert registry.async_get_issue(DOMAIN, issue_id) is None
-    assert hass.states.get(status).state != "not_signed_in"
+    # Later changes while it is still away do not log the same loss again.
+    sessions = async_get_sessions(hass)
+    sessions.set_restart_notice(entry.entry_id, "app", "settings", 1000)
+    sessions.clear_restart_notice(entry.entry_id)
+    freezer.tick(timedelta(minutes=2))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert len(_lost(caplog)) == 1
+
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await _open(client)
+    await hass.async_block_till_done()
+    [_, back] = _lost(caplog)
+    assert back.levelno == logging.INFO
+    assert "alpha" in back.getMessage()
+
+
+async def test_a_session_that_returns_inside_the_grace_logs_nothing(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    freezer: FrozenDateTimeFactory,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A quick reconnect, and a newer hello that supersedes, are not faults."""
+    from pytest_homeassistant_custom_component.common import async_fire_time_changed
+
+    caplog.set_level(logging.INFO, logger="custom_components.panel_assistant")
+    old = await hass_ws_client(hass, hass_read_only_access_token)
+    await _open(old)
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await _open(client)
+    await old.close()
+    await hass.async_block_till_done()
+    await client.close()
+    await hass.async_block_till_done()
+    freezer.tick(timedelta(seconds=20))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await _open(client)
+    await hass.async_block_till_done()
+    freezer.tick(timedelta(seconds=10))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    # A second drop has its own whole grace, not what was left of the first.
+    await client.close()
+    await hass.async_block_till_done()
+    freezer.tick(timedelta(seconds=45))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert _lost(caplog) == []
+
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await _open(client)
+    await hass.async_block_till_done()
+    freezer.tick(timedelta(minutes=5))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert _lost(caplog) == []
+
+
+async def test_an_unloaded_panel_is_not_warned_about(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    freezer: FrozenDateTimeFactory,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Unloading an entry ends its session on purpose."""
+    from pytest_homeassistant_custom_component.common import async_fire_time_changed
+
+    caplog.set_level(logging.INFO, logger="custom_components.panel_assistant")
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await _open(client)
+    await hass.async_block_till_done()
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    freezer.tick(timedelta(minutes=5))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert _lost(caplog) == []
+
+
+async def test_a_restart_the_panel_announced_is_warned_only_past_its_bound(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    freezer: FrozenDateTimeFactory,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A panel that said it is restarting has until its own bound plus the grace."""
+    from pytest_homeassistant_custom_component.common import async_fire_time_changed
+
+    from custom_components.panel_assistant.client import (
+        CannotConnectError,
+        HaPaneldClient,
+    )
+
+    caplog.set_level(logging.INFO, logger="custom_components.panel_assistant")
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    token = await _open(client)
+    reply = await _send(
+        client,
+        {
+            "type": "panel_assistant/restart_notice",
+            "session": token,
+            "scope": "app",
+            "reason": "update",
+            "expected_back_ms": 120_000,
+        },
+    )
+    assert reply["success"], reply
+    await client.close()
+    await hass.async_block_till_done()
+
+    # The restarting app answers nothing until it is back.
+    with patch.object(
+        HaPaneldClient, "async_get_health", AsyncMock(side_effect=CannotConnectError)
+    ):
+        for _ in range(3):
+            freezer.tick(timedelta(seconds=50))
+            async_fire_time_changed(hass)
+            await hass.async_block_till_done()
+        assert _lost(caplog) == []
+
+        freezer.tick(timedelta(seconds=40))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+        assert [record.levelno for record in _lost(caplog)] == [logging.WARNING]
+
+        # Logged once for the whole loss, however long it lasts.
+        for _ in range(10):
+            freezer.tick(timedelta(minutes=1))
+            async_fire_time_changed(hass)
+            await hass.async_block_till_done()
+    assert [record.levelno for record in _lost(caplog)] == [logging.WARNING]
+
+
+async def test_an_update_panel_assistant_started_is_not_warned_about(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    freezer: FrozenDateTimeFactory,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """While Panel Assistant's own update restarts the app, the loss is expected."""
+    from pytest_homeassistant_custom_component.common import async_fire_time_changed
+
+    caplog.set_level(logging.INFO, logger="custom_components.panel_assistant")
+    coordinator = entry.runtime_data.coordinator
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await _open(client)
+    await hass.async_block_till_done()
+    coordinator.expected_restart = True
+    await client.close()
+    await hass.async_block_till_done()
+
+    for _ in range(5):
+        freezer.tick(timedelta(minutes=1))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+    assert _lost(caplog) == []
+
+    # An update that ends without the panel back is a loss like any other.
+    coordinator.expected_restart = False
+    freezer.tick(timedelta(minutes=2))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert [record.levelno for record in _lost(caplog)] == [logging.WARNING]
