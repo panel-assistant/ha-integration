@@ -26,7 +26,6 @@ from custom_components.panel_assistant import (
     local_adb,
     removal,
     update_panel_install,
-    update_route,
 )
 from custom_components.panel_assistant.adb_protocol import (
     InstallAdbError,
@@ -148,8 +147,7 @@ async def test_removal_without_a_session_names_the_lease_and_the_ways_back(
     assert result["errors"] == {"base": error}
     for name, value in placeholders.items():
         assert result["description_placeholders"][name] == value
-    # The form reads the firmware first, so the port may be read twice.
-    assert port.reads and {address.port for address in port.reads} == {8888}
+    assert [address.port for address in port.reads] == [8888]
     assert "keeps off while this Home Assistant manages it" in caplog.text
     assert fake.installed and fake.hand_back_requests == 0
 
@@ -194,15 +192,7 @@ def _entry(hass: HomeAssistant, server: TestServer) -> Any:
     return entry
 
 
-# Starting the app again after an update -------------------------------------
-
-
-def _stopped_coordinator(entry: Any) -> Any:
-    return SimpleNamespace(
-        _entry=lambda: entry,
-        available=False,
-        client=SimpleNamespace(address=SimpleNamespace(host="192.168.1.30", port=8888)),
-    )
+# Permission repair after an update -----------------------------------------
 
 
 def _artifact() -> ReleaseArtifact:
@@ -219,59 +209,10 @@ def _artifact() -> ReleaseArtifact:
 
 
 @pytest.mark.parametrize(
-    ("report", "probes"),
-    [(MANAGED, 1), (ABSENT, 1), (None, 3), (NOT_RENEWING, 3)],
-    ids=["managed", "released-app", "app-gone", "not-renewing"],
-)
-async def test_relaunch_waits_for_a_lapse_only_when_one_can_come(
-    hass: HomeAssistant,
-    monkeypatch: pytest.MonkeyPatch,
-    report: dict[str, Any] | None,
-    probes: int,
-) -> None:
-    entry = MockConfigEntry(
-        domain=DOMAIN, unique_id=DID, data={CONF_ADDRESS: "192.168.1.30"}
-    )
-    entry.add_to_hass(hass)
-    _lost_session(hass, entry)
-    assert local_adb.recovery_wait(hass, entry) == 315
-    port = _app_port(monkeypatch, report)
-    attempts = 0
-
-    async def probe(*_args: Any) -> None:
-        nonlocal attempts
-        attempts += 1
-        if attempts < 3:
-            raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE)
-        # A lapse that came: the stopped app is not installed here.
-
-    monkeypatch.setattr(local_adb, "LOCAL_ADB_RECOVERY_RETRY_SECONDS", 0.001)
-    monkeypatch.setattr(
-        update_route,
-        "async_get_durable_adb_credential",
-        AsyncMock(return_value=SimpleNamespace(signer=object())),
-    )
-    monkeypatch.setattr(
-        update_route, "async_pin_install_target", AsyncMock(return_value=object())
-    )
-    monkeypatch.setattr(update_route, "async_probe_adb_target", probe)
-
-    started = await update_route.async_relaunch_stopped_app(
-        hass, _stopped_coordinator(entry), _artifact(), lambda: "panel"
-    )
-
-    assert started is False
-    assert attempts == probes
-    assert port.reads, "the app's own port is read before any wait"
-
-
-# Permission repair after an update -----------------------------------------
-
-
-@pytest.mark.parametrize(
     ("report", "attempts"),
-    [(MANAGED, 1), (NOT_RENEWING, 12), (None, 12)],
-    ids=["managed", "not-renewing", "app-gone"],
+    [(MANAGED, 1), (ABSENT, 12), (NOT_RENEWING, 12), (None, 12)],
+    # A restarted app that does not report the lease may still reconnect.
+    ids=["managed", "released-app", "not-renewing", "app-gone"],
 )
 async def test_permission_repair_stops_retrying_adb_the_app_keeps_off(
     hass: HomeAssistant,
@@ -283,6 +224,7 @@ async def test_permission_repair_stops_retrying_adb_the_app_keeps_off(
         domain=DOMAIN, unique_id=DID, data={CONF_ADDRESS: "192.168.1.30"}
     )
     entry.add_to_hass(hass)
+    _lost_session(hass, entry)
     port = _app_port(monkeypatch, report)
     artifact = _artifact()
     coordinator = SimpleNamespace(

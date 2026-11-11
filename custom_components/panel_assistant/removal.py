@@ -169,7 +169,7 @@ async def async_app_target(
         InstallTargetState.MIGRATION_CANDIDATE,
         InstallTargetState.INSTALL_CANDIDATE,
     }:
-        if probe.state is InstallTargetState.ADB_UNREACHABLE and (
+        if (verify_entry and probe.state is InstallTargetState.ADB_UNREACHABLE) and (
             lease := await local_adb.async_held_lease(
                 hass, entry, pinned.pinned, "Removing the app"
             )

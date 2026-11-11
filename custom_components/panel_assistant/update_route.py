@@ -226,10 +226,6 @@ async def async_relaunch_stopped_app(
                     or entry is None
                     or coordinator._entry() is not entry
                     or coordinator.available
-                    # An app that still answers renews the lease: no lapse.
-                    or await local_adb.async_held_lease(
-                        hass, entry, coordinator.client.address, "Starting the app"
-                    )
                 ):
                     raise
                 await asyncio.sleep(

@@ -599,6 +599,8 @@ async def async_held_lease(
     entry: ConfigEntry | None,
     address: PanelAddress,
     purpose: str,
+    *,
+    reported_only: bool = False,
 ) -> HeldLease | None:
     """Whether ADB is closed by our own lease that no lapse will end.
 
@@ -614,7 +616,9 @@ async def async_held_lease(
         ).async_get_status()
     except HaPaneldError, OSError, TimeoutError:
         return None
-    if status.network_adb_managed is False:
+    if status.network_adb_managed is False or (
+        reported_only and status.network_adb_managed is not True
+    ):
         return None
     if status.network_adb_managed is None and (
         entry is None or recovery_wait(hass, entry) == 0
