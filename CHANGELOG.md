@@ -4,7 +4,16 @@ All notable changes to this project will be documented in this file.
 
 Each section is what Home Assistant shows in its update dialog: a short, friendly summary, a few highlights and a link to the full notes on [panel-assistant.io](https://panel-assistant.io/go/release-notes). The full notes, including every pre-release, are kept on the website. From 1.0.0 onward; earlier sections are the full notes as they were released.
 
-## 1.0.2
+## 1.0.2 - 2026-11-11
+
+Panel Assistant 1.0.2 makes sure an install that never finished can no longer stop you adding your panel, and includes the 1.0.2 Android app, with fixes for proximity learning, screen wake and WebView updates.
+
+- **Unfinished installs never block a panel.** Adding a panel that has an install still open now lets you carry on with it or cancel it and start again, and an install nobody is working on ends by itself.
+- **One card per panel.** A panel heard at both an IPv4 and an IPv6 address now shows as one discovered card in most cases.
+- **Network ADB survives a restart.** On a panel whose ADB runs as root, a network install that stopped early no longer leaves the panel out of reach after its next restart.
+- **The WebView is offered again after a rollback.** A panel whose WebView went back to an older version is offered the WebView update again, and the 1.0.2 Android app stops restarting itself in that state.
+
+[Full release notes](https://panel-assistant.io/go/release-notes?v=1.0.2)
 
 ## 1.0.1 - 2026-11-10
 
