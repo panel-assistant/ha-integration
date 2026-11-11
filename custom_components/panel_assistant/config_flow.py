@@ -1045,7 +1045,9 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             )
         if custom_port or target is None:
             return self._show_add_panel_form(
-                user_input, {"base": "invalid_install_address"}
+                user_input,
+                {"base": "invalid_install_address"},
+                cause=f"port_{address.port}={app_port}",
             )
 
         try:
@@ -1067,7 +1069,11 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             # The old app is installed but not answering. This release cannot
             # move it, and the new app is never installed beside it.
             errors["base"] = "old_app_installed"
-            return self._show_add_panel_form(user_input, errors)
+            return self._show_add_panel_form(
+                user_input,
+                errors,
+                cause=f"port_{address.port}={app_port} adb_state={state}",
+            )
         if state in ("install_candidate", "installed") and (
             _install_candidate_placeholders(probe) is None
         ):

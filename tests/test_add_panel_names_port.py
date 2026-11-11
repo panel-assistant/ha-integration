@@ -97,23 +97,29 @@ def loopback(socket_enabled: None, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(config_flow, "_async_host_answers", REAL_HOST_ANSWERS)
 
 
-async def _add(hass: HomeAssistant, port: int, caplog) -> tuple[dict, list[str]]:
-    """Add the panel at TYPED, with its port 8888 standing in at ``port``."""
+async def _add(
+    hass: HomeAssistant,
+    port: int,
+    caplog,
+    typed: str = TYPED,
+    probe: SimpleNamespace = ADB_UNREACHABLE,
+) -> tuple[dict, list[str]]:
+    """Add the panel at ``typed``, with its app port standing in at ``port``."""
     pinned = PanelAddress("127.0.0.1", port)
-    target = PinnedPanelTarget(original=normalize_address(TYPED), pinned=pinned)
+    target = PinnedPanelTarget(original=normalize_address(typed), pinned=pinned)
     manager = SimpleNamespace(async_find_active=AsyncMock(return_value=None))
     with (
         patch(f"{FLOW}.async_pin_install_target", AsyncMock(return_value=target)),
         patch(f"{FLOW}.async_get_install_job_manager", AsyncMock(return_value=manager)),
         patch(
             f"{FLOW}.async_probe_install_target",
-            AsyncMock(return_value=ADB_UNREACHABLE),
+            AsyncMock(return_value=probe),
         ),
         caplog.at_level(logging.WARNING),
     ):
         form = await _start_step(hass, "add_panel")
         result = await hass.config_entries.flow.async_configure(
-            form["flow_id"], {CONF_ADDRESS: TYPED}
+            form["flow_id"], {CONF_ADDRESS: typed}
         )
     refusals = [
         record.getMessage()
@@ -169,6 +175,35 @@ async def test_nothing_at_the_address_is_still_told_so(
     assert refusals[0].endswith(
         f"cause=port_8888=timed_out adb_state=adb_unreachable pinned=127.0.0.1:{port}"
     )
+
+
+@pytest.mark.parametrize(
+    ("typed", "probe_state", "error", "cause"),
+    [
+        (f"{TYPED}:9999", "adb_unreachable", "invalid_install_address", "port_9999"),
+        (TYPED, "migration_candidate", "old_app_installed", "port_8888"),
+    ],
+    ids=["custom-port", "old-app"],
+)
+async def test_other_refusals_after_the_health_read_log_what_the_port_did(
+    hass: HomeAssistant,
+    loopback,
+    caplog,
+    typed: str,
+    probe_state: str,
+    error: str,
+    cause: str,
+) -> None:
+    """Every refusal after the health read says in the log what the port did."""
+    probe = SimpleNamespace(**{**vars(ADB_UNREACHABLE), "state": None})
+    probe.state = SimpleNamespace(value=probe_state)
+    async with _refusing() as port:
+        result, refusals = await _add(hass, port, caplog, typed, probe)
+
+    assert result["errors"] == {"base": error}
+    assert len(refusals) == 1
+    assert f"error={error} panel={typed} " in refusals[0]
+    assert f"cause={cause}=refused" in refusals[0]
 
 
 async def test_a_name_that_does_not_resolve_logs_what_was_typed(
