@@ -175,6 +175,7 @@
       "reinstall_identity_mismatch": "Aplikace je nainstalovaná, ale nepodařilo se ji propojit se zachovaným panelem. Jeho historie a nastavení v Home Assistant byly zachovány. Před dalším pokusem zkontrolujte panel v Home Assistant.",
       "not_panel": "Toto není panel, na který může Panel Assistant instalovat.",
       "invalid_discovery": "Nepodařilo se prokázat, že nalezený panel je tatáž funkční instalace Panel Assistant. Žádný záznam v Home Assistant ani nastavení panelu se nezměnilo.",
+      "cannot_connect": "Home Assistant heard this panel announce itself but could not connect to it at any address it announced. Check that Home Assistant can reach the panel on TCP port 8888. No Home Assistant entry or panel setting was changed.",
       "install_cancelled": "Instalace byla zrušena před nainstalováním APK. Nebyl vytvořen žádný záznam v Home Assistant. Chcete-li to zkusit znovu, přidejte integraci Panel Assistant a zadejte stejnou adresu panelu.",
       "install_cancelled_after_staging_cleanup": "Instalace byla zrušena a připravený APK byl před instalací odstraněn. Nebyl vytvořen žádný záznam v Home Assistant. Chcete-li to zkusit znovu, přidejte integraci Panel Assistant a zadejte stejnou adresu panelu.",
       "install_authorization_failed": "Home Assistant nedokázal bezpečně načíst nebo ověřit svůj uložený přihlašovací údaj ADB. Žádný APK nebyl nainstalován. Zkontrolujte úložiště a protokoly Home Assistant, pak přidejte integraci Panel Assistant a zadejte stejnou adresu, abyste to zkusili znovu.",

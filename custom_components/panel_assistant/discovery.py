@@ -20,7 +20,7 @@ import functools
 import ipaddress
 import logging
 import unicodedata
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -51,6 +51,7 @@ from .client import (
     InvalidAddressError,
     InvalidResponseError,
     PanelAddress,
+    PanelHealth,
     is_valid_discovery_id,
     normalize_address,
 )
@@ -105,6 +106,9 @@ RUNNING = "running"
 CLOSING = "closing"
 _DATA_DISCOVERY_NAMES = "discovery_names"
 _DATA_CARD_HOSTS = "discovery_card_hosts"
+# A dual-stack panel can be unreachable in one address family. Its discovery
+# reads health at each address its announcements carry, at most this many.
+_DISCOVERY_ADDRESSES_MAX = 6
 _FRIENDLY_NAME_MAX_LENGTH = 64
 
 
@@ -282,13 +286,17 @@ def announced_hosts(discovery_info: ZeroconfServiceInfo) -> frozenset[str]:
     return frozenset(
         str(address)
         for address in (discovery_info.ip_address, *discovery_info.ip_addresses)
-        if not (
-            address.is_link_local
-            or address.is_loopback
-            or address.is_multicast
-            or address.is_unspecified
-            or getattr(address, "scope_id", None) is not None
-        )
+        if _names_one_device(address)
+    )
+
+
+def _names_one_device(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    return not (
+        address.is_link_local
+        or address.is_loopback
+        or address.is_multicast
+        or address.is_unspecified
+        or getattr(address, "scope_id", None) is not None
     )
 
 
@@ -688,19 +696,14 @@ async def _async_discovered_app(
     advertised_name: object,
 ) -> ConfigFlowResult:
     """Offer, or move to its new address, the panel with this discovery id."""
-    host = _discovered_host(discovery_info)
-    try:
-        # A vendor's SRV port is its own service, not the panel HTTP listener.
-        address = normalize_address(
-            f"{host}:{discovery_info.port}"
-            if discovery_info.type == "_ha-paneld._tcp.local."
-            else host
-        )
-    except InvalidAddressError:
+    addresses = _discovery_addresses(discovery_info)
+    if addresses is None:
         return flow.async_abort(reason="invalid_discovery")
+    address = addresses[0]
 
     flow._pending_discovery_id = discovery_id
     flow._pending_friendly_name = _presentation_safe_name(advertised_name)
+    flow._discovery_addresses = addresses
     if flow.hass.config_entries.flow.async_has_matching_flow(flow):
         return flow.async_abort(reason="already_in_progress")
     await flow.async_set_unique_id(discovery_id)
@@ -711,21 +714,17 @@ async def _async_discovered_app(
         ):
             return flow.async_abort(reason="already_configured")
 
-    try:
-        health = await HaPaneldClient(
-            async_get_clientsession(flow.hass), address
-        ).async_get_health()
-    except CannotConnectError, InvalidResponseError:
-        return flow.async_abort(reason="invalid_discovery")
-    except Exception:
-        _LOGGER.exception("Unexpected exception while verifying discovered ha-paneld")
-        return flow.async_abort(reason="unknown")
-    if health.discovery_id != discovery_id:
-        return flow.async_abort(reason="invalid_discovery")
+    answer = await _async_read_announced_health(flow, discovery_id)
+    if not isinstance(answer, tuple):
+        return answer
+    address, health = answer
     # The panel has just answered as itself here: whatever happens next, an
     # install card naming any address this announcement carried is the same
     # panel on a weaker channel, in whichever address family it was heard.
-    hosts = announced_hosts(discovery_info)
+    # So is one naming an address a later announcement of it handed over.
+    hosts = announced_hosts(discovery_info) | _hosts_naming_one_device(
+        flow._discovery_addresses or ()
+    )
     close_offers(flow.hass, address.stored_value, flow.flow_id, hosts=hosts)
     await _async_close_cards_answering_as(flow, discovery_id)
     for existing in flow.hass.config_entries.async_entries(DOMAIN):
@@ -776,6 +775,134 @@ async def _async_discovered_app(
     # panel id only when there is no usable name or the name is already taken.
     _apply_discovery_title(flow)
     return _show_discovery_confirmation(flow)
+
+
+def _discovery_addresses(
+    discovery_info: ZeroconfServiceInfo,
+) -> list[PanelAddress] | None:
+    """Where to read an announced panel's health, best first; None if malformed.
+
+    The address `_discovered_host` chooses comes first. The others the
+    announcement carried follow, IPv4 before IPv6, so a panel whose first
+    address cannot be reached (IPv6 dropped between networks, say) is still
+    offered at one that answers.
+    """
+    # A vendor's SRV port is its own service, not the panel HTTP listener.
+    port = (
+        f":{discovery_info.port}"
+        if discovery_info.type == "_ha-paneld._tcp.local."
+        else ""
+    )
+    try:
+        addresses = [normalize_address(f"{_discovered_host(discovery_info)}{port}")]
+    except InvalidAddressError:
+        return None
+    others = sorted(
+        (
+            a
+            for a in (discovery_info.ip_address, *discovery_info.ip_addresses)
+            if _names_one_device(a)
+        ),
+        key=lambda a: a.version,
+    )
+    for other in others:
+        host = f"[{other}]" if other.version == 6 else str(other)
+        try:
+            address = normalize_address(f"{host}{port}")
+        except InvalidAddressError:
+            continue
+        if address not in addresses:
+            addresses.append(address)
+    return addresses[:_DISCOVERY_ADDRESSES_MAX]
+
+
+def hand_over_addresses(probing: HaPaneldConfigFlow, heard: HaPaneldConfigFlow) -> None:
+    """Give a flow still reading its panel's health the addresses heard since.
+
+    The same panel's next announcement, often its other address family a
+    moment later, is turned away while the first flow holds the panel's id.
+    Its addresses are not: the first flow tries them before it gives up.
+    """
+    addresses = probing._discovery_addresses
+    if addresses is None:
+        return
+    for address in heard._discovery_addresses or ():
+        if address not in addresses and len(addresses) < _DISCOVERY_ADDRESSES_MAX:
+            addresses.append(address)
+
+
+async def _async_read_announced_health(
+    flow: HaPaneldConfigFlow, discovery_id: str
+) -> tuple[PanelAddress, PanelHealth] | ConfigFlowResult:
+    """The first announced address that answers as this panel, and its health.
+
+    Each address is tried in turn, including any a later announcement of the
+    same panel hands over meanwhile. A panel heard but reachable at none of
+    them is a refusal of its own, logged with every address tried; one that
+    answered there as something else stays an invalid discovery.
+    """
+    addresses = flow._discovery_addresses
+    assert addresses is not None
+    session = async_get_clientsession(flow.hass)
+    unreachable: list[str] = []
+    answered_otherwise: list[str] = []
+    flow._discovery_probing = True
+    try:
+        index = 0
+        while index < len(addresses):
+            address = addresses[index]
+            index += 1
+            try:
+                health = await HaPaneldClient(session, address).async_get_health()
+            except CannotConnectError as err:
+                unreachable.append(f"{_authority(address)} ({_error_text(err)})")
+                continue
+            except InvalidResponseError as err:
+                answered_otherwise.append(f"{_authority(address)} ({_error_text(err)})")
+                continue
+            except Exception:
+                _LOGGER.exception(
+                    "Unexpected exception while verifying discovered ha-paneld"
+                )
+                return flow.async_abort(reason="unknown")
+            if health.discovery_id == discovery_id:
+                return address, health
+            answered_otherwise.append(f"{_authority(address)} (another panel)")
+    finally:
+        flow._discovery_probing = False
+    announced = flow._pending_friendly_name or discovery_id[:12]
+    flow._refusal_cause = "; ".join(
+        [
+            f"announced as {announced!r}",
+            *(f"no connection at {u}" for u in unreachable),
+            *(f"not this panel at {o}" for o in answered_otherwise),
+        ]
+    )
+    return flow.async_abort(
+        reason="invalid_discovery" if answered_otherwise else "cannot_connect"
+    )
+
+
+def _hosts_naming_one_device(addresses: Iterable[PanelAddress]) -> frozenset[str]:
+    hosts = set()
+    for address in addresses:
+        try:
+            literal = ipaddress.ip_address(address.host)
+        except ValueError:
+            continue
+        if _names_one_device(literal):
+            hosts.add(str(literal))
+    return frozenset(hosts)
+
+
+def _authority(address: PanelAddress) -> str:
+    host = f"[{address.host}]" if ":" in address.host else address.host
+    return f"{host}:{address.port}"
+
+
+def _error_text(err: BaseException) -> str:
+    text = type(err).__name__
+    return f"{text} from {err.__cause__!r}" if err.__cause__ is not None else text
 
 
 async def _async_close_cards_answering_as(
