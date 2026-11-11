@@ -155,5 +155,7 @@ def _authority(address: PanelAddress) -> str:
 
 
 def _error_text(err: BaseException) -> str:
-    text = type(err).__name__
-    return f"{text} from {err.__cause__!r}" if err.__cause__ is not None else text
+    """The network error itself, briefly: a refusal and a timeout read apart."""
+    cause = err.__cause__ or err
+    text = str(cause)
+    return f"{type(cause).__name__}: {text}" if text else type(cause).__name__

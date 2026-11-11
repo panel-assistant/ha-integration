@@ -187,7 +187,7 @@ async def test_unreachable_panel_is_a_warning_naming_every_address_tried(
     assert f"{IPV4}:8888" in message
     assert f"[{IPV6}]:8888" in message
     assert "Wall panel" in message
-    assert "CannotConnectError" in message
+    assert "no connection at" in message
 
 
 async def test_an_address_answering_as_another_panel_is_not_offered(
