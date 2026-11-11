@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import logging
 from secrets import token_hex
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -21,7 +22,14 @@ from .transport_sessions import (
     async_manage,
     session_manages,
 )
-from .webview import ACTIVE_STATES, WebViewStatus, parse_webview
+from .webview import (
+    ACTIVE_STATES,
+    WEBVIEW_HOST,
+    WebViewStatus,
+    download_cause_text,
+    parse_webview,
+)
+from .webview_supply import SupplyError, async_offer_webview
 
 _LOGGER = logging.getLogger(__name__)
 # How long the first read waits for a restarting app to reconnect, leaving
@@ -135,6 +143,10 @@ async def async_update_webview(
     # Set once the panel holds WebView work: an install this step submitted,
     # or one already running or unsure when the step looked.
     pending = False
+    # The WebView file Home Assistant holds for the panel while this step runs.
+    held = contextlib.AsyncExitStack()
+    # Why Home Assistant could not supply the file; None if it did or did not try.
+    supply_cause: str | None = None
     try:
         async with asyncio.timeout(120) as contact_deadline:
             # The successor app owns the profile. Its authenticated native read
@@ -180,21 +192,34 @@ async def async_update_webview(
                 and status.eligible
                 and status.candidate_sha256
             ):
+                # The panel reads a request's arguments only from args.
+                args: dict[str, Any] = {
+                    "request_id": f"pa-update-{token_hex(16)}",
+                    "artifact_sha256": status.candidate_sha256,
+                }
+                if status.accepts_blob and status.candidate_size:
+                    # A panel that may reach only Home Assistant gets the file
+                    # from it. The download is progress, not lost contact.
+                    contact_deadline.reschedule(None)
+                    try:
+                        args["blob"] = await held.enter_async_context(
+                            async_offer_webview(
+                                hass,
+                                entry_id,
+                                status.candidate_sha256,
+                                status.candidate_size,
+                            )
+                        )
+                    except SupplyError as err:
+                        # The panel still tries panel-assistant.io itself.
+                        supply_cause = err.cause
+                    contact_deadline.reschedule(asyncio.get_running_loop().time() + 120)
                 current = session()
                 if current is None:
                     raise ConnectionError("panel_reconnecting")
                 pending = True
                 status = parse_webview(
-                    await async_manage(
-                        hass,
-                        current,
-                        "webview.install",
-                        # The panel reads a request's arguments only from args.
-                        args={
-                            "request_id": f"pa-update-{token_hex(16)}",
-                            "artifact_sha256": status.candidate_sha256,
-                        },
-                    )
+                    await async_manage(hass, current, "webview.install", args=args)
                 )
                 session()
             # A received active transaction is progress, however long its
@@ -223,6 +248,18 @@ async def async_update_webview(
                     status.candidate_sha256,
                 )
                 return "webview_download_deferred"
+            if status.download_failed:
+                # A Repair follows; the log names what stopped the file.
+                _LOGGER.warning(
+                    "%s could not download its WebView update %s: %s; %s. Allow "
+                    "Home Assistant to reach https://%s, then retry from the "
+                    "Repair",
+                    entry.title,
+                    status.candidate_sha256,
+                    download_cause_text(status.transaction_cause),
+                    _supply_text(status, supply_cause),
+                    WEBVIEW_HOST,
+                )
             return None if status.settled else "webview_deferred"
     except Exception as err:
         # An accepted request may have lost its answer. The durable panel record
@@ -238,3 +275,22 @@ async def async_update_webview(
             )
             return "webview_deferred"
         return "webview_unavailable"
+    finally:
+        await held.aclose()
+
+
+def _supply_text(status: WebViewStatus, supply_cause: str | None) -> str:
+    """Say what Home Assistant's own copy of the file did, for the log."""
+    if supply_cause is not None:
+        return (
+            "Home Assistant could not download it either: "
+            f"{download_cause_text(supply_cause)}"
+        )
+    if status.transaction_supplied in {"unavailable", "mismatch"}:
+        return (
+            "the panel could not take Home Assistant's copy "
+            f"({status.transaction_supplied})"
+        )
+    if not status.accepts_blob:
+        return "this panel app cannot take the file from Home Assistant"
+    return "Home Assistant did not offer its copy"

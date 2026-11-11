@@ -202,9 +202,11 @@ async def test_running_update_shows_no_failure_repair(
         assert await async_failure_events(hass, issue_id) == []
 
 
+@pytest.mark.parametrize("cause", [None, "not_found"])
 async def test_unpublished_webview_download_leaves_the_app_update_complete(
-    hass: HomeAssistant, caplog: pytest.LogCaptureFixture
+    hass: HomeAssistant, caplog: pytest.LogCaptureFixture, cause: str | None
 ) -> None:
+    """HTTP 404, or an app too old to name a cause, means not published yet."""
     entity, _client, entry, issue_id = _native(hass)
 
     async def manage(_hass: Any, _session: Any, operation: str, **_: Any) -> Any:
@@ -212,6 +214,8 @@ async def test_unpublished_webview_download_leaves_the_app_update_complete(
             return observation()
         document = observation("deferred")
         document["transaction"]["reason"] = "download_failed"
+        if cause is not None:
+            document["transaction"]["cause"] = cause
         return document
 
     await _install(hass, entity, entry, manage)
@@ -221,6 +225,44 @@ async def test_unpublished_webview_download_leaves_the_app_update_complete(
         record.levelname == "WARNING" and "c" * 64 in record.getMessage()
         for record in caplog.records
     )
+
+
+@pytest.mark.parametrize(
+    ("cause", "logged"),
+    [
+        ("unreachable", "panel-assistant.io could not be reached"),
+        ("unresolved", "the name panel-assistant.io could not be resolved"),
+        ("timed_out", "the download from panel-assistant.io timed out"),
+        ("http_503", "panel-assistant.io answered HTTP 503"),
+    ],
+    ids=["unreachable", "unresolved", "timed_out", "http_503"],
+)
+async def test_blocked_webview_download_raises_the_repair_and_logs_its_cause(
+    hass: HomeAssistant, caplog: pytest.LogCaptureFixture, cause: str, logged: str
+) -> None:
+    """A file that exists but did not arrive is a Repair, not "unpublished"."""
+    entity, _client, entry, issue_id = _native(hass)
+
+    async def manage(_hass: Any, _session: Any, operation: str, **_: Any) -> Any:
+        if operation == "webview.observe":
+            return observation()
+        document = observation("deferred")
+        document["transaction"].update(reason="download_failed", cause=cause)
+        return document
+
+    with pytest.raises(HomeAssistantError) as raised:
+        await _install(hass, entity, entry, manage)
+    assert raised.value.translation_key == "update_webview_unfinished"
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+    warnings = [
+        record.getMessage()
+        for record in caplog.records
+        if record.levelname == "WARNING" and "c" * 64 in record.getMessage()
+    ]
+    assert len(warnings) == 1
+    assert logged in warnings[0]
+    assert "https://panel-assistant.io" in warnings[0]
+    assert "not published" not in warnings[0]
 
 
 async def _poll(hass: HomeAssistant, document: dict[str, Any], *, pending: bool) -> str:
@@ -273,15 +315,28 @@ async def test_poll_keeps_the_repair_while_the_webview_is_still_offered(
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
 
 
+@pytest.mark.parametrize("cause", [None, "not_found"])
 @pytest.mark.parametrize("pending", [False, True])
 async def test_poll_after_an_unpublished_webview_download_raises_no_repair(
-    hass: HomeAssistant, pending: bool
+    hass: HomeAssistant, pending: bool, cause: str | None
 ) -> None:
     """The app update is complete; unpublished WebView files are only a WARNING."""
     document = observation("deferred")
     document["transaction"]["reason"] = "download_failed"
+    if cause is not None:
+        document["transaction"]["cause"] = cause
     issue_id = await _poll(hass, document, pending=pending)
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
+async def test_poll_after_a_blocked_webview_download_raises_the_repair(
+    hass: HomeAssistant,
+) -> None:
+    """A panel that could not reach the file needs its owner, update or not."""
+    document = observation("deferred")
+    document["transaction"].update(reason="download_failed", cause="unreachable")
+    issue_id = await _poll(hass, document, pending=False)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
 
 
 async def test_poll_with_no_webview_candidate_clears_an_interrupted_update(

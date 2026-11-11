@@ -438,11 +438,15 @@ async def _async_failure_webview(hass: HomeAssistant, entry_id: str) -> dict[str
             or session.user_id != entry.data.get(CONF_TRANSPORT_USER_ID)
         ):
             return unavailable
-        return {
+        observed = {
             "reason": status.reason,
             "transaction_state": status.transaction_state,
             "transaction_reason": status.transaction_reason,
         }
+        # Only a failed download names a cause (app 1.0.3 and later).
+        if status.transaction_cause is not None:
+            observed["transaction_cause"] = status.transaction_cause
+        return observed
     except HomeAssistantError, TimeoutError, InvalidResponseError:
         return unavailable
 

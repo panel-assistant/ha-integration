@@ -52,6 +52,8 @@ class _Transfer:
     entry_id: str
     expires: float
     data: bytes | None = None
+    # A large download is sent from a file instead of memory.
+    path: str | None = None
     received: asyncio.Future[bytes] | None = None
     content_type: str = "application/octet-stream"
     max_bytes: int = 0
@@ -111,6 +113,35 @@ class BlobRegistry:
             "url": f"{BLOB_PATH}{token}",
             "size": len(data),
             "sha256": hashlib.sha256(data).hexdigest(),
+            "type": content_type,
+        }
+
+    @callback
+    def download_file(
+        self,
+        entry_id: str,
+        path: str,
+        size: int,
+        sha256: str,
+        content_type: str,
+    ) -> tuple[str, dict[str, Any]]:
+        """Register a file the panel may fetch once, streamed from disk.
+
+        The caller has checked its size and SHA-256 and keeps the file until
+        the panel's operation ends.
+        """
+        token = self._mint(
+            _Transfer(
+                entry_id=entry_id,
+                expires=_now() + BLOB_LIFETIME_SECONDS,
+                path=path,
+                content_type=content_type,
+            )
+        )
+        return token, {
+            "url": f"{BLOB_PATH}{token}",
+            "size": size,
+            "sha256": sha256,
             "type": content_type,
         }
 
@@ -214,8 +245,16 @@ def _not_found() -> web.Response:
     return web.Response(status=404)
 
 
-def send(transfer: _Transfer) -> web.Response:
+def send(transfer: _Transfer) -> web.StreamResponse:
     """Answer a claimed download with its bytes."""
+    if transfer.path is not None:
+        return web.FileResponse(
+            transfer.path,
+            headers={
+                "Cache-Control": "no-store",
+                "Content-Type": transfer.content_type,
+            },
+        )
     if transfer.data is None:
         return _not_found()
     return web.Response(

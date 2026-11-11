@@ -503,7 +503,9 @@ class EmbedView(HomeAssistantView):
             return None
         return async_get_embed_sessions(self.hass).admit(token)
 
-    async def get(self, request: web.Request, token: str, path: str) -> web.Response:
+    async def get(
+        self, request: web.Request, token: str, path: str
+    ) -> web.StreamResponse:
         """Serve a page, a bundle file or a download."""
         if (admitted := self._admit(token)) is None:
             return _respond(404)
