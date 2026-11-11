@@ -235,6 +235,7 @@ async def test_unpublished_webview_download_leaves_the_app_update_complete(
         ("timed_out", "the download from panel-assistant.io timed out"),
         ("http_503", "panel-assistant.io answered HTTP 503"),
     ],
+    ids=["unreachable", "unresolved", "timed_out", "http_503"],
 )
 async def test_blocked_webview_download_raises_the_repair_and_logs_its_cause(
     hass: HomeAssistant, caplog: pytest.LogCaptureFixture, cause: str, logged: str

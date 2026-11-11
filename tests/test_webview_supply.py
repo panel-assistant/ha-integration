@@ -91,26 +91,33 @@ async def test_a_panel_without_internet_installs_the_file_home_assistant_downloa
     reader = await hass_client(hass_read_only_access_token)
     administrator = await hass_client()
     sent: list[dict[str, Any]] = []
+    # What each reader got from the blob: (status, body).
+    reads: list[tuple[str, int, bytes]] = []
 
     async def manage(_hass: Any, _session: Any, operation: str, **kwargs: Any) -> Any:
         if operation == "webview.observe":
             return _offered() if not sent else _installed()
-        assert operation == "webview.install"
-        args = kwargs["args"]
-        sent.append(args)
-        blob = args["blob"]
-        assert (blob["sha256"], blob["size"]) == (SHA, len(PAYLOAD))
-        assert args["artifact_sha256"] == SHA
-        # Only the panel's own user may fetch it, and only once.
-        assert (await administrator.get(blob["url"])).status == 404
-        fetched = await reader.get(blob["url"])
-        assert fetched.status == 200
-        assert await fetched.read() == PAYLOAD
-        assert (await reader.get(blob["url"])).status == 404
+        sent.append(kwargs["args"])
+        if (url := kwargs["args"].get("blob", {}).get("url")) is not None:
+            # Only the panel's own user may fetch it, and only once.
+            for who, client in (("admin", administrator), ("panel", reader)) * 2:
+                response = await client.get(url)
+                reads.append((who, response.status, await response.read()))
         return _installed()
 
     await _install(hass, panel.entity, panel.entry, manage, session=panel.session)
     assert len(sent) == 1
+    assert sent[0]["artifact_sha256"] == SHA
+    blob = sent[0].get("blob")
+    assert blob is not None
+    assert (blob["sha256"], blob["size"]) == (SHA, len(PAYLOAD))
+    assert [(who, status) for who, status, _ in reads] == [
+        ("admin", 404),
+        ("panel", 200),
+        ("admin", 404),
+        ("panel", 404),
+    ]
+    assert reads[1][2] == PAYLOAD
     assert aioclient_mock.call_count == 1
     assert ir.async_get(hass).async_get_issue(DOMAIN, panel.issue_id) is None
 
@@ -140,6 +147,7 @@ async def test_a_panel_app_that_cannot_take_the_file_is_not_sent_one(
         ({"status": 503}, "panel-assistant.io answered HTTP 503"),
         ({"content": b"not the webview"}, "the file did not match its SHA-256"),
     ],
+    ids=["unreachable", "unresolved", "http_503", "mismatch"],
 )
 async def test_when_neither_can_download_the_repair_and_log_say_why(
     hass: HomeAssistant,
