@@ -8,8 +8,14 @@ Each section is what Home Assistant shows in its update dialog: a short, friendl
 
 ## 1.0.1 - 2026-11-10
 
-- A panel's update in Home Assistant shows a short summary of what changed in the panel app, with a link to the full release notes. A panel that skipped releases sees each one, and the summary still shows when the website cannot be reached. A test build that arrives before its version is released says so, instead of linking notes that do not exist yet.
-- Update route checks close their TCP connections even when ADB close fails, run without delaying Home Assistant startup, and recheck every ten minutes or on reconnect instead of on every health update.
+Panel Assistant 1.0.1 makes updates more dependable and includes the 1.0.1 Android app, which learns its proximity sensor from your touches, so setting up proximity is now optional.
+
+- **WebView updates finish.** Updates started in Home Assistant now install the panel's WebView, where 1.0.0 left an unfinished Repair.
+- **Presence learns from touches.** The 1.0.1 Android app learns its proximity sensor as you use it, so proximity setup is optional, and each panel's Presence select is in Home Assistant.
+- **Steadier updates.** Slow copies get time to finish, a stalled one says why, and a panel's update shows what changed in the Android app.
+- **Clearer status.** A panel that never finished signing in says so, and short-lived Repairs no longer pop up and vanish.
+
+[Full release notes](https://panel-assistant.io/go/release-notes?v=1.0.1)
 
 ## 1.0.0 - 2026-11-06
 
