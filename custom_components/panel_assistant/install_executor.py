@@ -764,10 +764,14 @@ class InstallExecutor:
         async with self._lock:
             now = dt_util.utcnow()
             for receipt in await self._manager.async_list():
-                if receipt.is_terminal or not self._unowned(receipt.job_id):
+                if receipt.is_terminal or receipt.job_id in self._tasks:
                     continue
                 due, reason = self._end_due(receipt, stopped_now=stopped_now)
-                if due <= now:
+                if receipt.job_id in self._finalizers:
+                    # A dialog is completing it right now. It is left to that
+                    # dialog, and looked at again in case the dialog lets go.
+                    due = max(due, now + _STALLED_AFTER)
+                elif due <= now:
                     result = await self._async_end(receipt, reason)
                     if result is not None:
                         ended.append(result)

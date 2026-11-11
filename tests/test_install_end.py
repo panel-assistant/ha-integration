@@ -208,3 +208,29 @@ async def test_a_live_install_is_never_ended_under_its_worker(
     await worker
     await hass.async_block_till_done()
     assert (await _stored(hass, receipt.job_id)).phase is InstallPhase.HEALTHY_UNCLAIMED
+
+
+async def test_an_install_another_dialog_is_completing_is_left_to_it(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """While a dialog holds the finishing lease, nothing else ends the install."""
+    receipt, _manager = await seed_phase(hass, InstallPhase.HEALTHY_UNCLAIMED)
+    executor = await async_get_install_executor(hass)
+    assert await executor._async_acquire_finalizer(receipt.job_id, "dialog_one")
+    freezer.tick(timedelta(hours=25))
+
+    assert await executor.async_end_stalled_jobs(stopped_now=True) == ()
+    held = await _stored(hass, receipt.job_id)
+    assert held.phase is InstallPhase.HEALTHY_UNCLAIMED
+    assert not executor.can_cancel(held)
+    assert await executor.async_cancel_job(receipt.job_id) is None
+
+    # The dialog lets go without adding the panel: the next look ends it.
+    executor.release_finalizer(receipt.job_id, "dialog_one")
+    freezer.tick(timedelta(minutes=16))
+    async_fire_time_changed(hass, dt_util.utcnow())
+    await hass.async_block_till_done()
+
+    ended = await _stored(hass, receipt.job_id)
+    assert ended.phase is InstallPhase.RECOVERY_REQUIRED
+    assert ended.result_subcode == "job:unclaimed_expired"

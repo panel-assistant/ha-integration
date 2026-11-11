@@ -6,6 +6,7 @@ real executor; only the network, ADB and the panel itself are stand-ins.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -25,6 +26,7 @@ from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
+from custom_components.panel_assistant import install_executor
 from custom_components.panel_assistant.adb_credentials import AdbCredential
 from custom_components.panel_assistant.client import (
     CannotConnectError,
@@ -602,3 +604,71 @@ async def test_an_announcement_that_is_no_panel_is_not_logged_as_a_refusal(
         r for r in caplog.records if r.name == FLOW_LOG and "setup refused" in r.message
     ]
     assert record.levelno == logging.DEBUG
+
+
+async def test_an_install_changing_the_panel_can_only_be_carried_on(
+    hass: HomeAssistant, harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """While Android installs the package, cancel is not on offer and does nothing."""
+    harness.expected_version = "0.1.0"
+    receipt, _manager = await seed_phase(hass, InstallPhase.DOWNLOADING)
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    async def held_install(*args: Any, **kwargs: Any) -> Any:
+        entered.set()
+        await release.wait()
+        return await harness.async_install(*args, **kwargs)
+
+    monkeypatch.setattr(install_executor, "async_install_staged_apk", held_install)
+    executor = await async_get_install_executor(hass)
+    worker = await executor.async_ensure_job(receipt.job_id)
+    assert worker is not None
+    await entered.wait()
+
+    menu = await _add(hass, SEEDED_IP)
+    cancelled = await executor.async_cancel_job(receipt.job_id)
+    installing = await _stored(hass, receipt.job_id)
+    progress = await _choose(hass, menu, "resume_install")
+
+    assert menu["step_id"] == "install_unfinished_busy"
+    assert menu["menu_options"] == ["resume_install"]
+    assert cancelled is None
+    assert installing.phase is InstallPhase.INSTALLING
+    assert not installing.cancel_requested
+    assert progress["type"] is FlowResultType.SHOW_PROGRESS
+    release.set()
+    await worker
+    await hass.async_block_till_done()
+    assert (await _stored(hass, receipt.job_id)).phase is InstallPhase.HEALTHY_UNCLAIMED
+    assert harness.events.count("install") == 1
+
+
+async def test_cancelling_an_install_that_is_still_copying_stops_it(
+    hass: HomeAssistant, harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A live copy is asked to stop; it removes its file and ends as cancelled."""
+    harness.expected_version = "0.1.0"
+    receipt, _manager = await seed_phase(hass, InstallPhase.DOWNLOADING)
+    harness.stage_entered = asyncio.Event()
+    harness.stage_release = asyncio.Event()
+    monkeypatch.setattr(install_executor, "_CANCEL_WAIT_SECONDS", 0.05)
+    executor = await async_get_install_executor(hass)
+    worker = await executor.async_ensure_job(receipt.job_id)
+    assert worker is not None
+    await harness.stage_entered.wait()
+
+    menu = await _add(hass, SEEDED_IP)
+    waiting = await _choose(hass, menu, "cancel_install")
+    asked = await _stored(hass, receipt.job_id)
+    harness.stage_release.set()
+    await worker
+    await hass.async_block_till_done()
+
+    assert menu["step_id"] == "install_unfinished"
+    assert waiting["type"] is FlowResultType.MENU, "it has not stopped yet"
+    assert asked.phase is InstallPhase.STAGING
+    assert asked.cancel_requested
+    ended = await _stored(hass, receipt.job_id)
+    assert ended.phase is InstallPhase.CANCELLED
+    assert ended.result_code is InstallResultCode.CANCELLED_AFTER_STAGING_CLEANUP
+    assert "install" not in harness.events
