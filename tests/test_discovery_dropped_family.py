@@ -19,6 +19,7 @@ from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.client import (
     CannotConnectError,
@@ -212,4 +213,31 @@ async def test_an_address_answering_as_another_panel_is_not_offered(
         r
         for r in caplog.records
         if r.levelno >= logging.WARNING and "refused" in r.getMessage()
+    ]
+
+
+@pytest.mark.parametrize("source", ["user", "ignore"])
+async def test_an_added_or_ignored_panel_out_of_reach_stays_quiet(
+    hass: HomeAssistant, caplog: pytest.LogCaptureFixture, source: str
+) -> None:
+    """Announcements of a panel already decided on arrive all day: no WARNING."""
+    MockConfigEntry(
+        domain=DOMAIN,
+        source=source,
+        unique_id=APP_HEALTH.discovery_id,
+        data={"address": "192.168.1.99"},
+    ).add_to_hass(hass)
+    network = _Network(answering=set())
+    caplog.set_level(logging.DEBUG, logger="custom_components.panel_assistant")
+    with patch(HEALTH_CHECK, network.health):
+        result = await _announce(hass, [IPV4, IPV6])
+        await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "invalid_discovery"
+    assert not [
+        r
+        for r in caplog.records
+        if r.name.startswith("custom_components.panel_assistant")
+        and r.levelno >= logging.WARNING
     ]

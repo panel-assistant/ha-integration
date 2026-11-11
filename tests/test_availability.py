@@ -1082,15 +1082,12 @@ async def test_known_panel_found_by_its_vendor_announcement_updates_the_stored_o
 
 
 @pytest.mark.parametrize(
-    ("answer", "reason"),
-    [
-        (replace(HEALTH, discovery_id=OTHER_DID), "invalid_discovery"),
-        (CannotConnectError(), "cannot_connect"),
-    ],
+    "answer",
+    [replace(HEALTH, discovery_id=OTHER_DID), CannotConnectError()],
     ids=["another_panel", "no_answer"],
 )
 async def test_advertised_address_that_fails_verification_is_not_written(
-    hass: HomeAssistant, hass_read_only_user: Any, answer: Any, reason: str
+    hass: HomeAssistant, hass_read_only_user: Any, answer: Any
 ) -> None:
     """The mDNS token alone never moves a configured panel."""
     entry = await _load(hass, hass_read_only_user.id, unique_id=DID)
@@ -1109,7 +1106,7 @@ async def test_advertised_address_that_fails_verification_is_not_written(
         )
 
     assert result["type"] is FlowResultType.ABORT
-    assert result["reason"] == reason
+    assert result["reason"] == "invalid_discovery"
     assert entry.data[CONF_ADDRESS] == STORED
 
 

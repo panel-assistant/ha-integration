@@ -837,9 +837,10 @@ async def _async_read_announced_health(
     """The first announced address that answers as this panel, and its health.
 
     Each address is tried in turn, including any a later announcement of the
-    same panel hands over meanwhile. A panel heard but reachable at none of
-    them is a refusal of its own, logged with every address tried; one that
-    answered there as something else stays an invalid discovery.
+    same panel hands over meanwhile. A new panel heard but reachable at none of
+    them is a refusal of its own, logged with every address tried. One that
+    answered there as something else, or one already added or ignored, whose
+    announcements arrive all day, stays a quiet invalid discovery.
     """
     addresses = flow._discovery_addresses
     assert addresses is not None
@@ -878,8 +879,13 @@ async def _async_read_announced_health(
             *(f"not this panel at {o}" for o in answered_otherwise),
         ]
     )
+    known = flow.hass.config_entries.async_entry_for_domain_unique_id(
+        DOMAIN, discovery_id
+    )
     return flow.async_abort(
-        reason="invalid_discovery" if answered_otherwise else "cannot_connect"
+        reason="invalid_discovery"
+        if answered_otherwise or known is not None
+        else "cannot_connect"
     )
 
 
