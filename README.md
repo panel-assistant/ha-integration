@@ -1,8 +1,11 @@
-<p align="center"><a href="https://panel-assistant.io"><img src="https://raw.githubusercontent.com/panel-assistant/ha-integration/main/custom_components/panel_assistant/brand/icon@2x.png" width="128" alt="Panel Assistant icon"></a></p>
+<h1 align="center">
+  <a href="https://panel-assistant.io"><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://panel-assistant.io/brand/wordmark-on-dark.svg">
+    <img src="https://panel-assistant.io/brand/wordmark-on-light.svg" width="500" alt="Panel Assistant">
+  </picture></a>
+</h1>
 
-<h1 align="center">Panel Assistant</h1>
-
-<p align="center"><strong>Home Assistant dashboards and voice on Android wall panels, installed and kept up to date from Home Assistant.</strong></p>
+<h1 align="center">Home Assistant, on the wall, done properly.</h1>
 
 <p align="center">
   <a href="https://github.com/panel-assistant/ha-integration/releases/latest"><img src="https://img.shields.io/github/v/release/panel-assistant/ha-integration?label=release" alt="Latest release"></a>
