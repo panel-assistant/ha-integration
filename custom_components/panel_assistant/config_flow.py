@@ -13,6 +13,7 @@ from typing import Any, Self
 
 import voluptuous as vol
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
+from aiohttp import ClientPayloadError, ClientResponseError, ServerDisconnectedError
 from homeassistant.config_entries import (
     SOURCE_IGNORE,
     SOURCE_USER,
@@ -2089,6 +2090,11 @@ def _app_port_outcome(error: HaPaneldError) -> str:
         return "not_panel_app"
     if isinstance(cause, TimeoutError):
         return "timed_out"
+    if isinstance(cause, ClientResponseError | ClientPayloadError):
+        # Bytes came back, but not as HTTP the app would send.
+        return "malformed_response"
+    if isinstance(cause, ServerDisconnectedError | ConnectionResetError):
+        return "closed"
     os_error = getattr(cause, "os_error", cause)
     if isinstance(os_error, ConnectionRefusedError) or (
         getattr(os_error, "errno", None) == errno.ECONNREFUSED
@@ -2101,10 +2107,11 @@ async def _no_port_answered(app_port: str, pinned: PanelAddress) -> str:
     """The add-panel error when neither the app's port nor ADB answered."""
     if app_port == "refused":
         return "app_port_refused"
-    if app_port in ("invalid_response", "not_panel_app"):
+    if app_port in ("invalid_response", "not_panel_app", "malformed_response"):
         return "app_port_not_panel"
     if await _async_host_answers(pinned):
-        # The app's port took the connection and gave no answer in time.
+        # Something is there, but the health read got no usable answer: it
+        # ran out of time, was closed or broke off. Which one is in the log.
         return "app_port_no_answer"
     return "panel_unreachable"
 

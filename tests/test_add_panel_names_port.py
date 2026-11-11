@@ -84,6 +84,25 @@ async def _stalling(first_bytes: bytes = b"") -> AsyncIterator[int]:
         await server.wait_closed()
 
 
+@asynccontextmanager
+async def _closing(reply: bytes = b"") -> AsyncIterator[int]:
+    """Take the connection, read the request, send ``reply``, then close it."""
+
+    async def answer(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+        with suppress(ConnectionError):
+            await reader.read(1024)
+            writer.write(reply)
+            await writer.drain()
+        writer.close()
+
+    server = await asyncio.start_server(answer, "127.0.0.1", 0)
+    try:
+        yield server.sockets[0].getsockname()[1]
+    finally:
+        server.close()
+        await server.wait_closed()
+
+
 def _answering_not_panel() -> Callable[[], object]:
     return lambda: _stalling(b"HTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\nhello\n")
 
@@ -140,8 +159,21 @@ async def _add(
             "timed_out",
         ),
         (_answering_not_panel(), "app_port_not_panel", "invalid_response"),
+        (_closing, "app_port_no_answer", "closed"),
+        (
+            lambda: _closing(b"not http at all\r\n\r\n"),
+            "app_port_not_panel",
+            "malformed_response",
+        ),
     ],
-    ids=["refused", "accepts-then-stalls", "banner-then-stalls", "not-the-app"],
+    ids=[
+        "refused",
+        "accepts-then-stalls",
+        "banner-then-stalls",
+        "not-the-app",
+        "closes-without-answer",
+        "malformed-http",
+    ],
 )
 async def test_add_panel_names_the_port_that_did_not_answer(
     hass: HomeAssistant, loopback, caplog, stand_in, error: str, outcome: str
@@ -247,3 +279,7 @@ def test_each_text_names_both_ports_and_never_only_adb(error: str) -> None:
     assert "port 8888" in text
     assert "(5555)" in text
     assert "The panel answered" not in text
+    # The same text covers a timeout, a close and a broken-off read, so it
+    # claims none of them.
+    assert "in time" not in text
+    assert "took the connection" not in text
