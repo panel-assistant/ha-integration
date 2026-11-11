@@ -64,7 +64,6 @@ class SupplyError(Exception):
 @dataclass(slots=True)
 class _File:
     users: int = 0
-    ready: asyncio.Future[str] | None = None
     sweep: CALLBACK_TYPE | None = None
 
 
@@ -88,24 +87,11 @@ class WebViewSupply:
             held.sweep()
             held.sweep = None
         try:
-            if held.ready is None or (
-                held.ready.done()
-                and (held.ready.cancelled() or held.ready.exception() is not None)
-            ):
-                # The first panel downloads; the others wait for its result.
-                held.ready = self.hass.loop.create_future()
-                ready = held.ready
-                try:
-                    async with self.locks.setdefault(sha256, asyncio.Lock()):
-                        path = await self._async_fetch(sha256, size)
-                    ready.set_result(path)
-                except BaseException as err:
-                    ready.set_exception(
-                        err if isinstance(err, SupplyError) else SupplyError("failed")
-                    )
-                    ready.exception()
-                    raise
-            yield await asyncio.shield(held.ready)
+            # One panel at a time: the first downloads, the next finds the
+            # file on disk and checks its hash again before using it.
+            async with self.locks.setdefault(sha256, asyncio.Lock()):
+                path = await self._async_fetch(sha256, size)
+            yield path
         finally:
             held.users -= 1
             if held.users == 0:
@@ -139,8 +125,8 @@ class WebViewSupply:
         with contextlib.suppress(FileNotFoundError):
             os.remove(self._path(sha256))
 
-    def _prepare(self, size: int) -> None:
-        """Make the private directory, clear a previous run's files, check space."""
+    def _prepare(self) -> None:
+        """Make the private directory and clear a previous run's files."""
         os.makedirs(self.directory, mode=0o700, exist_ok=True)
         if not self.swept:
             self.swept = True
@@ -148,8 +134,9 @@ class WebViewSupply:
                 if name.removesuffix(".part").removesuffix(".apk") not in self.files:
                     with contextlib.suppress(OSError):
                         os.remove(os.path.join(self.directory, name))
-        if shutil.disk_usage(self.directory).free < size + _FREE_MARGIN_BYTES:
-            raise SupplyError("no_space")
+
+    def _has_room(self, size: int) -> bool:
+        return shutil.disk_usage(self.directory).free >= size + _FREE_MARGIN_BYTES
 
     def _matches(self, path: str, sha256: str, size: int) -> bool:
         digest = hashlib.sha256()
@@ -170,11 +157,13 @@ class WebViewSupply:
         path = self._path(sha256)
         partial = f"{path}.part"
         try:
-            await self.hass.async_add_executor_job(self._prepare, size)
+            await self.hass.async_add_executor_job(self._prepare)
         except OSError as err:
             raise SupplyError("failed") from err
         if await self.hass.async_add_executor_job(self._matches, path, sha256, size):
             return path
+        if not await self.hass.async_add_executor_job(self._has_room, size):
+            raise SupplyError("no_space")
         writer = _Writer(partial)
         try:
             await self.hass.async_add_executor_job(writer.open)

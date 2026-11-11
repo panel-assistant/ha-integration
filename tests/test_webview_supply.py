@@ -317,3 +317,20 @@ async def test_a_panel_that_leases_the_file_as_it_expires_keeps_it(
             leased.set()
             await hass.async_block_till_done(wait_background_tasks=True)
             assert _files(hass) == [f"{SHA}.apk"]
+
+
+async def test_a_file_already_held_is_served_on_a_nearly_full_disk(
+    hass: HomeAssistant, aioclient_mock: Any
+) -> None:
+    """Only a new download needs the room; the verified copy is reused."""
+    assert await async_setup_component(hass, "http", {})
+    aioclient_mock.get(URL, content=PAYLOAD)
+    async with async_offer_webview(hass, "one", SHA, len(PAYLOAD)):
+        pass
+    with patch(
+        "custom_components.panel_assistant.webview_supply.shutil.disk_usage"
+    ) as usage:
+        usage.return_value = SimpleNamespace(free=0)
+        async with async_offer_webview(hass, "two", SHA, len(PAYLOAD)) as reference:
+            assert reference["sha256"] == SHA
+    assert aioclient_mock.call_count == 1
