@@ -145,7 +145,8 @@ async def test_a_panel_app_that_cannot_take_the_file_is_not_sent_one(
         ({"exc": "unreachable"}, "panel-assistant.io could not be reached"),
         ({"exc": "unresolved"}, "the name panel-assistant.io could not be resolved"),
         ({"status": 503}, "panel-assistant.io answered HTTP 503"),
-        ({"content": b"not the webview"}, "the file did not match its SHA-256"),
+        # The right size, the wrong bytes: only the hash can tell.
+        ({"content": bytes(len(PAYLOAD))}, "the file did not match its SHA-256"),
     ],
     ids=["unreachable", "unresolved", "http_503", "mismatch"],
 )
@@ -261,10 +262,11 @@ async def test_the_file_is_deleted_an_hour_after_its_last_use(
     async with async_offer_webview(hass, "one", SHA, len(PAYLOAD)):
         pass
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=59))
-    await hass.async_block_till_done()
+    # The removal runs in the executor, outside any tracked task.
+    await hass.async_block_till_done(wait_background_tasks=True)
     assert _files(hass) == [f"{SHA}.apk"]
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=61))
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     assert _files(hass) == []
 
 
