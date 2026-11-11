@@ -14,13 +14,17 @@ import asyncio
 import logging
 import re
 from dataclasses import dataclass, replace
+from datetime import datetime, timedelta
 from enum import StrEnum
 from functools import partial
 from hashlib import sha256
 from pathlib import Path
 
-from homeassistant.core import HomeAssistant
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP
+from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_call_later
+from homeassistant.util import dt as dt_util
 from yarl import URL
 
 from .adb_credentials import (
@@ -84,8 +88,10 @@ from .install_network import (
     async_revalidate_install_target,
 )
 from .install_receipt import (
+    _CANCELLABLE_PHASES,
     _RESTART_INTERRUPTED_PHASES,
     InstallArtifact,
+    InstallEndReason,
     InstallJobCleanupRequiredError,
     InstallJobError,
     InstallJobReceipt,
@@ -123,6 +129,19 @@ _HEALTH_RETRY_SECONDS = 2.0
 # screen; after this many such answers the app is started once more.
 _SETUP_RELAUNCH_ATTEMPT = 10
 _FINALIZER_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$", flags=re.ASCII)
+# Every step a live worker takes is bounded on its own, so a job that is still
+# unfinished with no worker has stopped. It is ended this long after its
+# receipt last changed, so it cannot own its panel for ever; a restart inside
+# the window still resumes or quarantines it as before. When a person is at
+# the dialog, a job whose worker cannot run again in this process is ended at
+# once instead, so they see its result and can start again.
+_STALLED_AFTER = timedelta(minutes=15)
+# A healthy install waits for its owner to finish the panel's own setup, which
+# can mean a walk to the panel. A day later nobody is coming back to that
+# dialog: the receipt is let go, and the installed app is added like any other.
+_UNCLAIMED_AFTER = timedelta(hours=24)
+# How long a cancel waits for a live worker to notice it and stop.
+_CANCEL_WAIT_SECONDS = 30.0
 
 _SAFE_RESUME_PHASES = frozenset(
     {
@@ -281,6 +300,9 @@ class InstallExecutor:
         # Never restart it in the same process, whose manager still owns the old
         # in-memory claim. A new HA process will reclaim or quarantine durably.
         self._nonrestartable_workers: set[str] = set()
+        # The next look at unfinished jobs nobody is advancing.
+        self._end_timer: CALLBACK_TYPE | None = None
+        self._stop_listener: CALLBACK_TYPE | None = None
 
     def _feed_url(self) -> URL | None:
         """Where feed builds are fetched from, when a build feed is configured."""
@@ -647,6 +669,179 @@ class InstallExecutor:
             self._tasks.pop(job_id, None)
         if task.cancelled() or task.exception() is not None:
             self._nonrestartable_workers.add(job_id)
+        # A worker that left its job unfinished is nobody's now: end it when
+        # its time is up, without waiting for someone to add the panel again.
+        if not self._hass.is_stopping:
+            self._hass.async_create_task(
+                self._async_end_stalled_quietly(),
+                f"{DOMAIN} end stalled installs",
+                eager_start=False,
+            )
+
+    def _unowned(self, job_id: str) -> bool:
+        """Whether no worker or finalizer of this process holds the job."""
+        return job_id not in self._tasks and job_id not in self._finalizers
+
+    def can_cancel(self, receipt: InstallJobReceipt) -> bool:
+        """Whether this unfinished job can be ended for its owner right now."""
+        if receipt.is_terminal:
+            return False
+        if receipt.job_id in self._tasks:
+            return receipt.phase in _CANCELLABLE_PHASES
+        return receipt.job_id not in self._finalizers
+
+    def _end_due(
+        self, receipt: InstallJobReceipt, *, stopped_now: bool
+    ) -> tuple[datetime, InstallEndReason]:
+        """When an unfinished job nobody is advancing ends, and why."""
+        changed = datetime.fromisoformat(receipt.updated_at)
+        if receipt.phase is InstallPhase.HEALTHY_UNCLAIMED:
+            return changed + _UNCLAIMED_AFTER, InstallEndReason.UNCLAIMED_EXPIRED
+        if receipt.job_id in self._nonrestartable_workers:
+            return (
+                changed if stopped_now else changed + _STALLED_AFTER,
+                InstallEndReason.WORKER_STOPPED,
+            )
+        return changed + _STALLED_AFTER, InstallEndReason.STALLED
+
+    async def _async_end(
+        self, receipt: InstallJobReceipt, reason: InstallEndReason
+    ) -> InstallJobReceipt | None:
+        """End one unowned job under the custody rule a restart applies.
+
+        The job's private download is removed first, exactly as before a
+        restart claims an interrupted job; if that cannot be done the receipt
+        is left as it is, and the next look tries again.
+        """
+        try:
+            await self._async_cleanup_local(_execution_id(receipt))
+            ended = await self._manager.async_end(
+                receipt.job_id,
+                receipt.revision,
+                reason,
+                cleanup_confirmed_revision=receipt.revision,
+            )
+        except (ArtifactCustodyError, InstallJobError) as err:
+            _LOGGER.warning(
+                "Panel Assistant could not end an unfinished install: panel=%s "
+                "stage=%s reason=%s cause=%s job=%s",
+                receipt.target.address,
+                receipt.phase.value,
+                reason.value,
+                _result_subcode(err)
+                if isinstance(err, ArtifactCustodyError)
+                else type(err).__name__,
+                receipt.job_id,
+            )
+            return None
+        _LOGGER.warning(
+            "Panel Assistant ended an unfinished install: panel=%s stage=%s "
+            "reason=%s result=%s job=%s",
+            receipt.target.address,
+            receipt.phase.value,
+            reason.value,
+            ended.result_code.value if ended.result_code else "unknown",
+            receipt.job_id,
+        )
+        return ended
+
+    async def async_end_stalled_jobs(
+        self, *, stopped_now: bool = False
+    ) -> tuple[InstallJobReceipt, ...]:
+        """End each unfinished job nobody is advancing whose time is up.
+
+        A job stays unfinished when its worker stopped, when Home Assistant
+        restarted and nothing resumed it, or when a healthy install was never
+        claimed. Left alone it would own its panel for ever and refuse every
+        later attempt. Returns the receipts ended, and arranges the next look
+        for the ones not due yet. ``stopped_now`` is for a caller with a person
+        waiting: a job whose worker cannot run again in this process ends now.
+        """
+        if self._hass.is_stopping:
+            return ()
+        ended: list[InstallJobReceipt] = []
+        next_look: datetime | None = None
+        async with self._lock:
+            now = dt_util.utcnow()
+            for receipt in await self._manager.async_list():
+                if receipt.is_terminal or not self._unowned(receipt.job_id):
+                    continue
+                due, reason = self._end_due(receipt, stopped_now=stopped_now)
+                if due <= now:
+                    result = await self._async_end(receipt, reason)
+                    if result is not None:
+                        ended.append(result)
+                        continue
+                    due = now + _STALLED_AFTER
+                next_look = due if next_look is None else min(next_look, due)
+        self._async_look_again(next_look)
+        return tuple(ended)
+
+    async def _async_end_stalled_quietly(self, _now: datetime | None = None) -> None:
+        """The look nobody is waiting on: a failure is logged, never raised."""
+        try:
+            await self.async_end_stalled_jobs()
+        except InstallJobError as err:
+            _LOGGER.warning(
+                "Panel Assistant could not check for unfinished installs: cause=%s",
+                type(err).__name__,
+                exc_info=True,
+            )
+
+    @callback
+    def _async_look_again(self, when: datetime | None) -> None:
+        """Arrange the next look at unfinished jobs, replacing any earlier one."""
+        if self._end_timer is not None:
+            self._end_timer()
+            self._end_timer = None
+        if when is None or self._hass.is_stopping:
+            return
+        if self._stop_listener is None:
+            self._stop_listener = self._hass.bus.async_listen_once(
+                EVENT_HOMEASSISTANT_STOP, self._async_stop_looking
+            )
+        self._end_timer = async_call_later(
+            self._hass,
+            max((when - dt_util.utcnow()).total_seconds(), 0.0) + 1.0,
+            self._async_end_stalled_quietly,
+        )
+
+    @callback
+    def _async_stop_looking(self, _event: Event) -> None:
+        self._stop_listener = None
+        if self._end_timer is not None:
+            self._end_timer()
+            self._end_timer = None
+
+    async def async_cancel_job(self, job_id: str) -> InstallJobReceipt | None:
+        """End an unfinished install its owner no longer wants.
+
+        Returns the ended receipt, or None when the job cannot stop right now:
+        it is changing the panel, another dialog is completing it, or its
+        worker has not noticed the request yet.
+        """
+        receipt = await self._manager.async_get(job_id)
+        if receipt.is_terminal:
+            return receipt
+        task = self._tasks.get(job_id)
+        if task is not None:
+            if receipt.phase not in _CANCELLABLE_PHASES:
+                return None
+            try:
+                await self._manager.async_request_cancel(job_id, receipt.revision)
+            except InstallJobRevisionError, InstallJobTransitionError:
+                # The worker moved on between the read and the request.
+                return None
+            await asyncio.wait({task}, timeout=_CANCEL_WAIT_SECONDS)
+            receipt = await self._manager.async_get(job_id)
+            return receipt if receipt.is_terminal else None
+        async with self._lock:
+            receipt = await self._manager.async_get(job_id)
+            if receipt.is_terminal:
+                return receipt
+            if not self._unowned(job_id):
+                return None
+            return await self._async_end(receipt, InstallEndReason.OWNER_CANCELLED)
 
     async def _async_run(self, job_id: str) -> None:
         local_artifact: CustodiedArtifact | None = None
@@ -1948,5 +2143,12 @@ async def async_get_install_executor(hass: HomeAssistant) -> InstallExecutor:
 
 
 async def async_resume_loaded_install_jobs(hass: HomeAssistant) -> tuple[str, ...]:
-    """Resume safe jobs only after an existing config entry loaded the domain."""
-    return await (await async_get_install_executor(hass)).async_resume_loaded_jobs()
+    """Resume safe jobs only after an existing config entry loaded the domain.
+
+    What could not be resumed and has stood too long is ended here, and the
+    rest are looked at again when their time is up.
+    """
+    executor = await async_get_install_executor(hass)
+    resumed = await executor.async_resume_loaded_jobs()
+    await executor.async_end_stalled_jobs()
+    return resumed

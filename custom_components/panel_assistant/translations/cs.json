@@ -111,6 +111,24 @@
       "install_result": {
         "title": "Dokončit nastavení panelu",
         "description": "Panel Assistant {version} byl nainstalován na adrese {address}.\n\nVolbou Odeslat zopakujete pouze závěrečné kontroly identity a stavu, které jen čtou data. Žádný krok instalace se nebude opakovat.\n\nAž Home Assistant přidá zařízení, otevřete odkaz na nastavení v prohlížeči v dialogu Přidat na počítači, který má k panelu přístup v jeho místní síti. Pokud se zobrazí výzva, schvalte ADB na panelu."
+      },
+      "install_unfinished": {
+        "title": "This panel has an unfinished install",
+        "description": "Home Assistant already started installing Panel Assistant {version} on this panel, as {existing_address}, and that install has not finished.\n\nYou can carry on with it, or cancel it and start again at {address}.",
+        "menu_options": {
+          "resume_install": "Carry on with that install",
+          "cancel_install": "Cancel it and start again"
+        },
+        "menu_option_descriptions": {
+          "cancel_install": "Nothing is removed from the panel. If the app is already installed it stays, and Home Assistant looks at the panel afresh."
+        }
+      },
+      "install_unfinished_busy": {
+        "title": "This panel has an unfinished install",
+        "description": "Home Assistant is installing Panel Assistant {version} on this panel right now, as {existing_address}. It cannot be cancelled while it is changing the panel.\n\nCarry on with it to see it finish.",
+        "menu_options": {
+          "resume_install": "Carry on with that install"
+        }
       }
     },
     "progress": {
@@ -141,7 +159,6 @@
       "install_candidate_changed": "Identita panelu nebo čistý stav balíčku se od náhledu změnily. Nebyla vytvořena žádná instalační úloha. Zkontrolujte panel a pak začněte znovu.",
       "installed_artifact_mismatch": "Nainstalovaná aplikace se po bajtech neshoduje s vybraným vydáním, proto ji Home Assistant nepřepsal; vyberte její přesné vydání nebo postupujte podle kroků na adrese {recovery_address}.",
       "install_plan_rejected": "Panel a podepsané vydání se nepodařilo spojit do bezpečného instalačního plánu. Nebyla vytvořena žádná instalační úloha.",
-      "install_job_conflict": "Tuto identitu panelu již vlastní jiná instalační úloha. Žádná druhá úloha nebyla vytvořena.",
       "install_receipt_error": "Home Assistant nedokázal bezpečně načíst nebo trvale uložit záznam o instalaci. Nebyla autorizována žádná nová akce na panelu.",
       "install_finalization_busy": "Jiný dialog nastavení právě dokončuje tento panel. Počkejte na jeho dokončení a pak to v případě potřeby zkuste znovu.",
       "install_finalization_retry": "Instalace byla dokončena, ale závěrečná kontrola sítě, ADB nebo stavu, která jen čte data, je dočasně nedostupná. Zkontrolujte panel a zkuste to znovu; instalace se znovu nespustí.",

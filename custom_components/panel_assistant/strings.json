@@ -111,6 +111,24 @@
       "install_result": {
         "title": "Finish panel setup",
         "description": "Panel Assistant {version} was installed at {address}.\n\nSubmit to retry only the final read-only identity and health checks. No installation step will be repeated.\n\nAfter Home Assistant adds the device, follow the browser setup link in the Add dialog on a computer that can reach the panel on its local network. If prompted, approve ADB on the panel."
+      },
+      "install_unfinished": {
+        "title": "This panel has an unfinished install",
+        "description": "Home Assistant already started installing Panel Assistant {version} on this panel, as {existing_address}, and that install has not finished.\n\nYou can carry on with it, or cancel it and start again at {address}.",
+        "menu_options": {
+          "resume_install": "Carry on with that install",
+          "cancel_install": "Cancel it and start again"
+        },
+        "menu_option_descriptions": {
+          "cancel_install": "Nothing is removed from the panel. If the app is already installed it stays, and Home Assistant looks at the panel afresh."
+        }
+      },
+      "install_unfinished_busy": {
+        "title": "This panel has an unfinished install",
+        "description": "Home Assistant is installing Panel Assistant {version} on this panel right now, as {existing_address}. It cannot be cancelled while it is changing the panel.\n\nCarry on with it to see it finish.",
+        "menu_options": {
+          "resume_install": "Carry on with that install"
+        }
       }
     },
     "progress": {
@@ -141,7 +159,6 @@
       "install_candidate_changed": "The panel identity or clean package state changed after the preview. No installation job was created. Start again after checking the panel.",
       "installed_artifact_mismatch": "The installed app is not byte-identical to the release you chose, so Home Assistant did not overwrite it; choose its exact release, or follow the steps at {recovery_address}.",
       "install_plan_rejected": "The panel and signed release could not be bound into a safe installation plan. No installation job was created.",
-      "install_job_conflict": "A different installation job already owns this panel identity. No second job was created.",
       "install_receipt_error": "Home Assistant could not safely load or persist the installation receipt. No new panel action was authorized.",
       "install_finalization_busy": "Another setup dialog is completing this panel. Wait for it to finish, then retry if needed.",
       "install_finalization_retry": "The installation completed, but a final read-only network, ADB, or health check is temporarily unavailable. Check the panel and retry; the installation will not run again.",

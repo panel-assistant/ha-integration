@@ -40,12 +40,14 @@ from .install_receipt import (
     _MAX_EXECUTOR_GENERATION,
     _MUTATION_BARRIERS,
     _NEXT_PHASE,
+    _PANEL_UNTOUCHED_PHASES,
     _PREFLIGHT_ROOT_MODES,
     _RECOVERY_CODES,
     _RESTART_INTERRUPTED_PHASES,
     _SUBCODE,
     _TERMINAL_PHASES,
     InstallArtifact,
+    InstallEndReason,
     InstallJobCapacityError,
     InstallJobCleanupRequiredError,
     InstallJobConflictError,
@@ -89,6 +91,14 @@ _MAX_ACTIVE_JOBS = 4
 _MAX_TERMINAL_JOBS = 32
 _MAX_DETAIL_JOBS = 2 * _MAX_TERMINAL_JOBS
 _TERMINAL_RETENTION = timedelta(days=7)
+# A healthy install its owner let go, or never came back to, is not a fault of
+# the panel: it is ended and logged, and raises no Repair.
+_QUIET_END_SUBCODES = frozenset(
+    {
+        f"job:{InstallEndReason.UNCLAIMED_EXPIRED}",
+        f"job:{InstallEndReason.OWNER_CANCELLED}",
+    }
+)
 _DetailKey = tuple[str, int, str]
 
 
@@ -704,7 +714,11 @@ class InstallJobManager:
                 InstallPhase.FAILED,
                 InstallPhase.RECOVERY_REQUIRED,
             } and (previous is None or not previous.is_terminal):
-                record_install_failure(self._hass, receipt)
+                if not (
+                    receipt.failure_stage is InstallPhase.HEALTHY_UNCLAIMED
+                    and receipt.result_subcode in _QUIET_END_SUBCODES
+                ):
+                    record_install_failure(self._hass, receipt)
                 _LOGGER.warning(
                     "Panel Assistant install failure panel=%s stage=%s "
                     "subcode=%s result=%s job=%s",
@@ -878,7 +892,7 @@ class InstallJobManager:
                         and receipt.adb_credential_id == adb_credential_id
                     ):
                         return receipt, False
-                    raise InstallJobConflictError
+                    raise InstallJobConflictError(receipt)
             if sum(not receipt.is_terminal for receipt in jobs.values()) >= (
                 _MAX_ACTIVE_JOBS
             ):
@@ -961,7 +975,7 @@ class InstallJobManager:
                         and receipt.target.pinned_address == pinned_address
                     ):
                         return receipt
-                    raise InstallJobConflictError
+                    raise InstallJobConflictError(receipt)
             return None
 
     async def async_request_cancel(
@@ -982,6 +996,88 @@ class InstallJobManager:
                 cancel_requested=True,
             )
             jobs[job_id] = updated
+            await self._async_save_locked(jobs)
+            return self._jobs[job_id]  # type: ignore[index]
+
+    async def async_end(
+        self,
+        job_id: str,
+        expected_revision: int,
+        reason: InstallEndReason,
+        *,
+        cleanup_confirmed_revision: int,
+    ) -> InstallJobReceipt:
+        """End an unfinished receipt nobody is advancing, naming why.
+
+        The caller proves that no worker or finalizer of this process holds the
+        job, and that receipt-local artifact custody was cleaned against the
+        exact current revision. What the panel may hold decides the outcome,
+        as it does after a restart: before anything was sent it failed (or was
+        cancelled, when its owner asked) and the panel is as it was; once a
+        copy began it failed with nothing installed; after that the panel may
+        have changed and needs checking. A healthy install nobody claimed is
+        only let go: the app stays on the panel and is added like any other.
+        """
+        if not isinstance(reason, InstallEndReason):
+            raise InstallJobTransitionError
+        async with self._lock:
+            jobs = (await self._async_load_locked(refresh=True)).copy()
+            current = self._checked_current(jobs, job_id, expected_revision)
+            if current.is_terminal:
+                raise InstallJobTransitionError
+            if (
+                isinstance(cleanup_confirmed_revision, bool)
+                or not isinstance(cleanup_confirmed_revision, int)
+                or cleanup_confirmed_revision != current.revision
+            ):
+                raise InstallJobRevisionError
+            ended = replace(
+                current,
+                revision=current.revision + 1,
+                updated_at=_timestamp(self._now()),
+            )
+            subcode = f"job:{reason}"
+            if (
+                reason is InstallEndReason.OWNER_CANCELLED
+                and current.phase in _PANEL_UNTOUCHED_PHASES
+            ):
+                ended = replace(
+                    ended,
+                    phase=InstallPhase.CANCELLED,
+                    cancel_requested=True,
+                    result_code=InstallResultCode.CANCELLED_BY_USER,
+                )
+            elif current.phase is InstallPhase.APPROVED:
+                # No failure is defined for a job that never started, so its
+                # receipt carries the result alone; the log names the reason.
+                ended = replace(
+                    ended,
+                    phase=InstallPhase.FAILED,
+                    result_code=InstallResultCode.TRANSPORT_FAILED,
+                )
+            elif current.phase in _CANCELLABLE_PHASES:
+                ended = replace(
+                    ended,
+                    phase=InstallPhase.FAILED,
+                    result_code=InstallResultCode.TRANSPORT_FAILED,
+                    failure_stage=current.phase,
+                    result_subcode=subcode,
+                )
+            else:
+                ended = replace(
+                    ended,
+                    phase=InstallPhase.RECOVERY_REQUIRED,
+                    result_code=InstallResultCode.VERIFICATION_REQUIRED,
+                    failure_stage=current.phase,
+                    result_subcode=subcode,
+                    health_checked_at=None,
+                )
+            try:
+                _validate_receipt_invariants(ended)
+            except InstallJobStoreError as err:
+                raise InstallJobTransitionError from err
+            jobs[job_id] = ended
+            self._prune(jobs, ended.updated_at)
             await self._async_save_locked(jobs)
             return self._jobs[job_id]  # type: ignore[index]
 

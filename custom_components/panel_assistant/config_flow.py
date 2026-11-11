@@ -5,7 +5,9 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
+from functools import partial
 from typing import Any, Self
 
 import voluptuous as vol
@@ -170,6 +172,20 @@ _RECOVERY_ABORT_REASONS = {
     InstallResultCode.VERIFICATION_REQUIRED: "install_verification_required",
 }
 
+# Endings that are not refusals: the panel is already there, another card has
+# it, the work is done, or an announcement was not a panel to begin with.
+# Announcements arrive all day, so these are logged for debugging only.
+_QUIET_ABORTS = frozenset(
+    {
+        "already_configured",
+        "already_in_progress",
+        "invalid_discovery",
+        "not_panel",
+        "reinstall_successful",
+        "usb_installed",
+    }
+)
+
 _DATA_SCHEMA = vol.Schema(
     {vol.Required(CONF_ADDRESS): TextSelector(TextSelectorConfig())}
 )
@@ -209,6 +225,12 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     _pending_rc_tag: str | None = None
     _pending_install_target: PinnedPanelTarget | None = None
     _pending_job_id: str | None = None
+    # The unfinished install that owns the panel being added, and what was
+    # typed, so the person can carry on with it or cancel it and start again.
+    _unfinished_job_id: str | None = None
+    _unfinished_input: dict[str, Any] | None = None
+    # What the next refusal shown should give as its cause in the log.
+    _refusal_cause: object = None
     _progress_waiter: asyncio.Task[InstallJobReceipt] | None = None
     _progress_action = "installing"
     _authorization_task: asyncio.Task[InstallTargetProbe] | None = None
@@ -239,6 +261,197 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             other_flow._pending_friendly_name = self._pending_friendly_name
             _apply_discovery_title(other_flow)
         return True
+
+    def _log_refusal(self, step: str | None, error: str) -> None:
+        """Say in the log what this flow refused, for which panel, and why.
+
+        The dialog shows only a translated sentence. Someone helping from a log
+        needs the refusal itself, and the cause when one is known beyond it.
+        """
+        cause, self._refusal_cause = self._refusal_cause, None
+        address = (
+            self._pending_address.stored_value
+            if self._pending_address is not None
+            else self.context.get("title_placeholders", {}).get("address", "unknown")
+        )
+        if isinstance(cause, InstallNetworkError):
+            detail = cause.code.value
+        elif isinstance(cause, BaseException):
+            detail = type(cause).__name__
+            if cause.__cause__ is not None:
+                detail = f"{detail} from {cause.__cause__!r}"
+        else:
+            detail = str(cause) if cause is not None else error
+        _LOGGER.log(
+            logging.DEBUG if error in _QUIET_ABORTS else logging.WARNING,
+            "Panel Assistant setup refused: step=%s error=%s panel=%s cause=%s",
+            step or "unknown",
+            error,
+            address,
+            detail,
+            # A store refusal has many causes; its traceback names the one.
+            exc_info=cause if isinstance(cause, InstallJobError) else None,
+        )
+
+    def async_show_form(
+        self,
+        *,
+        step_id: str | None = None,
+        errors: dict[str, str] | None = None,
+        **kwargs: Any,
+    ) -> ConfigFlowResult:
+        """Show a form; one that refuses also says so in the log."""
+        if errors:
+            self._log_refusal(step_id, ",".join(sorted(set(errors.values()))))
+        return super().async_show_form(step_id=step_id, errors=errors, **kwargs)
+
+    def async_abort(self, *, reason: str, **kwargs: Any) -> ConfigFlowResult:
+        """End the flow; an ending that refuses also says so in the log."""
+        self._log_refusal(self.cur_step["step_id"] if self.cur_step else None, reason)
+        return super().async_abort(reason=reason, **kwargs)
+
+    async def _async_unblocked[ResultT](
+        self, attempt: Callable[[], Awaitable[ResultT]]
+    ) -> ResultT:
+        """Ask the receipt store; an install nobody is advancing never refuses.
+
+        When an unfinished install of the same panel stands in the way, the
+        ones whose time is up, or whose worker cannot run again, are ended and
+        the question is asked once more. One still being advanced is raised to
+        the caller, which offers to carry on with it or cancel it.
+        """
+        try:
+            return await attempt()
+        except InstallJobConflictError:
+            executor = await async_get_install_executor(self.hass)
+            if not await executor.async_end_stalled_jobs(stopped_now=True):
+                raise
+            return await attempt()
+
+    async def _async_show_unfinished_install(
+        self,
+        conflict: InstallJobConflictError | InstallJobReceipt,
+        typed: dict[str, Any],
+    ) -> ConfigFlowResult:
+        """Say that an unfinished install owns this panel, and offer the ways on.
+
+        The same panel reached by another name (its host name, its other
+        address family, a second discovery card) meets the receipt of the
+        install already started. That is not a storage fault: the person can
+        carry on with that install, or cancel it and start again here.
+        """
+        receipt = (
+            conflict.receipt
+            if isinstance(conflict, InstallJobConflictError)
+            else conflict
+        )
+        if receipt is None:
+            self._refusal_cause = "unfinished install unknown"
+            return self._show_add_panel_form(typed, {"base": "install_receipt_error"})
+        self._unfinished_job_id = receipt.job_id
+        self._unfinished_input = typed
+        try:
+            executor = await async_get_install_executor(self.hass)
+            can_cancel = executor.can_cancel(receipt)
+        except InstallJobError as err:
+            self._refusal_cause = err
+            return self._show_add_panel_form(typed, {"base": "install_receipt_error"})
+        _LOGGER.warning(
+            "Panel Assistant setup found an unfinished install of this panel: "
+            "requested=%s existing=%s pinned=%s stage=%s cancellable=%s job=%s",
+            typed.get(CONF_ADDRESS, "unknown"),
+            receipt.target.address,
+            receipt.target.pinned_address,
+            receipt.phase.value,
+            can_cancel,
+            receipt.job_id,
+        )
+        return self.async_show_menu(
+            step_id="install_unfinished" if can_cancel else "install_unfinished_busy",
+            menu_options=(
+                ["resume_install", "cancel_install"]
+                if can_cancel
+                else ["resume_install"]
+            ),
+            description_placeholders={
+                "address": typed.get(CONF_ADDRESS, ""),
+                "existing_address": receipt.target.address,
+                "version": receipt.artifact.version_name,
+            },
+        )
+
+    async def _async_unfinished_install(self) -> InstallJobReceipt | None:
+        """The unfinished install this flow met, as it stands now."""
+        if self._unfinished_job_id is None:
+            return None
+        manager = await async_get_install_job_manager(self.hass)
+        return await manager.async_get(self._unfinished_job_id)
+
+    async def async_step_install_unfinished(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show the unfinished install again, as it stands now."""
+        try:
+            receipt = await self._async_unfinished_install()
+        except InstallJobError as err:
+            self._refusal_cause = err
+            return self.async_abort(reason="install_receipt_error")
+        if receipt is None or self._unfinished_input is None:
+            return self.async_abort(reason="unknown")
+        if receipt.is_terminal:
+            # It ended while the menu was open; nothing owns the panel now.
+            return await self.async_step_add_panel(self._unfinished_input)
+        return await self._async_show_unfinished_install(
+            receipt, self._unfinished_input
+        )
+
+    async def async_step_install_unfinished_busy(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """The same menu while the install cannot be cancelled."""
+        return await self.async_step_install_unfinished(user_input)
+
+    async def async_step_resume_install(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Carry on with the install already started, under its own address."""
+        try:
+            receipt = await self._async_unfinished_install()
+        except InstallJobError as err:
+            self._refusal_cause = err
+            return self.async_abort(reason="install_receipt_error")
+        if receipt is None or self._unfinished_input is None:
+            return self.async_abort(reason="unknown")
+        if receipt.is_terminal:
+            return await self.async_step_add_panel(self._unfinished_input)
+        self._reset_pending_panel()
+        self._pending_address = normalize_address(receipt.target.address)
+        self._pending_install_target = PinnedPanelTarget(
+            original=self._pending_address,
+            pinned=normalize_address(receipt.target.pinned_address),
+        )
+        self._pending_job_id = receipt.job_id
+        if receipt.phase is InstallPhase.HEALTHY_UNCLAIMED:
+            return await self.async_step_install_result()
+        return await self._async_show_install_progress(receipt)
+
+    async def async_step_cancel_install(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """End the install already started, then look at the panel afresh."""
+        if self._unfinished_job_id is None or self._unfinished_input is None:
+            return self.async_abort(reason="unknown")
+        try:
+            executor = await async_get_install_executor(self.hass)
+            ended = await executor.async_cancel_job(self._unfinished_job_id)
+        except InstallJobError as err:
+            self._refusal_cause = err
+            return self.async_abort(reason="install_receipt_error")
+        if ended is None:
+            # It is changing the panel, or has not stopped yet: only carrying
+            # on is safe to offer until it has.
+            return await self.async_step_install_unfinished()
+        return await self.async_step_add_panel(self._unfinished_input)
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -362,12 +575,16 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self,
         user_input: dict[str, Any] | None,
         errors: dict[str, str],
+        *,
+        cause: object = None,
     ) -> ConfigFlowResult:
         """Ask only for the panel's address; what happens next depends on the panel.
 
         Panels Home Assistant knows through other apps are offered in a picker,
         which has its own step so that its text describes it only when shown.
         """
+        if cause is not None:
+            self._refusal_cause = cause
         picker = address_schema(self._migration_targets)
         return self.async_show_form(
             step_id="add_panel" if picker is None else "add_known_panel",
@@ -663,7 +880,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         except InstallNetworkError as err:
             if not custom_port:
                 return self._show_add_panel_form(
-                    user_input, {"base": _install_network_error(err)}
+                    user_input, {"base": _install_network_error(err)}, cause=err
                 )
             # Existing panels can be reached beyond the installer's LAN ranges.
             # A read-only health check grants no installation authority.
@@ -676,12 +893,22 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         if target is not None:
             try:
                 manager = await async_get_install_job_manager(self.hass)
-                active = await manager.async_find_active(
-                    address.stored_value, target.pinned.stored_value
+                active = await self._async_unblocked(
+                    partial(
+                        manager.async_find_active,
+                        address.stored_value,
+                        target.pinned.stored_value,
+                    )
                 )
-            except InstallJobError:
+            except InstallJobConflictError as err:
+                return await self._async_show_unfinished_install(
+                    err, {CONF_ADDRESS: address.stored_value}
+                )
+            except InstallJobError as err:
                 return self._show_add_panel_form(
-                    user_input, {"base": "install_receipt_error"}
+                    user_input,
+                    {"base": "install_receipt_error"},
+                    cause=err,
                 )
             except Exception:
                 _LOGGER.exception(
@@ -761,7 +988,11 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 "retained_or_ambiguous": "retained_or_ambiguous",
                 "incompatible": "incompatible",
             }.get(state, "unknown")
-        return self._show_add_panel_form(user_input, errors)
+        return self._show_add_panel_form(
+            user_input,
+            errors,
+            cause=f"adb_state={probe.state.value} pinned={target.pinned.stored_value}",
+        )
 
     async def async_step_add_known_panel(
         self, user_input: dict[str, Any] | None = None
@@ -1016,10 +1247,12 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 raise AdbCredentialError
             probe = await async_probe_install_target(target.pinned, credential.signer)
         except InstallNetworkError as err:
+            self._refusal_cause = err
             return self._show_install_candidate_preview(
                 {"base": _install_network_error(err)}
             )
-        except AdbCredentialError:
+        except AdbCredentialError as err:
+            self._refusal_cause = err
             return self._show_install_candidate_preview(
                 {"base": "adb_credential_error"}
             )
@@ -1028,6 +1261,11 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self._show_install_candidate_preview({"base": "unknown"})
 
         if not _same_install_target(self._pending_probe, probe):
+            self._refusal_cause = (
+                f"previewed={self._pending_probe.state.value} "
+                f"now={probe.state.value} "
+                f"same_device={same_physical_target(probe, self._pending_probe)}"
+            )
             return self._show_install_candidate_preview(
                 {"base": "install_candidate_changed"}
             )
@@ -1071,21 +1309,28 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 expected_rc_tag=self._pending_rc_tag,
             )
             manager = await async_get_install_job_manager(self.hass)
-            receipt, _created = await manager.async_create_or_join(
-                plan.target,
-                plan.artifact,
-                plan.plan_sha256,
-                plan.adb_credential_id,
+            receipt, _created = await self._async_unblocked(
+                partial(
+                    manager.async_create_or_join,
+                    plan.target,
+                    plan.artifact,
+                    plan.plan_sha256,
+                    plan.adb_credential_id,
+                )
             )
-        except InstallJobConflictError:
-            return self._show_install_candidate_preview(
-                {"base": "install_job_conflict"}
+        except InstallJobConflictError as err:
+            # The panel's serial is known only now, so this is where a second
+            # card, or another address of the same panel, meets its install.
+            return await self._async_show_unfinished_install(
+                err, {CONF_ADDRESS: self._pending_address.stored_value}
             )
-        except InstallPlanError:
+        except InstallPlanError as err:
+            self._refusal_cause = err
             return self._show_install_candidate_preview(
                 {"base": "install_plan_rejected"}
             )
-        except InstallJobError:
+        except InstallJobError as err:
+            self._refusal_cause = err
             return self._show_install_candidate_preview(
                 {"base": "install_receipt_error"}
             )
@@ -1212,9 +1457,17 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 or refreshed.is_terminal
             ):
                 return await self.async_step_install_result()
-            # The executor deliberately refuses to replay a worker cancelled in
-            # this process. Registering an immediately completed waiter here would
-            # create an unbounded progress callback loop.
+            # The executor deliberately refuses to replay a worker that stopped
+            # in this process, and registering an immediately completed waiter
+            # here would loop. A job it will never advance is ended instead,
+            # so its result is shown and the panel is free for a new attempt.
+            try:
+                ended = await executor.async_end_stalled_jobs(stopped_now=True)
+            except InstallJobError as err:
+                self._refusal_cause = err
+                ended = ()
+            if any(job.job_id == receipt.job_id for job in ended):
+                return await self.async_step_install_result()
             return self.async_abort(reason="install_worker_stopped")
 
         self._progress_action = "installing"

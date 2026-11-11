@@ -1025,6 +1025,7 @@ def _manager_for(receipt: InstallJobReceipt) -> SimpleNamespace:
         async_find_active=AsyncMock(return_value=None),
         async_create_or_join=AsyncMock(return_value=(receipt, True)),
         async_get=AsyncMock(return_value=receipt),
+        async_list=AsyncMock(return_value=()),
         async_transition=AsyncMock(return_value=receipt),
     )
 
@@ -1033,6 +1034,7 @@ def _executor_for() -> SimpleNamespace:
     """Return the narrow detached-worker API the progress steps use."""
     return SimpleNamespace(
         async_ensure_job=AsyncMock(return_value=None),
+        async_end_stalled_jobs=AsyncMock(return_value=()),
         async_wait=AsyncMock(),
         is_updating_webview=MagicMock(return_value=False),
     )
