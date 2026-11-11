@@ -8,6 +8,7 @@ import re
 import unicodedata
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from typing import Any
 
 from .client import InvalidResponseError
 from .const import (
@@ -59,6 +60,11 @@ class PanelStatus:
     screen_lock_secure: bool | None = None
     # Why the panel's own session with Home Assistant is not up, as it reports it.
     transport_refusal: str | None = None
+    #: Whether the app holds this Home Assistant's lease and keeps ADB off;
+    #: None when the app does not say (released apps up to 1.0.2).
+    network_adb_managed: bool | None = None
+    #: Seconds until the owner's own Network ADB switch works despite the lease.
+    network_adb_switch_wait_s: int | None = None
 
     def as_dict(self) -> dict[str, object]:
         """Return a serializable copy suitable for diagnostics."""
@@ -546,6 +552,22 @@ def _transport_refusal(value: object) -> str | None:
     if isinstance(refusal, str) and re.fullmatch(r"[a-z_]{1,64}", refusal):
         return refusal
     return None
+def _network_adb(value: object) -> dict[str, Any]:
+    """Keep the app's ADB lease report; anything malformed counts as absent."""
+    if not isinstance(value, dict):
+        return {}
+    managed = value.get("managed")
+    wait = value.get("owner_switch_wait_s")
+    return {
+        "network_adb_managed": managed if isinstance(managed, bool) else None,
+        "network_adb_switch_wait_s": (
+            wait
+            if isinstance(wait, int)
+            and not isinstance(wait, bool)
+            and 0 <= wait <= MAX_STATUS_INTEGER
+            else None
+        ),
+    }
 
 
 def parse_status_response(body: str) -> PanelStatus:
@@ -574,6 +596,7 @@ def parse_status_response(body: str) -> PanelStatus:
         root_lost_since_boot=_nullable_boolean(parsed.get("root_lost_since_boot")),
         screen_lock_secure=_nullable_boolean(parsed.get("screen_lock_secure")),
         transport_refusal=_transport_refusal(parsed.get("panel_assistant_transport")),
+        **_network_adb(parsed.get("network_adb")),
         zigbee_gateway=_sanitize_component(
             parsed,
             "zigbee_gateway",

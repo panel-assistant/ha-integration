@@ -6,7 +6,7 @@ import asyncio
 import contextlib
 import logging
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from functools import partial
 from typing import Any, Self
 
@@ -43,6 +43,7 @@ from homeassistant.helpers.selector import (
 )
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
+from . import local_adb
 from .adb_credentials import (
     AdbCredentialError,
     async_get_adb_credential,
@@ -2087,6 +2088,8 @@ class AdbAuthorization:
     """One existing-panel wait, retained until its completion screen is shown."""
 
     task: asyncio.Task[str | None] | None = None
+    #: Values the finished wait's error text names.
+    placeholders: dict[str, str] = field(default_factory=dict)
 
 
 async def async_authorize_adb_form[ResultT: FlowResult[Any, Any]](
@@ -2117,7 +2120,9 @@ async def async_authorize_adb_form[ResultT: FlowResult[Any, Any]](
             return flow.async_show_progress_done(next_step_id="authorize_adb_done")
         if task is None and user_input is not None:
             task = authorization.task = flow.hass.async_create_task(
-                async_authorize_existing_panel_adb(flow.hass, entry),
+                async_authorize_existing_panel_adb(
+                    flow.hass, entry, authorization.placeholders
+                ),
                 "wait for the configured panel to allow Home Assistant",
             )
         if task is not None:
@@ -2130,13 +2135,19 @@ async def async_authorize_adb_form[ResultT: FlowResult[Any, Any]](
     return flow.async_show_form(
         step_id="authorize_adb",
         data_schema=vol.Schema({}),
-        description_placeholders={"panel": panel, **INSTALL_RECOVERY_PLACEHOLDERS},
+        description_placeholders={
+            "panel": panel,
+            **INSTALL_RECOVERY_PLACEHOLDERS,
+            **authorization.placeholders,
+        },
         errors={"base": error} if error else None,
     )
 
 
 async def async_authorize_existing_panel_adb(
-    hass: HomeAssistant, entry: ConfigEntry
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    placeholders: dict[str, str] | None = None,
 ) -> str | None:
     """Authorize the loaded entry's pinned panel through the existing ADB seam."""
     coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
@@ -2179,6 +2190,15 @@ async def async_authorize_existing_panel_adb(
         if await hass.config_entries.async_reload(entry.entry_id):
             return None
         return "unknown"
+    if probe.state is InstallTargetState.ADB_UNREACHABLE and (
+        lease := await local_adb.async_held_lease(
+            hass, entry, target.pinned, "Allowing updates"
+        )
+    ):
+        error, found = lease.reason()
+        if placeholders is not None:
+            placeholders.update(found)
+        return error
     return {
         InstallTargetState.ADB_UNREACHABLE: "adb_unreachable",
         InstallTargetState.RETAINED_OR_AMBIGUOUS: "retained_or_ambiguous",
