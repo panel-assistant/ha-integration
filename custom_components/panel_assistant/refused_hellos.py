@@ -13,7 +13,6 @@ from datetime import datetime, timedelta
 from ipaddress import IPv4Address, IPv6Address, ip_address
 from typing import Final
 
-from aiohttp import ClientConnectorError
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.util import dt as dt_util
 
@@ -125,12 +124,3 @@ def async_refused_hello_at(hass: HomeAssistant, *hosts: str) -> RefusedHello | N
         if wanted & seen:
             return sighting
     return None
-
-
-def never_answered(err: BaseException) -> bool:
-    """Return whether a read failed before anything answered on the port.
-
-    A refused or unrouted connection, or no answer in time, is what a
-    firewall does. An HTTP status or a dropped reply means something answered.
-    """
-    return isinstance(err.__cause__, (ClientConnectorError, TimeoutError))

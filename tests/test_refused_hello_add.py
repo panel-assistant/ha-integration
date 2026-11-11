@@ -49,6 +49,22 @@ PINNED = "192.168.1.23"
 HEALTH_URL = f"http://{PINNED}:8888/api/v1/health"
 
 
+class _StalledBody(AiohttpClientMockResponse):
+    """The app's status line arrives, then its body never does."""
+
+    @property
+    def content(self) -> Any:
+        async def chunks(_size: int) -> Any:
+            raise TimeoutError
+            yield b""
+
+        return SimpleNamespace(iter_chunked=chunks)
+
+
+async def _stall(method: str, url: Any, _data: Any) -> _StalledBody:
+    return _StalledBody(method, url)
+
+
 def _refused() -> ClientConnectorError:
     """What a firewall that rejects the connection looks like to aiohttp."""
     key = SimpleNamespace(host=PINNED, port=8888, ssl=True)
@@ -214,6 +230,7 @@ async def test_a_panel_that_stopped_calling_in_is_not_named(
         ({"status": 404}, "app_port_not_panel"),
         ({"status": 503}, "app_port_not_panel"),
         ({"exc": ServerDisconnectedError()}, "app_port_no_answer"),
+        ({"side_effect": _stall}, "app_port_no_answer"),
     ],
     ids=[
         "not_health",
@@ -221,6 +238,7 @@ async def test_a_panel_that_stopped_calling_in_is_not_named(
         "http_404",
         "http_503",
         "dropped_reply",
+        "stalled_body",
     ],
 )
 async def test_an_address_where_something_else_answers_keeps_the_old_answer(
