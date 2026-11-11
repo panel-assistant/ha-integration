@@ -68,6 +68,8 @@ _PROTOCOL_RANGE_PATTERN = re.compile(r"^([1-9][0-9]{0,2})-([1-9][0-9]{0,2})$")
 _RESTART_PATTERN = re.compile(
     r"^(app|panel),(update|settings|recovery|reboot),([1-9][0-9]{0,5})$"
 )
+# The panel's own network ADB name, as Android announces it (`adb-<serial>`).
+_ADB_SERIAL_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$", flags=re.ASCII)
 _MAX_VERSION_LENGTH = 63
 _MAX_ANDROID_LONG = 2**63 - 1
 _KNOWN_HEALTH_FIELDS = frozenset(
@@ -89,6 +91,7 @@ _KNOWN_HEALTH_FIELDS = frozenset(
         "ha_net_miss",
         "ha_net_age",
         "pa_restarting",
+        "adb",
     }
 )
 _LIFECYCLE_STATES = frozenset(
@@ -228,6 +231,11 @@ def is_valid_discovery_id(value: str) -> bool:
     return _DISCOVERY_ID_PATTERN.fullmatch(value) is not None
 
 
+def is_valid_adb_serial(value: object) -> bool:
+    """Whether a value can be the serial in an `adb-<serial>` announcement."""
+    return isinstance(value, str) and _ADB_SERIAL_PATTERN.fullmatch(value) is not None
+
+
 def is_valid_panel_version(value: str) -> bool:
     """Return whether a panel app version has the health contract's shape.
 
@@ -267,6 +275,10 @@ class PanelHealth:
     setup_complete: bool = False
     # One initial HOME claim remains owned by setup, until native readback/handback.
     home_pending: bool = False
+    # The serial in the panel's own `_adb._tcp` announcement (`adb-<serial>`),
+    # heard by the app from its own Android. Absent from builds before 1.0.3
+    # and whenever the panel's network ADB is not announced.
+    adb_serial: str | None = None
 
     def as_dict(
         self,
@@ -430,6 +442,8 @@ def parse_health_response(body: str) -> PanelHealth:
         else None
     )
 
+    adb_serial = fields.get("adb")
+
     restart_match = _RESTART_PATTERN.fullmatch(fields.get("pa_restarting", ""))
     restart = (
         (restart_match[1], restart_match[2], int(restart_match[3]))
@@ -452,6 +466,8 @@ def parse_health_response(body: str) -> PanelHealth:
         home_pending=fields.get("home_pending") == "1",
         protocol=protocol,
         restart=restart,
+        # Discovery only, so an unusable value is dropped like `vc`.
+        adb_serial=adb_serial if is_valid_adb_serial(adb_serial) else None,
     )
 
 

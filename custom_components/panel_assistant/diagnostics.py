@@ -27,7 +27,12 @@ _ENTRY_KEYS_TO_REDACT = {
     "identity_pending",
     "previous_installation_identity",
 }
-_HEALTH_KEYS_TO_REDACT = {"panel_id", "discovery_id", "legacy_discovery_id"}
+_HEALTH_KEYS_TO_REDACT = {
+    "panel_id",
+    "discovery_id",
+    "legacy_discovery_id",
+    "adb_serial",
+}
 _STATUS_KEYS_TO_REDACT = {"serial_number", "network_macs"}
 
 
