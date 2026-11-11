@@ -540,3 +540,51 @@ def test_every_setup_exemption_carries_its_reason() -> None:
     assert rule["prefixes"]
     for step, reason in rule["exempt"].items():
         assert len(reason.split()) >= 8, step
+
+
+def test_the_budget_job_is_left_out_of_its_own_measurement() -> None:
+    """The reporter finishes last; its start gap and run are not the workflow's work."""
+    jobs = [
+        {"name": "build", "completed_at": "2026-11-11T11:48:56Z"},
+        {"name": "site", "completed_at": "2026-11-11T11:48:56Z"},
+        {"name": "budget", "completed_at": "2026-11-11T11:49:05Z"},
+        {"name": "still running", "completed_at": None},
+    ]
+    assert check_ci_budget.work_finished_at(jobs) == "2026-11-11T11:48:56Z"
+    assert check_ci_budget.work_finished_at([jobs[2]]) is None
+    assert check_ci_budget.work_finished_at([]) is None
+
+
+def test_the_weekly_median_stops_at_the_end_of_the_work(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A 29 s build reported by a 10 s budget job measures 29 s, not 39 s."""
+    from urllib.parse import urlparse
+
+    budget = tmp_path / "budget.json"
+    budget.write_text(json.dumps({"sample_size": 3, "budgets": {"Quiet": 35}}))
+    monkeypatch.setenv("GITHUB_TOKEN", "test-token")
+    run = _run("2026-11-11T11:48:27Z", "2026-11-11T11:49:06Z")
+
+    def fetch(url: str, _token: str) -> dict:
+        path = urlparse(url).path
+        if path.endswith("/actions/workflows"):
+            return {"workflows": [{"name": "Quiet", "id": 7}]}
+        if path.endswith("/jobs"):
+            return {
+                "jobs": [
+                    {"name": "build", "completed_at": "2026-11-11T11:48:56Z"},
+                    {"name": "budget", "completed_at": "2026-11-11T11:49:05Z"},
+                ]
+            }
+        return {"workflow_runs": [run | {"id": n} for n in range(3)]}
+
+    monkeypatch.setattr(check_ci_budget, "_fetch", fetch)
+    result = check_ci_budget.main(
+        ["--repository", "example/repo", "--budget-file", str(budget)]
+    )
+    output = capsys.readouterr().out
+    assert result == 0
+    assert "median 29s" in output
