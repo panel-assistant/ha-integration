@@ -57,6 +57,8 @@ class PanelStatus:
     webview: WebViewStatus | None = None
     root_lost_since_boot: bool | None = None
     screen_lock_secure: bool | None = None
+    # Why the panel's own session with Home Assistant is not up, as it reports it.
+    transport_refusal: str | None = None
 
     def as_dict(self) -> dict[str, object]:
         """Return a serializable copy suitable for diagnostics."""
@@ -66,6 +68,7 @@ class PanelStatus:
             "install_capability": self.install_capability,
             "root_lost_since_boot": self.root_lost_since_boot,
             "screen_lock_secure": self.screen_lock_secure,
+            "transport_refusal": self.transport_refusal,
             "zigbee_gateway": _copy_component(self.zigbee_gateway),
             "storage_health": _copy_component(self.storage_health),
             "renderer": _copy_component(self.renderer),
@@ -538,6 +541,13 @@ def _validate_original_arrays(root: Mapping[str, object]) -> tuple[int, int]:
     return len(warnings), len(capabilities)
 
 
+def _transport_refusal(value: object) -> str | None:
+    refusal = value.get("refusal") if isinstance(value, dict) else None
+    if isinstance(refusal, str) and re.fullmatch(r"[a-z_]{1,64}", refusal):
+        return refusal
+    return None
+
+
 def parse_status_response(body: str) -> PanelStatus:
     """Parse status JSON and retain only bounded, privacy-safe known fields."""
     try:
@@ -563,6 +573,7 @@ def parse_status_response(body: str) -> PanelStatus:
         install_capability=install_capability,
         root_lost_since_boot=_nullable_boolean(parsed.get("root_lost_since_boot")),
         screen_lock_secure=_nullable_boolean(parsed.get("screen_lock_secure")),
+        transport_refusal=_transport_refusal(parsed.get("panel_assistant_transport")),
         zigbee_gateway=_sanitize_component(
             parsed,
             "zigbee_gateway",
