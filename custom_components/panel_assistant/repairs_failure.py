@@ -442,6 +442,7 @@ async def _async_failure_webview(hass: HomeAssistant, entry_id: str) -> dict[str
             "reason": status.reason,
             "transaction_state": status.transaction_state,
             "transaction_reason": status.transaction_reason,
+            "transaction_cause": status.transaction_cause,
         }
     except HomeAssistantError, TimeoutError, InvalidResponseError:
         return unavailable

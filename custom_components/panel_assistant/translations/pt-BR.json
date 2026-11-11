@@ -9,7 +9,8 @@
     "webview_recovery_refused": "O Android recusou a instalação do WebView. Siga o guia de atualização do WebView específico para seu modelo e verifique a compatibilidade do pacote, da versão do Android e da assinatura. Salve um relatório de suporte se a recusa persistir; repetir as tentativas não resolve uma incompatibilidade do pacote.",
     "webview_recovery_mismatch": "O WebView baixado não correspondia à atualização verificada. Mantenha o painel conectado e selecione Tentar novamente para baixá-lo de novo. Se isso se repetir, salve um relatório de suporte; não instale um APK não verificado.",
     "webview_recovery_uncertain": "Não foi possível confirmar o resultado da instalação. Mantenha o painel conectado e selecione Tentar novamente: o WebView instalado é verificado primeiro e uma nova tentativa só começa se a atualização ainda atender aos requisitos.",
-    "webview_recovery_retry": "A operação do WebView foi interrompida ou não conseguiu concluir a preparação. Verifique a conexão do painel e o espaço de armazenamento disponível e selecione Tentar novamente. Salve um relatório de suporte se isso se repetir."
+    "webview_recovery_retry": "A operação do WebView foi interrompida ou não conseguiu concluir a preparação. Verifique a conexão do painel e o espaço de armazenamento disponível e selecione Tentar novamente. Salve um relatório de suporte se isso se repetir.",
+    "webview_recovery_download": "The panel could not download its WebView update from panel-assistant.io, so it was not installed. Allow Home Assistant to reach https://panel-assistant.io, so it can download the update and hand it to the panel, or allow the panel to reach it, then select Try again. The Home Assistant log names what stopped the download."
   },
   "config": {
     "flow_title": "{name}",

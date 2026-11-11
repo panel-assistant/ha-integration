@@ -359,6 +359,13 @@ class InstallerFailureFlow(RepairsFlow):
             action = "mismatch"
         elif webview.get("transaction_state") == "submitted_unknown":
             action = "uncertain"
+        elif reason == "download_failed" and webview.get("transaction_cause") not in {
+            None,
+            "not_found",
+            "no_space",
+        }:
+            # The file did not arrive: name the server it comes from.
+            action = "download"
         elif reason in {
             "interrupted",
             "staging_failed",

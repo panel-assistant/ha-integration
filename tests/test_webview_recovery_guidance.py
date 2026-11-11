@@ -68,6 +68,27 @@ async def _retry(
                 "eligible",
                 "connection and available storage",
             ),
+            # A failed download names the server the file comes from.
+            (
+                "deferred",
+                "download_failed:unreachable",
+                "eligible",
+                "panel-assistant.io",
+            ),
+            (
+                "deferred",
+                "download_failed:unresolved",
+                "eligible",
+                "panel-assistant.io",
+            ),
+            ("deferred", "download_failed:http_503", "eligible", "panel-assistant.io"),
+            ("deferred", "download_failed:timed_out", "eligible", "panel-assistant.io"),
+            (
+                "deferred",
+                "download_failed:no_space",
+                "eligible",
+                "connection and available storage",
+            ),
             ("rejected", "install_refused", "eligible", "Android refused"),
             ("rejected", "artifact_mismatch", "eligible", "did not match"),
             ("submitted_unknown", "reply_lost", "eligible", "could not be confirmed"),
@@ -130,7 +151,10 @@ async def test_terminal_webview_repair_explains_the_next_action_and_keeps_retry_
     assert entity_id is not None
     terminal = observation(state, eligible=route == "eligible")
     terminal["reason"] = route
+    reason, _, cause = reason.partition(":")
     terminal["transaction"]["reason"] = reason
+    if cause:
+        terminal["transaction"]["cause"] = cause
     operations: list[str] = []
 
     async def manage(_hass: Any, _session: Any, operation: str, **_: Any) -> Any:

@@ -21,7 +21,13 @@ from .transport_sessions import (
     async_manage,
     session_manages,
 )
-from .webview import ACTIVE_STATES, WebViewStatus, parse_webview
+from .webview import (
+    ACTIVE_STATES,
+    WEBVIEW_HOST,
+    WebViewStatus,
+    download_cause_text,
+    parse_webview,
+)
 
 _LOGGER = logging.getLogger(__name__)
 # How long the first read waits for a restarting app to reconnect, leaving
@@ -223,6 +229,16 @@ async def async_update_webview(
                     status.candidate_sha256,
                 )
                 return "webview_download_deferred"
+            if status.download_failed:
+                # A Repair follows; the log names what stopped the file.
+                _LOGGER.warning(
+                    "%s could not download its WebView update %s: %s. Allow "
+                    "the panel to reach https://%s, then retry from the Repair",
+                    entry.title,
+                    status.candidate_sha256,
+                    download_cause_text(status.transaction_cause),
+                    WEBVIEW_HOST,
+                )
             return None if status.settled else "webview_deferred"
     except Exception as err:
         # An accepted request may have lost its answer. The durable panel record
