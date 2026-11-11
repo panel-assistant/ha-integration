@@ -88,6 +88,9 @@ VENDOR_SERVICE_TYPES: dict[str, str] = {"_shelly._tcp.local.": "Shelly Wall Disp
 # An ignored card keeps its address, because the same device can be raised by
 # the registries under one identity and by its ADB announcement under another.
 _IGNORED_ADDRESS = "ignored_address"
+# And every other address its announcement carried, so a later announcement of
+# the same device in the other address family is covered too.
+_IGNORED_HOSTS = "ignored_hosts"
 # Set in a card's own title placeholders the moment someone presses its button:
 # the flow is theirs from then on, though Core keeps reporting the card's step
 # until the press has been handled. The card's title shows only {name}.
@@ -98,6 +101,7 @@ CONFIRMED = "confirmed"
 RUNNING = "running"
 CLOSING = "closing"
 _DATA_DISCOVERY_NAMES = "discovery_names"
+_DATA_CARD_HOSTS = "discovery_card_hosts"
 _FRIENDLY_NAME_MAX_LENGTH = 64
 
 
@@ -261,16 +265,113 @@ def _unconfigured(
     }
 
 
-def offer_blocked(hass: HomeAssistant, address: str, flow_id: str) -> bool:
-    """Whether another card offers this address, or it was ignored."""
+def announced_hosts(discovery_info: ZeroconfServiceInfo) -> frozenset[str]:
+    """Every address an announcement carried that can name only one device.
+
+    One panel is announced by its app, by Android's network ADB and by its
+    vendor, each heard in whichever address family reached Home Assistant, so a
+    card keeps them all and two cards sharing one are the same panel. A
+    link-local address can repeat on another network, so it never joins two
+    cards. Host names are not used: Android's ADB announcement names every
+    device `Android.local`, and the app names its own after the panel id, so
+    the channels never share one that proves anything.
+    """
+    return frozenset(
+        str(address)
+        for address in (discovery_info.ip_address, *discovery_info.ip_addresses)
+        if not (
+            address.is_link_local
+            or address.is_loopback
+            or address.is_multicast
+            or address.is_unspecified
+            or getattr(address, "scope_id", None) is not None
+        )
+    )
+
+
+def _host_of(address: object) -> str | None:
+    """The host of a stored address, without its port."""
+    if not isinstance(address, str):
+        return None
+    try:
+        return normalize_address(address).host
+    except InvalidAddressError:
+        return None
+
+
+def _with_announced(own: str | None, announced: object) -> frozenset[str]:
+    """A card's own host, and its announcement's while it still names that device.
+
+    A card's form can be pointed at another panel; its address then changes and
+    the addresses its announcement carried no longer describe it.
+    """
+    if own is None:
+        return frozenset()
+    hosts = (
+        frozenset(h for h in announced if isinstance(h, str))
+        if isinstance(announced, (list, tuple, set, frozenset))
+        else frozenset()
+    )
+    return hosts | {own} if own in hosts else frozenset({own})
+
+
+def _card_hosts_store(hass: HomeAssistant) -> dict[str, frozenset[str]]:
+    """Each live card's announced addresses, by flow id."""
+    store: dict[str, frozenset[str]] = hass.data.setdefault(DOMAIN, {}).setdefault(
+        _DATA_CARD_HOSTS, {}
+    )
+    return store
+
+
+def _remember_hosts(hass: HomeAssistant, flow_id: str, hosts: object) -> None:
+    """Keep what this card's announcement carried, pruning finished cards."""
+    store = _card_hosts_store(hass)
+    live = {
+        progress["flow_id"]
+        for progress in hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    }
+    for stale in [f for f in store if f not in live and f != flow_id]:
+        del store[stale]
+    if isinstance(hosts, (list, tuple, set, frozenset)):
+        store[flow_id] = frozenset(h for h in hosts if isinstance(h, str))
+
+
+def _card_hosts(hass: HomeAssistant, flow: Any) -> frozenset[str]:
+    """Every host by which this card names its panel."""
+    return _with_announced(
+        _host_of(flow["context"].get("title_placeholders", {}).get("address")),
+        _card_hosts_store(hass).get(flow["flow_id"]),
+    )
+
+
+def _wanted(address: str, hosts: frozenset[str]) -> frozenset[str]:
+    own = _host_of(address)
+    return hosts | {own} if own is not None else hosts
+
+
+def offer_blocked(
+    hass: HomeAssistant,
+    address: str,
+    flow_id: str,
+    hosts: frozenset[str] = frozenset(),
+) -> bool:
+    """Whether another card offers this panel, or it was ignored.
+
+    The panel is the one at this address or at any other address its own
+    announcement carried (`hosts`).
+    """
+    wanted = _wanted(address, hosts)
     if any(
-        entry.source == SOURCE_IGNORE and entry.data.get(_IGNORED_ADDRESS) == address
+        entry.source == SOURCE_IGNORE
+        and wanted
+        & _with_announced(
+            _host_of(entry.data.get(_IGNORED_ADDRESS)), entry.data.get(_IGNORED_HOSTS)
+        )
         for entry in hass.config_entries.async_entries(DOMAIN)
     ):
         return True
     return any(
-        flow["flow_id"] != flow_id
-        and flow["context"].get("title_placeholders", {}).get("address") == address
+        flow["flow_id"] != flow_id and wanted & _card_hosts(hass, flow)
         for flow in hass.config_entries.flow.async_progress_by_handler(DOMAIN)
     )
 
@@ -283,8 +384,12 @@ def close_offers(
     *,
     pressed: bool = False,
     discovery_id: str | None = None,
+    hosts: frozenset[str] = frozenset(),
 ) -> None:
-    """Close every other card offering this address: its panel has a better one.
+    """Close every other card offering this panel: it has a better one.
+
+    The panel is the one at this address or any other its announcement
+    carried (`hosts`), so a card raised in the other address family closes too.
 
     Called where the panel's identity is proven at the address, by the app's
     own announcement or by an entry; every card is keyed by its channel, so
@@ -297,6 +402,7 @@ def close_offers(
     whose step is running is only asked to close, so a person's press never
     meets a vanished flow.
     """
+    wanted = _wanted(address, hosts)
     for flow in hass.config_entries.flow.async_progress_by_handler(DOMAIN):
         placeholders = flow["context"].get("title_placeholders", {})
         if (
@@ -304,7 +410,7 @@ def close_offers(
             or (
                 flow["context"].get("unique_id") != discovery_id
                 if discovery_id is not None
-                else placeholders.get("address") != address
+                else not wanted & _card_hosts(hass, flow)
             )
             or not (pressed or CONFIRMED not in placeholders)
         ):
@@ -315,14 +421,18 @@ def close_offers(
             hass.config_entries.flow.async_abort(flow["flow_id"])
 
 
-def ignored_card_data(hass: HomeAssistant, unique_id: str) -> dict[str, str]:
-    """Entry data for an Ignore: the address of the card being ignored, if any."""
+def ignored_card_data(hass: HomeAssistant, unique_id: str) -> dict[str, Any]:
+    """Entry data for an Ignore: the addresses of the card being ignored, if any."""
     for flow in hass.config_entries.flow.async_progress_by_handler(DOMAIN):
         if flow["context"].get("unique_id") != unique_id:
             continue
         address = flow["context"].get("title_placeholders", {}).get("address")
         if isinstance(address, str):
-            return {_IGNORED_ADDRESS: address}
+            data: dict[str, Any] = {_IGNORED_ADDRESS: address}
+            hosts = _card_hosts(hass, flow)
+            if len(hosts) > 1:
+                data[_IGNORED_HOSTS] = sorted(hosts)
+            return data
     return {}
 
 
@@ -486,17 +596,19 @@ async def async_integration_discovery(
     """Offer a panel another integration knows, unless ignored or added."""
     await flow.async_set_unique_id(discovery_info["key"])
     flow._abort_if_unique_id_configured()
+    hosts = frozenset(discovery_info.get("hosts", ()))
     # The registries and the ADB announcement can name one device twice.
-    if offer_blocked(flow.hass, discovery_info["address"], flow.flow_id):
+    if offer_blocked(flow.hass, discovery_info["address"], flow.flow_id, hosts):
         return flow.async_abort(reason="already_configured")
     target = await async_check_migration_target(flow.hass, discovery_info)
     if target is None:
         return flow.async_abort(reason="not_panel")
     # Again after the probe: the other route may have shown its card while
     # this one waited. Nothing awaits between here and publishing ours.
-    if offer_blocked(flow.hass, discovery_info["address"], flow.flow_id):
+    if offer_blocked(flow.hass, discovery_info["address"], flow.flow_id, hosts):
         return flow.async_abort(reason="already_configured")
     flow._migration_target = target
+    _remember_hosts(flow.hass, flow.flow_id, hosts)
     flow.context["title_placeholders"] = {
         "name": target.name,
         "address": target.address,
@@ -608,8 +720,10 @@ async def _async_discovered_app(
     if health.discovery_id != discovery_id:
         return flow.async_abort(reason="invalid_discovery")
     # The panel has just answered as itself here: whatever happens next, an
-    # install card for this address is the same panel on a weaker channel.
-    close_offers(flow.hass, address.stored_value, flow.flow_id)
+    # install card naming any address this announcement carried is the same
+    # panel on a weaker channel, in whichever address family it was heard.
+    hosts = announced_hosts(discovery_info)
+    close_offers(flow.hass, address.stored_value, flow.flow_id, hosts=hosts)
     for existing in flow.hass.config_entries.async_entries(DOMAIN):
         if reinstalled(flow.hass, existing, health) and not _entry_holds_its_address(
             flow, existing
@@ -646,9 +760,10 @@ async def _async_discovered_app(
         updates={CONF_ADDRESS: address.stored_value}, reload_on_update=False
     )
     # An Ignore on the card another channel showed covers the panel.
-    if offer_blocked(flow.hass, address.stored_value, flow.flow_id):
+    if offer_blocked(flow.hass, address.stored_value, flow.flow_id, hosts):
         return flow.async_abort(reason="already_configured")
 
+    _remember_hosts(flow.hass, flow.flow_id, hosts)
     flow._pending_address = address
     flow._pending_health = health
     # Without a title placeholder the card for every discovered panel falls back
@@ -672,6 +787,7 @@ async def _async_discovered_adb(
     )
     if candidate is None:
         return flow.async_abort(reason="not_panel")
+    candidate["hosts"] = sorted(announced_hosts(discovery_info))
     try:
         await HaPaneldClient(
             async_get_clientsession(flow.hass), normalize_address(host)
@@ -705,6 +821,7 @@ async def _async_discovered_vendor(
         )
         if candidate is None:
             return flow.async_abort(reason="not_panel")
+        candidate["hosts"] = sorted(announced_hosts(discovery_info))
         return await flow.async_step_integration_discovery(candidate)
     if health.discovery_id is None:
         return flow.async_abort(reason="invalid_discovery")
