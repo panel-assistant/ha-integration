@@ -5,9 +5,11 @@ from __future__ import annotations
 import asyncio
 import base64
 import binascii
+import logging
+import math
 import re
 from collections.abc import AsyncIterator
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from secrets import token_hex
 from typing import Any
 
@@ -15,12 +17,14 @@ from adb_shell.adb_device_async import AdbDeviceAsync
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from . import adb_protocol as adb
 from . import local_commands as typed
 from .client import (
     _PACKAGE_NAME_PATTERN,
     HandBackRefusedError,
+    HaPaneldClient,
     HaPaneldError,
     PanelAddress,
     UpdateApprovalRequiredError,
@@ -41,6 +45,8 @@ from .transport_sessions import (
 )
 
 LOCAL_ADB_APPROVAL_SECONDS = 600.0
+_LOGGER = logging.getLogger(__name__)
+
 LOCAL_ADB_RECOVERY_SECONDS = 300
 LOCAL_ADB_RECOVERY_OVERHEAD_SECONDS = 15
 LOCAL_ADB_RECOVERY_RETRY_SECONDS = 15
@@ -568,6 +574,64 @@ def recovery_wait(hass: HomeAssistant, entry: ConfigEntry) -> float:
     ):
         return 0
     return LOCAL_ADB_RECOVERY_SECONDS + LOCAL_ADB_RECOVERY_OVERHEAD_SECONDS
+
+
+@dataclass(frozen=True, slots=True)
+class HeldLease:
+    """The panel app answers without a session and keeps ADB off for us."""
+
+    #: Seconds until the owner's own Network ADB switch works; None: it does not.
+    switch_wait_s: int | None
+
+    def reason(self, prefix: str = "") -> tuple[str, dict[str, str]]:
+        """Name the text for this lease and the placeholders it needs."""
+        if self.switch_wait_s is None:
+            return f"{prefix}adb_lease", {}
+        if self.switch_wait_s == 0:
+            return f"{prefix}adb_lease_switch_now", {}
+        return f"{prefix}adb_lease_switch", {
+            "minutes": str(math.ceil(self.switch_wait_s / 60))
+        }
+
+
+async def async_held_lease(
+    hass: HomeAssistant,
+    entry: ConfigEntry | None,
+    address: PanelAddress,
+    purpose: str,
+) -> HeldLease | None:
+    """Whether ADB is closed by our own lease that no lapse will end.
+
+    Only without a session: the app answering on its own port is still
+    renewing, so waiting for the lease to lapse cannot help. An app that does
+    not answer, or reports it is not renewing, lets the lease lapse by itself.
+    """
+    if entry is not None and session_for(hass, entry) is not None:
+        return None
+    try:
+        status = await HaPaneldClient(
+            async_get_clientsession(hass), address
+        ).async_get_status()
+    except HaPaneldError, OSError, TimeoutError:
+        return None
+    if status.network_adb_managed is False:
+        return None
+    if status.network_adb_managed is None and (
+        entry is None or recovery_wait(hass, entry) == 0
+    ):
+        return None
+    _LOGGER.warning(
+        "%s on the panel at %s needs its Android Debug Bridge, which the panel "
+        "app keeps off while this Home Assistant manages it; the panel has no "
+        "session with Home Assistant, and its app answered on port %s (%s)",
+        purpose,
+        address.host,
+        address.port,
+        "reports managed"
+        if status.network_adb_managed
+        else "last session granted local ADB",
+    )
+    return HeldLease(status.network_adb_switch_wait_s)
 
 
 def require_recovery_identity(

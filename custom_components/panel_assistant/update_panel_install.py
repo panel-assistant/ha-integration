@@ -141,6 +141,12 @@ async def async_repair_update_permissions(
             if (
                 err.code is InstallAdbErrorCode.TARGET_UNREACHABLE
                 and attempt + 1 < _PERMISSION_REPAIR_ATTEMPTS
+                and not await local_adb.async_held_lease(
+                    hass,
+                    coordinator._entry(),
+                    coordinator.client.address,
+                    "Repairing permissions after an update",
+                )
             ):
                 _LOGGER.debug(
                     "ADB on %s not answering yet after the update; retrying",
