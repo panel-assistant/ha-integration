@@ -3,7 +3,7 @@
 from dataclasses import replace
 from ipaddress import ip_address
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant import config_entries
@@ -119,6 +119,16 @@ def install_network_pin() -> SimpleNamespace:
 def _probe(state: str, **facts: str | int | None) -> InstallTargetProbe:
     """Return the provisioning probe shape consumed by the config flow."""
     return InstallTargetProbe(state=InstallTargetState(state), **facts)
+
+
+def _executor_for() -> SimpleNamespace:
+    """Return the narrow detached-worker API the progress steps use."""
+    return SimpleNamespace(
+        async_ensure_job=AsyncMock(return_value=None),
+        async_end_stalled_jobs=AsyncMock(return_value=()),
+        async_wait=AsyncMock(),
+        is_updating_webview=MagicMock(return_value=False),
+    )
 
 
 async def _start_step(hass: HomeAssistant, step_id: str) -> dict:

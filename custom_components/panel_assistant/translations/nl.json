@@ -111,6 +111,24 @@
       "install_result": {
         "title": "De paneelconfiguratie afronden",
         "description": "Panel Assistant {version} is geïnstalleerd op {address}.\n\nKlik op ‘Verzenden’ om alleen de laatste identiteits- en statuscontroles (alleen-lezen) opnieuw uit te voeren. Er worden geen installatiestappen herhaald.\n\nNadat Home Assistant het apparaat heeft toegevoegd, volg je de browserlink voor de installatie in het dialoogvenster Toevoegen op een computer die het paneel via het lokale netwerk kan bereiken. Keur ADB op het paneel goed als daarom wordt gevraagd."
+      },
+      "install_unfinished": {
+        "title": "This panel has an unfinished install",
+        "description": "Home Assistant already started installing Panel Assistant {version} on this panel, as {existing_address}, and that install has not finished.\n\nYou can carry on with it, or cancel it and start again at {address}.",
+        "menu_options": {
+          "resume_install": "Carry on with that install",
+          "cancel_install": "Cancel it and start again"
+        },
+        "menu_option_descriptions": {
+          "cancel_install": "Nothing is removed from the panel. If the app is already installed it stays, and Home Assistant looks at the panel afresh."
+        }
+      },
+      "install_unfinished_busy": {
+        "title": "This panel has an unfinished install",
+        "description": "Home Assistant is installing Panel Assistant {version} on this panel right now, as {existing_address}. It cannot be cancelled while it is changing the panel.\n\nCarry on with it to see it finish.",
+        "menu_options": {
+          "resume_install": "Carry on with that install"
+        }
       }
     },
     "progress": {
@@ -141,7 +159,6 @@
       "install_candidate_changed": "De identiteit van het paneel of de schone pakketstatus is na het voorbeeld veranderd. Er is geen installatietaak aangemaakt. Begin opnieuw nadat je het paneel hebt gecontroleerd.",
       "installed_artifact_mismatch": "De geïnstalleerde app is niet byte-voor-byte identiek aan de release die je hebt gekozen, dus Home Assistant heeft deze niet overschreven; kies precies die release of volg de stappen op {recovery_address}.",
       "install_plan_rejected": "Het paneel en de ondertekende release konden niet worden gekoppeld tot een veilig installatieplan. Er is geen installatietaak aangemaakt.",
-      "install_job_conflict": "Een andere installatietaak heeft deze paneel-ID al in gebruik. Er is geen tweede taak aangemaakt.",
       "install_receipt_error": "Home Assistant kon het installatiebewijs niet veilig laden of opslaan. Er is geen nieuwe paneelactie toegestaan.",
       "install_finalization_busy": "Een ander installatievenster rondt dit paneel nog af. Wacht tot het klaar is en probeer het daarna zo nodig nog eens.",
       "install_finalization_retry": "De installatie is voltooid, maar een laatste netwerk-, ADB- of statuscontrole (alleen-lezen) is tijdelijk niet beschikbaar. Controleer het paneel en probeer het opnieuw; de installatie wordt niet nog een keer uitgevoerd.",

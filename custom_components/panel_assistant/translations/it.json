@@ -111,6 +111,24 @@
       "install_result": {
         "title": "Completa la configurazione del pannello",
         "description": "Panel Assistant {version} è stato installato all'indirizzo {address}.\n\nSeleziona Invia per ripetere solo i controlli finali in sola lettura dell'identità e dello stato di funzionamento. Nessun passaggio dell'installazione verrà ripetuto.\n\nDopo che Home Assistant avrà aggiunto il dispositivo, segui il link alla configurazione nel browser nella finestra Aggiungi da un computer che può raggiungere il pannello sulla rete locale. Se richiesto, autorizza ADB sul pannello."
+      },
+      "install_unfinished": {
+        "title": "This panel has an unfinished install",
+        "description": "Home Assistant already started installing Panel Assistant {version} on this panel, as {existing_address}, and that install has not finished.\n\nYou can carry on with it, or cancel it and start again at {address}.",
+        "menu_options": {
+          "resume_install": "Carry on with that install",
+          "cancel_install": "Cancel it and start again"
+        },
+        "menu_option_descriptions": {
+          "cancel_install": "Nothing is removed from the panel. If the app is already installed it stays, and Home Assistant looks at the panel afresh."
+        }
+      },
+      "install_unfinished_busy": {
+        "title": "This panel has an unfinished install",
+        "description": "Home Assistant is installing Panel Assistant {version} on this panel right now, as {existing_address}. It cannot be cancelled while it is changing the panel.\n\nCarry on with it to see it finish.",
+        "menu_options": {
+          "resume_install": "Carry on with that install"
+        }
       }
     },
     "progress": {
@@ -141,7 +159,6 @@
       "install_candidate_changed": "Dopo l'anteprima, l'identità del pannello è cambiata oppure non è più possibile confermare che il pacchetto sia assente. Non è stato creato alcun processo di installazione. Controlla il pannello e ricomincia.",
       "installed_artifact_mismatch": "L'app installata non è identica byte per byte alla versione scelta, quindi Home Assistant non l'ha sovrascritta; scegli la sua versione esatta o segui i passaggi all'indirizzo {recovery_address}.",
       "install_plan_rejected": "Non è stato possibile vincolare il pannello e la versione firmata a un piano di installazione sicuro. Non è stato creato alcun processo di installazione.",
-      "install_job_conflict": "Un altro processo di installazione è già associato all'identità di questo pannello. Non è stato creato un secondo processo.",
       "install_receipt_error": "Home Assistant non è riuscito a caricare o conservare in modo sicuro la ricevuta di installazione. Non è stata autorizzata alcuna nuova operazione sul pannello.",
       "install_finalization_busy": "La configurazione di questo pannello è in fase di completamento in un'altra finestra di dialogo. Attendi che termini, quindi riprova se necessario.",
       "install_finalization_retry": "L'installazione è stata completata, ma uno dei controlli finali in sola lettura — della rete, di ADB o dello stato di funzionamento — è temporaneamente indisponibile. Controlla il pannello e riprova; l'installazione non verrà eseguita nuovamente.",
