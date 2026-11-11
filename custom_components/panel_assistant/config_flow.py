@@ -50,6 +50,7 @@ from .adb_credentials import (
     async_get_durable_adb_credential,
 )
 from .adb_protocol import InstallAdbError, same_physical_target
+from .announced_addresses import hand_over_addresses
 from .browser_delivery import async_register_browser_delivery
 from .browser_panel import PANEL_PATH, async_register_browser_panel
 from .client import (
@@ -88,7 +89,6 @@ from .discovery import (
     close_offers,
     closes_when_done,
     configured_entries_for_host,
-    hand_over_addresses,
     markdown_literal,
 )
 from .foreign_ha import async_connected_to_other_ha, async_raise_foreign_ha_issue
