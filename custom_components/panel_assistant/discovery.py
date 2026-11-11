@@ -79,6 +79,9 @@ _COMPANION_IP_SUFFIX = "_wifi_ip_address"
 # telephony (`FEATURE_TELEPHONY`): a phone, never a wall panel.
 _COMPANION_TELEPHONY_SUFFIXES = ("_phone_state", "_mobile_data", "_sim_1")
 _ADB_PROBE_SECONDS = 2
+# Asking a waiting card's address whether the panel just proven answers there.
+_SAME_PANEL_PROBE_SECONDS = 2
+_SAME_PANEL_PROBE_CARDS = 8
 # Android's adbd advertises this while network ADB listens (manifest zeroconf).
 ADB_SERVICE_TYPE = "_adb._tcp.local."
 # Services a panel's own vendor software announces, whether or not the app runs,
@@ -724,6 +727,7 @@ async def _async_discovered_app(
     # panel on a weaker channel, in whichever address family it was heard.
     hosts = announced_hosts(discovery_info)
     close_offers(flow.hass, address.stored_value, flow.flow_id, hosts=hosts)
+    await _async_close_cards_answering_as(flow, discovery_id)
     for existing in flow.hass.config_entries.async_entries(DOMAIN):
         if reinstalled(flow.hass, existing, health) and not _entry_holds_its_address(
             flow, existing
@@ -772,6 +776,55 @@ async def _async_discovered_app(
     # panel id only when there is no usable name or the name is already taken.
     _apply_discovery_title(flow)
     return _show_discovery_confirmation(flow)
+
+
+async def _async_close_cards_answering_as(
+    flow: HaPaneldConfigFlow, discovery_id: str
+) -> None:
+    """Close each waiting card whose own address answers as this panel.
+
+    A card raised before the app was installed, by an announcement heard in
+    the other address family, shares no address with the app's announcement.
+    The app answers on every address its panel has, so asking a waiting card's
+    address who is there finds the same panel under its other name. A few
+    cards are asked, each for a moment; one someone has pressed stays theirs.
+    """
+    hass = flow.hass
+    session = async_get_clientsession(hass)
+    waiting: list[str] = []
+    for card in hass.config_entries.flow.async_progress_by_handler(DOMAIN):
+        placeholders = card["context"].get("title_placeholders", {})
+        address = placeholders.get("address")
+        unique_id = card["context"].get("unique_id")
+        if (
+            card["flow_id"] != flow.flow_id
+            # An app card has already answered as its own panel.
+            and not (isinstance(unique_id, str) and is_valid_discovery_id(unique_id))
+            and isinstance(address, str)
+            and address not in waiting
+        ):
+            waiting.append(address)
+
+    async def answers_as_panel(address: str) -> bool:
+        try:
+            async with asyncio.timeout(_SAME_PANEL_PROBE_SECONDS):
+                health = await HaPaneldClient(
+                    session, normalize_address(address)
+                ).async_get_health()
+        except CannotConnectError, InvalidResponseError, InvalidAddressError:
+            return False
+        except TimeoutError:
+            return False
+        return health.discovery_id == discovery_id
+
+    asked = waiting[:_SAME_PANEL_PROBE_CARDS]
+    for address, same in zip(
+        asked,
+        await asyncio.gather(*(answers_as_panel(address) for address in asked)),
+        strict=True,
+    ):
+        if same:
+            close_offers(hass, address, flow.flow_id)
 
 
 async def _async_discovered_adb(

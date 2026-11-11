@@ -7,6 +7,7 @@ announcement carried, and cards sharing one are the same panel.
 """
 
 import asyncio
+from dataclasses import replace
 from ipaddress import ip_address
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -16,7 +17,11 @@ from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
-from custom_components.panel_assistant.client import CannotConnectError
+from custom_components.panel_assistant.client import (
+    CannotConnectError,
+    HaPaneldClient,
+    PanelHealth,
+)
 from custom_components.panel_assistant.const import DOMAIN
 
 from .test_migration_targets import APP_HEALTH, HEALTH_CHECK, _ignore_card, _offers
@@ -51,9 +56,28 @@ async def _adb(
         await hass.async_block_till_done()
 
 
-async def _app(hass: HomeAssistant, addresses: list[str], health=APP_HEALTH) -> None:
-    """The app's own announcement, its health answering as the panel."""
-    with patch(HEALTH_CHECK, AsyncMock(return_value=health)):
+async def _app(
+    hass: HomeAssistant,
+    addresses: list[str],
+    health=APP_HEALTH,
+    also_answers_at: tuple[str, ...] = (),
+    others: dict[str, PanelHealth] | None = None,
+) -> None:
+    """The app's own announcement, its health answering as the panel.
+
+    The app answers at the addresses it announced and at any other address its
+    panel has; every other address is another device, where no app answers.
+    """
+    panel = {*addresses, *also_answers_at}
+
+    async def _health(client: HaPaneldClient) -> PanelHealth:
+        if client.address.host in panel:
+            return health
+        if others and client.address.host in others:
+            return others[client.address.host]
+        raise CannotConnectError
+
+    with patch(HEALTH_CHECK, _health):
         await hass.config_entries.flow.async_init(
             DOMAIN,
             context={"source": config_entries.SOURCE_ZEROCONF},
@@ -162,3 +186,40 @@ async def test_pressed_adb_card_keeps_the_panel_when_the_app_announces_in_ipv6(
     await asyncio.sleep(0)
 
     assert [flow["flow_id"] for flow in _offers(hass)] == [card["flow_id"]]
+
+
+async def test_a_card_from_before_the_app_closes_when_its_address_answers_as_the_panel(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """Nothing announced is shared, but the IPv4 card's address is the same panel."""
+    adb_open.open.add(IPV4)
+    await _adb(hass, [IPV4])
+    assert _unique_ids(hass) == [ADB_UID]
+
+    await _app(hass, [IPV6], also_answers_at=(IPV4,))
+
+    assert _unique_ids(hass) == [APP_HEALTH.discovery_id]
+
+
+async def test_a_card_whose_address_does_not_answer_as_the_panel_stays(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """Another device's card, at an address the panel does not answer on, is kept."""
+    adb_open.open.add(IPV4)
+    await _adb(hass, [IPV4])
+
+    await _app(hass, [IPV6])
+
+    assert sorted(_unique_ids(hass)) == sorted([ADB_UID, APP_HEALTH.discovery_id])
+
+
+async def test_a_card_at_an_address_where_another_panel_answers_stays(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """An answer is not enough: it must be the panel that was just proven."""
+    adb_open.open.add(IPV4)
+    await _adb(hass, [IPV4])
+
+    await _app(hass, [IPV6], others={IPV4: replace(APP_HEALTH, discovery_id="c" * 64)})
+
+    assert sorted(_unique_ids(hass)) == sorted([ADB_UID, APP_HEALTH.discovery_id])

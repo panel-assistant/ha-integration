@@ -443,15 +443,13 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="unknown")
         try:
             executor = await async_get_install_executor(self.hass)
-            ended = await executor.async_cancel_job(self._unfinished_job_id)
+            await executor.async_cancel_job(self._unfinished_job_id)
         except InstallJobError as err:
             self._refusal_cause = err
             return self.async_abort(reason="install_receipt_error")
-        if ended is None:
-            # It is changing the panel, or has not stopped yet: only carrying
-            # on is safe to offer until it has.
-            return await self.async_step_install_unfinished()
-        return await self.async_step_add_panel(self._unfinished_input)
+        # Ended: the panel is looked at afresh. Still changing the panel, or
+        # not stopped yet: the menu is shown again as it stands now.
+        return await self.async_step_install_unfinished()
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None

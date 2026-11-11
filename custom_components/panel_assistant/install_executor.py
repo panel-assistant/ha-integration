@@ -829,12 +829,11 @@ class InstallExecutor:
             return receipt
         task = self._tasks.get(job_id)
         if task is not None:
-            if receipt.phase not in _CANCELLABLE_PHASES:
-                return None
             try:
                 await self._manager.async_request_cancel(job_id, receipt.revision)
             except InstallJobRevisionError, InstallJobTransitionError:
-                # The worker moved on between the read and the request.
+                # It is changing the panel, or the worker moved on between the
+                # read and the request.
                 return None
             await asyncio.wait({task}, timeout=_CANCEL_WAIT_SECONDS)
             receipt = await self._manager.async_get(job_id)

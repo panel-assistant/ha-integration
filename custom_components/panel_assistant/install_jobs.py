@@ -1023,14 +1023,14 @@ class InstallJobManager:
         async with self._lock:
             jobs = (await self._async_load_locked(refresh=True)).copy()
             current = self._checked_current(jobs, job_id, expected_revision)
-            if current.is_terminal:
-                raise InstallJobTransitionError
             if (
                 isinstance(cleanup_confirmed_revision, bool)
                 or not isinstance(cleanup_confirmed_revision, int)
                 or cleanup_confirmed_revision != current.revision
             ):
                 raise InstallJobRevisionError
+            # A job that already ended falls through to the last branch, where
+            # the receipt invariants refuse an ended stage as a failure stage.
             ended = replace(
                 current,
                 revision=current.revision + 1,

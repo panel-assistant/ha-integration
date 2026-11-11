@@ -219,6 +219,7 @@ async def test_cancelling_an_unstarted_install_frees_the_panel_for_a_new_one(
         menu = await _add(hass, SEEDED_IP)
         version = await _choose(hass, menu, "cancel_install")
         ended = await _stored(hass, receipt.job_id)
+        removed_before_ending = list(harness.local_cleanup_job_ids)
         preview = await _choose_version(hass, version)
         progress = await hass.config_entries.flow.async_configure(
             preview["flow_id"], {}
@@ -228,7 +229,7 @@ async def test_cancelling_an_unstarted_install_frees_the_panel_for_a_new_one(
     assert ended.phase is InstallPhase.CANCELLED
     assert ended.result_code is InstallResultCode.CANCELLED_BY_USER
     assert ended.cancel_requested
-    assert harness.local_cleanup_job_ids, "the old job's download is removed first"
+    assert len(removed_before_ending) == 1, "the old job's download is removed first"
     assert progress["type"] is FlowResultType.SHOW_PROGRESS
     jobs = await (await async_get_install_job_manager(hass)).async_list()
     fresh = [job for job in jobs if job.job_id != receipt.job_id]
@@ -272,14 +273,20 @@ async def test_carrying_on_resumes_the_same_job_under_its_own_address(
     """Carry on attaches to the install already started; no second job exists."""
     harness.expected_version = "0.1.0"
     receipt, _manager = await seed_phase(hass, InstallPhase.DOWNLOADING)
+    harness.stage_entered = asyncio.Event()
+    harness.stage_release = asyncio.Event()
 
     menu = await _add(hass, SEEDED_IP)
     progress = await _choose(hass, menu, "resume_install")
+    await harness.stage_entered.wait()
+    reopened = await hass.config_entries.flow.async_configure(progress["flow_id"])
+    harness.stage_release.set()
     await hass.async_block_till_done()
 
-    assert progress["type"] is FlowResultType.SHOW_PROGRESS
-    assert progress["step_id"] == "install_progress"
-    assert progress["description_placeholders"] == {"address": SEEDED.address}
+    for shown in (progress, reopened):
+        assert shown["type"] is FlowResultType.SHOW_PROGRESS
+        assert shown["step_id"] == "install_progress"
+        assert shown["description_placeholders"] == {"address": SEEDED.address}
     jobs = await (await async_get_install_job_manager(hass)).async_list()
     assert [job.job_id for job in jobs] == [receipt.job_id]
     assert jobs[0].phase is InstallPhase.HEALTHY_UNCLAIMED
