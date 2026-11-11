@@ -19,6 +19,7 @@ import hashlib
 import logging
 import os
 import shutil
+import tempfile
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -255,8 +256,12 @@ def async_get_webview_supply(hass: HomeAssistant) -> WebViewSupply:
     data = hass.data.setdefault(DOMAIN, {})
     supply: WebViewSupply | None = data.get(DATA_SUPPLY)
     if supply is None:
+        # Outside the configuration directory, so a backup taken while a
+        # panel updates never carries a 262 MB WebView. One directory per
+        # configuration, so a restart finds and clears its own leftovers.
+        config = hashlib.sha256(hass.config.config_dir.encode()).hexdigest()[:16]
         supply = data[DATA_SUPPLY] = WebViewSupply(
-            hass, hass.config.path(".storage", _DIRECTORY)
+            hass, os.path.join(tempfile.gettempdir(), f"{_DIRECTORY}-{config}")
         )
     return supply
 
