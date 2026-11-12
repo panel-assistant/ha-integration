@@ -10,7 +10,7 @@
     "webview_recovery_mismatch": "Завантажений WebView не відповідав перевіреному оновленню. Залиште панель підключеною й виберіть Спробувати ще раз, щоб завантажити його знову. Якщо це повторюється, збережіть звіт для підтримки; не встановлюйте неперевірений файл APK.",
     "webview_recovery_uncertain": "Не вдалося підтвердити результат встановлення. Залиште панель підключеною й виберіть Спробувати ще раз: спочатку перевіряється встановлений WebView, а нова спроба починається лише тоді, коли оновлення все ще відповідає необхідним умовам.",
     "webview_recovery_retry": "Операцію WebView було перервано або не вдалося завершити її підготовку. Перевірте підключення панелі та доступне місце у сховищі, а потім виберіть Спробувати ще раз. Якщо це повторюється, збережіть звіт для підтримки.",
-    "webview_recovery_download": "The panel could not download its WebView update from panel-assistant.io, so it was not installed. Allow Home Assistant to reach https://panel-assistant.io, so it can download the update and hand it to the panel, or allow the panel to reach it, then select Try again. The Home Assistant log names what stopped the download."
+    "webview_recovery_download": "The panel could not download its WebView update from panel-assistant.io, so it was not installed. Allow Home Assistant to reach {webview_site}, so it can download the update and hand it to the panel, or allow the panel to reach it, then select Try again. The Home Assistant log names what stopped the download."
   },
   "config": {
     "flow_title": "{name}",

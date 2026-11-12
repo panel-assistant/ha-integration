@@ -82,6 +82,7 @@ from .transport_binding import (
     async_confirmable_user,
     async_delete_binding_issue,
 )
+from .webview import WEBVIEW_HOST
 
 ABORT_ENTRY_REMOVED = "entry_removed"
 ABORT_USER_UNAVAILABLE = "user_unavailable"
@@ -378,7 +379,10 @@ class InstallerFailureFlow(RepairsFlow):
         )
         prefix = f"component.{DOMAIN}.common.webview_recovery_"
         return {
-            "webview_guidance": strings[f"{prefix}{action}"],
+            # Hassfest refuses a URL in a string: the site arrives as a placeholder.
+            "webview_guidance": strings[f"{prefix}{action}"].replace(
+                "{webview_site}", f"https://{WEBVIEW_HOST}"
+            ),
             "webview_guide_url": help_url("update-webview"),
         }
 

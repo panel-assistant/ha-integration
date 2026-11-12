@@ -10,7 +10,7 @@
     "webview_recovery_mismatch": "El WebView descargado no coincidía con la actualización verificada. Mantén el panel conectado y selecciona Reintentar para descargarlo de nuevo. Si se repite, guarda un informe de soporte; no instales un APK sin verificar.",
     "webview_recovery_uncertain": "No se ha podido confirmar el resultado de la instalación. Mantén el panel conectado y selecciona Reintentar: primero se comprueba el WebView instalado y solo se inicia un nuevo intento si la actualización sigue cumpliendo los requisitos.",
     "webview_recovery_retry": "La operación de WebView se ha interrumpido o no ha podido terminar su preparación. Comprueba la conexión del panel y el almacenamiento disponible, y selecciona Reintentar. Guarda un informe de soporte si se repite.",
-    "webview_recovery_download": "The panel could not download its WebView update from panel-assistant.io, so it was not installed. Allow Home Assistant to reach https://panel-assistant.io, so it can download the update and hand it to the panel, or allow the panel to reach it, then select Try again. The Home Assistant log names what stopped the download."
+    "webview_recovery_download": "The panel could not download its WebView update from panel-assistant.io, so it was not installed. Allow Home Assistant to reach {webview_site}, so it can download the update and hand it to the panel, or allow the panel to reach it, then select Try again. The Home Assistant log names what stopped the download."
   },
   "config": {
     "flow_title": "{name}",
