@@ -379,7 +379,12 @@ def record_install_failure(hass: HomeAssistant, receipt: InstallJobReceipt) -> N
 
 def clear_install_failure(hass: HomeAssistant, receipt: InstallJobReceipt) -> None:
     """A successful install makes its old error obsolete."""
-    issue_id = panel_failure_issue_id(f"install:{receipt.target.adb_serial}")
+    clear_install_failure_of(hass, receipt.target.adb_serial)
+
+
+def clear_install_failure_of(hass: HomeAssistant, adb_serial: str) -> None:
+    """Clear the install failure Repair of the panel with this ADB serial."""
+    issue_id = panel_failure_issue_id(f"install:{adb_serial}")
     hass.async_create_task(
         _failure_store(hass).clear(
             issue_id, lambda: ir.async_delete_issue(hass, DOMAIN, issue_id)

@@ -141,7 +141,7 @@ from .removal import (
     async_read_firmware,
     async_remove_app,
 )
-from .repairs_failure import async_clear_adb_authorization
+from .repairs_failure import async_clear_adb_authorization, clear_install_failure_of
 from .repairs_removal import async_request_removal
 from .repairs_update_route import help_parameters
 from .repairs_upgrade import ISSUE_OLD_APP_NEEDS_090, runs_old_app
@@ -2063,6 +2063,11 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             # Core skips async_on_create_entry when it replaces Ignore. The
             # explicit flow is committing now, so its other cards can close.
             close_offers(self.hass, address.stored_value, self.flow_id, pressed=True)
+        if health.adb_serial is not None:
+            # The panel's own app answers as the panel an install failed on, so
+            # that install's Repair no longer holds. Matched by the serial the
+            # app reports, never by address: an address can be another panel.
+            clear_install_failure_of(self.hass, health.adb_serial)
         # A discovered panel keeps the name its card promised. A manually added one
         # has no advertisement to read, so it stays on the panel id.
         return self.async_create_entry(
