@@ -9,7 +9,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field, replace
 from functools import partial
-from typing import Any, Self
+from typing import Any, Final, Self
 
 import voluptuous as vol
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
@@ -1315,9 +1315,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return None
         return {
             "base": {
-                "adb_unauthorized": "adb_still_unauthorized",
+                **_ADB_LOST_ERRORS,
                 "migration_candidate": "old_app_installed",
-                "adb_unreachable": "adb_unreachable",
                 "incompatible": "incompatible",
             }.get(state, "retained_or_ambiguous")
         }
@@ -1405,8 +1404,14 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 f"now={probe.state.value} "
                 f"same_device={same_physical_target(probe, self._pending_probe)}"
             )
+            # ADB stopped answering or no longer allows this Home Assistant:
+            # the panel did not change, so name ADB as the authorize step does.
             return self._show_install_candidate_preview(
-                {"base": "install_candidate_changed"}
+                {
+                    "base": _ADB_LOST_ERRORS.get(
+                        probe.state.value, "install_candidate_changed"
+                    )
+                }
             )
 
         if probe.state is InstallTargetState.INSTALLED:
@@ -2073,6 +2078,12 @@ for _name, _step in list(vars(HaPaneldConfigFlow).items()):
 
 
 _FRIENDLY_NAME_MAX_LENGTH = 64
+# What a probe that finds ADB closed, or no longer allowing this Home
+# Assistant, is shown as once the panel's identity is known.
+_ADB_LOST_ERRORS: Final = {
+    "adb_unauthorized": "adb_still_unauthorized",
+    "adb_unreachable": "adb_unreachable",
+}
 
 
 def _install_candidate_placeholders(
