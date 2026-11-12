@@ -1787,8 +1787,8 @@
       "description": "{panel} está conectado, mas seu endereço salvo {address} está inacessível para operações que precisam dele.\n\nPara corrigir:\n1. [Abra os dispositivos do Panel Assistant]({integration_url}).\n2. Se o endereço do painel mudou, adicione-o novamente usando o endereço atual.\n3. Caso contrário, restaure o acesso a {address}; este reparo desaparece quando esse endereço responder como este painel."
     },
     "panel_address_unverified": {
-      "title": "{panel} mudou de endereço, e não foi possível confirmar o novo endereço",
-      "description": "{panel} está conectado, mas nem {address} nem o endereço sugerido {session_address} puderam ser confirmados para operações que precisam do endereço do painel.\n\nPara corrigir:\n1. [Abra os dispositivos do Panel Assistant]({integration_url}).\n2. Se o endereço do painel mudou, adicione-o novamente usando o endereço atual.\n3. Caso contrário, restaure o acesso a {address}; este reparo desaparece quando esse endereço responder como este painel."
+      "title": "Can't reach {panel} at {address} or {session_address}",
+      "description": "{panel} is connected, but Home Assistant cannot reach it at its stored address {address}, or at {session_address}, the address its connection reports. Some actions need one of them.\n\nTo fix:\n1. Let Home Assistant reach the panel at {address} again. A firewall may be blocking it. This clears when the panel answers, as shown in [Panel Assistant devices]({integration_url}).\n2. If the panel has moved, add it again there at its current address."
     },
     "panel_identity_mismatch": {
       "title": "Verificar o endereço de {panel}",

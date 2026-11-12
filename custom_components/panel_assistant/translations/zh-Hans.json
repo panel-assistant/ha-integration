@@ -1787,8 +1787,8 @@
       "description": "{panel} 已连接，但无法访问其已保存的地址 {address}，因此需要使用该地址的操作无法进行。\n\n解决方法：\n1. [打开 Panel Assistant 设备页面]({integration_url})。\n2. 如果面板地址已更改，请使用当前地址重新添加。\n3. 否则，请恢复对 {address} 的访问；该地址以此面板的身份响应后，此提示会消失。"
     },
     "panel_address_unverified": {
-      "title": "{panel} 已迁移，但无法确认其新地址",
-      "description": "{panel} 已连接，但无法确认 {address} 或建议地址 {session_address} 是否可用于需要面板地址的操作。\n\n解决方法：\n1. [打开 Panel Assistant 设备页面]({integration_url})。\n2. 如果面板地址已更改，请使用当前地址重新添加。\n3. 否则，请恢复对 {address} 的访问；该地址以此面板的身份响应后，此提示会消失。"
+      "title": "Can't reach {panel} at {address} or {session_address}",
+      "description": "{panel} is connected, but Home Assistant cannot reach it at its stored address {address}, or at {session_address}, the address its connection reports. Some actions need one of them.\n\nTo fix:\n1. Let Home Assistant reach the panel at {address} again. A firewall may be blocking it. This clears when the panel answers, as shown in [Panel Assistant devices]({integration_url}).\n2. If the panel has moved, add it again there at its current address."
     },
     "panel_identity_mismatch": {
       "title": "检查 {panel} 的地址",

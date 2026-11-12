@@ -1787,8 +1787,8 @@
       "description": "Panel {panel} je připojený, ale jeho uložená adresa {address} není dostupná pro operace, které ji vyžadují.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant]({integration_url}).\n2. Pokud se adresa panelu změnila, přidejte ho znovu pomocí jeho aktuální adresy.\n3. Jinak obnovte přístup k adrese {address}; tato oprava zmizí, až na ní odpoví tento panel."
     },
     "panel_address_unverified": {
-      "title": "Panel {panel} se přesunul a jeho novou adresu se nepodařilo potvrdit",
-      "description": "Panel {panel} je připojený, ale pro operace vyžadující jeho adresu se nepodařilo ověřit ani adresu {address}, ani navrženou adresu {session_address}.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant]({integration_url}).\n2. Pokud se adresa panelu změnila, přidejte ho znovu pomocí jeho aktuální adresy.\n3. Jinak obnovte přístup k adrese {address}; tato oprava zmizí, až na ní odpoví tento panel."
+      "title": "Can't reach {panel} at {address} or {session_address}",
+      "description": "{panel} is connected, but Home Assistant cannot reach it at its stored address {address}, or at {session_address}, the address its connection reports. Some actions need one of them.\n\nTo fix:\n1. Let Home Assistant reach the panel at {address} again. A firewall may be blocking it. This clears when the panel answers, as shown in [Panel Assistant devices]({integration_url}).\n2. If the panel has moved, add it again there at its current address."
     },
     "panel_identity_mismatch": {
       "title": "Zkontrolovat adresu panelu {panel}",

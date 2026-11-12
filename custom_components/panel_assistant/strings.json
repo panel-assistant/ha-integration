@@ -1787,8 +1787,8 @@
       "description": "{panel} is connected, but its stored address {address} cannot be reached for operations that need it.\n\nTo fix:\n1. [Open Panel Assistant devices]({integration_url}).\n2. If the panel moved, add it again using its current address.\n3. Otherwise, restore access to {address}; this clears when it answers as this panel."
     },
     "panel_address_unverified": {
-      "title": "{panel} has moved, and its new address could not be confirmed",
-      "description": "{panel} is connected, but neither {address} nor the suggested address {session_address} could be confirmed for operations that need the panel’s address.\n\nTo fix:\n1. [Open Panel Assistant devices]({integration_url}).\n2. If the panel moved, add it again using its current address.\n3. Otherwise, restore access to {address}; this clears when it answers as this panel."
+      "title": "Can't reach {panel} at {address} or {session_address}",
+      "description": "{panel} is connected, but Home Assistant cannot reach it at its stored address {address}, or at {session_address}, the address its connection reports. Some actions need one of them.\n\nTo fix:\n1. Let Home Assistant reach the panel at {address} again. A firewall may be blocking it. This clears when the panel answers, as shown in [Panel Assistant devices]({integration_url}).\n2. If the panel has moved, add it again there at its current address."
     },
     "panel_identity_mismatch": {
       "title": "Check the address for {panel}",

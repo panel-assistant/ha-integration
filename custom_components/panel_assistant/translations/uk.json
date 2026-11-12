@@ -1787,8 +1787,8 @@
       "description": "{panel} підключена, але її збережена адреса {address} недоступна для операцій, яким вона потрібна.\n\nЩоб виправити:\n1. [Відкрийте пристрої Panel Assistant]({integration_url}).\n2. Якщо адреса панелі змінилася, додайте її знову за поточною адресою.\n3. Інакше відновіть доступ до {address}; це повідомлення зникне, коли за цією адресою відповідатиме саме ця панель."
     },
     "panel_address_unverified": {
-      "title": "{panel} переїхала, і її нову адресу не вдалося підтвердити",
-      "description": "{panel} підключена, але ані адресу {address}, ані запропоновану адресу {session_address} не вдалося підтвердити для операцій, яким потрібна адреса панелі.\n\nЩоб виправити:\n1. [Відкрийте пристрої Panel Assistant]({integration_url}).\n2. Якщо адреса панелі змінилася, додайте її знову за поточною адресою.\n3. Інакше відновіть доступ до {address}; це повідомлення зникне, коли за цією адресою відповідатиме саме ця панель."
+      "title": "Can't reach {panel} at {address} or {session_address}",
+      "description": "{panel} is connected, but Home Assistant cannot reach it at its stored address {address}, or at {session_address}, the address its connection reports. Some actions need one of them.\n\nTo fix:\n1. Let Home Assistant reach the panel at {address} again. A firewall may be blocking it. This clears when the panel answers, as shown in [Panel Assistant devices]({integration_url}).\n2. If the panel has moved, add it again there at its current address."
     },
     "panel_identity_mismatch": {
       "title": "Перевірте адресу панелі {panel}",
