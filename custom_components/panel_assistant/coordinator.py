@@ -446,15 +446,24 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                     snapshot = PanelSnapshot(
                         health=health, status=None, status_error="unavailable"
                     )
-            for outcome in (health, snapshot):
-                if isinstance(outcome, BaseException):
-                    raise outcome
-            assert isinstance(snapshot, PanelSnapshot)
-            if withheld and entry is not None and probe_current():
-                self._report(entry, *withheld[-1])
-            self._vendor_recovery.observe(snapshot)
-            await self._async_activate_completed_admin(snapshot.health)
-            return snapshot
+            if not (
+                isinstance(snapshot, UpdateFailed)
+                and isinstance(snapshot.__cause__, HomeAssistantError)
+                and snapshot.__cause__.translation_key == ERR_PANEL_UNAVAILABLE
+                and not session_manages(self._session())
+            ):
+                for outcome in (health, snapshot):
+                    if isinstance(outcome, BaseException):
+                        raise outcome
+                assert isinstance(snapshot, PanelSnapshot)
+                if withheld and entry is not None and probe_current():
+                    self._report(entry, *withheld[-1])
+                self._vendor_recovery.observe(snapshot)
+                await self._async_activate_completed_admin(snapshot.health)
+                return snapshot
+            # The session ended before its reads returned: its failure says
+            # nothing about the panel. Finish over HTTP, as for a panel
+            # without a session.
         self.reachable = False
         snapshot = await self._async_poll_address()
         self.reachable = True

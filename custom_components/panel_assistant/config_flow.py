@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import errno
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field, replace
@@ -12,6 +13,7 @@ from typing import Any, Self
 
 import voluptuous as vol
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
+from aiohttp import ClientPayloadError, ClientResponseError, ServerDisconnectedError
 from homeassistant.config_entries import (
     SOURCE_IGNORE,
     SOURCE_USER,
@@ -60,8 +62,10 @@ from .client import (
     HaPaneldError,
     InvalidAddressError,
     InvalidResponseError,
+    NoAnswerError,
     PanelAddress,
     PanelHealth,
+    RequestRefusedError,
     is_valid_discovery_id,
     normalize_address,
 )
@@ -125,6 +129,7 @@ from .provisioning import (
     InstallTargetState,
     async_probe_install_target,
 )
+from .refused_hellos import async_refused_hello_at
 from .release import (
     ReleaseArtifact,
     ReleaseResolutionError,
@@ -239,6 +244,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     _unfinished_input: dict[str, Any] | None = None
     # What the next refusal shown should give as its cause in the log.
     _refusal_cause: object = None
+    # The panel's refusal of the last setup read, shown on the setup form.
+    _setup_refusal: RequestRefusedError | None = None
+    # The address as typed, for the log when nothing was pinned from it.
+    _typed_address: str | None = None
     _progress_waiter: asyncio.Task[InstallJobReceipt] | None = None
     _progress_action = "installing"
     _authorization_task: asyncio.Task[InstallTargetProbe] | None = None
@@ -286,7 +295,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         address = (
             self._pending_address.stored_value
             if self._pending_address is not None
-            else self.context.get("title_placeholders", {}).get(
+            else self._typed_address
+            or self.context.get("title_placeholders", {}).get(
                 "address",
                 next(iter(self._discovery_addresses)).stored_value
                 if self._discovery_addresses
@@ -295,6 +305,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         )
         if isinstance(cause, InstallNetworkError):
             detail = cause.code.value
+        elif isinstance(cause, RequestRefusedError):
+            detail = f"{type(cause).__name__}: {cause}"
         elif isinstance(cause, BaseException):
             detail = type(cause).__name__
             if cause.__cause__ is not None:
@@ -398,6 +410,41 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 "version": receipt.artifact.version_name,
             },
         )
+
+    async def _async_unclaimed_install_of(
+        self, health: PanelHealth
+    ) -> InstallJobReceipt | None:
+        """A healthy install of this panel waiting under another of its addresses.
+
+        A receipt keeps the address its install used, so the panel reached by
+        another (its other address family, a card) misses it in the address
+        lookup. Asked at the receipt's own address, the app there names itself;
+        the same name is the same panel, which then meets its install rather
+        than being added beside it.
+        """
+        if health.discovery_id is None or self.source == SOURCE_USB_INSTALL:
+            # The USB installer's flow runs with nobody at a dialog; it adds its
+            # panel, and finishing the install later finds that entry instead.
+            return None
+        try:
+            receipts = await (
+                await async_get_install_job_manager(self.hass)
+            ).async_list()
+        except InstallJobError:
+            return None
+        for receipt in receipts:
+            if receipt.phase is not InstallPhase.HEALTHY_UNCLAIMED:
+                continue
+            try:
+                there = await HaPaneldClient(
+                    async_get_clientsession(self.hass),
+                    normalize_address(receipt.target.pinned_address),
+                ).async_get_health()
+            except HaPaneldError, InvalidAddressError:
+                continue
+            if there.discovery_id == health.discovery_id:
+                return receipt
+        return None
 
     async def _async_unfinished_install(self) -> InstallJobReceipt | None:
         """The unfinished install this flow met, as it stands now."""
@@ -703,6 +750,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return await self._async_create_panel_entry(
                 self._pending_address, self._pending_health
             )
+        if unclaimed := await self._async_unclaimed_install_of(self._pending_health):
+            return await self._async_show_unfinished_install(
+                unclaimed, {CONF_ADDRESS: self._pending_address.stored_value}
+            )
         if runs_old_app(self._pending_health):
             return self.async_abort(
                 reason="old_app_installed",
@@ -771,11 +822,15 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         """
         client = self._found_client()
         errors: dict[str, str] = {}
+        placeholders = {"setup_url": client.setup_url}
+        refusal, self._setup_refusal = self._setup_refusal, None
         if user_input is None:
             await async_offer_ha_url(self.hass, client)
         else:
             try:
                 complete = await client.async_get_setup_complete()
+            except RequestRefusedError as err:
+                refusal, complete = err, False
             except HaPaneldError:
                 complete = False
             if complete:
@@ -786,10 +841,16 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                     return await self.async_step_install_result()
                 return await self.async_step_connect_found()
             errors["base"] = "panel_setup_not_finished"
+        if refusal is not None:
+            # A refusal is not "not finished yet": Submit can never get past it
+            # unless the person and the log are told what the panel answered.
+            self._refusal_cause = refusal
+            errors["base"] = "panel_setup_refused"
+            placeholders["refusal"] = str(refusal)
         return self.async_show_form(
             step_id="panel_setup",
             data_schema=vol.Schema({}),
-            description_placeholders={"setup_url": client.setup_url},
+            description_placeholders=placeholders,
             errors=errors,
         )
 
@@ -852,6 +913,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         self._pending_install_target = None
         self._pending_job_id = None
         self._authorization_errors = None
+        self._typed_address = None
 
     async def async_step_add_panel(
         self, user_input: dict[str, Any] | None = None
@@ -868,6 +930,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             )
 
         self._reset_pending_panel()
+        self._typed_address = "".join(
+            char if char.isprintable() else "?"
+            for char in str(user_input[CONF_ADDRESS]).strip()[:200]
+        )
         try:
             address = normalize_address(user_input[CONF_ADDRESS])
             self._pending_reinstall_entry = next(
@@ -950,10 +1016,15 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             async_get_clientsession(self.hass),
             target.pinned if target is not None else address,
         )
+        # What the app's port did, kept for the text and the log: the ADB probe
+        # below says nothing about it.
+        app_port = "answered"
         try:
             health = await client.async_get_health()
-        except CannotConnectError, InvalidResponseError:
-            pass
+        except (CannotConnectError, InvalidResponseError) as err:
+            app_port = _app_port_outcome(err)
+            # Only when nothing answered may the way back be blocked.
+            unreached = err if isinstance(err, NoAnswerError) else None
         except Exception:
             _LOGGER.exception(
                 "Unexpected exception while checking for an existing ha-paneld"
@@ -965,6 +1036,35 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             self._pending_health = health
             return await self._async_show_found_panel()
 
+        # A panel at this address has just opened a session, so it runs the app
+        # and reaches Home Assistant; only the way back to it is blocked.
+        if (
+            unreached is not None
+            and not custom_port
+            and (
+                sighting := async_refused_hello_at(
+                    self.hass,
+                    address.host,
+                    *((target.pinned.host,) if target is not None else ()),
+                )
+            )
+        ):
+            return self._show_add_panel_form(
+                user_input,
+                {"base": "panel_connected_unreachable"},
+                cause=(
+                    f"panel {sighting.did} opened a session from "
+                    f"{sighting.peer or 'unknown'} reporting "
+                    f"{','.join(sighting.addresses) or 'no addresses'}; "
+                    f"port {address.port}: {type(unreached).__name__}"
+                    + (
+                        f" from {unreached.__cause__!r}"
+                        if unreached.__cause__ is not None
+                        else ""
+                    )
+                ),
+            )
+
         # A fresh install chooses its listener; typing a custom port does not
         # configure it. Require health proof before using that endpoint, or a
         # host-only first contact before offering installation.
@@ -974,12 +1074,14 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 {"base": "not_answering_outside_install_range"},
                 cause=(
                     f"{install_refusal.code.value}; "
-                    f"no panel answered on port {address.port}"
+                    f"no panel answered on port {address.port} ({app_port})"
                 ),
             )
         if custom_port or target is None:
             return self._show_add_panel_form(
-                user_input, {"base": "invalid_install_address"}
+                user_input,
+                {"base": "invalid_install_address"},
+                cause=f"port_{address.port}={app_port}",
             )
 
         try:
@@ -1001,7 +1103,11 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             # The old app is installed but not answering. This release cannot
             # move it, and the new app is never installed beside it.
             errors["base"] = "old_app_installed"
-            return self._show_add_panel_form(user_input, errors)
+            return self._show_add_panel_form(
+                user_input,
+                errors,
+                cause=f"port_{address.port}={app_port} adb_state={state}",
+            )
         if state in ("install_candidate", "installed") and (
             _install_candidate_placeholders(probe) is None
         ):
@@ -1011,11 +1117,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             self._pending_probe_state = state
             return await self.async_step_choose_version()
         if state == "adb_unreachable":
-            errors["base"] = (
-                "adb_unreachable"
-                if await _async_host_answers(target.pinned)
-                else "panel_unreachable"
-            )
+            # Neither port gave an answer; say which failed and how.
+            errors["base"] = await _no_port_answered(app_port, target.pinned)
         else:
             errors["base"] = {
                 "retained_or_ambiguous": "retained_or_ambiguous",
@@ -1024,7 +1127,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         return self._show_add_panel_form(
             user_input,
             errors,
-            cause=f"adb_state={probe.state.value} pinned={target.pinned.stored_value}",
+            cause=(
+                f"port_{address.port}={app_port} adb_state={probe.state.value} "
+                f"pinned={target.pinned.stored_value}"
+            ),
         )
 
     async def async_step_add_known_panel(
@@ -1679,8 +1785,17 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         # this flow or restarting HA must leave the same install retryable.
         self._pending_address = normalize_address(receipt.target.address)
         self._pending_health = result.health
+        # Read setup where the install reached the panel. A typed name the
+        # panel does not answer to (not its own host name, nor an allowed
+        # host) is refused there, though setup is done.
+        self._pending_install_target = PinnedPanelTarget(
+            original=self._pending_address,
+            pinned=normalize_address(receipt.target.pinned_address),
+        )
         try:
-            complete = await self._async_new_panel_setup_complete(self._pending_address)
+            complete = await self._async_new_panel_setup_complete(
+                self._pending_install_target.pinned
+            )
         except asyncio.CancelledError:
             executor.release_finalizer(receipt.job_id, self.flow_id)
             self._finalizer_job_id = None
@@ -1691,6 +1806,23 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             if self._flow_removed:
                 return self.async_abort(reason="install_worker_stopped")  # type: ignore[unreachable]
             return await self.async_step_panel_setup()
+
+        known = (
+            self.hass.config_entries.async_entry_for_domain_unique_id(
+                DOMAIN, result.health.discovery_id
+            )
+            if result.health.discovery_id is not None
+            else None
+        )
+        if known is not None and known.source != SOURCE_IGNORE:
+            # The panel was added meanwhile under another of its addresses.
+            # That entry is what this install became; a second is never made.
+            await executor.async_consume_finalization(
+                receipt.job_id, self.flow_id, known.entry_id
+            )
+            self._finalizer_job_id = None
+            close_offers(self.hass, receipt.target.address, self.flow_id, pressed=True)
+            return self.async_abort(reason="already_configured")
 
         # The lease stays held through ConfigEntries' actual add.
         # async_on_create_entry hands HA's generated entry id to the executor,
@@ -1842,6 +1974,12 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             )
             if known is not None and not is_installation(known) and not replace_ignore:
                 return self.async_abort(reason="already_configured")
+            if (known is None or replace_ignore) and (
+                unclaimed := await self._async_unclaimed_install_of(health)
+            ):
+                return await self._async_show_unfinished_install(
+                    unclaimed, {CONF_ADDRESS: address.stored_value}
+                )
             await self.async_set_unique_id(health.discovery_id, raise_on_progress=False)
             if not replace_ignore:
                 self._abort_if_unique_id_configured(
@@ -1866,6 +2004,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             state = await HaPaneldClient(
                 async_get_clientsession(self.hass), address
             ).async_get_setup_state()
+        except RequestRefusedError as err:
+            # The setup form that follows shows it and logs it.
+            self._setup_refusal = err
+            return False
         except HaPaneldError:
             return False
         return state.complete
@@ -1971,12 +2113,49 @@ def _same_install_target(
     )
 
 
+def _app_port_outcome(error: HaPaneldError) -> str:
+    """Name what the panel app's port did when its health was read."""
+    if isinstance(error, InvalidResponseError):
+        return "invalid_response"
+    cause = error.__cause__
+    if cause is None:
+        # It answered over HTTP, with a status other than the app's.
+        return "not_panel_app"
+    if isinstance(cause, TimeoutError):
+        return "timed_out"
+    if isinstance(cause, ClientResponseError | ClientPayloadError):
+        # Bytes came back, but not as HTTP the app would send.
+        return "malformed_response"
+    if isinstance(cause, ServerDisconnectedError | ConnectionResetError):
+        return "closed"
+    os_error = getattr(cause, "os_error", cause)
+    if isinstance(os_error, ConnectionRefusedError) or (
+        getattr(os_error, "errno", None) == errno.ECONNREFUSED
+    ):
+        return "refused"
+    return "connection_failed"
+
+
+async def _no_port_answered(app_port: str, pinned: PanelAddress) -> str:
+    """The add-panel error when neither the app's port nor ADB answered."""
+    if app_port == "refused":
+        return "app_port_refused"
+    if app_port in ("invalid_response", "not_panel_app", "malformed_response"):
+        return "app_port_not_panel"
+    if await _async_host_answers(pinned):
+        # Something is there, but the health read got no usable answer: it
+        # ran out of time, was closed or broke off. Which one is in the log.
+        return "app_port_no_answer"
+    return "panel_unreachable"
+
+
 async def _async_host_answers(address: PanelAddress) -> bool:
     """Whether anything at all answers at that address.
 
-    It tells apart "the panel is there but its Android Debug Bridge is not" from
-    "nothing is at that address", so each gets the advice that fits. A refused
-    connection is an answer: something is listening on the host.
+    After the app's health read timed out, it tells apart "the port took the
+    connection and gave no answer" from "nothing is at that address", so each
+    gets the advice that fits. A refused connection is an answer: something is
+    listening on the host.
     """
     try:
         async with asyncio.timeout(_HOST_PROBE_SECONDS):

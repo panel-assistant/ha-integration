@@ -222,7 +222,8 @@ async def test_silent_address_outside_install_range_names_the_install_rule(
         "Panel Assistant setup refused: step=add_panel "
         "error=not_answering_outside_install_range "
         f"panel={endpoint.removesuffix(':8888')} "
-        "cause=unsafe_target; no panel answered on port 8888"
+        "cause=unsafe_target; no panel answered on port 8888 "
+        f"({'connection_failed' if unreachable else 'invalid_response'})"
     ]
 
 

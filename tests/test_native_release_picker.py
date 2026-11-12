@@ -336,14 +336,21 @@ async def test_a_panel_that_cannot_report_setup_is_offered_its_setup(hass):
 
 
 @pytest.mark.parametrize(
-    ("answers", "expected"),
-    [(True, "adb_unreachable"), (False, "panel_unreachable")],
-    ids=["panel-without-adb", "nothing-at-that-address"],
+    ("health_cause", "answers", "expected"),
+    [
+        (ConnectionRefusedError(111, "refused"), True, "app_port_refused"),
+        (TimeoutError(), True, "app_port_no_answer"),
+        (TimeoutError(), False, "panel_unreachable"),
+        (None, True, "app_port_not_panel"),
+    ],
+    ids=["8888-refused", "8888-took-it-and-stalled", "nothing-there", "8888-not-app"],
 )
 async def test_an_unreachable_debug_bridge_says_which_case_it_is(
-    hass, answers: bool, expected: str
+    hass, health_cause, answers: bool, expected: str
 ):
-    """A panel that answers is told to enable ADB; a silent address is not."""
+    """With ADB silent too, the text follows what port 8888 did."""
+    health_error = CannotConnectError()
+    health_error.__cause__ = health_cause
     manager = _manager_for(_receipt(InstallPhase.APPROVED))
     manager.async_find_active.return_value = None
     probe = SimpleNamespace(
@@ -356,6 +363,7 @@ async def test_an_unreachable_debug_bridge_says_which_case_it_is(
     with ExitStack() as stack:
         mocks = _patch_clean_panel(stack, manager)
         mocks["probe"].return_value = probe
+        mocks["health"].side_effect = health_error
         stack.enter_context(
             patch(f"{_FLOW}._async_host_answers", AsyncMock(return_value=answers))
         )

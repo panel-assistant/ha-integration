@@ -158,6 +158,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             hass.async_create_background_task(
                 coordinator.async_refresh(), f"{DOMAIN} first build feed read"
             )
+    # Last, so a resumed install downloads from the feed configured above. With
+    # or without a configured panel: a first install a restart interrupted is
+    # otherwise looked at by nothing until someone adds a panel.
+    await _async_resume_install_jobs(hass)
     return True
 
 
@@ -176,7 +180,7 @@ type HaPaneldConfigEntry = ConfigEntry[HaPaneldRuntimeData]
 
 
 async def _async_resume_install_jobs(hass: HomeAssistant) -> None:
-    """Best-effort resume after an existing entry has loaded the domain."""
+    """Best-effort resume of the installs a restart left, once per domain start."""
     try:
         await async_resume_loaded_install_jobs(hass)
     except Exception:
@@ -223,7 +227,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     """Set up ha-paneld from a config entry."""
     from .identity import reconcile_identity
 
-    await _async_resume_install_jobs(hass)
     address = normalize_address(entry.data[CONF_ADDRESS])
     client = HaPaneldClient(async_get_clientsession(hass), address)
     coordinator = HaPaneldDataUpdateCoordinator(hass, client, entry.entry_id)

@@ -6,6 +6,7 @@ import json
 import logging
 import re
 from dataclasses import asdict, dataclass
+from ipaddress import ip_address
 from typing import TYPE_CHECKING, Any, NoReturn
 from urllib.parse import urlsplit
 
@@ -329,6 +330,14 @@ def normalize_address(value: str) -> PanelAddress:
     candidate = value.strip()
     if not candidate or "://" in candidate:
         raise InvalidAddressError
+
+    try:
+        literal = ip_address(candidate)
+    except ValueError:
+        pass
+    else:
+        if literal.version == 6:
+            candidate = f"[{literal}]"
 
     try:
         parsed = urlsplit(f"//{candidate}")
