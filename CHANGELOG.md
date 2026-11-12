@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 Each section is what Home Assistant shows in its update dialog: a short, friendly summary, a few highlights and a link to the full notes on [panel-assistant.io](https://panel-assistant.io/go/release-notes). The full notes, including every pre-release, are kept on the website. From 1.0.0 onward; earlier sections are the full notes as they were released.
 
-## 1.0.3-rc1
+## 1.0.3
 
 ## 1.0.2 - 2026-11-11
 
