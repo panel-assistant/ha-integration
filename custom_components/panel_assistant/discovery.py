@@ -45,6 +45,7 @@ from homeassistant.helpers.selector import (
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from .adb_protocol import ADB_PORT
+from .announced_addresses import announced_addresses, async_read_announced_health
 from .client import (
     CannotConnectError,
     HaPaneldClient,
@@ -105,6 +106,11 @@ RUNNING = "running"
 CLOSING = "closing"
 _DATA_DISCOVERY_NAMES = "discovery_names"
 _DATA_CARD_HOSTS = "discovery_card_hosts"
+_DATA_CARD_SERIALS = "discovery_card_serials"
+_DATA_SERIAL_RECHECK = "discovery_serial_recheck"
+# An app hears its own network ADB a moment after it starts. A card shown
+# before then is asked once more after this long, while an ADB card waits.
+_SERIAL_RECHECK_SECONDS = 15
 _FRIENDLY_NAME_MAX_LENGTH = 64
 
 
@@ -339,6 +345,77 @@ def _remember_hosts(hass: HomeAssistant, flow_id: str, hosts: object) -> None:
         store[flow_id] = frozenset(h for h in hosts if isinstance(h, str))
 
 
+def _remember_serial(
+    hass: HomeAssistant, flow_id: str, serial: object, discovery_id: str | None = None
+) -> None:
+    """Keep the ADB serial of a card being shown, pruning finished cards.
+
+    An ADB card keeps the serial its announcement named; an app card keeps the
+    one its health line reported, under its discovery id.
+    """
+    store: dict[str, tuple[str | None, str]] = hass.data.setdefault(
+        DOMAIN, {}
+    ).setdefault(_DATA_CARD_SERIALS, {})
+    live = {
+        progress["flow_id"]
+        for progress in hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    }
+    for stale in [f for f in store if f not in live and f != flow_id]:
+        del store[stale]
+    if isinstance(serial, str):
+        store[flow_id] = (discovery_id, serial)
+
+
+def _card_serial(hass: HomeAssistant, flow: Any) -> str | None:
+    """The serial of the ADB announcement that raised this card, if any."""
+    kept: tuple[str | None, str] | None = (
+        hass.data.get(DOMAIN, {}).get(_DATA_CARD_SERIALS, {}).get(flow["flow_id"])
+    )
+    return kept[1] if kept is not None and kept[0] is None else None
+
+
+def _serial_reported(hass: HomeAssistant, serial: str) -> bool:
+    """Whether a panel is known, without asking anyone, to report this serial.
+
+    An added panel that answers, or an app card showing now, by what its
+    health line last said. Read where a card is about to be shown, with no
+    wait before it, so whatever another channel did meanwhile is seen.
+
+    Two panels sharing one serial (a cloned image heard across joined
+    networks) are not told apart: the ADB card of either folds. Neither has
+    been seen in practice; such a panel is still added by its address.
+    """
+    live = {
+        progress["flow_id"]
+        for progress in hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    }
+    store: dict[str, tuple[str | None, str]] = hass.data.get(DOMAIN, {}).get(
+        _DATA_CARD_SERIALS, {}
+    )
+    return any(
+        _entry_serial(entry) == serial
+        for entry in hass.config_entries.async_entries(DOMAIN)
+    ) or any(
+        flow_id in live and discovery_id is not None and kept == serial
+        for flow_id, (discovery_id, kept) in store.items()
+    )
+
+
+def _entry_serial(entry: ConfigEntry) -> str | None:
+    """The ADB serial the entry's panel reports on its health line, while it answers.
+
+    A panel that no longer answers (its app removed, say) keeps its last health
+    in memory; its serial then names nothing, so its ADB card is judged as
+    before, and may still offer a reinstall.
+    """
+    coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
+    if getattr(coordinator, "available", False) is not True:
+        return None
+    data = getattr(coordinator, "data", None)
+    serial = getattr(getattr(data, "health", None), "adb_serial", None)
+    return serial if isinstance(serial, str) else None
+
+
 def _card_hosts(hass: HomeAssistant, flow: Any) -> frozenset[str]:
     """Every host by which this card names its panel."""
     return _with_announced(
@@ -388,11 +465,14 @@ def close_offers(
     pressed: bool = False,
     discovery_id: str | None = None,
     hosts: frozenset[str] = frozenset(),
+    serial: str | None = None,
 ) -> None:
     """Close every other card offering this panel: it has a better one.
 
     The panel is the one at this address or any other its announcement
-    carried (`hosts`), so a card raised in the other address family closes too.
+    carried (`hosts`), so a card raised in the other address family closes too,
+    and the one whose network ADB announcement names `serial`, so a card heard
+    at an address Home Assistant cannot reach the app on closes as well.
 
     Called where the panel's identity is proven at the address, by the app's
     own announcement or by an entry; every card is keyed by its channel, so
@@ -413,7 +493,10 @@ def close_offers(
             or (
                 flow["context"].get("unique_id") != discovery_id
                 if discovery_id is not None
-                else not wanted & _card_hosts(hass, flow)
+                else not (
+                    wanted & _card_hosts(hass, flow)
+                    or (serial is not None and _card_serial(hass, flow) == serial)
+                )
             )
             or not (pressed or CONFIRMED not in placeholders)
         ):
@@ -610,8 +693,13 @@ async def async_integration_discovery(
     # this one waited. Nothing awaits between here and publishing ours.
     if offer_blocked(flow.hass, discovery_info["address"], flow.flow_id, hosts):
         return flow.async_abort(reason="already_configured")
+    # And by serial: a panel that began reporting it while this one waited.
+    serial = discovery_info.get("serial")
+    if isinstance(serial, str) and _serial_reported(flow.hass, serial):
+        return flow.async_abort(reason="already_configured")
     flow._migration_target = target
     _remember_hosts(flow.hass, flow.flow_id, hosts)
+    _remember_serial(flow.hass, flow.flow_id, serial)
     flow.context["title_placeholders"] = {
         "name": target.name,
         "address": target.address,
@@ -688,19 +776,17 @@ async def _async_discovered_app(
     advertised_name: object,
 ) -> ConfigFlowResult:
     """Offer, or move to its new address, the panel with this discovery id."""
-    host = _discovered_host(discovery_info)
-    try:
-        # A vendor's SRV port is its own service, not the panel HTTP listener.
-        address = normalize_address(
-            f"{host}:{discovery_info.port}"
-            if discovery_info.type == "_ha-paneld._tcp.local."
-            else host
-        )
-    except InvalidAddressError:
+    hosts = announced_hosts(discovery_info)
+    addresses = announced_addresses(
+        _discovered_host(discovery_info), discovery_info, hosts
+    )
+    if addresses is None:
         return flow.async_abort(reason="invalid_discovery")
+    address = addresses[0]
 
     flow._pending_discovery_id = discovery_id
     flow._pending_friendly_name = _presentation_safe_name(advertised_name)
+    flow._discovery_addresses = dict.fromkeys(addresses, hosts)
     if flow.hass.config_entries.flow.async_has_matching_flow(flow):
         return flow.async_abort(reason="already_in_progress")
     await flow.async_set_unique_id(discovery_id)
@@ -709,25 +795,31 @@ async def _async_discovered_app(
             existing.data.get(CONF_ADDRESS) == address.stored_value
             and existing.unique_id == discovery_id
         ):
+            # Its ADB card, shown while the panel was out of reach, closes.
+            if (heard := _entry_serial(existing)) is not None:
+                close_offers(
+                    flow.hass, address.stored_value, flow.flow_id, serial=heard
+                )
             return flow.async_abort(reason="already_configured")
 
-    try:
-        health = await HaPaneldClient(
-            async_get_clientsession(flow.hass), address
-        ).async_get_health()
-    except CannotConnectError, InvalidResponseError:
-        return flow.async_abort(reason="invalid_discovery")
-    except Exception:
-        _LOGGER.exception("Unexpected exception while verifying discovered ha-paneld")
-        return flow.async_abort(reason="unknown")
-    if health.discovery_id != discovery_id:
-        return flow.async_abort(reason="invalid_discovery")
+    answer = await async_read_announced_health(flow, discovery_id)
+    if not isinstance(answer, tuple):
+        return answer
+    address, health = answer
     # The panel has just answered as itself here: whatever happens next, an
     # install card naming any address this announcement carried is the same
     # panel on a weaker channel, in whichever address family it was heard.
-    hosts = announced_hosts(discovery_info)
+    # The addresses trusted are those of the announcement that carried the
+    # address which answered, a later one of the same panel's included.
+    hosts = flow._discovery_addresses[address]
     close_offers(flow.hass, address.stored_value, flow.flow_id, hosts=hosts)
     await _async_close_cards_answering_as(flow, discovery_id)
+    # A waiting ADB card announcing the serial this app reports is this panel.
+    # Closed here, after the last wait and before any way out of this flow,
+    # so one shown while this flow waited closes too.
+    serial = health.adb_serial
+    if serial is not None:
+        close_offers(flow.hass, address.stored_value, flow.flow_id, serial=serial)
     for existing in flow.hass.config_entries.async_entries(DOMAIN):
         if reinstalled(flow.hass, existing, health) and not _entry_holds_its_address(
             flow, existing
@@ -768,6 +860,9 @@ async def _async_discovered_app(
         return flow.async_abort(reason="already_configured")
 
     _remember_hosts(flow.hass, flow.flow_id, hosts)
+    _remember_serial(flow.hass, flow.flow_id, serial, discovery_id)
+    if serial is None:
+        _recheck_serials_later(flow.hass)
     flow._pending_address = address
     flow._pending_health = health
     # Without a title placeholder the card for every discovered panel falls back
@@ -840,15 +935,109 @@ async def _async_discovered_adb(
     )
     if candidate is None:
         return flow.async_abort(reason="not_panel")
+    serial = serial.removeprefix("adb-")
     candidate["hosts"] = sorted(announced_hosts(discovery_info))
+    candidate["serial"] = serial
     try:
         await HaPaneldClient(
             async_get_clientsession(flow.hass), normalize_address(host)
         ).async_get_health()
     except CannotConnectError, InvalidResponseError:
+        # The app may answer only at an address this announcement did not
+        # carry; its health line names the network ADB it heard from its panel.
+        # One panel, added or waiting, reporting it: that panel's card stands.
+        if await _async_serial_reported(flow, serial):
+            # An ADB card for this serial shown before its panel reported it
+            # (the app hears its own network ADB a moment after it starts)
+            # closes now as well.
+            close_offers(flow.hass, candidate["address"], flow.flow_id, serial=serial)
+            return flow.async_abort(reason="already_configured")
+        # Another route may already show this device's card under its own key
+        # (a registry card); the serial is kept with that card too.
+        for card in flow.hass.config_entries.flow.async_progress_by_handler(DOMAIN):
+            if card["context"].get("unique_id") == candidate["key"]:
+                _remember_serial(flow.hass, card["flow_id"], serial)
         return await flow.async_step_integration_discovery(candidate)
     # The app already answers here; its own advertisement offers it.
     return flow.async_abort(reason="not_panel")
+
+
+async def _async_serial_reported(flow: HaPaneldConfigFlow, serial: str) -> bool:
+    """Whether a panel reports this serial, asking the waiting app cards."""
+    if _serial_reported(flow.hass, serial):
+        return True
+    await _async_ask_waiting_apps(flow.hass)
+    # Read again after the wait: a card dismissed while it was asked no
+    # longer counts, whatever it answered.
+    return _serial_reported(flow.hass, serial)
+
+
+async def _async_ask_waiting_apps(hass: HomeAssistant) -> set[str]:
+    """Ask each waiting app card for its serial; return those newly learned.
+
+    An app hears its own network ADB a moment after it starts, so a card
+    shown before then is asked again, a few at once and each for a moment;
+    what it answers is kept with its card.
+    """
+    cards: list[tuple[str, str, str]] = []
+    for card in hass.config_entries.flow.async_progress_by_handler(DOMAIN):
+        address = card["context"].get("title_placeholders", {}).get("address")
+        unique_id = card["context"].get("unique_id")
+        if (
+            isinstance(unique_id, str)
+            and is_valid_discovery_id(unique_id)
+            and isinstance(address, str)
+        ):
+            cards.append((card["flow_id"], address, unique_id))
+    session = async_get_clientsession(hass)
+
+    async def ask(flow_id: str, address: str, discovery_id: str) -> str | None:
+        try:
+            async with asyncio.timeout(_SAME_PANEL_PROBE_SECONDS):
+                health = await HaPaneldClient(
+                    session, normalize_address(address)
+                ).async_get_health()
+        except CannotConnectError, InvalidResponseError, InvalidAddressError:
+            return None
+        except TimeoutError:
+            return None
+        if health.discovery_id != discovery_id or health.adb_serial is None:
+            return None
+        _remember_serial(hass, flow_id, health.adb_serial, discovery_id)
+        return health.adb_serial
+
+    asked = cards[:_SAME_PANEL_PROBE_CARDS]
+    return {
+        serial
+        for serial in await asyncio.gather(*(ask(*card) for card in asked))
+        if serial is not None
+    }
+
+
+@callback
+def _recheck_serials_later(hass: HomeAssistant) -> None:
+    """Ask the waiting app cards once more, soon, and close what then folds.
+
+    Called when an app card that reported no serial is shown: at a panel's
+    start its ADB is announced before its app knows the serial, and nothing
+    announces again once it does. An ADB announcement heard later asks the
+    waiting cards itself.
+    """
+    data = hass.data.setdefault(DOMAIN, {})
+    if data.get(_DATA_SERIAL_RECHECK):
+        return
+    data[_DATA_SERIAL_RECHECK] = True
+
+    async def recheck() -> None:
+        try:
+            await asyncio.sleep(_SERIAL_RECHECK_SECONDS)
+        finally:
+            data[_DATA_SERIAL_RECHECK] = False
+        for serial in await _async_ask_waiting_apps(hass):
+            if _serial_reported(hass, serial):
+                close_offers(hass, "", "", serial=serial)
+
+    hass.async_create_background_task(recheck(), "panel_assistant serial recheck")
 
 
 async def _async_discovered_vendor(

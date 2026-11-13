@@ -133,6 +133,13 @@ class InstallResultCode(StrEnum):
     VERIFICATION_REQUIRED = "verification_required"
 
 
+# The installed app never answered on its HTTP port during the job: the install
+# itself went through, and what failed is Home Assistant's path to the panel.
+# The dialog and the Repair say so rather than asking for a verification
+# nothing can do.
+HEALTH_UNREACHABLE_SUBCODE = "health:cannot_connect"
+
+
 class InstallEndReason(StrEnum):
     """Why an unfinished job nobody was advancing was ended.
 

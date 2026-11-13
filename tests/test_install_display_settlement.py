@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock
 import pytest
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry as ir
 
 from custom_components.panel_assistant import install_executor
 from custom_components.panel_assistant.adb_protocol import (
@@ -21,9 +22,11 @@ from custom_components.panel_assistant.adb_protocol import (
 from custom_components.panel_assistant.client import (
     CannotConnectError,
     HaPaneldClient,
+    NoAnswerError,
     PanelHealth,
     PanelSetupState,
 )
+from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.display_provisioning import (
     DisplayResult,
     DisplaySizing,
@@ -281,6 +284,8 @@ class ShellySettlementHarness(Harness):
             self.expected_version = "9.9.9"
         elif self.settlement_fault == "launch":
             self.launch_outcome = LaunchOutcome.REFUSED
+        elif self.settlement_fault == "silent":
+            self.health_error = NoAnswerError()
         return "settled"
 
     async def async_launch(
@@ -378,6 +383,37 @@ async def test_shelly_incomplete_settlement_or_changed_custody_never_accepts_set
     assert completed.health_checked_at is None
     assert harness.events.count("native_resume") == 1
     assert harness.events.count("launch") == (2 if fault in {"health", "launch"} else 1)
+
+
+async def test_an_app_that_answered_before_settlement_then_went_silent_keeps_caution(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Port 8888 answered earlier in the job, so the network is not blamed.
+
+    Only an app never heard on 8888 gets the unreachable-port text and Repair;
+    one that answered and then stopped keeps the verification result.
+    """
+    manager = InstallJobManager(hass)
+    receipt = await create_job(manager)
+    harness = ShellySettlementHarness(monkeypatch)
+    harness.settlement_fault = "silent"
+    harness.settlement_release.set()
+    monkeypatch.setattr(install_executor, "_HEALTH_RETRY_SECONDS", 0)
+
+    completed = await InstallExecutor(hass, manager).async_wait(receipt.job_id)
+
+    assert harness.events.count("native_settled") == 1
+    assert completed.phase is InstallPhase.RECOVERY_REQUIRED
+    assert completed.failure_stage is InstallPhase.HEALTH_CHECK
+    assert completed.result_code is InstallResultCode.VERIFICATION_REQUIRED
+    assert completed.result_subcode == "health:stopped_answering"
+    await hass.async_block_till_done()
+    keys = [
+        issue.translation_key
+        for (domain, _issue_id), issue in ir.async_get(hass).issues.items()
+        if domain == DOMAIN
+    ]
+    assert keys == ["installer_failure_verification_required"]
 
 
 async def test_interrupted_native_settlement_is_repeated_before_acceptance(

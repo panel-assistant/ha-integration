@@ -1,7 +1,9 @@
 """Observe and explicitly request the panel-owned pinned WebView operation.
 
-The signed Android app owns provider selection, download, package admission and
-the durable transaction. Home Assistant never supplies a URL or APK trust root.
+The signed Android app owns provider selection, package admission and the
+durable transaction. Home Assistant never supplies a URL or APK trust root: it
+may carry the file the panel names, whose SHA-256 the panel checks against the
+update compiled into it (``webview_supply``).
 """
 
 from __future__ import annotations
@@ -45,6 +47,15 @@ class WebViewStatus:
     transaction_state: str | None
     transaction_reason: str | None
     request_id: str | None
+    # Why a download failed (`not_found`, `unresolved`, `unreachable`, ...);
+    # None from an app older than 1.0.3, which reported only `download_failed`.
+    transaction_cause: str | None = None
+    # How Home Assistant's file ended (`fetched`, `unavailable`, `mismatch`);
+    # None when none was offered.
+    transaction_supplied: str | None = None
+    # The panel takes the file from Home Assistant on `webview.install`.
+    accepts_blob: bool = False
+    candidate_size: int | None = None
 
     @property
     def refused(self) -> bool:
@@ -72,16 +83,22 @@ class WebViewStatus:
         )
 
     @property
-    def download_unpublished(self) -> bool:
-        """The panel could not fetch its WebView files: they are not published yet.
-
-        The app update is complete and only the WebView is missing, so this is
-        a WARNING log line, never a Repair.
-        """
+    def download_failed(self) -> bool:
+        """The panel's last WebView attempt ended because the file did not arrive."""
         return (
             self.transaction_state == "deferred"
             and self.transaction_reason == "download_failed"
         )
+
+    @property
+    def download_unpublished(self) -> bool:
+        """The WebView file is not published yet: the server answered HTTP 404.
+
+        An app older than 1.0.3 names no cause, and is read as before. The app
+        update is complete and only the WebView is missing, so this is a WARNING
+        log line, never a Repair. Any other download failure is a Repair.
+        """
+        return self.download_failed and self.transaction_cause in (None, "not_found")
 
     @property
     def settled(self) -> bool:
@@ -99,6 +116,27 @@ class WebViewStatus:
     def as_dict(self) -> dict[str, Any]:
         """Return only bounded diagnostic facts."""
         return asdict(self)
+
+
+WEBVIEW_HOST = "panel-assistant.io"
+
+_CAUSES = {
+    "not_found": f"{WEBVIEW_HOST} answered that the file does not exist",
+    "unresolved": f"the name {WEBVIEW_HOST} could not be resolved",
+    "unreachable": f"{WEBVIEW_HOST} could not be reached",
+    "timed_out": f"the download from {WEBVIEW_HOST} timed out",
+    "too_large": "the server sent more bytes than the file's size",
+    "insecure_redirect": "the server redirected to a plain HTTP address",
+    "no_space": "there is too little free storage to stage it",
+    "mismatch": "the file did not match its SHA-256",
+}
+
+
+def download_cause_text(cause: str | None) -> str:
+    """Name a WebView download failure the way a log line reads it."""
+    if cause is not None and cause.startswith("http_") and cause[5:].isdigit():
+        return f"{WEBVIEW_HOST} answered HTTP {cause[5:]}"
+    return _CAUSES.get(cause or "", "the download failed")
 
 
 def _text(value: object) -> str | None:
@@ -123,7 +161,7 @@ def parse_webview(value: object) -> WebViewStatus:
     ):
         raise InvalidResponseError
     candidate = value.get("candidate")
-    digest = None
+    digest = size = None
     if candidate is not None:
         if not isinstance(candidate, dict) or not isinstance(
             candidate.get("sha256"), str
@@ -132,8 +170,10 @@ def parse_webview(value: object) -> WebViewStatus:
         digest = candidate["sha256"]
         if _SHA256.fullmatch(digest) is None:
             raise InvalidResponseError
+        if type(candidate.get("size")) is int and candidate["size"] > 0:
+            size = candidate["size"]
     transaction = value.get("transaction")
-    state = reason = request_id = None
+    state = reason = request_id = cause = supplied = None
     if transaction is not None:
         if (
             not isinstance(transaction, dict)
@@ -144,6 +184,8 @@ def parse_webview(value: object) -> WebViewStatus:
         state = transaction["state"]
         reason = _text(transaction.get("reason"))
         request_id = _text(transaction.get("request_id"))
+        cause = _text(transaction.get("cause"))
+        supplied = _text(transaction.get("supplied"))
     return WebViewStatus(
         value["supported"],
         value["eligible"],
@@ -152,6 +194,10 @@ def parse_webview(value: object) -> WebViewStatus:
         state,
         reason,
         request_id,
+        cause,
+        supplied,
+        value.get("accepts_blob") is True,
+        size,
     )
 
 

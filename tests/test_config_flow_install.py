@@ -97,7 +97,6 @@ async def test_install_rejects_invalid_address_before_network_calls(
         (InstallNetworkErrorCode.RESOLUTION_FAILED, "install_resolution_failed"),
         (InstallNetworkErrorCode.RESOLUTION_TIMEOUT, "install_resolution_timeout"),
         (InstallNetworkErrorCode.TOO_MANY_RESULTS, "install_too_many_addresses"),
-        (InstallNetworkErrorCode.UNSAFE_TARGET, "unsafe_install_target"),
         (InstallNetworkErrorCode.PINNED_TARGET_REMOVED, "install_target_changed"),
     ],
 )
@@ -135,11 +134,18 @@ async def test_install_network_refusal_precedes_all_panel_contact(
     probe_mock.assert_not_awaited()
 
 
+def _port_8888_refused() -> CannotConnectError:
+    """The health read's error when the panel's port 8888 refuses the connection."""
+    error = CannotConnectError()
+    error.__cause__ = ConnectionRefusedError(111, "Connection refused")
+    return error
+
+
 async def test_install_uses_pinned_address_for_health_and_adb(
     hass: HomeAssistant, install_network_pin: SimpleNamespace
 ) -> None:
     """The display identity stays original while both protocols use the LAN pin."""
-    health_mock = AsyncMock(side_effect=CannotConnectError)
+    health_mock = AsyncMock(side_effect=_port_8888_refused())
     probe_mock = AsyncMock(return_value=_probe("adb_unreachable"))
     with (
         patch(
@@ -156,7 +162,7 @@ async def test_install_uses_pinned_address_for_health_and_adb(
             form["flow_id"], {CONF_ADDRESS: "Panel.local"}
         )
 
-    assert result["errors"] == {"base": "adb_unreachable"}
+    assert result["errors"] == {"base": "app_port_refused"}
     install_network_pin.pin.assert_awaited_once()
     assert install_network_pin.pin.await_args.args[1].stored_value == "panel.local"
     assert client_class.call_args.args[1].stored_value == "192.168.1.23"
@@ -596,7 +602,7 @@ async def test_install_classification_error_can_retry_to_candidate(
     with (
         patch(
             "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
-            AsyncMock(side_effect=CannotConnectError),
+            AsyncMock(side_effect=_port_8888_refused()),
         ),
         patch(
             "custom_components.panel_assistant.config_flow.async_probe_install_target",
@@ -618,7 +624,7 @@ async def test_install_classification_error_can_retry_to_candidate(
             ),
         )
 
-    assert refused["errors"] == {"base": "adb_unreachable"}
+    assert refused["errors"] == {"base": "app_port_refused"}
     assert recovered["type"] is FlowResultType.FORM
     assert recovered["step_id"] == "confirm_install_candidate"
     assert probe_mock.await_count == 2
@@ -664,7 +670,7 @@ async def test_install_candidate_without_identity_fails_closed(
 @pytest.mark.parametrize(
     ("state", "expected_error"),
     [
-        ("adb_unreachable", "adb_unreachable"),
+        ("adb_unreachable", "app_port_refused"),
         ("retained_or_ambiguous", "retained_or_ambiguous"),
         ("incompatible", "incompatible"),
     ],
@@ -676,7 +682,7 @@ async def test_install_classification_refusals_return_to_address_form(
     with (
         patch(
             "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
-            AsyncMock(side_effect=CannotConnectError),
+            AsyncMock(side_effect=_port_8888_refused()),
         ),
         patch(
             "custom_components.panel_assistant.config_flow.async_probe_install_target",

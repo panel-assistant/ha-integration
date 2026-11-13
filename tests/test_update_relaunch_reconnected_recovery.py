@@ -134,7 +134,9 @@ async def _exercise_reconnected_recovery(
                 hass, artifact, ("1000", original.health.package)
             )
         assert error.value.translation_key == "update_not_complete"
-        assert probes == [240]
+        # Tried once after the restart grace and once when the wait ends, each
+        # giving up at its first probe: no lease is waited out without one.
+        assert probes == [60, 240]
         assert launches == []
         return
     await entity._delivery.async_wait_for_build(

@@ -9,7 +9,8 @@
     "webview_recovery_refused": "Android odmítl instalaci WebView. Postupujte podle návodu k aktualizaci WebView pro váš model a zkontrolujte kompatibilitu balíčku, verze Androidu a podpisu. Pokud instalaci stále odmítá, uložte si zprávu pro podporu; opakované pokusy nevyřeší nekompatibilitu balíčku.",
     "webview_recovery_mismatch": "Stažené WebView neodpovídalo ověřené aktualizaci. Nechte panel připojený a vyberte Zkusit znovu pro nové stažení. Pokud se to opakuje, uložte si zprávu pro podporu; neinstalujte neověřený soubor APK.",
     "webview_recovery_uncertain": "Výsledek instalace se nepodařilo potvrdit. Nechte panel připojený a vyberte Zkusit znovu: nejprve se zkontroluje nainstalované WebView a nový pokus začne, pouze pokud aktualizace stále splňuje podmínky.",
-    "webview_recovery_retry": "Operace WebView byla přerušena nebo nemohla dokončit přípravu. Zkontrolujte připojení panelu a volné úložiště a poté vyberte Zkusit znovu. Pokud se to opakuje, uložte si zprávu pro podporu."
+    "webview_recovery_retry": "Operace WebView byla přerušena nebo nemohla dokončit přípravu. Zkontrolujte připojení panelu a volné úložiště a poté vyberte Zkusit znovu. Pokud se to opakuje, uložte si zprávu pro podporu.",
+    "webview_recovery_download": "Panel nemohl stáhnout aktualizaci WebView z panel-assistant.io, proto nebyla nainstalována. Povolte Home Assistant přístup k {webview_site}, aby mohl aktualizaci stáhnout a předat panelu, nebo povolte přístup panelu a pak vyberte Zkusit znovu. Protokol Home Assistant uvádí, co stahování zastavilo."
   },
   "config": {
     "flow_title": "{name}",
@@ -28,7 +29,7 @@
       },
       "install_usb": {
         "title": "Nainstalovat přes USB",
-        "description": "Připojte panel k tomuto počítači, nikoli k serveru Home Assistant. Ladění přes USB musí být zapnuté v nastavení pro vývojáře na panelu; [průvodce přístupem k panelu pro konkrétní model]({panel_access_url}) ukazuje, jak na to.",
+        "description": "Plug the panel into this computer, not into the Home Assistant server. USB debugging must be on in the panel's developer options; the [model-specific panel access guide]({panel_access_url}) shows how.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.",
         "submit": "Otevřít instalátor USB"
       },
       "add_panel": {
@@ -90,19 +91,19 @@
       },
       "confirm_install_candidate": {
         "title": "Nainstalovat Panel Assistant {version}?",
-        "description": "Připraveno k instalaci na panelu na adrese {address}.\n\nOstatní aplikace se nezmění."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
       },
       "confirm_install_rc": {
         "title": "Nainstalovat Panel Assistant {version}?",
-        "description": "Pouze pro testování: Panel Assistant {version} je kandidát na vydání, nikoli stabilní verze, a může obsahovat chyby.\n\nPřipraveno k instalaci na panelu na adrese {address}.\n\nOstatní aplikace se nezmění."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
       },
       "confirm_reinstall_candidate": {
         "title": "Nainstalovat Panel Assistant {version}?",
-        "description": "Vše je připraveno k instalaci na panel na adrese {address}.\n\nVaše ostatní aplikace zůstanou beze změny.\n\nTento panel se znovu připojí k {entry_title} a zachová si své entity a historii."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "confirm_reinstall_rc": {
         "title": "Nainstalovat Panel Assistant {version}?",
-        "description": "Pouze pro testování: Panel Assistant {version} je kandidát na vydání, nikoli stabilní vydání, a může obsahovat chyby.\n\nVše je připraveno k instalaci na panel na adrese {address}.\n\nVaše ostatní aplikace zůstanou beze změny.\n\nTento panel se znovu připojí k {entry_title} a zachová si své entity a historii."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "release_preview_only": {
         "title": "Vydání nelze nainstalovat automaticky",
@@ -113,21 +114,21 @@
         "description": "Panel Assistant {version} byl nainstalován na adrese {address}.\n\nVolbou Odeslat zopakujete pouze závěrečné kontroly identity a stavu, které jen čtou data. Žádný krok instalace se nebude opakovat.\n\nAž Home Assistant přidá zařízení, otevřete odkaz na nastavení v prohlížeči v dialogu Přidat na počítači, který má k panelu přístup v jeho místní síti. Pokud se zobrazí výzva, schvalte ADB na panelu."
       },
       "install_unfinished": {
-        "title": "This panel has an unfinished install",
-        "description": "Home Assistant already started installing Panel Assistant {version} on this panel, as {existing_address}, and that install has not finished.\n\nYou can carry on with it, or cancel it and start again at {address}.",
+        "title": "Tento panel má nedokončenou instalaci",
+        "description": "Home Assistant již zahájil instalaci Panel Assistant {version} na tomto panelu na adrese {existing_address} a tato instalace ještě neskončila.\n\nMůžete v ní pokračovat nebo ji zrušit a začít znovu na adrese {address}.",
         "menu_options": {
-          "resume_install": "Carry on with that install",
-          "cancel_install": "Cancel it and start again"
+          "resume_install": "Pokračovat v této instalaci",
+          "cancel_install": "Zrušit a začít znovu"
         },
         "menu_option_descriptions": {
-          "cancel_install": "Nothing is removed from the panel. If the app is already installed it stays, and Home Assistant looks at the panel afresh."
+          "cancel_install": "Z panelu nebude nic odstraněno. Pokud je aplikace již nainstalovaná, zůstane na něm a Home Assistant panel znovu prověří."
         }
       },
       "install_unfinished_busy": {
-        "title": "This panel has an unfinished install",
-        "description": "Home Assistant is installing Panel Assistant {version} on this panel right now, as {existing_address}. It cannot be cancelled while it is changing the panel.\n\nCarry on with it to see it finish.",
+        "title": "Tento panel má nedokončenou instalaci",
+        "description": "Home Assistant právě instaluje Panel Assistant {version} na tomto panelu na adrese {existing_address}. Instalaci nelze zrušit, dokud provádí změny na panelu.\n\nPokračujte v ní a sledujte její dokončení.",
         "menu_options": {
-          "resume_install": "Carry on with that install"
+          "resume_install": "Pokračovat v této instalaci"
         }
       }
     },
@@ -138,6 +139,7 @@
     },
     "error": {
       "panel_setup_not_finished": "Panel ještě nedokončil nastavení. Dokončete stránku nastavení a poté znovu vyberte Odeslat.",
+      "panel_setup_refused": "Panel odmítl sdělit, zda je jeho nastavení dokončeno. Odpověděl: {refusal}. Vyberte Odeslat a zkuste to znovu.",
       "old_app_installed": "Na tomto panelu stále běží stará aplikace ha-paneld. Panel Assistant 1.0 ji nemůže převést na novou aplikaci a nic vedle ní nenainstaluje. Postupujte podle [kroků bezpečné obnovy]({old_app_help_url}) a dokončete přechod pomocí Panel Assistant 0.9.0. Pokud už na některém panelu běží aplikace verze 1.0 nebo nemáte zálohu z doby před aktualizací, požádejte před změnou verzí o pomoc.",
       "cannot_connect": "Nelze se připojit k platnému koncovému bodu kontroly stavu Panel Assistant.",
       "invalid_address": "Zadejte název hostitele nebo IP adresu bez schématu URL či cesty.",
@@ -146,9 +148,14 @@
       "install_resolution_timeout": "Časový limit místního překladu názvu vypršel před bezpečným zafixováním adresy panelu. Zkontrolujte místní DNS a zkuste to znovu.",
       "install_too_many_addresses": "Tento název hostitele se přeložil na příliš mnoho adres, aby jej bylo možné bezpečně zafixovat. Použijte vyhrazený místní název hostitele nebo soukromou IP adresu.",
       "unsafe_install_target": "Instalace je povolena pouze na soukromou místní adresu IPv4 nebo unikátní místní adresu IPv6. Nebyl proveden žádný pokus o připojení ADB.",
+      "not_answering_outside_install_range": "Na této adrese neodpověděl žádný panel na portu 8888. Již spuštěný panel lze přidat na libovolné adrese, ale Panel Assistant lze přes síť instalovat pouze na soukromou místní adresu IPv4 nebo jedinečnou místní adresu IPv6, proto nebyl proveden žádný pokus o připojení přes ADB. Zkontrolujte, zda je panel zapnutý a zda jej Home Assistant může kontaktovat na portu 8888, nebo pro instalaci zadejte soukromou místní adresu panelu.",
       "install_target_changed": "Název hostitele se již nepřekládá na tutéž zafixovanou adresu panelu. Nebyl odeslán žádný klíč ADB ani instalace. Zkontrolujte adresu a začněte znovu.",
       "adb_unreachable": "Panel odpověděl, ale na jeho portu Android Debug Bridge (5555) nic neodpovědělo. Na panelu zapněte Android Debug Bridge a povolte jej přes síť, pak to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém prohlížíte tuto stránku, nainstalujte jej raději přes USB.",
+      "panel_connected_unreachable": "Tento panel se připojil k Home Assistant, ale Home Assistant jej nemůže kontaktovat na portu 8888. Povolte ve firewallu nebo směrovači, aby Home Assistant mohl navazovat spojení s panelem na portu TCP 8888, a zkuste to znovu.",
       "panel_unreachable": "Na této adrese nic neodpovědělo. Zkontrolujte správnost adresy a zda je panel zapnutý a ve vaší síti, pak to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém prohlížíte tuto stránku, nainstalujte jej raději přes USB.",
+      "app_port_refused": "Port 8888 na této adrese odmítl připojení a na portu Android Debug Bridge panelu (5555) nic neodpovědělo. Na portu 8888 odpovídá aplikace panelu instanci Home Assistant; port 5555 se používá pouze k instalaci aplikace. Pokud aplikace panelu již běží, něco mezi Home Assistant a panelem odmítá připojení na port 8888: povolte instanci Home Assistant přístup k panelu na portu 8888 a zkuste to znovu. Pokud aplikace ještě není nainstalována, zapněte na panelu Android Debug Bridge a povolte jej přes síť, pak to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém prohlížíte tuto stránku, nainstalujte aplikaci raději přes USB.",
+      "app_port_no_answer": "Home Assistant nedostal z portu 8888 na této adrese žádnou použitelnou odpověď a na portu Android Debug Bridge panelu (5555) nic neodpovědělo. Na portu 8888 odpovídá aplikace panelu instanci Home Assistant; port 5555 se používá pouze k instalaci aplikace. Pokud aplikace panelu již běží, zkontrolujte, že nic mezi Home Assistant a panelem neblokuje ani nefiltruje port 8888, a zkuste to znovu. Pokud aplikace ještě není nainstalována, zapněte na panelu Android Debug Bridge a povolte jej přes síť, pak to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém prohlížíte tuto stránku, nainstalujte aplikaci raději přes USB.",
+      "app_port_not_panel": "Na portu 8888 na této adrese něco odpovědělo, ale nešlo o odpověď kontroly stavu aplikace panelu, a na portu Android Debug Bridge panelu (5555) nic neodpovědělo. Na portu 8888 odpovídá aplikace panelu instanci Home Assistant; port 5555 se používá pouze k instalaci aplikace. Zkontrolujte, že adresa patří panelu a že nic mezi Home Assistant a panelem neodpovídá místo něj na portu 8888, a zkuste to znovu. Pokud aplikace ještě není nainstalována, zapněte na panelu Android Debug Bridge a povolte jej přes síť, pak to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém prohlížíte tuto stránku, nainstalujte aplikaci raději přes USB.",
       "adb_still_unauthorized": "Panel zatím nepřijal tuto instanci Home Assistant, nebo si ji nezapamatoval.",
       "adb_credential_error": "Home Assistant nedokázal bezpečně načíst nebo trvale uložit svůj přihlašovací údaj ADB. Nebyl proveden žádný pokus o změnu panelu. Před dalším pokusem zkontrolujte úložiště a protokoly Home Assistant.",
       "installed_without_health": "Balíček Panel Assistant je nainstalován, ale jeho koncový bod kontroly stavu neodpověděl. Tento postup jej nepřepíše ani neopraví. Neopakujte automatickou instalaci; otevřete Panel Assistant na panelu nebo postupujte podle kroků na adrese {recovery_address}. Po obnovení funkční instalace začněte znovu, abyste ji připojili.",
@@ -175,6 +182,7 @@
       "reinstall_identity_mismatch": "Aplikace je nainstalovaná, ale nepodařilo se ji propojit se zachovaným panelem. Jeho historie a nastavení v Home Assistant byly zachovány. Před dalším pokusem zkontrolujte panel v Home Assistant.",
       "not_panel": "Toto není panel, na který může Panel Assistant instalovat.",
       "invalid_discovery": "Nepodařilo se prokázat, že nalezený panel je tatáž funkční instalace Panel Assistant. Žádný záznam v Home Assistant ani nastavení panelu se nezměnilo.",
+      "cannot_connect": "Home Assistant zachytil oznámení tohoto panelu, ale nemohl se k němu připojit na žádné z oznámených adres. Zkontrolujte, zda Home Assistant může kontaktovat panel na portu TCP 8888. Nebyla změněna žádná položka Home Assistant ani nastavení panelu.",
       "install_cancelled": "Instalace byla zrušena před nainstalováním APK. Nebyl vytvořen žádný záznam v Home Assistant. Chcete-li to zkusit znovu, přidejte integraci Panel Assistant a zadejte stejnou adresu panelu.",
       "install_cancelled_after_staging_cleanup": "Instalace byla zrušena a připravený APK byl před instalací odstraněn. Nebyl vytvořen žádný záznam v Home Assistant. Chcete-li to zkusit znovu, přidejte integraci Panel Assistant a zadejte stejnou adresu panelu.",
       "install_authorization_failed": "Home Assistant nedokázal bezpečně načíst nebo ověřit svůj uložený přihlašovací údaj ADB. Žádný APK nebyl nainstalován. Zkontrolujte úložiště a protokoly Home Assistant, pak přidejte integraci Panel Assistant a zadejte stejnou adresu, abyste to zkusili znovu.",
@@ -186,6 +194,7 @@
       "install_health_check_failed": "APK je nainstalován, ale Panel Assistant neprošel kontrolou stavu. Neopakujte automatickou instalaci. Otevřete Panel Assistant na panelu; pokud se nespustí, postupujte podle kroků na adrese [{recovery_address}]({recovery_url}).",
       "install_ambiguous_mutation": "Příprava, instalace nebo spuštění přes ADB mohly změnit panel. Neopakujte automatickou instalaci, aplikaci neodinstalovávejte ani neresetujte. Postupujte podle kroků na adrese [{recovery_address}]({recovery_url}) a zkontrolujte panel.",
       "install_verification_required": "Panel se změnil, ale Home Assistant nedokázal ověřit nainstalovaný balíček nebo odstranit jeho konkrétní připravený soubor. Neopakujte automatickou instalaci, aplikaci neodinstalovávejte ani neresetujte. Postupujte podle kroků na adrese [{recovery_address}]({recovery_url}) a zkontrolujte panel.",
+      "install_health_unreachable": "Panel Assistant je na panelu nainstalován, ale Home Assistant jej nemohl kontaktovat na portu 8888. Zkontrolujte, zda vaše síť umožňuje Home Assistant kontaktovat panel na portu 8888, například pravidlem firewallu nebo VLAN, a pak panel znovu přidejte se stejnou adresou. Aplikaci není nutné znovu instalovat, odinstalovat ani resetovat.",
       "install_failed": "Instalátor se zastavil s nerozpoznaným výsledkem. Nebyl vytvořen žádný záznam v Home Assistant. Neopakujte automatickou instalaci, dokud nezkontrolujete panel podle popisu na [{recovery_address}]({recovery_url}).",
       "install_worker_stopped": "Instalátor se zastavil a tuto úlohu v aktuálním procesu Home Assistant znovu neprovede. Restartujte Home Assistant, znovu otevřete nastavení a zadejte stejnou adresu panelu, abyste pokračovali nebo získali výsledek obnovy. Žádný záznam nebyl vytvořen.",
       "install_recovery_required": "Home Assistant nemůže prokázat, že je bezpečné automaticky pokračovat. Žádný záznam nebyl vytvořen. Neopakujte automatickou instalaci, aplikaci neodinstalovávejte ani neresetujte, dokud nebudete postupovat podle kroků na adrese [{recovery_address}]({recovery_url}).",
@@ -615,7 +624,8 @@
           "restarting_recovery": "Restartování (obnova)",
           "restarting_reboot": "Restartování (restart)",
           "another_home_assistant": "Přihlášen k jiné instanci Home Assistant",
-          "not_signed_in": "Not signed in to Home Assistant"
+          "cannot_reach_home_assistant": "Nelze kontaktovat Home Assistant",
+          "not_signed_in": "Nepřihlášen k Home Assistant"
         }
       },
       "storage_health": {
@@ -950,6 +960,10 @@
     }
   },
   "issues": {
+    "permissions_turned_off": {
+      "title": "Some app permissions are turned off on {panel}.",
+      "description": "Someone turned off {features} for the panel app in Android settings on {panel}. Home Assistant keeps that choice when it installs or updates the app, so the features that need them will not work until they are turned on again on the panel. This Repair clears itself the next time Home Assistant updates the app.\n\nTo fix:\n1. At the panel, follow the [Android permission guide]({permissions_url}) and allow {features} for Panel Assistant.\n2. If you meant to turn them off, select Ignore instead."
+    },
     "panel_app_too_old": {
       "title": "{panel} potřebuje aplikaci {required_version}",
       "description": "Home Assistant nemůže panel {panel} zobrazit ani ovládat, protože aplikace {version} nepodporuje tento komunikační protokol.\n\nPostup opravy:\n1. Otevřete [Aktualizace]({updates_url}) a nainstalujte kompatibilní aktualizaci aplikace pro panel {panel}, pokud je nabízena.\n2. Počkejte, až se panel znovu připojí."
@@ -1480,6 +1494,49 @@
         }
       }
     },
+    "installer_failure_health_unreachable": {
+      "title": "Home Assistant nemůže kontaktovat Panel Assistant na panelu {panel} na portu 8888",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Vyřešit chybu panelu",
+            "description": "Panel Assistant je na panelu nainstalován, ale Home Assistant jej nemohl kontaktovat na portu 8888.\n\nPostup opravy:\n1. V pravidlech firewallu nebo VLAN vaší sítě povolte Home Assistant přístup k panelu na portu 8888 ([nápověda]({repair_url})).\n2. Znovu přidejte panel se stejnou adresou a pak zde vyberte **Vymazat chybu**.\n\n[Další informace]({learn_more_url})",
+            "menu_options": {
+              "retry": "Zkusit znovu",
+              "support_report": "Zpráva pro podporu",
+              "clear_error": "Vymazat chybu"
+            }
+          },
+          "support_report": {
+            "title": "Zpráva pro podporu",
+            "description": "Tato zpráva obsahuje uložené podrobnosti o neúspěšné instalaci nebo aktualizaci.\n\nPostup opravy:\n1. Přečtěte si, [jak tuto zprávu pro podporu použít]({guide_url}).\n2. Zkontrolujte, zda zpráva neobsahuje soukromé informace, a poté ji zkopírujte do [nového hlášení problému integrace Panel Assistant]({issue_url}).\n\n{report}\n\n[Další informace]({learn_more_url})"
+          },
+          "clear_error": {
+            "title": "Vymazat chybu",
+            "description": "Vymazáním této chyby se odstraní její uložená zpráva, aniž by se panel změnil.\n\nPostup opravy:\n1. Pokud zprávu potřebujete, nejprve si [uložte zprávu pro podporu]({guide_url}).\n2. Zvolte **Odeslat** pro odstranění této chyby a zprávy.\n\n[Další informace]({learn_more_url})"
+          },
+          "retry_error": {
+            "title": "Opakovaný pokus nebyl dokončen",
+            "description": "Opakovaný pokus se nemohl dokončit, takže tato chyba a její zpráva zůstávají v Opravách.\n\nPostup opravy:\n1. Postupujte podle [pokynů k obnově]({repair_url}).\n2. Zvolte **Odeslat** a poté **Zpráva pro podporu**, abyste před dalším pokusem zjistili příčinu.\n\n[Další informace]({learn_more_url})"
+          }
+        },
+        "progress": {
+          "retrying": "Home Assistant kontroluje panel a opakuje uloženou operaci.\n\nPostup opravy:\n1. V případě potřeby si přečtěte [pokyny k opakování pokusu]({repair_url}).\n2. Než se rozhodnete, co udělat dál, počkejte zde na výsledek.\n\n[Další informace]({learn_more_url})"
+        },
+        "error": {
+          "retry_target_changed": "Panel už neodpovídá uloženému cíli. Před opakovaným pokusem jej zkontrolujte.",
+          "retry_release_changed": "Vybrané vydání už neodpovídá uloženému vydání. Zvolte nový pokus o instalaci.",
+          "retry_credential_changed": "Přihlašovací údaj ADB systému Home Assistant se změnil. Před opakovaným pokusem zkontrolujte panel.",
+          "retry_panel_ambiguous": "Nainstalovanou aplikaci na panelu se nepodařilo ověřit. Žádná nová instalace nebyla zahájena.",
+          "retry_cannot_prove_safe": "Panel se nepodařilo zkontrolovat dostatečně důkladně pro bezpečné opakování pokusu. Zkuste to znovu později.",
+          "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
+          "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
+          "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
+          "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
+        }
+      }
+    },
     "installer_failure_update": {
       "title": "Aktualizace na {panel} nebyla dokončena",
       "fix_flow": {
@@ -1534,6 +1591,9 @@
           "unsafe_install_target": "Instalace je povolena pouze na soukromou místní adresu IPv4 nebo unikátní lokální adresu IPv6. O připojení přes ADB nebyl proveden žádný pokus.",
           "install_target_changed": "Název hostitele se už nepřekládá na stejnou pevně určenou adresu panelu. Nebyl odeslán žádný klíč ADB ani instalace. Zkontrolujte adresu a začněte znovu.",
           "adb_unreachable": "Panel odpověděl, ale na jeho portu Android Debug Bridge (5555) nic neodpovědělo. Na panelu zapněte Android Debug Bridge a povolte jej přes síť. Poté to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém máte otevřený prohlížeč, proveďte místo toho instalaci přes USB.",
+          "adb_lease": "Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant). Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
+          "adb_lease_switch_now": "Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant). Nebo na vlastní stránce nastavení panelu (port 8888) zapněte Network ADB v části Systém (pokročilé nastavení); panel to nyní umožňuje, protože již několik minut nemá připojení k Home Assistant. Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
+          "adb_lease_switch": "Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant). Nebo na vlastní stránce nastavení panelu (port 8888) zapněte Network ADB v části Systém (pokročilé nastavení); panel to umožní, až bude několik minut bez připojení k Home Assistant, tedy přibližně za dalších {minutes} min. Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
           "adb_still_unauthorized": "Panel dosud nepřijal tuto instanci systému Home Assistant. Schvalte výzvu ADB na panelu a zkuste to znovu.",
           "adb_credential_error": "Home Assistant nemohl bezpečně načíst nebo trvale uložit svůj přihlašovací údaj ADB. Nebyl proveden žádný pokus o změnu panelu. Před opakovaným pokusem zkontrolujte úložiště a protokoly systému Home Assistant.",
           "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam balíčku Panel Assistant nebo se nepodařilo prokázat, že neobsahuje žádný stav tohoto balíčku. Na panelu se nic nezměnilo. Pokud bylo připojení nestabilní, zkuste to jednou znovu; jinak postupujte podle kroků na adrese {recovery_address}. Bez ověřené zálohy aplikaci neodinstalovávejte ani neresetujte.",
@@ -1599,6 +1659,9 @@
           "unsafe_install_target": "Instalace je povolena pouze na soukromou místní adresu IPv4 nebo unikátní lokální adresu IPv6. O připojení přes ADB nebyl proveden žádný pokus.",
           "install_target_changed": "Název hostitele se už nepřekládá na stejnou pevně určenou adresu panelu. Nebyl odeslán žádný klíč ADB ani instalace. Zkontrolujte adresu a začněte znovu.",
           "adb_unreachable": "Panel odpověděl, ale na jeho portu Android Debug Bridge (5555) nic neodpovědělo. Na panelu zapněte Android Debug Bridge a povolte jej přes síť. Poté to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém máte otevřený prohlížeč, proveďte místo toho instalaci přes USB.",
+          "adb_lease": "Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant). Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
+          "adb_lease_switch_now": "Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant). Nebo na vlastní stránce nastavení panelu (port 8888) zapněte Network ADB v části Systém (pokročilé nastavení); panel to nyní umožňuje, protože již několik minut nemá připojení k Home Assistant. Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
+          "adb_lease_switch": "Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant). Nebo na vlastní stránce nastavení panelu (port 8888) zapněte Network ADB v části Systém (pokročilé nastavení); panel to umožní, až bude několik minut bez připojení k Home Assistant, tedy přibližně za dalších {minutes} min. Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
           "adb_still_unauthorized": "Panel dosud nepřijal tuto instanci systému Home Assistant. Schvalte výzvu ADB na panelu a zkuste to znovu.",
           "adb_credential_error": "Home Assistant nemohl bezpečně načíst nebo trvale uložit svůj přihlašovací údaj ADB. Nebyl proveden žádný pokus o změnu panelu. Před opakovaným pokusem zkontrolujte úložiště a protokoly systému Home Assistant.",
           "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam balíčku Panel Assistant nebo se nepodařilo prokázat, že neobsahuje žádný stav tohoto balíčku. Na panelu se nic nezměnilo. Pokud bylo připojení nestabilní, zkuste to jednou znovu; jinak postupujte podle kroků na adrese {recovery_address}. Bez ověřené zálohy aplikaci neodinstalovávejte ani neresetujte.",
@@ -1663,6 +1726,9 @@
           "unsafe_install_target": "Instalace je povolena pouze na soukromou místní adresu IPv4 nebo unikátní lokální adresu IPv6. O připojení přes ADB nebyl proveden žádný pokus.",
           "install_target_changed": "Název hostitele se už nepřekládá na stejnou pevně určenou adresu panelu. Nebyl odeslán žádný klíč ADB ani instalace. Zkontrolujte adresu a začněte znovu.",
           "adb_unreachable": "Panel odpověděl, ale na jeho portu Android Debug Bridge (5555) nic neodpovědělo. Na panelu zapněte Android Debug Bridge a povolte jej přes síť. Poté to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém máte otevřený prohlížeč, proveďte místo toho instalaci přes USB.",
+          "adb_lease": "Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant). Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
+          "adb_lease_switch_now": "Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant). Nebo na vlastní stránce nastavení panelu (port 8888) zapněte Network ADB v části Systém (pokročilé nastavení); panel to nyní umožňuje, protože již několik minut nemá připojení k Home Assistant. Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
+          "adb_lease_switch": "Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant). Nebo na vlastní stránce nastavení panelu (port 8888) zapněte Network ADB v části Systém (pokročilé nastavení); panel to umožní, až bude několik minut bez připojení k Home Assistant, tedy přibližně za dalších {minutes} min. Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
           "adb_still_unauthorized": "Panel dosud nepřijal tuto instanci systému Home Assistant. Schvalte výzvu ADB na panelu a zkuste to znovu.",
           "adb_credential_error": "Home Assistant nemohl bezpečně načíst nebo trvale uložit svůj přihlašovací údaj ADB. Nebyl proveden žádný pokus o změnu panelu. Před opakovaným pokusem zkontrolujte úložiště a protokoly systému Home Assistant.",
           "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam balíčku Panel Assistant nebo se nepodařilo prokázat, že neobsahuje žádný stav tohoto balíčku. Na panelu se nic nezměnilo. Pokud bylo připojení nestabilní, zkuste to jednou znovu; jinak postupujte podle kroků na adrese {recovery_address}. Bez ověřené zálohy aplikaci neodinstalovávejte ani neresetujte.",
@@ -1725,8 +1791,8 @@
       "description": "Panel {panel} je připojený, ale jeho uložená adresa {address} není dostupná pro operace, které ji vyžadují.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant]({integration_url}).\n2. Pokud se adresa panelu změnila, přidejte ho znovu pomocí jeho aktuální adresy.\n3. Jinak obnovte přístup k adrese {address}; tato oprava zmizí, až na ní odpoví tento panel."
     },
     "panel_address_unverified": {
-      "title": "Panel {panel} se přesunul a jeho novou adresu se nepodařilo potvrdit",
-      "description": "Panel {panel} je připojený, ale pro operace vyžadující jeho adresu se nepodařilo ověřit ani adresu {address}, ani navrženou adresu {session_address}.\n\nPostup opravy:\n1. [Otevřete zařízení Panel Assistant]({integration_url}).\n2. Pokud se adresa panelu změnila, přidejte ho znovu pomocí jeho aktuální adresy.\n3. Jinak obnovte přístup k adrese {address}; tato oprava zmizí, až na ní odpoví tento panel."
+      "title": "Can't reach {panel} at {address} or {session_address}",
+      "description": "{panel} is connected, but Home Assistant cannot reach it at its stored address {address}, or at {session_address}, the address its connection reports. Some actions need one of them.\n\nTo fix:\n1. Let Home Assistant reach the panel at {address} again. A firewall may be blocking it. This clears when the panel answers, as shown in [Panel Assistant devices]({integration_url}).\n2. If the panel has moved, add it again there at its current address."
     },
     "panel_identity_mismatch": {
       "title": "Zkontrolovat adresu panelu {panel}",
@@ -1808,6 +1874,9 @@
           "unsafe_install_target": "Instalace je povolena pouze na soukromou místní adresu IPv4 nebo unikátní lokální adresu IPv6. O připojení přes ADB nebyl proveden žádný pokus.",
           "install_target_changed": "Název hostitele se už nepřekládá na stejnou pevně určenou adresu panelu. Nebyl odeslán žádný klíč ADB ani instalace. Zkontrolujte adresu a začněte znovu.",
           "adb_unreachable": "Panel odpověděl, ale na jeho portu Android Debug Bridge (5555) nic neodpovědělo. Na panelu zapněte Android Debug Bridge a povolte jej po síti, pak to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém právě používáte prohlížeč, nainstalujte aplikaci raději přes USB.",
+          "adb_lease": "Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant). Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
+          "adb_lease_switch_now": "Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant). Nebo na vlastní stránce nastavení panelu (port 8888) zapněte Network ADB v části Systém (pokročilé nastavení); panel to nyní umožňuje, protože již několik minut nemá připojení k Home Assistant. Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
+          "adb_lease_switch": "Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant). Nebo na vlastní stránce nastavení panelu (port 8888) zapněte Network ADB v části Systém (pokročilé nastavení); panel to umožní, až bude několik minut bez připojení k Home Assistant, tedy přibližně za dalších {minutes} min. Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
           "adb_still_unauthorized": "Panel zatím nepřijal tuto instanci Home Assistant. Potvrďte na panelu žádost o přístup přes ADB a pak to zkuste znovu.",
           "adb_credential_error": "Home Assistant nemohl bezpečně načíst nebo trvale uložit svůj přístupový údaj ADB. Nebyl proveden žádný pokus o změnu panelu. Před dalším pokusem zkontrolujte úložiště a protokoly Home Assistant.",
           "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam o balíčku Panel Assistant nebo se nepodařilo prokázat, že nezůstal žádný stav tohoto balíčku. Na panelu nebyla provedena žádná změna. Pokud bylo připojení nestabilní, zkuste to jednou znovu; jinak postupujte podle kroků na adrese {recovery_address}. Bez ověřené zálohy aplikaci neodinstalovávejte ani ji neresetujte.",
@@ -1837,6 +1906,9 @@
           "unsafe_install_target": "Instalace je povolena pouze na soukromou místní adresu IPv4 nebo jedinečnou místní adresu IPv6. Nebyl proveden žádný pokus o připojení přes ADB.",
           "install_target_changed": "Název hostitele se už nepřekládá na stejnou zafixovanou adresu panelu. Nebyl odeslán žádný klíč ADB ani instalace. Zkontrolujte adresu a začněte znovu.",
           "adb_unreachable": "Panel odpověděl, ale na jeho portu Android Debug Bridge (5555) nic neodpovědělo. Na panelu zapněte Android Debug Bridge a povolte jej po síti, pak to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém právě používáte prohlížeč, nainstalujte aplikaci raději přes USB.",
+          "adb_lease": "Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant). Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
+          "adb_lease_switch_now": "Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant). Nebo na vlastní stránce nastavení panelu (port 8888) zapněte Network ADB v části Systém (pokročilé nastavení); panel to nyní umožňuje, protože již několik minut nemá připojení k Home Assistant. Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
+          "adb_lease_switch": "Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant). Nebo na vlastní stránce nastavení panelu (port 8888) zapněte Network ADB v části Systém (pokročilé nastavení); panel to umožní, až bude několik minut bez připojení k Home Assistant, tedy přibližně za dalších {minutes} min. Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
           "adb_still_unauthorized": "Panel zatím nepřijal tuto instanci Home Assistant. Potvrďte na panelu žádost o přístup přes ADB a pak to zkuste znovu.",
           "adb_credential_error": "Home Assistant nemohl bezpečně načíst nebo trvale uložit svůj přístupový údaj ADB. Nebyl proveden žádný pokus o změnu panelu. Před dalším pokusem zkontrolujte úložiště a protokoly Home Assistant.",
           "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam o balíčku Panel Assistant nebo se nepodařilo prokázat, že nezůstal žádný stav tohoto balíčku. Na panelu nebyla provedena žádná změna. Pokud bylo připojení nestabilní, zkuste to jednou znovu; jinak postupujte podle kroků na adrese {recovery_address}. Bez ověřené zálohy aplikaci neodinstalovávejte ani ji neresetujte.",
@@ -1887,6 +1959,9 @@
           "unsafe_install_target": "Instalace je povolena pouze na soukromou místní adresu IPv4 nebo jedinečnou místní adresu IPv6. Nebyl proveden žádný pokus o připojení přes ADB.",
           "install_target_changed": "Název hostitele se už nepřekládá na stejnou zafixovanou adresu panelu. Nebyl odeslán žádný klíč ADB ani instalace. Zkontrolujte adresu a začněte znovu.",
           "adb_unreachable": "Panel odpověděl, ale na jeho portu Android Debug Bridge (5555) nic neodpovědělo. Na panelu zapněte Android Debug Bridge a povolte jej po síti, pak to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém právě používáte prohlížeč, nainstalujte aplikaci raději přes USB.",
+          "adb_lease": "Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant). Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
+          "adb_lease_switch_now": "Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant). Nebo na vlastní stránce nastavení panelu (port 8888) zapněte Network ADB v části Systém (pokročilé nastavení); panel to nyní umožňuje, protože již několik minut nemá připojení k Home Assistant. Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
+          "adb_lease_switch": "Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant). Nebo na vlastní stránce nastavení panelu (port 8888) zapněte Network ADB v části Systém (pokročilé nastavení); panel to umožní, až bude několik minut bez připojení k Home Assistant, tedy přibližně za dalších {minutes} min. Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
           "adb_still_unauthorized": "Panel zatím nepřijal tuto instanci Home Assistant. Potvrďte na panelu žádost o přístup přes ADB a pak to zkuste znovu.",
           "adb_credential_error": "Home Assistant nemohl bezpečně načíst nebo trvale uložit svůj přístupový údaj ADB. Nebyl proveden žádný pokus o změnu panelu. Před dalším pokusem zkontrolujte úložiště a protokoly Home Assistant.",
           "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam o balíčku Panel Assistant nebo se nepodařilo prokázat, že nezůstal žádný stav tohoto balíčku. Na panelu nebyla provedena žádná změna. Pokud bylo připojení nestabilní, zkuste to jednou znovu; jinak postupujte podle kroků na adrese {recovery_address}. Bez ověřené zálohy aplikaci neodinstalovávejte ani ji neresetujte.",
@@ -1894,6 +1969,9 @@
           "panel_identity_changed": "Na této adrese už neodpovídá nastavený panel. Před dalším pokusem zkontrolujte panel a jeho adresu.",
           "removal_busy": "Tento panel už mění jiná operace. Nic nebylo odebráno; zkuste to znovu, až tato operace skončí.",
           "removal_adb_unreachable": "Home Assistant se nedokázal spojit s panelem přes Android Debug Bridge (port 5555). Nic nebylo odebráno. Zkontrolujte, že je panel zapnutý a ladění po síti je stále povolené, a pak to zkuste znovu.",
+          "removal_adb_lease": "Nic nebylo odstraněno. Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant), pak to zkuste znovu; nic dalšího není potřeba. Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
+          "removal_adb_lease_switch_now": "Nic nebylo odstraněno. Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant), pak to zkuste znovu; nic dalšího není potřeba. Nebo na vlastní stránce nastavení panelu (port 8888) zapněte Network ADB v části Systém (pokročilé nastavení); panel to nyní umožňuje, protože již několik minut nemá připojení k Home Assistant. Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
+          "removal_adb_lease_switch": "Nic nebylo odstraněno. Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant), pak to zkuste znovu; nic dalšího není potřeba. Nebo na vlastní stránce nastavení panelu (port 8888) zapněte Network ADB v části Systém (pokročilé nastavení); panel to umožní, až bude několik minut bez připojení k Home Assistant, tedy přibližně za dalších {minutes} min. Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
           "removal_adb_authorization": "Panel nepřijal tuto instanci Home Assistant pro Android Debug Bridge. Nic nebylo odebráno. Nejdřív vyberte „Povolit aktualizace“ a potom to zkuste znovu.",
           "removal_panel_changed": "Na adrese tohoto panelu nyní odpovídá jiné zařízení. Nic nebylo odebráno.",
           "removal_approval_required": "Je zapnuté posílené zabezpečení, takže předání domovské obrazovky zpět musí být schváleno na samotném panelu. Nic se nezměnilo a Panel Assistant je stále nainstalovaný. Schvalte požadavek na panelu a potom znovu odešlete formulář.",
@@ -1933,8 +2011,12 @@
       }
     },
     "not_signed_in": {
-      "title": "{panel} has not connected to Home Assistant",
-      "description": "{panel} answers on the network but has not connected to Home Assistant, so its controls and its sidebar page are missing.\n\nTo fix:\n1. [Open the panel’s setup page]({panel_page}) and sign in to this Home Assistant.\n2. Wait for the panel to connect; this Repair then goes away."
+      "title": "{panel} se nepřipojil k Home Assistant",
+      "description": "{panel} odpovídá v síti, ale nepřipojil se k Home Assistant, proto chybí jeho ovládací prvky a stránka v postranním panelu.\n\nPostup opravy:\n1. [Otevřete stránku nastavení panelu]({panel_page}) a přihlaste se k tomuto Home Assistant.\n2. Počkejte, až se panel připojí; tato oprava pak zmizí."
+    },
+    "cannot_reach_home_assistant": {
+      "title": "{panel} nemůže kontaktovat Home Assistant",
+      "description": "{panel} je přihlášen a pokouší se připojit k Home Assistant na adrese {home_assistant}, ale žádné jeho připojení nedorazilo, proto chybí jeho ovládací prvky a stránka v postranním panelu. Opětovné přihlášení nepomůže.\n\nPostup opravy:\n1. Povolte panelu přístup k {host} na portu TCP {port}: firewall nebo izolovaná síť musí panelu umožňovat navazovat spojení s Home Assistant. [Stránka protokolů]({panel_logs}) panelu zobrazuje každý pokus.\n2. Pokud {home_assistant} není adresa tohoto Home Assistant, [změňte ji na panelu]({panel_connection}).\n3. Počkejte, až se panel připojí; tato oprava pak zmizí."
     }
   },
   "options": {
@@ -2007,6 +2089,9 @@
       "unsafe_install_target": "Instalace je povolena pouze na soukromou místní adresu IPv4 nebo jedinečnou místní adresu IPv6. Nebyl proveden žádný pokus o připojení přes ADB.",
       "install_target_changed": "Název hostitele se už nepřekládá na stejnou zafixovanou adresu panelu. Nebyl odeslán žádný klíč ADB ani instalace. Zkontrolujte adresu a začněte znovu.",
       "adb_unreachable": "Panel odpověděl, ale na jeho portu Android Debug Bridge (5555) nic neodpovědělo. Na panelu zapněte Android Debug Bridge a povolte jej po síti, pak to zkuste znovu. Pokud můžete panel připojit k počítači, na kterém právě používáte prohlížeč, nainstalujte aplikaci raději přes USB.",
+      "adb_lease": "Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant). Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
+      "adb_lease_switch_now": "Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant). Nebo na vlastní stránce nastavení panelu (port 8888) zapněte Network ADB v části Systém (pokročilé nastavení); panel to nyní umožňuje, protože již několik minut nemá připojení k Home Assistant. Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
+      "adb_lease_switch": "Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant). Nebo na vlastní stránce nastavení panelu (port 8888) zapněte Network ADB v části Systém (pokročilé nastavení); panel to umožní, až bude několik minut bez připojení k Home Assistant, tedy přibližně za dalších {minutes} min. Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
       "adb_still_unauthorized": "Panel zatím nepřijal tuto instanci Home Assistant. Potvrďte na panelu žádost o přístup přes ADB a pak to zkuste znovu.",
       "adb_credential_error": "Home Assistant nemohl bezpečně načíst nebo trvale uložit svůj přístupový údaj ADB. Nebyl proveden žádný pokus o změnu panelu. Před dalším pokusem zkontrolujte úložiště a protokoly Home Assistant.",
       "retained_or_ambiguous": "Panel může obsahovat zachovaný záznam o balíčku Panel Assistant nebo se nepodařilo prokázat, že nezůstal žádný stav tohoto balíčku. Na panelu nebyla provedena žádná změna. Pokud bylo připojení nestabilní, zkuste to jednou znovu; jinak postupujte podle kroků na adrese {recovery_address}. Bez ověřené zálohy aplikaci neodinstalovávejte ani ji neresetujte.",
@@ -2014,6 +2099,9 @@
       "panel_identity_changed": "Na této adrese už neodpovídá nastavený panel. Před dalším pokusem zkontrolujte panel a jeho adresu.",
       "removal_busy": "Tento panel už mění jiná operace. Nic nebylo odebráno; zkuste to znovu, až tato operace skončí.",
       "removal_adb_unreachable": "Home Assistant se nedokázal spojit s panelem přes Android Debug Bridge (port 5555). Nic nebylo odebráno. Zkontrolujte, že je panel zapnutý a ladění po síti je stále povolené, a pak to zkuste znovu.",
+      "removal_adb_lease": "Nic nebylo odstraněno. Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant), pak to zkuste znovu; nic dalšího není potřeba. Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
+      "removal_adb_lease_switch_now": "Nic nebylo odstraněno. Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant), pak to zkuste znovu; nic dalšího není potřeba. Nebo na vlastní stránce nastavení panelu (port 8888) zapněte Network ADB v části Systém (pokročilé nastavení); panel to nyní umožňuje, protože již několik minut nemá připojení k Home Assistant. Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
+      "removal_adb_lease_switch": "Nic nebylo odstraněno. Aplikace panelu odpověděla, ale ponechává Android Debug Bridge vypnutý, dokud tento Home Assistant spravuje panel, a to i tehdy, když panel nemůže kontaktovat Home Assistant. Chcete-li jej znovu zpřístupnit, umožněte panelu znovu kontaktovat Home Assistant (připojením k vlastnímu portu Home Assistant), pak to zkuste znovu; nic dalšího není potřeba. Nebo na vlastní stránce nastavení panelu (port 8888) zapněte Network ADB v části Systém (pokročilé nastavení); panel to umožní, až bude několik minut bez připojení k Home Assistant, tedy přibližně za dalších {minutes} min. Nebo restartujte panel: Android Debug Bridge je po restartu přístupný, dokud se panel znovu nepřipojí k Home Assistant.",
       "removal_adb_authorization": "Panel nepřijal tuto instanci Home Assistant pro Android Debug Bridge. Nic nebylo odebráno. Nejdřív vyberte „Povolit aktualizace“ a potom to zkuste znovu.",
       "removal_adb_authorization_unavailable": "Panel nepovolil této instanci Home Assistant přístup přes Android Debug Bridge. Nic nebylo odstraněno. Zkontrolujte, zda je panel zapnutý a odpovídá, a poté to zkuste znovu.",
       "removal_panel_changed": "Na adrese tohoto panelu nyní odpovídá jiné zařízení. Nic nebylo odebráno.",

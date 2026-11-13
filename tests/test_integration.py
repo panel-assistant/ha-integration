@@ -296,7 +296,8 @@ async def test_setup_entry_diagnostics_unload_reload(hass: HomeAssistant) -> Non
     assert health_mock.await_count == 4
     assert status_mock.await_count == 2
     assert operation_mock.await_count == 2
-    assert resume_mock.await_count == 2
+    # Once per domain start: reloading the entry leaves the installs to it.
+    assert resume_mock.await_count == 1
     assert manager.async_list.await_count == 2
 
 

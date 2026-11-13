@@ -42,17 +42,24 @@ from .client import (
     parse_health_response,
 )
 from .const import (
+    CONF_DEVICE_SETUP,
     DEFAULT_SCAN_INTERVAL,
+    DEVICE_SETUP_ADOPT,
     DOMAIN,
     MAX_STATUS_RESPONSE_BYTES,
 )
 from .feed_coordinator import async_get_feed_coordinator
 from .identity import accept_health, is_installation, reinstalled
 from .repairs_entity_hold import async_reconcile_entity_hold_issue
-from .repairs_permission import async_reconcile_permission_issue
+from .repairs_permission import (
+    async_reconcile_permission_issue,
+    turned_off_reporter,
+)
 from .repairs_proximity import async_reconcile_proximity_issue
 from .repairs_root import async_reconcile_root_issue
 from .repairs_webview import async_reconcile_webview_issue
+from .saved_account import SavedAccount
+from .session_loss import SessionLossLog
 from .status import PanelStatus, parse_status_response
 from .transport_protocol import ERR_PANEL_UNAVAILABLE, MANAGE_SNAPSHOT
 from .transport_sessions import (
@@ -74,6 +81,9 @@ _ADMIN_APPROVAL_BACKOFF_MAX = 86400.0
 _MAX_REFUSED_HELLOS = 16
 # How long a panel may answer polls without a session before it is reported as
 # not signed in: a fresh install signs in within this, and a restart reconnects.
+# It also applies again from the moment a once-connected panel's session ends:
+# twice the app's reconnect backoff ceiling, so a panel whose path to Home
+# Assistant works has always reconnected before it.
 NOT_SIGNED_IN_GRACE = timedelta(minutes=2)
 # A reported port the stored endpoint does not use is tried once per session,
 # then this often: a forwarded port keeps answering while those never do.
@@ -185,7 +195,8 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         # The live session whose ADB recovery daemon was last proved running.
         self._recovery_session: PanelSession | None = None
         # Whether the finished pass saw root over ADB, which recovery needs.
-        # Each pass sets it before it can finish, so a key change needs no reset.
+        # Each pass sets it before it can finish, or the entry's device setup
+        # record restores it, so a key change needs no reset.
         self._admin_root = False
         # True until the first poll answers otherwise, as `last_update_success` starts.
         self.reachable = True
@@ -198,8 +209,10 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
 
         self._vendor_recovery = VendorRecovery(self)
         self._port_probe: tuple[PanelSession, float] | None = None
-        # Since setup while the panel has never connected; None once it has.
+        # Since setup, or since the panel's last session ended; None while
+        # it is connected.
         self._no_session_since: datetime | None = dt_util.utcnow()
+        self._saved_account = SavedAccount(hass, lambda: self._no_session_since is None)
 
     @property
     def connected(self) -> bool:
@@ -213,6 +226,15 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
 
     @property
     def not_signed_in(self) -> bool:
+        """Return whether a panel that has not connected holds no account here."""
+        return self.unreached_ha_url is None and self._awaiting_session(True)
+
+    @property
+    def unreached_ha_url(self) -> str | None:
+        """Return the address a signed-in panel that never connected is trying."""
+        return self._saved_account.trying if self._awaiting_session(True) else None
+
+    def _awaiting_session(self, asked: bool = False) -> bool:
         """Return whether the panel answers polls but has not connected for a while.
 
         Every entity beyond the static ones, and the sidebar page, need the
@@ -232,6 +254,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             or self.connected
             or not self.reachable
             or self.data is None
+            or (asked and not self._saved_account.read)
             or dt_util.utcnow() - since < NOT_SIGNED_IN_GRACE
         ):
             return False
@@ -264,6 +287,12 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             return None
         return async_get_sessions(self.hass).get(self._entry_id)
 
+    def _panel_name(self) -> str:
+        from .device import panel_display_name
+
+        entry = self._entry()
+        return panel_display_name(self.hass, entry) if entry else str(self._entry_id)
+
     def _entry(self) -> ConfigEntry | None:
         if self._entry_id is None:
             return None
@@ -279,13 +308,18 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         """
         assert self._entry_id is not None
         entry_id = self._entry_id
+        loss = SessionLossLog(
+            self.hass, entry_id, self._panel_name, lambda: self.expected_restart
+        )
 
         @callback
         def _remember() -> None:
             if (session := self._session()) is None:
-                # Only a panel that has never connected since setup is reported:
-                # a session that drops and returns is a recovered fault, logged
-                # elsewhere, never a Repair.
+                # A session that drops and returns is a recovered fault, logged
+                # and never a Repair; one that stays away for the whole grace
+                # is reported as a panel that has not connected.
+                if self._no_session_since is None:
+                    self._no_session_since = dt_util.utcnow()
                 return
             self._no_session_since = None
             self._last_hello = (
@@ -298,6 +332,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         @callback
         def _changed() -> None:
             _remember()
+            loss.changed()
             self.async_update_listeners()
             self._vendor_recovery.changed()
             session = self._session()
@@ -325,6 +360,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         self._vendor_recovery.observe(self.data)
 
         def stop_following() -> None:
+            loss.close()
             self._vendor_recovery.close()
             unsubscribe()
 
@@ -416,18 +452,31 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                     snapshot = PanelSnapshot(
                         health=health, status=None, status_error="unavailable"
                     )
-            for outcome in (health, snapshot):
-                if isinstance(outcome, BaseException):
-                    raise outcome
-            assert isinstance(snapshot, PanelSnapshot)
-            if withheld and entry is not None and probe_current():
-                self._report(entry, *withheld[-1])
-            self._vendor_recovery.observe(snapshot)
-            await self._async_activate_completed_admin(snapshot.health)
-            return snapshot
+            if not (
+                isinstance(snapshot, UpdateFailed)
+                and isinstance(snapshot.__cause__, HomeAssistantError)
+                and snapshot.__cause__.translation_key == ERR_PANEL_UNAVAILABLE
+                and not session_manages(self._session())
+            ):
+                for outcome in (health, snapshot):
+                    if isinstance(outcome, BaseException):
+                        raise outcome
+                assert isinstance(snapshot, PanelSnapshot)
+                if withheld and entry is not None and probe_current():
+                    self._report(entry, *withheld[-1])
+                self._vendor_recovery.observe(snapshot)
+                await self._async_activate_completed_admin(snapshot.health)
+                return snapshot
+            # The session ended before its reads returned: its failure says
+            # nothing about the panel. Finish over HTTP, as for a panel
+            # without a session.
         self.reachable = False
         snapshot = await self._async_poll_address()
         self.reachable = True
+        if self._awaiting_session() and (entry := self._entry()) is not None:
+            await self._saved_account.async_read(
+                self.client, entry.title, snapshot.status
+            )
         self._vendor_recovery.observe(snapshot)
         await self._async_activate_completed_admin(snapshot.health)
         return snapshot
@@ -435,9 +484,17 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
     async def _async_activate_completed_admin(self, health: PanelHealth) -> None:
         """Finish setup-owned HOME and the screen-lock fallback after completion.
 
-        The ordinary poll drives attempts at most once every five minutes.
-        Success needs Android readback and ends further ADB work. Nothing
-        keeps an ADB connection or adds a timer.
+        The install programs never claim the device admin, and the panel's own
+        setup finishes after they return, so the poll is what sees it finish.
+        The pass runs once per installed build: its success is recorded in the
+        entry (``CONF_DEVICE_SETUP``), so a later poll, a Home Assistant
+        restart or a moved address never claims the admin or runs the vendor
+        setup again, and an owner who changes those settings back on the panel
+        keeps the change until the next install or update. Only the panel's own
+        pending HOME intent, which setup leaves until HOME is claimed, runs it
+        again. Attempts are at most once every five minutes. Success needs
+        Android readback and ends further ADB work. Nothing keeps an ADB
+        connection or adds a timer.
         """
         from . import adb_protocol as adb
         from . import local_adb
@@ -466,6 +523,15 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
 
         entry = self._entry()
         if (
+            entry is not None
+            and not health.setup_complete
+            and entry.data.get(CONF_DEVICE_SETUP) == DEVICE_SETUP_ADOPT
+            and health.discovery_id == entry.unique_id
+            and not self.identity_mismatch
+        ):
+            # Seen before its setup finished: this panel still owes the pass.
+            self._record_device_setup(entry, None)
+        if (
             not health.setup_complete
             or not self.available
             or entry is None
@@ -486,6 +552,24 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             self._admin_retry_at = 0.0
             self._admin_backoff = 0.0
             self._recovery_session = None
+        build: dict[str, Any] = {
+            "did": health.discovery_id,
+            "package": package,
+            "version_code": health.version_code,
+        }
+        recorded = entry.data.get(CONF_DEVICE_SETUP)
+        if not self._admin_done:
+            if recorded == DEVICE_SETUP_ADOPT:
+                # Root is unknown without ADB, so recovery is left to the
+                # operations that need it until the next install or update.
+                self._record_device_setup(entry, {**build, "root": None})
+                self._admin_done = True
+                self._admin_root = False
+            elif isinstance(recorded, dict) and all(
+                recorded.get(field) == value for field, value in build.items()
+            ):
+                self._admin_done = True
+                self._admin_root = recorded.get("root") is True
         session = local_adb.session_for(self.hass, entry)
         # A finished pass still restarts recovery once per new session: after a
         # reboot only the network route may have the root to start it.
@@ -573,6 +657,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                         package,
                         LAUNCH_COMPONENTS[package][-1],
                         deferred_setup=True,
+                        report_denials=turned_off_reporter(self.hass, entry.entry_id),
                     )
                 self._admin_done, home = await _async_admin_claim(
                     device, target, package
@@ -587,6 +672,10 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                     # vendor commissioning only while the app still owns HOME;
                     # a deliberate handback must never be undone by HA reload.
                     await _async_vendor_setup(device, target)
+                if self._admin_done and self._entry() is entry:
+                    self._record_device_setup(
+                        entry, {**build, "root": self._admin_root}
+                    )
         except (
             AdbCredentialError,
             InstallNetworkError,
@@ -616,6 +705,20 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                 await adb._async_close(device)
             finally:
                 release_panel_operation(self.hass, entry.entry_id)
+
+    @callback
+    def _record_device_setup(
+        self, entry: ConfigEntry, record: dict[str, Any] | None
+    ) -> None:
+        """Keep which build had the device setup pass, or that one is owed."""
+        if entry.data.get(CONF_DEVICE_SETUP) == record:
+            return
+        data = {
+            key: value for key, value in entry.data.items() if key != CONF_DEVICE_SETUP
+        }
+        if record is not None:
+            data[CONF_DEVICE_SETUP] = record
+        self.hass.config_entries.async_update_entry(entry, data=data)
 
     async def _async_read_session(self, session: PanelSession) -> PanelSnapshot:
         """Read health and status from the panel's own session."""

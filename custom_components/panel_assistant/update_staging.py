@@ -8,15 +8,19 @@ waits for the panel to return on that build.
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
-from collections.abc import Callable
+import os
+from collections.abc import AsyncIterator, Callable
+from functools import partial
 from pathlib import Path
-from tempfile import NamedTemporaryFile
+from tempfile import mkstemp
 
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from . import local_adb
 from .adb_credentials import AdbCredential
 from .adb_protocol import (
     AdbInstallTarget,
@@ -43,6 +47,7 @@ from .install_adb import (
 )
 from .panel_backup import PanelBackupInvalidError, async_store_panel_backup
 from .release import _RELEASE_SIGNER_CERTIFICATE_SHA256, ReleaseArtifact
+from .repairs_permission import turned_off_reporter
 from .session_carrier import SessionCarrier, UpdateCarrier
 from .update_errors import UPDATE_LOGGER as _LOGGER
 from .update_errors import (
@@ -64,6 +69,51 @@ from .update_route import (
 
 # A panel's refusal of a build its own order ranks lower (panelUpdateRefusal).
 _DOWNGRADE_REFUSAL = "panel-app downgrades are not permitted"
+
+
+def _write_update_apk(apk: bytes) -> Path:
+    """Write the verified APK to a new private temporary file; return its path."""
+    descriptor, name = mkstemp(prefix="panel-assistant-update-", suffix=".apk")
+    path = Path(name)
+    try:
+        with os.fdopen(descriptor, "wb") as file:
+            file.write(apk)
+    except BaseException:
+        path.unlink(missing_ok=True)
+        raise
+    return path
+
+
+def _remove_update_apk(path: Path) -> None:
+    path.unlink(missing_ok=True)
+
+
+def _remove_when_written(hass: HomeAssistant, created: asyncio.Future[Path]) -> None:
+    """Remove a file whose writer was abandoned, once the write has finished."""
+    if not created.cancelled() and created.exception() is None:
+        hass.async_add_executor_job(_remove_update_apk, created.result())
+
+
+@contextlib.asynccontextmanager
+async def _async_update_apk_file(
+    hass: HomeAssistant, apk: bytes
+) -> AsyncIterator[Path]:
+    """Hold the APK in a temporary file whose filesystem work runs in the executor.
+
+    The file is owned here from the moment the executor creates it. A caller
+    cancelled while it is being written still has it removed when the write
+    ends, and the removal itself cannot be cancelled once it is submitted.
+    """
+    created = hass.async_add_executor_job(_write_update_apk, apk)
+    try:
+        path = await asyncio.shield(created)
+    except asyncio.CancelledError:
+        created.add_done_callback(partial(_remove_when_written, hass))
+        raise
+    try:
+        yield path
+    finally:
+        await asyncio.shield(hass.async_add_executor_job(_remove_update_apk, path))
 
 
 class BuildDelivery:
@@ -311,16 +361,12 @@ class BuildDelivery:
                 "The requested Panel Assistant update is unavailable",
             )
         try:
-            with NamedTemporaryFile(
-                prefix="panel-assistant-update-", suffix=".apk"
-            ) as file:
-                await hass.async_add_executor_job(file.write, apk)
-                await hass.async_add_executor_job(file.flush)
+            async with _async_update_apk_file(hass, apk) as apk_path:
                 outcome = await async_update_installed_apk(
                     target,
                     credential.signer,
                     descriptor,
-                    Path(file.name),
+                    apk_path,
                     before_install=lambda: self._offer.async_admit(artifact),
                 )
         except InstallAdbError as err:
@@ -343,6 +389,7 @@ class BuildDelivery:
                     credential.signer,
                     descriptor,
                     expected_root_mode=installed.root_mode,
+                    report_denials=turned_off_reporter(hass, self._entry_id),
                 )
                 is not LaunchOutcome.STARTED
             ):
@@ -367,28 +414,16 @@ class BuildDelivery:
         """Wait for exactly the committed build, then remember its number.
 
         An app that installed but never came back is started once over
-        authorized ADB, and the owner is told it had stopped.
+        authorized ADB, and the owner is told it had stopped. Where no ADB
+        lease has to lapse first, that start is tried as soon as the app has
+        been absent for the restart grace, not when the whole wait ends.
         """
+        started = False
 
-        async def wait() -> tuple[int, tuple[str, str]] | None:
-            return await self._progress.async_wait_for_build(
-                hass,
-                artifact,
-                before,
-                watch_refusal=watch_refusal,
-                carrier=self._carrier(hass) if self.session else None,
-            )
-
-        try:
-            proven = await wait()
-        except HomeAssistantError as err:
-            if (
-                err.translation_key != "update_not_complete"
-                # A panel that answers, over HTTP or its own session, has its app.
-                or self._coordinator.reachable
-                or self._coordinator.connected
-            ):
-                raise
+        async def relaunch() -> bool:
+            nonlocal started
+            if started:
+                return False
             started = await async_relaunch_stopped_app(
                 hass, self._coordinator, artifact, self._panel_name
             )
@@ -399,7 +434,36 @@ class BuildDelivery:
                     self._panel_name(),
                     artifact.tag,
                 )
-            elif not self._coordinator.available:
+            return started
+
+        async def early() -> bool:
+            # A lease the stopped app held keeps ADB closed until it lapses,
+            # which the end of the wait already allows for.
+            entry = self._coordinator._entry()
+            if entry is not None and local_adb.recovery_wait(hass, entry):
+                return False
+            return await relaunch()
+
+        async def wait() -> tuple[int, tuple[str, str]] | None:
+            return await self._progress.async_wait_for_build(
+                hass,
+                artifact,
+                before,
+                watch_refusal=watch_refusal,
+                carrier=self._carrier(hass) if self.session else None,
+                absent=early,
+            )
+
+        try:
+            proven = await wait()
+        except HomeAssistantError as err:
+            if (
+                err.translation_key != "update_not_complete"
+                # A panel that answers, over HTTP or its own session, has its app.
+                or self._coordinator.available
+            ):
+                raise
+            if not await relaunch() and not self._coordinator.available:
                 raise
             # Independent recovery can outlast the app's own restart. A panel
             # that returned meanwhile still has to prove this exact build.

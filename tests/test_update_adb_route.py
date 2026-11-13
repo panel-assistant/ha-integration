@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
+import tempfile
+import threading
 from dataclasses import replace
 from io import BytesIO
 from pathlib import Path
@@ -45,7 +48,10 @@ from custom_components.panel_assistant.coordinator import (
     PanelSnapshot,
 )
 from custom_components.panel_assistant.feed_coordinator import BuildFeedCoordinator
-from custom_components.panel_assistant.install_network import PinnedPanelTarget
+from custom_components.panel_assistant.install_network import (
+    PinnedPanelTarget,
+    async_pin_install_target,
+)
 from custom_components.panel_assistant.provisioning import (
     InstallTargetProbe,
     InstallTargetState,
@@ -62,6 +68,7 @@ from custom_components.panel_assistant.update_coordinator import (
     PanelUpdateCoordinator,
     PanelUpdateSnapshot,
 )
+from tests.loop_io_guard import LoopIoGuard
 from tests.test_repair_links import assert_repair_links
 
 
@@ -291,6 +298,51 @@ async def test_a_route_answer_for_a_changed_panel_is_not_adopted(
     await entity._async_refresh_route()
 
     assert "update_unavailable_reason" not in (entity.extra_state_attributes or {})
+
+
+@pytest.mark.parametrize(
+    "address",
+    ["100.127.77.20", "100.127.77.20:8888", "[2001:db8:77::20]"],
+    ids=["cgnat", "cgnat_port_8888", "global_ipv6"],
+)
+async def test_panel_added_outside_install_range_is_never_an_adb_target(
+    route: SimpleNamespace,
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    address: str,
+) -> None:
+    """A running panel added at any address is updated only by its own route."""
+    entry = MockConfigEntry(
+        domain=DOMAIN, entry_id="entry-id", unique_id="a" * 64, data={}
+    )
+    entry.add_to_hass(hass)
+    route.client.address = normalize_address(address)
+    route.entity.coordinator.data = replace(
+        route.entity.coordinator.data, health=_health(discovery_id="a" * 64)
+    )
+    route.pinned_health.return_value = _health(discovery_id="a" * 64)
+    # The installer's own address rule, not the fixture's stand-in, decides.
+    monkeypatch.setattr(install_network, "async_pin_install_target", route.pin)
+    route.pin.side_effect = async_pin_install_target
+
+    await route.entity._async_refresh_route()
+    assert route.entity.latest_version == route.entity.installed_version
+    with pytest.raises(HomeAssistantError) as caught:
+        await route.entity.async_install(None, False)
+
+    assert caught.value.translation_key == "update_unavailable"
+    route.pin.assert_awaited()
+    route.pinned_health.assert_not_awaited()
+    route.probe_target.assert_not_awaited()
+    route.preflight.assert_not_awaited()
+    route.client.async_backup_panel.assert_not_awaited()
+    route.adb_install.assert_not_awaited()
+    assert (
+        ir.async_get(hass).async_get_issue(
+            DOMAIN, adb_authorization_issue_id("entry-id")
+        )
+        is None
+    )
 
 
 def _durable_store_writes() -> Any:
@@ -600,6 +652,98 @@ async def test_adb_package_manager_refusal_reports_panel_action(
     assert route.entity.extra_state_attributes == {}
 
 
+async def test_an_adb_update_keeps_file_work_off_the_event_loop(
+    route: SimpleNamespace, monkeypatch: pytest.MonkeyPatch, hass: HomeAssistant
+) -> None:
+    """The backup check and the APK's temporary file run in the executor."""
+    MockConfigEntry(domain=DOMAIN, entry_id="entry-id", data={}).add_to_hass(hass)
+    guard = LoopIoGuard()
+    guard.install_files(monkeypatch)
+    verified = AsyncMock()
+    monkeypatch.setattr(route.entity._delivery, "async_wait_for_build", verified)
+
+    await route.entity.async_install(None, False)
+
+    route.adb_install.assert_awaited_once()
+    verified.assert_awaited_once()
+    assert guard.on_loop == []
+
+
+def _update_files(directory: Path) -> list[Path]:
+    return list(directory.glob("panel-assistant-update-*"))
+
+
+async def _no_update_file_left(hass: HomeAssistant, directory: Path) -> list[Path]:
+    """Return update files still present once the executor has caught up."""
+    for _ in range(50):
+        await hass.async_block_till_done()
+        left = await hass.async_add_executor_job(_update_files, directory)
+        if not left:
+            return left
+        await asyncio.sleep(0.02)
+    return left
+
+
+async def test_an_update_cancelled_while_its_apk_is_written_leaves_no_file(
+    route: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
+    hass: HomeAssistant,
+    tmp_path: Path,
+) -> None:
+    """The file belongs to the update from the moment the executor creates it."""
+    MockConfigEntry(domain=DOMAIN, entry_id="entry-id", data={}).add_to_hass(hass)
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+    written = threading.Event()
+    release = threading.Event()
+    write = update_staging._write_update_apk
+
+    def slow_write(apk: bytes) -> Path:
+        path = write(apk)
+        written.set()
+        release.wait(10)
+        return path
+
+    monkeypatch.setattr(update_staging, "_write_update_apk", slow_write)
+    install = hass.async_create_task(route.entity.async_install(None, False))
+    assert await hass.async_add_executor_job(written.wait, 10)
+
+    install.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await install
+    release.set()
+
+    assert await _no_update_file_left(hass, tmp_path) == []
+    route.adb_install.assert_not_awaited()
+
+
+async def test_an_update_cancelled_during_install_removes_its_apk_file(
+    route: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
+    hass: HomeAssistant,
+    tmp_path: Path,
+) -> None:
+    MockConfigEntry(domain=DOMAIN, entry_id="entry-id", data={}).add_to_hass(hass)
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+    started = asyncio.Event()
+
+    async def hang(*_args: Any, **_kwargs: Any) -> InstallOutcome:
+        started.set()
+        await asyncio.Event().wait()
+        raise AssertionError("unreachable")
+
+    route.adb_install.side_effect = hang
+    install = hass.async_create_task(route.entity.async_install(None, False))
+    async with asyncio.timeout(10):
+        await started.wait()
+    assert await hass.async_add_executor_job(_update_files, tmp_path)
+
+    install.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await install
+
+    assert await _no_update_file_left(hass, tmp_path) == []
+
+
 async def test_post_install_launch_refusal_does_not_report_success(
     route: SimpleNamespace,
 ) -> None:
@@ -615,7 +759,7 @@ async def test_post_install_launch_refusal_does_not_report_success(
     assert route.entity.extra_state_attributes == {}
 
 
-@pytest.mark.parametrize("revoke_at", ["flush", "push", "verification", "submitted"])
+@pytest.mark.parametrize("revoke_at", ["write", "push", "verification", "submitted"])
 async def test_adb_transaction_uses_current_consent_until_command_submission(
     route, hass, monkeypatch, revoke_at
 ):
@@ -657,7 +801,9 @@ async def test_adb_transaction_uses_current_consent_until_command_submission(
 
     async def executor(target, *args):
         result = await original_executor(target, *args)
-        if revoke_at == "flush" and getattr(target, "__name__", "") == "flush":
+        if revoke_at == "write" and getattr(target, "__name__", "") == (
+            "_write_update_apk"
+        ):
             revoke()
         return result
 

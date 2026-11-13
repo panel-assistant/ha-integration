@@ -42,15 +42,18 @@ test('permission observation is nonce-bound and rejects malformed accessibility 
 
 test('readback requires every grant and exact preservation; no generic completion claim', () => {
   assert.deepEqual(parsePermissionVerification(verified(), nonce, 33, other, PACKAGE_ID, OLD_CLASSES),
-    {permissionsVerified: true, notificationsRequired: true, camera: 'granted', microphone: 'granted', secureSettings: 'granted', home: true, device: 'generic'});
+    {permissionsVerified: true, notificationsRequired: true, denied: [], camera: 'granted', microphone: 'granted', secureSettings: 'granted', home: true, device: 'generic'});
   assert.deepEqual(parsePermissionVerification(verified(32), nonce, 32, other, PACKAGE_ID, OLD_CLASSES),
-    {permissionsVerified: true, notificationsRequired: false, camera: 'granted', microphone: 'granted', secureSettings: 'granted', home: true, device: 'generic'});
+    {permissionsVerified: true, notificationsRequired: false, denied: [], camera: 'granted', microphone: 'granted', secureSettings: 'granted', home: true, device: 'generic'});
   for (const invalid of [verified().replace(other + ':', ''), verified().replace('\n1\n', '\n0\n'),
     verified().replace('WRITE_SETTINGS: allow', 'WRITE_SETTINGS: default'),
-    verified().replace('SYSTEM_ALERT_WINDOW: allow', 'SYSTEM_ALERT_WINDOW: deny'),
+    verified().replace('SYSTEM_ALERT_WINDOW: allow', 'SYSTEM_ALERT_WINDOW: unknown'),
     verified().replace('REQUEST_INSTALL_PACKAGES: allow', 'REQUEST_INSTALL_PACKAGES: default'),
     verified().replace('\nREQUEST_INSTALL_PACKAGES: allow', ''),
-    verified().replace('granted=true', 'granted=false'), verified().replace('flags=[', 'invalid=['),
+    // A refused grant nobody had decided is not the owner's choice.
+    verified().replace('granted=true, flags=[ USER_SET|USER_FIXED]', 'granted=false, flags=[ USER_SENSITIVE_WHEN_GRANTED]'),
+    verified().replace('granted=true', 'granted=false').replace('flags=[', 'invalid=['),
+    verified().replace('flags=[', 'invalid=['),
     verified().replace('\n      android.', '\nextra\n      android.'), verified().replace(/:0\n$/, ':1\n'),
     verified().replace('\ngranted\n', '\nmaybe\n'), verified().replace('\nhome:', '\nhome '),
     verified().replace('\ndevice:generic', ''), verified().replace('\ngranted\nhome:', '\nmaybe\nhome:'),
@@ -80,7 +83,7 @@ ${buildPermissionVerification(nonce, sdk, PACKAGE_ID, OLD_CLASSES)}`;
 test("the executed verification reads this app's own grants, notifications only from Android 13", () => {
   for (const sdk of [32, 33]) {
     assert.deepEqual(parsePermissionVerification(executeVerification(sdk), nonce, sdk, other, PACKAGE_ID, OLD_CLASSES),
-      {permissionsVerified: true, notificationsRequired: sdk >= 33, camera: 'granted', microphone: 'granted',
+      {permissionsVerified: true, notificationsRequired: sdk >= 33, denied: [], camera: 'granted', microphone: 'granted',
         secureSettings: 'granted', home: true, device: 'generic'}, `sdk ${sdk}`);
     // Another app's grants never count as this one's.
     assert.throws(() => parsePermissionVerification(executeVerification(sdk, 'com.example.other'),
@@ -90,8 +93,9 @@ test("the executed verification reads this app's own grants, notifications only 
 
 function executeGrant(sdk, existing, {live = existing, rejectAppops = false} = {}) {
   const program = `settings() { if [ "$1" = get ]; then printf '%s\\n' '${live}'; else echo "settings $*" >&2; fi; }
-pm() { echo "pm $*" >&2; echo "pm $*" >> "$HP_CALLS"; }
-appops() { echo "appops $*" >&2; ${rejectAppops ? 'return 1' : ':'}; }
+pm() { echo "pm $*" >> "$HP_CALLS"; }
+dumpsys() { echo '      android.permission.POST_NOTIFICATIONS: granted=false, flags=[ USER_SENSITIVE_WHEN_GRANTED]'; }
+appops() { if [ "$1" = get ]; then echo "$3: default"; else echo "appops $*" >&2; ${rejectAppops ? 'return 1' : ':'}; fi; }
 ${buildPermissionGrant(nonce, sdk, existing, PACKAGE_ID, OLD_CLASSES)}`;
   const calls = join(mkdtempSync(join(tmpdir(), 'grant-')), 'calls');
   const result = spawnSync('/bin/sh', ['-c', program], {encoding: 'utf8', env: {...process.env, HP_CALLS: calls}});
@@ -102,15 +106,14 @@ test('real shell grant program is scoped, preserves other services and gates not
   const result = executeGrant(33, other);
   parsePermissionGrant(result.stdout, nonce);
   assert.equal(result.status, 0);
-  assert.match(result.stderr, /pm grant io.panelassistant.android android.permission.POST_NOTIFICATIONS/);
   assert.ok(result.stderr.includes(`settings put secure enabled_accessibility_services ${other}:${ACCESSIBILITY_SERVICE}`));
   assert.match(result.stderr, /settings put secure accessibility_enabled 1/);
   assert.match(result.stderr, /appops set io.panelassistant.android REQUEST_INSTALL_PACKAGES allow/);
-  assert.equal(result.stderr.trim().split('\n').length, 6);
-  // The secure-settings grant's output is discarded like the microphone grant's,
-  // so it is seen through a calls file rather than stderr.
+  assert.equal(result.stderr.trim().split('\n').length, 5);
+  // Grant output is discarded, so grants are seen through a calls file.
+  assert.match(result.calls, /pm grant io.panelassistant.android android.permission.POST_NOTIFICATIONS/);
   assert.match(result.calls, /pm grant io.panelassistant.android android.permission.WRITE_SECURE_SETTINGS/);
-  assert.ok(!executeGrant(32, other).stderr.includes('pm grant'));
+  assert.ok(!executeGrant(32, other).calls.includes('POST_NOTIFICATIONS'));
   const again = executeGrant(33, `${other}:${ACCESSIBILITY_SERVICE}`);
   parsePermissionGrant(again.stdout, nonce);
   assert.ok(!again.stderr.includes('enabled_accessibility_services'));
@@ -244,4 +247,112 @@ test('a service already enabled in either spelling is kept, and the old app is n
   const oldLauncher = 'io.github.maxlyth.hapaneld/.MainActivity';
   assert.throws(() => buildPermissionGrant(nonce, 33, other, LEGACY_PACKAGE_ID, oldLauncher), /permissions_unverified/);
   assert.throws(() => buildPermissionVerification(nonce, 33, LEGACY_PACKAGE_ID, oldLauncher), /permissions_unverified/);
+});
+
+// A panel that keeps its grants between commands, so the grant program and the
+// readback run against one state, the way Android answers them. Each runtime
+// permission is one dump line (absent when `null`); each app operation is what
+// `appops get` prints for it.
+function ownerPanel({notifications, camera = 'granted=true, flags=[ USER_SET]', microphone = camera,
+  ops = {}, sdk = 34} = {}) {
+  const dir = mkdtempSync(join(tmpdir(), 'owner-'));
+  const runtime = {POST_NOTIFICATIONS: notifications, CAMERA: camera, RECORD_AUDIO: microphone,
+    WRITE_SECURE_SETTINGS: 'granted=true'};
+  for (const [name, line] of Object.entries(runtime)) {
+    if (line != null) writeFileSync(join(dir, `perm.${name}`), `      android.permission.${name}: ${line}\n`);
+  }
+  for (const op of ['WRITE_SETTINGS', 'SYSTEM_ALERT_WINDOW', 'REQUEST_INSTALL_PACKAGES']) {
+    writeFileSync(join(dir, `op.${op}`), `${ops[op] ?? `${op}: default`}\n`);
+  }
+  writeFileSync(join(dir, 'services'), `${other}\n`);
+  const stubs = `dumpsys() { for f in "$D"/perm.*; do [ ! -e "$f" ] || cat "$f"; done; }
+pm() { case "$1" in
+  grant) echo "pm $*" >> "$D/calls"; n=\${3##*.}; [ ! -e "$D/perm.$n" ] ||
+    printf '      %s: granted=true, flags=[ USER_SENSITIVE_WHEN_GRANTED]\\n' "$3" > "$D/perm.$n" ;;
+  list) printf 'feature:android.hardware.camera.any\\nfeature:android.hardware.microphone\\n' ;; esac; }
+appops() { case "$1" in get) cat "$D/op.$3" ;; set) echo "appops $*" >> "$D/calls"; echo "$3: $4" > "$D/op.$3" ;; esac; }
+settings() { if [ "$1" = get ]; then case "$3" in enabled_accessibility_services) cat "$D/services" ;; *) echo 1 ;; esac
+  elif [ "$3" = enabled_accessibility_services ]; then printf '%s\\n' "$4" > "$D/services"; fi; }
+am() { case "$*" in
+  *"operation dashboard_home_policy"*) echo 'Broadcast completed: result=1, data="panel-assistant-home-builtin"' ;;
+  *"broadcast"*) echo 'Broadcast completed: result=1, data="panel-assistant-setup-eligible"' ;; esac; }
+cmd() { echo '${homeComponentFor(OLD_CLASSES)}'; }
+getprop() { echo generic; }
+input() { return 1; }; uiautomator() { return 1; }; sleep() { return 1; }`;
+  const run = program => spawnSync('/bin/sh', ['-c', `${stubs}\n${program}`],
+    {encoding: 'utf8', env: {...process.env, D: dir}, timeout: 5000});
+  try {
+    const grant = run(buildPermissionGrant(nonce, sdk, other, PACKAGE_ID, OLD_CLASSES));
+    parsePermissionGrant(grant.stdout, nonce);
+    const calls = existsSync(join(dir, 'calls')) ? readFileSync(join(dir, 'calls'), 'utf8') : '';
+    const verify = run(buildPermissionVerification(nonce, sdk, PACKAGE_ID, OLD_CLASSES));
+    return {calls, read: () => parsePermissionVerification(verify.stdout, nonce, sdk, other, PACKAGE_ID, OLD_CLASSES)};
+  } finally { rmSync(dir, {recursive: true, force: true}); }
+}
+const undecided = 'granted=false, flags=[ USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]';
+
+test("a runtime permission the owner or a policy denied is kept, reported, and the install still verifies", () => {
+  for (const flags of ['USER_SET', 'USER_FIXED', 'USER_SET|USER_FIXED', 'POLICY_FIXED',
+    'USER_SENSITIVE_WHEN_GRANTED|USER_SET|USER_SENSITIVE_WHEN_DENIED']) {
+    const denial = `granted=false, flags=[ ${flags}]`;
+    const panel = ownerPanel({notifications: denial, camera: denial, microphone: denial});
+    assert.ok(!/pm grant \S+ android\.permission\.(POST_NOTIFICATIONS|CAMERA|RECORD_AUDIO)/.test(panel.calls), flags);
+    const result = panel.read();
+    assert.equal(result.permissionsVerified, true, flags);
+    assert.equal(result.camera, 'denied', flags);
+    assert.equal(result.microphone, 'denied', flags);
+    assert.deepEqual(result.denied, ['camera', 'microphone', 'notifications'], flags);
+  }
+});
+
+test("Android's own USER_SENSITIVE defaults are not a decision: those permissions are granted", () => {
+  const panel = ownerPanel({notifications: undecided, camera: undecided, microphone: 'granted=false, flags=[ ]'});
+  for (const permission of ['POST_NOTIFICATIONS', 'CAMERA', 'RECORD_AUDIO']) {
+    assert.ok(panel.calls.includes(`pm grant ${PACKAGE_ID} android.permission.${permission}\n`), permission);
+  }
+  const result = panel.read();
+  assert.deepEqual([result.camera, result.microphone, result.denied], ['granted', 'granted', []]);
+});
+
+test('a runtime permission the dump does not show is never granted, and is not proof of a denial', () => {
+  const panel = ownerPanel({notifications: undecided, camera: null, microphone: 'granted=maybe'});
+  assert.ok(!/android\.permission\.(CAMERA|RECORD_AUDIO)/.test(panel.calls));
+  const result = panel.read();
+  assert.deepEqual([result.camera, result.microphone, result.denied], ['unknown', 'unknown', []]);
+  // Notifications are required from Android 13: an unreadable line still fails.
+  assert.throws(() => ownerPanel({notifications: null}).read(), /permissions_unverified/);
+});
+
+test('an app operation the owner set is kept and reported; one nobody set is allowed', () => {
+  const panel = ownerPanel({notifications: undecided, ops: {WRITE_SETTINGS: 'WRITE_SETTINGS: deny',
+    SYSTEM_ALERT_WINDOW: 'SYSTEM_ALERT_WINDOW: ignore; rejectTime=+3d', REQUEST_INSTALL_PACKAGES: 'REQUEST_INSTALL_PACKAGES: default'}});
+  assert.ok(!panel.calls.includes('WRITE_SETTINGS allow'));
+  assert.ok(!panel.calls.includes('SYSTEM_ALERT_WINDOW allow'));
+  assert.ok(panel.calls.includes(`appops set ${PACKAGE_ID} REQUEST_INSTALL_PACKAGES allow`));
+  const result = panel.read();
+  assert.equal(result.permissionsVerified, true);
+  assert.deepEqual(result.denied, ['modify system settings', 'display over other apps']);
+  for (const mode of ['foreground', 'errored']) {
+    const kept = ownerPanel({notifications: undecided, ops: {REQUEST_INSTALL_PACKAGES: `REQUEST_INSTALL_PACKAGES: ${mode}`}});
+    assert.ok(!kept.calls.includes('REQUEST_INSTALL_PACKAGES allow'), mode);
+    assert.deepEqual(kept.read().denied, ['install packages'], mode);
+  }
+});
+
+test("Android 14's two-line answer for an unset operation is unset, whatever default it names", () => {
+  for (const mode of ['default', 'deny', 'ignore', 'foreground', 'errored']) {
+    const panel = ownerPanel({notifications: undecided, ops: {WRITE_SETTINGS: `No operations.\nDefault mode: ${mode}`}});
+    assert.ok(panel.calls.includes(`appops set ${PACKAGE_ID} WRITE_SETTINGS allow`), mode);
+    assert.deepEqual(panel.read().denied, [], mode);
+  }
+  // An unset operation whose default already allows needs no write, and reads back as allowed.
+  const allowed = ownerPanel({notifications: undecided, ops: {SYSTEM_ALERT_WINDOW: 'No operations.\nDefault mode: allow'}});
+  assert.ok(!allowed.calls.includes('SYSTEM_ALERT_WINDOW allow'));
+  assert.deepEqual(allowed.read().denied, []);
+});
+
+test('an unreadable operation is never set, and the readback refuses it', () => {
+  const panel = ownerPanel({notifications: undecided, ops: {WRITE_SETTINGS: ''}});
+  assert.ok(!panel.calls.includes('WRITE_SETTINGS allow'));
+  assert.throws(() => panel.read(), /permissions_unverified/);
 });

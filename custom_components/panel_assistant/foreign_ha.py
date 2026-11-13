@@ -29,53 +29,55 @@ async def async_connected_to_other_ha(
     """Make one bounded, credential-free check; unavailable evidence is unknown."""
     try:
         async with asyncio.timeout(8):
-            own_id = hass.data.get(DOMAIN, {}).get(DATA_INSTANCE_ID)
-            if own_id is None:
-                own_id = await instance_id.async_get(hass)
-            if not isinstance(own_id, str) or _INSTANCE_ID.fullmatch(own_id) is None:
-                return False
             configured_url = await client.async_get_configured_ha_url()
-            origin = (
-                _connection_origin(configured_url)
-                if configured_url is not None
-                else None
+            return configured_url is not None and await async_other_ha_serves(
+                hass, configured_url
             )
-            if origin is None:
+    except HaPaneldError, TimeoutError:
+        return False
+
+
+async def async_other_ha_serves(hass: HomeAssistant, configured_url: str) -> bool:
+    """Whether another Home Assistant proves itself at the address a panel saved."""
+    try:
+        own_id = hass.data.get(DOMAIN, {}).get(DATA_INSTANCE_ID)
+        if own_id is None:
+            own_id = await instance_id.async_get(hass)
+        if not isinstance(own_id, str) or _INSTANCE_ID.fullmatch(own_id) is None:
+            return False
+        origin = _connection_origin(configured_url)
+        if origin is None:
+            return False
+        # Core's connector is shared. This short-lived session owns neither
+        # that connector nor any cookie or authenticated session state.
+        async with (
+            async_create_clientsession(
+                hass,
+                auto_cleanup=False,
+                cookie_jar=DummyCookieJar(),
+                connector_owner=False,
+            ) as session,
+            session.get(
+                f"{origin}/api/panel_assistant/instance",
+                allow_redirects=False,
+                timeout=ClientTimeout(total=3),
+            ) as response,
+        ):
+            if response.status != 200:
                 return False
-            # Core's connector is shared. This short-lived session owns neither
-            # that connector nor any cookie or authenticated session state.
-            async with (
-                async_create_clientsession(
-                    hass,
-                    auto_cleanup=False,
-                    cookie_jar=DummyCookieJar(),
-                    connector_owner=False,
-                ) as session,
-                session.get(
-                    f"{origin}/api/panel_assistant/instance",
-                    allow_redirects=False,
-                    timeout=ClientTimeout(total=3),
-                ) as response,
-            ):
-                if response.status != 200:
+            body = bytearray()
+            async for chunk in response.content.iter_chunked(_MAX_IDENTITY_BYTES + 1):
+                body.extend(chunk)
+                if len(body) > _MAX_IDENTITY_BYTES:
                     return False
-                body = bytearray()
-                async for chunk in response.content.iter_chunked(
-                    _MAX_IDENTITY_BYTES + 1
-                ):
-                    body.extend(chunk)
-                    if len(body) > _MAX_IDENTITY_BYTES:
-                        return False
-            document = json.loads(body, **strict_json_hooks(ValueError))
-            foreign_id = (
-                document.get("instance_id") if isinstance(document, dict) else None
-            )
-            return (
-                isinstance(foreign_id, str)
-                and _INSTANCE_ID.fullmatch(foreign_id) is not None
-                and foreign_id != own_id
-            )
-    except HaPaneldError, ClientError, TimeoutError, ValueError, UnicodeError:
+        document = json.loads(body, **strict_json_hooks(ValueError))
+        foreign_id = document.get("instance_id") if isinstance(document, dict) else None
+        return (
+            isinstance(foreign_id, str)
+            and _INSTANCE_ID.fullmatch(foreign_id) is not None
+            and foreign_id != own_id
+        )
+    except ClientError, TimeoutError, ValueError, UnicodeError:
         return False
 
 

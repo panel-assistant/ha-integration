@@ -18,10 +18,11 @@ commands are sent on the session, each waited for until its outcome (see
 ``transport_sessions.py``). A removed entry's panel is told so (see
 ``removed_panels.py``). This module itself writes no device registry entry.
 
-A panel's identity is public on the LAN, so ``hello`` never binds a panel to the
-account that sends it. Only an administrator binds one, by confirming the
-Repairs issue that an unconfirmed ``hello`` raises (see
-``transport_binding.py``).
+An entry not yet bound to an account is bound by the first ``hello`` for its
+panel's identity from a live account that is not one of Home Assistant's own,
+so an install never stops to ask. Every other account's ``hello`` is refused;
+one from another live account raises a Repairs issue, and only an administrator
+confirming it moves the panel to that account (see ``transport_binding.py``).
 """
 
 from __future__ import annotations
@@ -66,6 +67,7 @@ from .device import panel_display_name
 from .ha_url import DATA_INSTANCE_ID, async_connection_urls
 from .lifecycle import DATA_LIFECYCLE
 from .native import shown_elsewhere
+from .refused_hellos import async_forget_refused_hello, async_record_refused_hello
 from .transport_binding import (
     _may_ask_to_bind,
     async_bind_user,
@@ -315,16 +317,31 @@ def ws_hello(
     if entry is None:
         _follow_refused_panel(hass, connection, msg)
         if _may_ask_to_bind(hass, connection):
-            # There is no entry to raise a Repairs issue against, so remember the
-            # account instead. The administrator who adds this panel is then asked
-            # to confirm it while they are still here, rather than afterwards.
+            # There is no entry to bind yet, so remember the account instead.
+            # The entry the add flow creates for this panel is bound to it, if it
+            # is still a live account then; nobody is asked.
             async_record_binding_request(hass, did, connection.user.id)
         # An entry added again that failed setup still owns the panel, which then
         # retries as an unknown panel rather than slowly as a removed one.
-        if did in _removed_panels(hass) and not any(
+        held = any(
             _panel_did(other) == did
             for other in hass.config_entries.async_entries(DOMAIN)
-        ):
+        )
+        code = (
+            ERR_ENTRY_REMOVED
+            if did in _removed_panels(hass) and not held
+            else ERR_UNKNOWN_PANEL
+        )
+        if not held:
+            # An entry that is not loaded yet, or is disabled, is not news.
+            async_record_refused_hello(
+                hass,
+                did,
+                code,
+                tuple(msg.get("addresses", ())),
+                connection.remote if isinstance(connection.remote, str) else None,
+            )
+        if code == ERR_ENTRY_REMOVED:
             connection.send_error(
                 msg["id"], ERR_ENTRY_REMOVED, "The panel's entry was removed."
             )
@@ -491,6 +508,7 @@ def _accept_hello(
     """Grant a session only after synchronous admission or completed address proof."""
     did = msg["did"]
     user_id = connection.user.id
+    async_forget_refused_hello(hass, did)
     async_delete_merged_identity_issue(hass, entry)
     async_delete_binding_issue(hass, entry.entry_id, user_id)
 

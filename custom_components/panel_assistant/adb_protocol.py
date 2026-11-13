@@ -12,6 +12,7 @@ import asyncio
 import math
 import re
 import shlex
+from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -573,6 +574,19 @@ def _update_install_command(nonce: str, remote_path: str) -> str:
 _NOTIFICATIONS_PERMISSION = "android.permission.POST_NOTIFICATIONS"
 
 
+#: A permission line whose flags record a decision the installer must keep:
+#: the owner's answer (``USER_SET``, ``USER_FIXED``) or a device policy's.
+#: Android's own ``USER_SENSITIVE_WHEN_*`` defaults are not a decision.
+_OWNER_DECISION = r"flags=\[([ A-Z0-9_|]*[ |])?(USER_SET|USER_FIXED|POLICY_FIXED)[]| ]"
+
+
+_NOTIFICATIONS_DENIED = re.compile(
+    r"\s*android\.permission\.POST_NOTIFICATIONS: granted=false"
+    r", flags=\[[ A-Z0-9_|]*\]\s*",
+    flags=re.ASCII,
+)
+
+
 _NOTIFICATIONS_GRANTED = re.compile(
     r"\s*android\.permission\.POST_NOTIFICATIONS: granted=true"
     r"(?:, flags=\[[ A-Z0-9_|]*\])?\s*",
@@ -581,7 +595,13 @@ _NOTIFICATIONS_GRANTED = re.compile(
 
 
 def _runtime_permission_repair_command(package_id: str, permission: str) -> str:
-    """Read a runtime grant, repair a proved denial, and read what Android kept."""
+    """Grant a runtime permission only where Android shows nobody has decided it.
+
+    A denial flagged ``USER_SET``, ``USER_FIXED`` or ``POLICY_FIXED`` is the
+    owner's (or a device policy's) choice, and a shell grant would silently
+    override it, so it is left alone and ``runtime_denied`` is set to 1. A
+    denial without one of those flags was never answered and is granted.
+    """
     permission_pattern = re.escape(permission)
     denied = (
         rf"[[:space:]]*{permission_pattern}: granted=false"
@@ -595,20 +615,22 @@ def _runtime_permission_repair_command(package_id: str, permission: str) -> str:
     )
     # A missing or malformed dump is unknown, never evidence of a missing grant.
     return (
-        f"{read}; "
+        f"{read}; runtime_denied=0; "
         'if [ -n "$runtime" ] && ! printf \'%s\\n\' "$runtime" | '
         f"grep -Evq '^{denied}$'; then "
-        f"pm grant {package_id} {permission} >/dev/null 2>&1; {read}; fi"
+        "if printf '%s\\n' \"$runtime\" | "
+        f"grep -Eq '{_OWNER_DECISION}'; then runtime_denied=1; else "
+        f"pm grant {package_id} {permission} >/dev/null 2>&1; {read}; fi; fi"
     )
 
 
 def _notification_grant_command(nonce: str, package_id: str) -> str:
-    """Repair missing notifications before the first start, then read them back.
+    """Grant notifications nobody has answered before the first start, then read them.
 
-    The service notification is part of keeping a wall panel working, so the
-    installer grants it whatever a person once answered: a "Don't allow" may have
-    been a mis-tap or a prompt nobody saw, and a shell grant overrides it. The
-    grant's output is discarded; only the package manager's readback decides.
+    The service notification is part of keeping a wall panel working, but a
+    "Don't allow" the owner gave (or a policy) is kept: the readback then shows
+    the denial, which is reported as a Repair. The grant's output is discarded;
+    only the package manager's readback decides.
     """
     return "; ".join(
         (
@@ -620,18 +642,28 @@ def _notification_grant_command(nonce: str, package_id: str) -> str:
     )
 
 
-def _parse_notification_grant(body: bytes, nonce: str) -> bool:
-    """Granted only when every runtime-permission line Android printed says so.
+def _parse_notification_grant(body: bytes, nonce: str) -> str:
+    """``granted``, ``denied`` (the owner's or a policy's choice) or ``unknown``.
 
-    Only the complete permission lines matter; failed or empty reads prove nothing.
+    Granted only when every runtime-permission line Android printed says so,
+    denied only when every line is a denial and one records a decision. Failed
+    or empty reads prove nothing.
     """
     try:
         lines, _status = _parse_single_section(
             body, prefix="NOTIFICATIONS", nonce=nonce
         )
     except _MalformedAdbResponse:
-        return False
-    return bool(lines) and all(_NOTIFICATIONS_GRANTED.fullmatch(line) for line in lines)
+        return "unknown"
+    if lines and all(_NOTIFICATIONS_GRANTED.fullmatch(line) for line in lines):
+        return "granted"
+    if (
+        lines
+        and all(_NOTIFICATIONS_DENIED.fullmatch(line) for line in lines)
+        and any(re.search(_OWNER_DECISION, line) for line in lines)
+    ):
+        return "denied"
+    return "unknown"
 
 
 _SERVICES_SETTING = "settings get secure enabled_accessibility_services"
@@ -649,6 +681,10 @@ _SERVICE_COMPONENT = re.compile(
 
 
 _APPOP_ALLOWED = r"{}: allow(?:; [\x20-\x7e]{{1,1024}})?"
+
+
+#: An operation set to anything but allow or default: a choice the grant keeps.
+_APPOP_DENIED = r"{}: (?:deny|ignore|errored|foreground)(?:; [\x20-\x7e]{{1,1024}})?"
 
 
 _GRANTED_APP_OPS = "WRITE_SETTINGS SYSTEM_ALERT_WINDOW REQUEST_INSTALL_PACKAGES"
@@ -920,13 +956,17 @@ def _permission_grant_command(
     obsolete = "|".join(OBSOLETE_ACCESSIBILITY_COMPONENTS.get(launch_component, ()))
     quiet = ">/dev/null 2>&1"
     # Android 14 reports an unset operation as two lines, including its default.
-    default_modes = "|".join(
+    # Nobody chose that default for this app, so it reads as ``default`` unless
+    # it already allows.
+    unset_modes = "|".join(
         f"'No operations.\nDefault mode: {mode}'"
-        for mode in ("allow", "default", "deny", "ignore", "foreground", "errored")
+        for mode in ("default", "deny", "ignore", "foreground", "errored")
     )
     read_operation = (
         f'mode=$(appops get {package_id} "$operation"); mode_status=$?; '
-        f'case "$mode" in {default_modes}) mode="$operation: ${{mode##*: }}" ;; esac; '
+        'case "$mode" in '
+        "'No operations.\nDefault mode: allow') mode=\"$operation: allow\" ;; "
+        f'{unset_modes}) mode="$operation: default" ;; esac; '
     )
     runtime_grants = []
     for feature, permission in RUNTIME_GRANTS:
@@ -942,8 +982,9 @@ def _permission_grant_command(
                 package_id, f"android.permission.{permission}"
             )
             + '; if [ -n "$runtime" ] && ! printf \'%s\\n\' "$runtime" | '
-            f"grep -Evq '^{granted}$'; then echo granted; else echo unknown; fi; "
-            "else echo unsupported; fi"
+            f"grep -Evq '^{granted}$'; then echo granted; "
+            'elif [ "$runtime_denied" -eq 1 ]; then echo denied; '
+            "else echo unknown; fi; else echo unsupported; fi"
         )
     return "; ".join(
         (
@@ -973,11 +1014,13 @@ def _permission_grant_command(
             '[ "$current_status" -eq 0 ] && [ "$current" = "$before" ] && '
             f'settings put secure enabled_accessibility_services "$after" {quiet}; '
             "fi; fi",
+            # Only an operation nobody has set is allowed. An explicit mode,
+            # such as the deny the owner's Settings switch writes, is kept.
             f"for operation in {_GRANTED_APP_OPS}; do "
             + read_operation
             + 'if [ "$mode_status" -eq 0 ] && [ -n "$mode" ] && '
             '! printf \'%s\\n\' "$mode" | grep -Evq "^($operation: '
-            "(default|deny|ignore|foreground|errored)(; [ -~]+)?|"
+            "default(; [ -~]+)?|"
             'No operations\\.)$"; then '
             f'appops set {package_id} "$operation" allow {quiet}; fi; done',
             f"observed=$({_SERVICES_SETTING}); observed_status=$?; "
@@ -1040,11 +1083,30 @@ class _PermissionGrant:
     chooser: str | None
     #: ``vendor_provisioning`` has a setup for this panel.
     vendor_setup: bool = False
+    #: The grants the owner (or a policy) turned off, which the grant kept.
+    denied: tuple[str, ...] = ()
+    #: Every grant the owner can turn off was read, so an empty ``denied``
+    #: proves none is off. False for an unread or partly unknown readback.
+    denials_read: bool = False
 
     @property
     def granted(self) -> bool:
         """Every permission the panel's controls need reads back as granted."""
         return not self.missing
+
+
+@dataclass(frozen=True, slots=True)
+class OwnerDenials:
+    """The panel app's permissions the owner turned off, as one grant read them."""
+
+    #: Owner-facing names, such as ``microphone``, in a fixed order.
+    features: tuple[str, ...]
+    #: Every grant the owner can turn off was read; an empty list proves none.
+    complete: bool
+
+
+#: Receives what one install or update's grant found turned off.
+DenialReporter = Callable[[OwnerDenials], None]
 
 
 def _parse_permission_grant(
@@ -1070,35 +1132,42 @@ def _parse_permission_grant(
     ):
         return refused
     expected = _expected_services(before, launch_component)
+    operations = (
+        ("modify system settings", "WRITE_SETTINGS", write_settings),
+        ("display over other apps", "SYSTEM_ALERT_WINDOW", overlay),
+        ("install packages", "REQUEST_INSTALL_PACKAGES", installs),
+    )
+    states = {
+        name: "granted"
+        if re.fullmatch(_APPOP_ALLOWED.format(operation), line) is not None
+        else "denied"
+        if re.fullmatch(_APPOP_DENIED.format(operation), line) is not None
+        else "unknown"
+        for name, operation, line in operations
+    }
+    states |= {
+        name: state if state in ("granted", "denied", "unsupported") else "unknown"
+        for name, state in (("camera", camera), ("microphone", microphone))
+    }
     checks = (
         (
             "accessibility service",
             expected is not None and after == expected and enabled == "1",
         ),
-        (
-            "modify system settings",
-            re.fullmatch(_APPOP_ALLOWED.format("WRITE_SETTINGS"), write_settings)
-            is not None,
-        ),
-        (
-            "display over other apps",
-            re.fullmatch(_APPOP_ALLOWED.format("SYSTEM_ALERT_WINDOW"), overlay)
-            is not None,
-        ),
-        (
-            "install packages",
-            re.fullmatch(_APPOP_ALLOWED.format("REQUEST_INSTALL_PACKAGES"), installs)
-            is not None,
-        ),
+        *((name, states[name] == "granted") for name, _, _ in operations),
         ("camera", camera in ("granted", "unsupported")),
         ("microphone", microphone in ("granted", "unsupported")),
         ("secure settings", secure_settings in ("granted", "unsupported")),
     )
     return _PermissionGrant(
-        missing=tuple(name for name, ok in checks if not ok),
+        missing=tuple(
+            name for name, ok in checks if not ok and states.get(name) != "denied"
+        ),
         home=home in EQUIVALENT_HOME_COMPONENTS[launch_component],
         chooser=chooser if chooser in CHOOSER_OUTCOMES else None,
         vendor_setup=vendor_setup,
+        denied=tuple(name for name, state in states.items() if state == "denied"),
+        denials_read="unknown" not in states.values(),
     )
 
 

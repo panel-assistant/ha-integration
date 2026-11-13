@@ -34,6 +34,7 @@ from .coordinator import HaPaneldDataUpdateCoordinator
 from .install_adb import async_repair_installed_app_permissions
 from .install_network import InstallNetworkError
 from .release import ReleaseArtifact
+from .repairs_permission import turned_off_reporter
 from .update_errors import UPDATE_LOGGER as _LOGGER
 
 # How long the permission repair after an update waits for the panel's ADB to
@@ -97,6 +98,9 @@ async def async_repair_update_permissions(
         assert descriptor is not None
         try:
             entry = coordinator._entry()
+            report = (
+                None if entry is None else turned_off_reporter(hass, entry.entry_id)
+            )
             target = (
                 await local_adb.async_target(hass, entry, coordinator.client.address)
                 if entry is not None
@@ -113,6 +117,7 @@ async def async_repair_update_permissions(
                         target,
                         descriptor.package_id,
                         descriptor.launch_component,
+                        report_denials=report,
                     )
                 except _MalformedAdbResponse as err:
                     raise InstallAdbError(
@@ -134,6 +139,7 @@ async def async_repair_update_permissions(
                 credential.signer,
                 descriptor,
                 expected_root_mode=root_mode,
+                report_denials=report,
             )
         except InstallAdbError as err:
             # A restarting app re-asserts network ADB, so the panel's ADB
@@ -141,6 +147,15 @@ async def async_repair_update_permissions(
             if (
                 err.code is InstallAdbErrorCode.TARGET_UNREACHABLE
                 and attempt + 1 < _PERMISSION_REPAIR_ATTEMPTS
+                and not await local_adb.async_held_lease(
+                    hass,
+                    coordinator._entry(),
+                    coordinator.client.address,
+                    "Repairing permissions after an update",
+                    # A restarted app that has not said so may yet reconnect.
+                    reported_only=True,
+                    client=coordinator.client,
+                )
             ):
                 _LOGGER.debug(
                     "ADB on %s not answering yet after the update; retrying",

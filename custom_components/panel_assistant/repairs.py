@@ -82,6 +82,7 @@ from .transport_binding import (
     async_confirmable_user,
     async_delete_binding_issue,
 )
+from .webview import WEBVIEW_HOST
 
 ABORT_ENTRY_REMOVED = "entry_removed"
 ABORT_USER_UNAVAILABLE = "user_unavailable"
@@ -359,6 +360,13 @@ class InstallerFailureFlow(RepairsFlow):
             action = "mismatch"
         elif webview.get("transaction_state") == "submitted_unknown":
             action = "uncertain"
+        elif reason == "download_failed" and webview.get("transaction_cause") not in {
+            None,
+            "not_found",
+            "no_space",
+        }:
+            # The file did not arrive: name the server it comes from.
+            action = "download"
         elif reason in {
             "interrupted",
             "staging_failed",
@@ -371,7 +379,10 @@ class InstallerFailureFlow(RepairsFlow):
         )
         prefix = f"component.{DOMAIN}.common.webview_recovery_"
         return {
-            "webview_guidance": strings[f"{prefix}{action}"],
+            # Hassfest refuses a URL in a string: the site arrives as a placeholder.
+            "webview_guidance": strings[f"{prefix}{action}"].replace(
+                "{webview_site}", f"https://{WEBVIEW_HOST}"
+            ),
             "webview_guide_url": help_url("update-webview"),
         }
 

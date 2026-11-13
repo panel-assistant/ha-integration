@@ -75,7 +75,7 @@
     "allowBody": "Setze auf dem Panel das Häkchen bei „Von diesem Computer immer zulassen“ und tippe auf „Zulassen“, damit Panel Assistant es später ohne Kabel aktualisieren kann.",
     "checkingPanel": "Dein Panel wird geprüft…",
     "confirmHeading": "Bereit zur Installation",
-    "confirmBody": "Die App wird installiert und als Startbildschirm deines Panels eingerichtet. Deine anderen Apps bleiben unberührt.",
+    "confirmBody": "Die App wird installiert und als Startbildschirm deines Panels eingerichtet. Panel Assistant entfernt oder deaktiviert deine anderen Apps nicht.",
     "install": "Installieren",
     "restartedDifferentVersion": "Ein früherer Installationsversuch verwendete eine andere Version. Dieser Versuch wird nicht weiterverwendet.",
     "alreadyInstalledHeading": "Bereits installiert",

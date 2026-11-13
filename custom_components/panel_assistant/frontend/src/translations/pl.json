@@ -75,7 +75,7 @@
     "allowBody": "Na panelu zaznacz „Zawsze zezwalaj z tego komputera” i dotknij Zezwól, aby Panel Assistant mógł go później aktualizować bez kabla.",
     "checkingPanel": "Sprawdzanie panelu…",
     "confirmHeading": "Gotowe do instalacji",
-    "confirmBody": "To zainstaluje aplikację i ustawi ją jako ekran główny panelu. Pozostałe aplikacje pozostaną nietknięte.",
+    "confirmBody": "To zainstaluje aplikację i ustawi ją jako ekran główny panelu. Panel Assistant nie usuwa ani nie wyłącza pozostałych aplikacji.",
     "install": "Zainstaluj",
     "restartedDifferentVersion": "Wcześniejsza próba instalacji używała innej wersji. Ta próba została odłożona na bok.",
     "alreadyInstalledHeading": "Już zainstalowano",

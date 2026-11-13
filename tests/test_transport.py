@@ -2154,17 +2154,18 @@ async def test_a_panel_that_never_signs_in_says_so_until_its_hello(
     assert hass.states.get(status).state == "online"
 
 
-async def test_a_panel_whose_session_drops_is_never_reported_not_signed_in(
+async def test_a_panel_whose_session_stays_lost_is_reported_again(
     hass: HomeAssistant,
     entry: MockConfigEntry,
     freezer: FrozenDateTimeFactory,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
 ) -> None:
-    """A panel that has connected once is not told to sign in when it drops.
+    """A panel that connected once and then stays away is reported, as at setup.
 
-    A dropped session that comes back is a recovered fault, so it never
-    raises a Repair, however long the panel keeps answering its polls.
+    A short drop is a recovered fault and raises nothing; a panel that answers
+    its polls and has not reconnected for the whole not-connected grace (a
+    firewall change, say) is in the same state as one that never connected.
     """
     from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
@@ -2175,15 +2176,27 @@ async def test_a_panel_whose_session_drops_is_never_reported_not_signed_in(
     issue_id = f"not_signed_in_{entry.entry_id}"
     registry = ir.async_get(hass)
 
+    # Connected for longer than the grace, so only the drop can start it.
+    freezer.tick(timedelta(minutes=5))
     client = await hass_ws_client(hass, hass_read_only_access_token)
     await _open(client)
     await hass.async_block_till_done()
     await client.close()
     await hass.async_block_till_done()
 
-    freezer.tick(timedelta(minutes=5))
+    freezer.tick(timedelta(minutes=1))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
-
     assert registry.async_get_issue(DOMAIN, issue_id) is None
-    assert hass.states.get(status).state != "not_signed_in"
+
+    freezer.tick(timedelta(minutes=1, seconds=30))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert registry.async_get_issue(DOMAIN, issue_id) is not None
+    assert hass.states.get(status).state == "not_signed_in"
+
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await _open(client)
+    await hass.async_block_till_done()
+    assert registry.async_get_issue(DOMAIN, issue_id) is None
+    assert hass.states.get(status).state == "online"

@@ -293,6 +293,7 @@ _INSTALL_CAUSES = frozenset(
         "health_check_failed",
         "ambiguous_mutation",
         "verification_required",
+        "health_unreachable",
     }
 )
 
@@ -321,8 +322,13 @@ def _issue(
         translation_key = f"{ISSUE_INSTALLER_FAILURE}_retry_hold"
     else:
         translation_key = ISSUE_INSTALLER_FAILURE
-    # These update explanations share the update Repair's help page.
-    anchor = translation_key.removesuffix("_webview").removesuffix("_slow_transfer")
+    # These update explanations share the update Repair's help page, and an
+    # unreachable panel shares the health check's.
+    anchor = (
+        translation_key.removesuffix("_webview")
+        .removesuffix("_slow_transfer")
+        .replace("_health_unreachable", "_health_check_failed")
+    )
     if translation_key == "installer_failure_adb_authorization" and entry_id:
         ir.async_delete_issue(hass, DOMAIN, adb_authorization_issue_id(entry_id))
     ir.async_create_issue(
@@ -348,8 +354,15 @@ def _issue(
 
 def record_install_failure(hass: HomeAssistant, receipt: InstallJobReceipt) -> None:
     """Record a verified terminal receipt without delaying its store commit."""
+    from .install_receipt import HEALTH_UNREACHABLE_SUBCODE
+
     issue_id = panel_failure_issue_id(f"install:{receipt.target.adb_serial}")
     reason = receipt.result_code.value if receipt.result_code else "install_failed"
+    cause = (
+        "health_unreachable"
+        if receipt.result_subcode == HEALTH_UNREACHABLE_SUBCODE
+        else reason
+    )
     event = {
         "kind": "install",
         "address": receipt.target.address,
@@ -358,7 +371,7 @@ def record_install_failure(hass: HomeAssistant, receipt: InstallJobReceipt) -> N
         "job_id": receipt.job_id,
         "receipt": asdict(receipt),
     }
-    _issue(hass, issue_id, receipt.target.address, "install", reason)
+    _issue(hass, issue_id, receipt.target.address, "install", cause)
     hass.async_create_task(
         _failure_store(hass).append(issue_id, event), eager_start=False
     )
@@ -366,7 +379,12 @@ def record_install_failure(hass: HomeAssistant, receipt: InstallJobReceipt) -> N
 
 def clear_install_failure(hass: HomeAssistant, receipt: InstallJobReceipt) -> None:
     """A successful install makes its old error obsolete."""
-    issue_id = panel_failure_issue_id(f"install:{receipt.target.adb_serial}")
+    clear_install_failure_of(hass, receipt.target.adb_serial)
+
+
+def clear_install_failure_of(hass: HomeAssistant, adb_serial: str) -> None:
+    """Clear the install failure Repair of the panel with this ADB serial."""
+    issue_id = panel_failure_issue_id(f"install:{adb_serial}")
     hass.async_create_task(
         _failure_store(hass).clear(
             issue_id, lambda: ir.async_delete_issue(hass, DOMAIN, issue_id)
@@ -438,11 +456,15 @@ async def _async_failure_webview(hass: HomeAssistant, entry_id: str) -> dict[str
             or session.user_id != entry.data.get(CONF_TRANSPORT_USER_ID)
         ):
             return unavailable
-        return {
+        observed = {
             "reason": status.reason,
             "transaction_state": status.transaction_state,
             "transaction_reason": status.transaction_reason,
         }
+        # Only a failed download names a cause (app 1.0.3 and later).
+        if status.transaction_cause is not None:
+            observed["transaction_cause"] = status.transaction_cause
+        return observed
     except HomeAssistantError, TimeoutError, InvalidResponseError:
         return unavailable
 

@@ -75,7 +75,7 @@
     "allowBody": "Vink op het paneel ‘Altijd toestaan vanaf deze computer’ aan en tik op Toestaan, zodat Panel Assistant het later zonder kabel kan bijwerken.",
     "checkingPanel": "Je paneel controleren…",
     "confirmHeading": "Klaar om te installeren",
-    "confirmBody": "Hiermee installeer je de app en maak je die het startscherm van je paneel. Je andere apps worden niet aangeraakt.",
+    "confirmBody": "Hiermee installeer je de app en maak je die het startscherm van je paneel. Panel Assistant verwijdert je andere apps niet en schakelt ze niet uit.",
     "install": "Installeren",
     "restartedDifferentVersion": "Een eerdere installatiepoging gebruikte een andere versie. Die poging is terzijde gelegd.",
     "alreadyInstalledHeading": "Al geïnstalleerd",

@@ -8,6 +8,7 @@ import re
 import unicodedata
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from typing import Any
 
 from .client import InvalidResponseError
 from .const import (
@@ -57,6 +58,13 @@ class PanelStatus:
     webview: WebViewStatus | None = None
     root_lost_since_boot: bool | None = None
     screen_lock_secure: bool | None = None
+    # Why the panel's own session with Home Assistant is not up, as it reports it.
+    transport_refusal: str | None = None
+    #: Whether the app holds this Home Assistant's lease and keeps ADB off;
+    #: None when the app does not say (released apps up to 1.0.2).
+    network_adb_managed: bool | None = None
+    #: Seconds until the owner's own Network ADB switch works despite the lease.
+    network_adb_switch_wait_s: int | None = None
 
     def as_dict(self) -> dict[str, object]:
         """Return a serializable copy suitable for diagnostics."""
@@ -66,6 +74,7 @@ class PanelStatus:
             "install_capability": self.install_capability,
             "root_lost_since_boot": self.root_lost_since_boot,
             "screen_lock_secure": self.screen_lock_secure,
+            "transport_refusal": self.transport_refusal,
             "zigbee_gateway": _copy_component(self.zigbee_gateway),
             "storage_health": _copy_component(self.storage_health),
             "renderer": _copy_component(self.renderer),
@@ -538,6 +547,31 @@ def _validate_original_arrays(root: Mapping[str, object]) -> tuple[int, int]:
     return len(warnings), len(capabilities)
 
 
+def _transport_refusal(value: object) -> str | None:
+    refusal = value.get("refusal") if isinstance(value, dict) else None
+    if isinstance(refusal, str) and re.fullmatch(r"[a-z_]{1,64}", refusal):
+        return refusal
+    return None
+
+
+def _network_adb(value: object) -> dict[str, Any]:
+    """Keep the app's ADB lease report; anything malformed counts as absent."""
+    if not isinstance(value, dict):
+        return {}
+    managed = value.get("managed")
+    wait = value.get("owner_switch_wait_s")
+    return {
+        "network_adb_managed": managed if isinstance(managed, bool) else None,
+        "network_adb_switch_wait_s": (
+            wait
+            if isinstance(wait, int)
+            and not isinstance(wait, bool)
+            and 0 <= wait <= MAX_STATUS_INTEGER
+            else None
+        ),
+    }
+
+
 def parse_status_response(body: str) -> PanelStatus:
     """Parse status JSON and retain only bounded, privacy-safe known fields."""
     try:
@@ -563,6 +597,8 @@ def parse_status_response(body: str) -> PanelStatus:
         install_capability=install_capability,
         root_lost_since_boot=_nullable_boolean(parsed.get("root_lost_since_boot")),
         screen_lock_secure=_nullable_boolean(parsed.get("screen_lock_secure")),
+        transport_refusal=_transport_refusal(parsed.get("panel_assistant_transport")),
+        **_network_adb(parsed.get("network_adb")),
         zigbee_gateway=_sanitize_component(
             parsed,
             "zigbee_gateway",

@@ -9,7 +9,8 @@
     "webview_recovery_refused": "Android heeft de installatie van WebView geweigerd. Volg de WebView-updatehandleiding voor je model en controleer de compatibiliteit van het pakket, de Android-versie en de ondertekening. Sla een ondersteuningsrapport op als de installatie geweigerd blijft worden; opnieuw proberen kan een pakket dat niet compatibel is niet verhelpen.",
     "webview_recovery_mismatch": "De gedownloade WebView kwam niet overeen met de geverifieerde update. Houd het paneel verbonden en selecteer Opnieuw proberen om deze opnieuw te downloaden. Sla een ondersteuningsrapport op als dit opnieuw gebeurt; installeer geen ongeverifieerde APK.",
     "webview_recovery_uncertain": "Het installatieresultaat kon niet worden bevestigd. Houd het paneel verbonden en selecteer Opnieuw proberen: eerst wordt de geïnstalleerde WebView gecontroleerd. Een nieuwe poging begint alleen als de update nog aan de voorwaarden voldoet.",
-    "webview_recovery_retry": "De WebView-bewerking is onderbroken of kon de voorbereiding niet voltooien. Controleer de verbinding en de beschikbare opslagruimte van het paneel en selecteer daarna Opnieuw proberen. Sla een ondersteuningsrapport op als dit opnieuw gebeurt."
+    "webview_recovery_retry": "De WebView-bewerking is onderbroken of kon de voorbereiding niet voltooien. Controleer de verbinding en de beschikbare opslagruimte van het paneel en selecteer daarna Opnieuw proberen. Sla een ondersteuningsrapport op als dit opnieuw gebeurt.",
+    "webview_recovery_download": "Het paneel kon de WebView-update niet downloaden van panel-assistant.io, dus deze is niet geïnstalleerd. Geef Home Assistant toegang tot {webview_site}, zodat het de update kan downloaden en aan het paneel kan doorgeven, of geef het paneel toegang tot die site. Selecteer daarna Opnieuw proberen. Het logboek van Home Assistant vermeldt waardoor de download is gestopt."
   },
   "config": {
     "flow_title": "{name}",
@@ -28,7 +29,7 @@
       },
       "install_usb": {
         "title": "Installeer via USB",
-        "description": "Sluit het paneel aan op deze computer, niet op de Home Assistant-server. USB-foutopsporing moet aan staan in de ontwikkelaarsopties van het paneel; de [modelspecifieke handleiding voor toegang tot het paneel]({panel_access_url}) laat zien hoe.",
+        "description": "Plug the panel into this computer, not into the Home Assistant server. USB debugging must be on in the panel's developer options; the [model-specific panel access guide]({panel_access_url}) shows how.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.",
         "submit": "Het USB-installatieprogramma openen"
       },
       "add_panel": {
@@ -90,19 +91,19 @@
       },
       "confirm_install_candidate": {
         "title": "Panel Assistant {version} installeren?",
-        "description": "Klaar om te installeren op het paneel op {address}.\n\nJe andere apps worden niet gewijzigd."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
       },
       "confirm_install_rc": {
         "title": "Panel Assistant {version} installeren?",
-        "description": "Alleen om te testen: Panel Assistant {version} is een release candidate, geen stabiele versie, en kan fouten bevatten.\n\nKlaar om te installeren op het paneel op {address}.\n\nJe andere apps worden niet gewijzigd."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
       },
       "confirm_reinstall_candidate": {
         "title": "Panel Assistant {version} installeren?",
-        "description": "Klaar om te installeren op het paneel op {address}.\n\nJe andere apps worden niet gewijzigd.\n\nDit paneel sluit zich weer aan bij {entry_title} en behoudt zijn entiteiten en geschiedenis."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "confirm_reinstall_rc": {
         "title": "Panel Assistant {version} installeren?",
-        "description": "Alleen voor tests: Panel Assistant {version} is een releasecandidate, geen stabiele versie, en kan fouten bevatten.\n\nKlaar om te installeren op het paneel op {address}.\n\nJe andere apps worden niet gewijzigd.\n\nDit paneel sluit zich weer aan bij {entry_title} en behoudt zijn entiteiten en geschiedenis."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "release_preview_only": {
         "title": "De release kan niet automatisch worden geïnstalleerd",
@@ -113,21 +114,21 @@
         "description": "Panel Assistant {version} is geïnstalleerd op {address}.\n\nKlik op ‘Verzenden’ om alleen de laatste identiteits- en statuscontroles (alleen-lezen) opnieuw uit te voeren. Er worden geen installatiestappen herhaald.\n\nNadat Home Assistant het apparaat heeft toegevoegd, volg je de browserlink voor de installatie in het dialoogvenster Toevoegen op een computer die het paneel via het lokale netwerk kan bereiken. Keur ADB op het paneel goed als daarom wordt gevraagd."
       },
       "install_unfinished": {
-        "title": "This panel has an unfinished install",
-        "description": "Home Assistant already started installing Panel Assistant {version} on this panel, as {existing_address}, and that install has not finished.\n\nYou can carry on with it, or cancel it and start again at {address}.",
+        "title": "Dit paneel heeft een onvoltooide installatie",
+        "description": "Home Assistant is al begonnen met het installeren van Panel Assistant {version} op dit paneel, op {existing_address}, en die installatie is nog niet voltooid.\n\nJe kunt die installatie voortzetten of annuleren en opnieuw beginnen op {address}.",
         "menu_options": {
-          "resume_install": "Carry on with that install",
-          "cancel_install": "Cancel it and start again"
+          "resume_install": "Die installatie voortzetten",
+          "cancel_install": "Annuleren en opnieuw beginnen"
         },
         "menu_option_descriptions": {
-          "cancel_install": "Nothing is removed from the panel. If the app is already installed it stays, and Home Assistant looks at the panel afresh."
+          "cancel_install": "Er wordt niets van het paneel verwijderd. Als de app al geïnstalleerd is, blijft deze staan en bekijkt Home Assistant het paneel opnieuw."
         }
       },
       "install_unfinished_busy": {
-        "title": "This panel has an unfinished install",
-        "description": "Home Assistant is installing Panel Assistant {version} on this panel right now, as {existing_address}. It cannot be cancelled while it is changing the panel.\n\nCarry on with it to see it finish.",
+        "title": "Dit paneel heeft een onvoltooide installatie",
+        "description": "Home Assistant installeert Panel Assistant {version} nu op dit paneel, op {existing_address}. Annuleren kan niet terwijl er wijzigingen op het paneel worden aangebracht.\n\nZet de installatie voort om te zien hoe deze wordt afgerond.",
         "menu_options": {
-          "resume_install": "Carry on with that install"
+          "resume_install": "Die installatie voortzetten"
         }
       }
     },
@@ -138,6 +139,7 @@
     },
     "error": {
       "panel_setup_not_finished": "Het paneel is nog niet klaar met instellen. Rond de instelpagina af en selecteer daarna opnieuw Verzenden.",
+      "panel_setup_refused": "Het paneel weigerde te zeggen of de configuratie voltooid is. Het antwoord was: {refusal}. Selecteer Verzenden om het opnieuw te proberen.",
       "old_app_installed": "Op dit paneel draait nog de oude ha-paneld-app. Panel Assistant 1.0 kan deze niet overzetten naar de nieuwe app en installeert er niets naast. Volg de [veilige herstelstappen]({old_app_help_url}) om de overstap met Panel Assistant 0.9.0 af te ronden. Als er op een paneel al de 1.0-app draait, of als je geen back-up van vóór de upgrade hebt, vraag dan om hulp voordat je van versie wisselt.",
       "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig Panel Assistant-status-eindpunt.",
       "invalid_address": "Voer een hostnaam of een IP-adres in zonder het URL-schema of een pad.",
@@ -146,9 +148,14 @@
       "install_resolution_timeout": "De lokale naamomzetting is verlopen voordat het adres van het paneel veilig kon worden vastgelegd. Controleer de lokale DNS en probeer het dan nog eens.",
       "install_too_many_addresses": "Deze hostnaam leverde te veel adressen op om veilig te kunnen vastleggen. Gebruik een speciale lokale hostnaam of een privé-IP-adres.",
       "unsafe_install_target": "Installatie is alleen toegestaan op een privé-lokaal IPv4-adres of een uniek lokaal IPv6-adres. Er is geen ADB-verbinding geprobeerd.",
+      "not_answering_outside_install_range": "Er antwoordde geen paneel op poort 8888 op dit adres. Een paneel dat al draait, kan op elk adres worden toegevoegd, maar Panel Assistant wordt via het netwerk alleen geïnstalleerd op een privaat lokaal IPv4-adres of een uniek lokaal IPv6-adres. Daarom is er geen ADB-verbinding geprobeerd. Controleer of het paneel aan staat en of Home Assistant het op poort 8888 kan bereiken, of voer het private lokale adres van het paneel in om de app te installeren.",
       "install_target_changed": "De hostnaam verwijst niet meer naar hetzelfde vastgezette paneeladres. Er is geen ADB-sleutel of installatie verzonden. Controleer het adres en begin opnieuw.",
       "adb_unreachable": "Het paneel reageerde wel, maar er kwam geen reactie op de Android Debug Bridge-poort (5555). Schakel op het paneel Android Debug Bridge in en sta dit toe via het netwerk, en probeer het dan nog eens. Als je het paneel kunt aansluiten op de computer waarop je nu surft, installeer dan via USB.",
+      "panel_connected_unreachable": "Dit paneel heeft verbinding gemaakt met Home Assistant, maar Home Assistant kan het niet bereiken op poort 8888. Sta in je firewall of router toe dat Home Assistant verbindingen opent naar het paneel op TCP-poort 8888 en probeer het opnieuw.",
       "panel_unreachable": "Er werd op dat adres niet gereageerd. Controleer of het adres klopt en of het paneel is ingeschakeld en op je netwerk is aangesloten, en probeer het dan nog eens. Als je het paneel kunt aansluiten op de computer waarop je nu aan het browsen bent, installeer het dan via USB.",
+      "app_port_refused": "Poort 8888 op dit adres heeft de verbinding geweigerd en er kwam geen antwoord op de Android Debug Bridge-poort van het paneel (5555). Op poort 8888 antwoordt de paneelapp aan Home Assistant; poort 5555 wordt alleen gebruikt om de app te installeren. Als de paneelapp al draait, weigert iets tussen Home Assistant en het paneel verbindingen op poort 8888: geef Home Assistant toegang tot het paneel op poort 8888 en probeer het opnieuw. Als de app nog niet is geïnstalleerd, schakel dan Android Debug Bridge in op het paneel en sta toegang via het netwerk toe. Probeer het daarna opnieuw. Als je het paneel kunt aansluiten op de computer waarop je deze pagina bekijkt, installeer de app dan via USB.",
+      "app_port_no_answer": "Home Assistant kreeg geen bruikbaar antwoord van poort 8888 op dit adres en er kwam geen antwoord op de Android Debug Bridge-poort van het paneel (5555). Op poort 8888 antwoordt de paneelapp aan Home Assistant; poort 5555 wordt alleen gebruikt om de app te installeren. Als de paneelapp al draait, controleer dan of niets tussen Home Assistant en het paneel poort 8888 blokkeert of filtert en probeer het opnieuw. Als de app nog niet is geïnstalleerd, schakel dan Android Debug Bridge in op het paneel en sta toegang via het netwerk toe. Probeer het daarna opnieuw. Als je het paneel kunt aansluiten op de computer waarop je deze pagina bekijkt, installeer de app dan via USB.",
+      "app_port_not_panel": "Er antwoordde iets op poort 8888 op dit adres, maar niet met het antwoord van de statuscontrole van de paneelapp, en er kwam geen antwoord op de Android Debug Bridge-poort van het paneel (5555). Op poort 8888 antwoordt de paneelapp aan Home Assistant; poort 5555 wordt alleen gebruikt om de app te installeren. Controleer of het adres van het paneel is en of niets tussen Home Assistant en het paneel in zijn plaats antwoordt op poort 8888. Probeer het daarna opnieuw. Als de app nog niet is geïnstalleerd, schakel dan Android Debug Bridge in op het paneel en sta toegang via het netwerk toe. Probeer het daarna opnieuw. Als je het paneel kunt aansluiten op de computer waarop je deze pagina bekijkt, installeer de app dan via USB.",
       "adb_still_unauthorized": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd of heeft die niet onthouden.",
       "adb_credential_error": "Home Assistant kon de inloggegevens van ADB niet veilig laden of opslaan. Er is geen poging gedaan om het paneel te wijzigen. Controleer de opslag en logbestanden van Home Assistant voordat je het opnieuw probeert.",
       "installed_without_health": "Het pakket Panel Assistant is geïnstalleerd, maar het status-eindpunt reageerde niet. Dit installatieproces zal het pakket niet overschrijven of herstellen. Probeer de automatische installatie niet opnieuw; open Panel Assistant op het paneel of volg de stappen op {recovery_address}. Nadat je een werkende installatie hebt hersteld, begin je opnieuw om verbinding te maken.",
@@ -175,6 +182,7 @@
       "reinstall_identity_mismatch": "De app is geïnstalleerd, maar kon niet aan het bewaarde paneel worden gekoppeld. De geschiedenis en instellingen in Home Assistant zijn bewaard gebleven. Controleer het paneel in Home Assistant voordat je het opnieuw probeert.",
       "not_panel": "Geen paneel waarop Panel Assistant kan installeren.",
       "invalid_discovery": "Er kon niet worden aangetoond dat het gevonden paneel dezelfde werkende Panel Assistant-installatie was. Er is geen Home Assistant-item of paneelinstelling gewijzigd.",
+      "cannot_connect": "Home Assistant heeft de aankondiging van dit paneel ontvangen, maar kon geen verbinding maken met de aangekondigde adressen. Controleer of Home Assistant het paneel kan bereiken op TCP-poort 8888. Er is geen Home Assistant-vermelding of paneelinstelling gewijzigd.",
       "install_cancelled": "De installatie is geannuleerd voordat er een APK was geïnstalleerd. Er is geen Home Assistant-item aangemaakt. Voeg de Panel Assistant-integratie toe en voer hetzelfde paneeladres in om het nog eens te proberen.",
       "install_cancelled_after_staging_cleanup": "De installatie is geannuleerd en de klaargezette APK is vóór de installatie verwijderd. Er is geen Home Assistant-item aangemaakt. Voeg de Panel Assistant-integratie toe en voer hetzelfde paneeladres in om het nog eens te proberen.",
       "install_authorization_failed": "Home Assistant kon de opgeslagen inloggegevens van ADB niet veilig laden of valideren. Er is geen APK geïnstalleerd. Controleer de opslag en logbestanden van Home Assistant, voeg vervolgens de Panel Assistant-integratie toe en voer hetzelfde adres in om het nog eens te proberen.",
@@ -186,6 +194,7 @@
       "install_health_check_failed": "De APK is geïnstalleerd, maar Panel Assistant is niet geslaagd voor de statuscontrole. Probeer de automatische installatie niet opnieuw. Open Panel Assistant op het paneel; als het niet start, volg dan de stappen op [{recovery_address}]({recovery_url}).",
       "install_ambiguous_mutation": "Het paneel is mogelijk gewijzigd door het klaarzetten, installeren of starten via ADB. Probeer de automatische installatie niet opnieuw en verwijder of reset de app niet. Volg de stappen op [{recovery_address}]({recovery_url}) om het paneel te controleren.",
       "install_verification_required": "Het paneel is gewijzigd, maar Home Assistant kon het geïnstalleerde pakket niet verifiëren of precies het klaargezette bestand niet opruimen. Probeer de automatische installatie niet opnieuw en verwijder of reset de app niet. Volg de stappen op [{recovery_address}]({recovery_url}) om het paneel te controleren.",
+      "install_health_unreachable": "Panel Assistant is geïnstalleerd op het paneel, maar Home Assistant kon het niet bereiken op poort 8888. Controleer of je netwerk Home Assistant toestaat het paneel op poort 8888 te bereiken, bijvoorbeeld via een firewall- of VLAN-regel, en voeg het paneel daarna opnieuw toe met hetzelfde adres. Je hoeft de app niet opnieuw te installeren, te verwijderen of opnieuw in te stellen.",
       "install_failed": "Het installatieprogramma is gestopt met een onbekend resultaat. Er is geen Home Assistant-item aangemaakt. Probeer de automatische installatie pas opnieuw als je het paneel hebt gecontroleerd zoals beschreven op [{recovery_address}]({recovery_url}).",
       "install_worker_stopped": "Het installatieprogramma is gestopt en zal deze taak niet opnieuw uitvoeren in het huidige Home Assistant-proces. Start Home Assistant opnieuw op, open de installatie opnieuw en voer hetzelfde paneeladres in om door te gaan of een herstelresultaat te krijgen. Er is geen item aangemaakt.",
       "install_recovery_required": "Home Assistant kan niet aantonen dat het veilig is om automatisch door te gaan. Er is geen item aangemaakt. Probeer de automatische installatie niet opnieuw en verwijder of reset de app niet totdat je de stappen op [{recovery_address}]({recovery_url}) hebt gevolgd.",
@@ -208,7 +217,8 @@
           "restarting_settings": "Opnieuw starten (instellingen)",
           "restarting_update": "Opnieuw starten (update)",
           "another_home_assistant": "Aangemeld bij een andere Home Assistant",
-          "not_signed_in": "Not signed in to Home Assistant"
+          "cannot_reach_home_assistant": "Kan Home Assistant niet bereiken",
+          "not_signed_in": "Niet aangemeld bij Home Assistant"
         }
       },
       "panel_assistant_version": {
@@ -950,6 +960,10 @@
     }
   },
   "issues": {
+    "permissions_turned_off": {
+      "title": "Some app permissions are turned off on {panel}.",
+      "description": "Someone turned off {features} for the panel app in Android settings on {panel}. Home Assistant keeps that choice when it installs or updates the app, so the features that need them will not work until they are turned on again on the panel. This Repair clears itself the next time Home Assistant updates the app.\n\nTo fix:\n1. At the panel, follow the [Android permission guide]({permissions_url}) and allow {features} for Panel Assistant.\n2. If you meant to turn them off, select Ignore instead."
+    },
     "panel_app_too_old": {
       "title": "{panel} heeft app {required_version} nodig",
       "description": "Home Assistant kan {panel} niet zien of bedienen omdat app {version} dit verbindingsprotocol niet ondersteunt.\n\nOm dit op te lossen:\n1. Open [Updates]({updates_url}) en installeer een compatibele app-update voor {panel}, als die wordt aangeboden.\n2. Wacht tot het paneel opnieuw verbinding maakt."
@@ -1480,6 +1494,49 @@
         }
       }
     },
+    "installer_failure_health_unreachable": {
+      "title": "Home Assistant kan Panel Assistant op {panel} niet bereiken op poort 8888",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Paneelfout oplossen",
+            "description": "Panel Assistant is geïnstalleerd op het paneel, maar Home Assistant kon het niet bereiken op poort 8888.\n\nZo los je dit op:\n1. Sta in de firewall- of VLAN-regels van je netwerk toe dat Home Assistant het paneel op poort 8888 bereikt ([hulp]({repair_url})).\n2. Voeg het paneel opnieuw toe met hetzelfde adres en selecteer hier **Fout wissen**.\n\n[Meer informatie]({learn_more_url})",
+            "menu_options": {
+              "retry": "Opnieuw proberen",
+              "support_report": "Ondersteuningsrapport",
+              "clear_error": "Fout wissen"
+            }
+          },
+          "support_report": {
+            "title": "Ondersteuningsrapport",
+            "description": "Dit rapport bevat de opgeslagen details van de mislukte installatie of update.\n\nOm dit op te lossen:\n1. Lees [hoe je dit ondersteuningsrapport gebruikt]({guide_url}).\n2. Controleer het rapport op privégegevens en kopieer het daarna naar een [nieuwe probleemmelding voor de Panel Assistant-integratie]({issue_url}).\n\n{report}\n\n[Meer informatie]({learn_more_url})"
+          },
+          "clear_error": {
+            "title": "Fout wissen",
+            "description": "Als je deze fout wist, wordt het opgeslagen rapport ervan verwijderd zonder het paneel te wijzigen.\n\nOm dit op te lossen:\n1. [Sla eerst een ondersteuningsrapport op]({guide_url}) als je het nodig hebt.\n2. Selecteer **Verzenden** om deze fout en het rapport te verwijderen.\n\n[Meer informatie]({learn_more_url})"
+          },
+          "retry_error": {
+            "title": "Opnieuw proberen niet voltooid",
+            "description": "De nieuwe poging kon niet worden voltooid, dus deze fout en het rapport blijven in Reparaties staan.\n\nOm dit op te lossen:\n1. Volg de [herstelstappen]({repair_url}).\n2. Selecteer **Verzenden** en daarna **Ondersteuningsrapport** om de oorzaak te controleren voordat je het opnieuw probeert.\n\n[Meer informatie]({learn_more_url})"
+          }
+        },
+        "progress": {
+          "retrying": "Home Assistant controleert het paneel en probeert de opgeslagen bewerking opnieuw.\n\nOm dit op te lossen:\n1. Lees zo nodig de [aanwijzingen voor opnieuw proberen]({repair_url}).\n2. Wacht hier op het resultaat voordat je beslist wat je hierna doet.\n\n[Meer informatie]({learn_more_url})"
+        },
+        "error": {
+          "retry_target_changed": "Het paneel komt niet meer overeen met het opgeslagen doel. Controleer het voordat je opnieuw probeert.",
+          "retry_release_changed": "De gekozen release komt niet meer overeen met de opgeslagen release. Kies een nieuwe installatiepoging.",
+          "retry_credential_changed": "De ADB-inloggegevens van Home Assistant zijn gewijzigd. Controleer het paneel voordat je opnieuw probeert.",
+          "retry_panel_ambiguous": "De geïnstalleerde app op het paneel kon niet worden gecontroleerd. Er is geen nieuwe installatie gestart.",
+          "retry_cannot_prove_safe": "Het paneel kon niet voldoende worden gecontroleerd om veilig opnieuw te proberen. Probeer het later opnieuw.",
+          "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
+          "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
+          "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
+          "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
+        }
+      }
+    },
     "installer_failure_update": {
       "title": "De update op {panel} is niet afgerond",
       "fix_flow": {
@@ -1534,6 +1591,9 @@
           "unsafe_install_target": "Installatie is alleen toegestaan op een privé-lokaal IPv4-adres of een uniek lokaal IPv6-adres. Er is geen ADB-verbinding geprobeerd.",
           "install_target_changed": "De hostnaam verwijst niet meer naar hetzelfde vastgezette paneeladres. Er is geen ADB-sleutel of installatie verzonden. Controleer het adres en begin opnieuw.",
           "adb_unreachable": "Het paneel reageerde wel, maar er kwam geen reactie op de Android Debug Bridge-poort (5555). Schakel op het paneel Android Debug Bridge in en sta dit toe via het netwerk, en probeer het dan nog eens. Als je het paneel kunt aansluiten op de computer waarop je nu surft, installeer dan via USB.",
+          "adb_lease": "De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant). Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
+          "adb_lease_switch_now": "De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant). Of schakel op de eigen instellingenpagina van het paneel (poort 8888) Network ADB in onder Systeem (een geavanceerde instelling); het paneel staat dit nu toe omdat het al enkele minuten geen verbinding met Home Assistant heeft. Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
+          "adb_lease_switch": "De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant). Of schakel op de eigen instellingenpagina van het paneel (poort 8888) Network ADB in onder Systeem (een geavanceerde instelling); het paneel staat dit toe zodra het enkele minuten geen verbinding met Home Assistant heeft gehad, over ongeveer {minutes} minuten. Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
           "adb_still_unauthorized": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd. Bevestig de ADB-melding op het paneel en probeer het dan nog eens.",
           "adb_credential_error": "Home Assistant kon de inloggegevens van ADB niet veilig laden of opslaan. Er is geen poging gedaan om het paneel te wijzigen. Controleer de opslag en logbestanden van Home Assistant voordat je het opnieuw probeert.",
           "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket Panel Assistant, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de stappen op {recovery_address}. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
@@ -1599,6 +1659,9 @@
           "unsafe_install_target": "Installatie is alleen toegestaan op een privé-lokaal IPv4-adres of een uniek lokaal IPv6-adres. Er is geen ADB-verbinding geprobeerd.",
           "install_target_changed": "De hostnaam verwijst niet meer naar hetzelfde vastgezette paneeladres. Er is geen ADB-sleutel of installatie verzonden. Controleer het adres en begin opnieuw.",
           "adb_unreachable": "Het paneel reageerde wel, maar er kwam geen reactie op de Android Debug Bridge-poort (5555). Schakel op het paneel Android Debug Bridge in en sta dit toe via het netwerk, en probeer het dan nog eens. Als je het paneel kunt aansluiten op de computer waarop je nu surft, installeer dan via USB.",
+          "adb_lease": "De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant). Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
+          "adb_lease_switch_now": "De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant). Of schakel op de eigen instellingenpagina van het paneel (poort 8888) Network ADB in onder Systeem (een geavanceerde instelling); het paneel staat dit nu toe omdat het al enkele minuten geen verbinding met Home Assistant heeft. Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
+          "adb_lease_switch": "De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant). Of schakel op de eigen instellingenpagina van het paneel (poort 8888) Network ADB in onder Systeem (een geavanceerde instelling); het paneel staat dit toe zodra het enkele minuten geen verbinding met Home Assistant heeft gehad, over ongeveer {minutes} minuten. Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
           "adb_still_unauthorized": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd. Bevestig de ADB-melding op het paneel en probeer het dan nog eens.",
           "adb_credential_error": "Home Assistant kon de inloggegevens van ADB niet veilig laden of opslaan. Er is geen poging gedaan om het paneel te wijzigen. Controleer de opslag en logbestanden van Home Assistant voordat je het opnieuw probeert.",
           "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket Panel Assistant, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de stappen op {recovery_address}. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
@@ -1663,6 +1726,9 @@
           "unsafe_install_target": "Installatie is alleen toegestaan op een privé-lokaal IPv4-adres of een uniek lokaal IPv6-adres. Er is geen ADB-verbinding geprobeerd.",
           "install_target_changed": "De hostnaam verwijst niet meer naar hetzelfde vastgezette paneeladres. Er is geen ADB-sleutel of installatie verzonden. Controleer het adres en begin opnieuw.",
           "adb_unreachable": "Het paneel reageerde wel, maar er kwam geen reactie op de Android Debug Bridge-poort (5555). Schakel op het paneel Android Debug Bridge in en sta dit toe via het netwerk, en probeer het dan nog eens. Als je het paneel kunt aansluiten op de computer waarop je nu surft, installeer dan via USB.",
+          "adb_lease": "De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant). Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
+          "adb_lease_switch_now": "De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant). Of schakel op de eigen instellingenpagina van het paneel (poort 8888) Network ADB in onder Systeem (een geavanceerde instelling); het paneel staat dit nu toe omdat het al enkele minuten geen verbinding met Home Assistant heeft. Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
+          "adb_lease_switch": "De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant). Of schakel op de eigen instellingenpagina van het paneel (poort 8888) Network ADB in onder Systeem (een geavanceerde instelling); het paneel staat dit toe zodra het enkele minuten geen verbinding met Home Assistant heeft gehad, over ongeveer {minutes} minuten. Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
           "adb_still_unauthorized": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd. Bevestig de ADB-melding op het paneel en probeer het dan nog eens.",
           "adb_credential_error": "Home Assistant kon de inloggegevens van ADB niet veilig laden of opslaan. Er is geen poging gedaan om het paneel te wijzigen. Controleer de opslag en logbestanden van Home Assistant voordat je het opnieuw probeert.",
           "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket Panel Assistant, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de stappen op {recovery_address}. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
@@ -1725,8 +1791,8 @@
       "description": "{panel} is verbonden, maar het opgeslagen adres {address} is niet bereikbaar voor bewerkingen die dat adres nodig hebben.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten]({integration_url}).\n2. Als het paneel een ander adres heeft, voeg het dan opnieuw toe met het huidige adres.\n3. Herstel anders de toegang tot {address}; dit probleem verdwijnt zodra dat adres als dit paneel antwoordt."
     },
     "panel_address_unverified": {
-      "title": "{panel} is verplaatst, en het nieuwe adres kon niet worden bevestigd",
-      "description": "{panel} is verbonden, maar noch {address} noch het voorgestelde adres {session_address} kon worden bevestigd voor bewerkingen die het paneeladres nodig hebben.\n\nOm dit op te lossen:\n1. [Open de Panel Assistant-apparaten]({integration_url}).\n2. Als het paneel een ander adres heeft, voeg het dan opnieuw toe met het huidige adres.\n3. Herstel anders de toegang tot {address}; dit probleem verdwijnt zodra dat adres als dit paneel antwoordt."
+      "title": "Can't reach {panel} at {address} or {session_address}",
+      "description": "{panel} is connected, but Home Assistant cannot reach it at its stored address {address}, or at {session_address}, the address its connection reports. Some actions need one of them.\n\nTo fix:\n1. Let Home Assistant reach the panel at {address} again. A firewall may be blocking it. This clears when the panel answers, as shown in [Panel Assistant devices]({integration_url}).\n2. If the panel has moved, add it again there at its current address."
     },
     "panel_identity_mismatch": {
       "title": "Controleer het adres van {panel}",
@@ -1808,6 +1874,9 @@
           "unsafe_install_target": "Installatie is alleen toegestaan op een privé-lokaal IPv4-adres of een uniek lokaal IPv6-adres. Er is geen ADB-verbinding geprobeerd.",
           "install_target_changed": "De hostnaam verwijst niet meer naar hetzelfde vastgezette paneeladres. Er is geen ADB-sleutel of installatie verzonden. Controleer het adres en begin opnieuw.",
           "adb_unreachable": "Het paneel reageerde wel, maar er kwam geen reactie op de Android Debug Bridge-poort (5555). Schakel op het paneel Android Debug Bridge in en sta dit toe via het netwerk, en probeer het dan nog eens. Als je het paneel kunt aansluiten op de computer waarop je nu surft, installeer dan via USB.",
+          "adb_lease": "De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant). Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
+          "adb_lease_switch_now": "De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant). Of schakel op de eigen instellingenpagina van het paneel (poort 8888) Network ADB in onder Systeem (een geavanceerde instelling); het paneel staat dit nu toe omdat het al enkele minuten geen verbinding met Home Assistant heeft. Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
+          "adb_lease_switch": "De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant). Of schakel op de eigen instellingenpagina van het paneel (poort 8888) Network ADB in onder Systeem (een geavanceerde instelling); het paneel staat dit toe zodra het enkele minuten geen verbinding met Home Assistant heeft gehad, over ongeveer {minutes} minuten. Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
           "adb_still_unauthorized": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd. Bevestig de ADB-melding op het paneel en probeer het dan nog eens.",
           "adb_credential_error": "Home Assistant kon de inloggegevens van ADB niet veilig laden of opslaan. Er is geen poging gedaan om het paneel te wijzigen. Controleer de opslag en logbestanden van Home Assistant voordat je het opnieuw probeert.",
           "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket Panel Assistant, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de stappen op {recovery_address}. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
@@ -1837,6 +1906,9 @@
           "unsafe_install_target": "Installatie is alleen toegestaan op een privé-lokaal IPv4-adres of een uniek lokaal IPv6-adres. Er is geen ADB-verbinding geprobeerd.",
           "install_target_changed": "De hostnaam verwijst niet meer naar hetzelfde vastgezette paneeladres. Er is geen ADB-sleutel of installatie verzonden. Controleer het adres en begin opnieuw.",
           "adb_unreachable": "Het paneel reageerde wel, maar er kwam geen reactie op de Android Debug Bridge-poort (5555). Schakel op het paneel Android Debug Bridge in en sta dit toe via het netwerk, en probeer het dan nog eens. Als je het paneel kunt aansluiten op de computer waarop je nu surft, installeer dan via USB.",
+          "adb_lease": "De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant). Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
+          "adb_lease_switch_now": "De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant). Of schakel op de eigen instellingenpagina van het paneel (poort 8888) Network ADB in onder Systeem (een geavanceerde instelling); het paneel staat dit nu toe omdat het al enkele minuten geen verbinding met Home Assistant heeft. Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
+          "adb_lease_switch": "De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant). Of schakel op de eigen instellingenpagina van het paneel (poort 8888) Network ADB in onder Systeem (een geavanceerde instelling); het paneel staat dit toe zodra het enkele minuten geen verbinding met Home Assistant heeft gehad, over ongeveer {minutes} minuten. Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
           "adb_still_unauthorized": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd. Bevestig de ADB-melding op het paneel en probeer het dan nog eens.",
           "adb_credential_error": "Home Assistant kon de inloggegevens van ADB niet veilig laden of opslaan. Er is geen poging gedaan om het paneel te wijzigen. Controleer de opslag en logbestanden van Home Assistant voordat je het opnieuw probeert.",
           "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket Panel Assistant, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de stappen op {recovery_address}. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
@@ -1887,6 +1959,9 @@
           "unsafe_install_target": "Installatie is alleen toegestaan op een privé-lokaal IPv4-adres of een uniek lokaal IPv6-adres. Er is geen ADB-verbinding geprobeerd.",
           "install_target_changed": "De hostnaam verwijst niet meer naar hetzelfde vastgezette paneeladres. Er is geen ADB-sleutel of installatie verzonden. Controleer het adres en begin opnieuw.",
           "adb_unreachable": "Het paneel reageerde wel, maar er kwam geen reactie op de Android Debug Bridge-poort (5555). Schakel op het paneel Android Debug Bridge in en sta dit toe via het netwerk, en probeer het dan nog eens. Als je het paneel kunt aansluiten op de computer waarop je nu surft, installeer dan via USB.",
+          "adb_lease": "De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant). Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
+          "adb_lease_switch_now": "De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant). Of schakel op de eigen instellingenpagina van het paneel (poort 8888) Network ADB in onder Systeem (een geavanceerde instelling); het paneel staat dit nu toe omdat het al enkele minuten geen verbinding met Home Assistant heeft. Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
+          "adb_lease_switch": "De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant). Of schakel op de eigen instellingenpagina van het paneel (poort 8888) Network ADB in onder Systeem (een geavanceerde instelling); het paneel staat dit toe zodra het enkele minuten geen verbinding met Home Assistant heeft gehad, over ongeveer {minutes} minuten. Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
           "adb_still_unauthorized": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd. Bevestig de ADB-melding op het paneel en probeer het dan nog eens.",
           "adb_credential_error": "Home Assistant kon de inloggegevens van ADB niet veilig laden of opslaan. Er is geen poging gedaan om het paneel te wijzigen. Controleer de opslag en logbestanden van Home Assistant voordat je het opnieuw probeert.",
           "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket Panel Assistant, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de stappen op {recovery_address}. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
@@ -1894,6 +1969,9 @@
           "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert.",
           "removal_busy": "Een andere bewerking wijzigt dit paneel al. Er is niets weggehaald; probeer het opnieuw als die klaar is.",
           "removal_adb_unreachable": "Home Assistant kon het paneel niet bereiken via de Android Debug Bridge (poort 5555). Er is niets weggehaald. Controleer of het paneel aan staat en foutopsporing via het netwerk nog is ingeschakeld, en probeer het opnieuw.",
+          "removal_adb_lease": "Er is niets verwijderd. De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant) en probeer het daarna opnieuw; verder is er niets nodig. Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
+          "removal_adb_lease_switch_now": "Er is niets verwijderd. De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant) en probeer het daarna opnieuw; verder is er niets nodig. Of schakel op de eigen instellingenpagina van het paneel (poort 8888) Network ADB in onder Systeem (een geavanceerde instelling); het paneel staat dit nu toe omdat het al enkele minuten geen verbinding met Home Assistant heeft. Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
+          "removal_adb_lease_switch": "Er is niets verwijderd. De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant) en probeer het daarna opnieuw; verder is er niets nodig. Of schakel op de eigen instellingenpagina van het paneel (poort 8888) Network ADB in onder Systeem (een geavanceerde instelling); het paneel staat dit toe zodra het enkele minuten geen verbinding met Home Assistant heeft gehad, over ongeveer {minutes} minuten. Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
           "removal_adb_authorization": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd voor de Android Debug Bridge. Er is niets weggehaald. Kies eerst ‘Updates toestaan’ en probeer het daarna opnieuw.",
           "removal_panel_changed": "Op het adres van dit paneel antwoordt nu een ander apparaat. Er is niets weggehaald.",
           "removal_approval_required": "Verhoogde beveiliging is ingeschakeld. Daarom moet het teruggeven van het startscherm op het paneel zelf worden goedgekeurd. Er is niets gewijzigd en Panel Assistant is nog steeds geïnstalleerd. Keur het verzoek op het paneel goed en verzend het formulier daarna opnieuw.",
@@ -1933,8 +2011,12 @@
       }
     },
     "not_signed_in": {
-      "title": "{panel} has not connected to Home Assistant",
-      "description": "{panel} answers on the network but has not connected to Home Assistant, so its controls and its sidebar page are missing.\n\nTo fix:\n1. [Open the panel’s setup page]({panel_page}) and sign in to this Home Assistant.\n2. Wait for the panel to connect; this Repair then goes away."
+      "title": "{panel} heeft geen verbinding gemaakt met Home Assistant",
+      "description": "{panel} antwoordt op het netwerk maar heeft geen verbinding gemaakt met Home Assistant. Daardoor ontbreken de bediening en de pagina in de zijbalk.\n\nZo los je dit op:\n1. [Open de instellingenpagina van het paneel]({panel_page}) en meld je aan bij deze Home Assistant.\n2. Wacht tot het paneel verbinding maakt; deze melding in Reparaties verdwijnt dan."
+    },
+    "cannot_reach_home_assistant": {
+      "title": "{panel} kan Home Assistant niet bereiken",
+      "description": "{panel} is aangemeld en probeert verbinding te maken met Home Assistant op {home_assistant}, maar er is geen verbinding van het paneel binnengekomen. Daardoor ontbreken de bediening en de pagina in de zijbalk. Opnieuw aanmelden helpt niet.\n\nZo los je dit op:\n1. Geef het paneel toegang tot {host} op TCP-poort {port}: een firewall of een geïsoleerd netwerk moet toestaan dat het paneel verbindingen opent naar Home Assistant. De [logboekpagina]({panel_logs}) van het paneel toont elke poging.\n2. Als {home_assistant} niet het adres van deze Home Assistant is, [wijzig het dan op het paneel]({panel_connection}).\n3. Wacht tot het paneel verbinding maakt; deze melding in Reparaties verdwijnt dan."
     }
   },
   "options": {
@@ -2007,6 +2089,9 @@
       "unsafe_install_target": "Installatie is alleen toegestaan op een privé-lokaal IPv4-adres of een uniek lokaal IPv6-adres. Er is geen ADB-verbinding geprobeerd.",
       "install_target_changed": "De hostnaam verwijst niet meer naar hetzelfde vastgezette paneeladres. Er is geen ADB-sleutel of installatie verzonden. Controleer het adres en begin opnieuw.",
       "adb_unreachable": "Het paneel reageerde wel, maar er kwam geen reactie op de Android Debug Bridge-poort (5555). Schakel op het paneel Android Debug Bridge in en sta dit toe via het netwerk, en probeer het dan nog eens. Als je het paneel kunt aansluiten op de computer waarop je nu surft, installeer dan via USB.",
+      "adb_lease": "De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant). Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
+      "adb_lease_switch_now": "De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant). Of schakel op de eigen instellingenpagina van het paneel (poort 8888) Network ADB in onder Systeem (een geavanceerde instelling); het paneel staat dit nu toe omdat het al enkele minuten geen verbinding met Home Assistant heeft. Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
+      "adb_lease_switch": "De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant). Of schakel op de eigen instellingenpagina van het paneel (poort 8888) Network ADB in onder Systeem (een geavanceerde instelling); het paneel staat dit toe zodra het enkele minuten geen verbinding met Home Assistant heeft gehad, over ongeveer {minutes} minuten. Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
       "adb_still_unauthorized": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd. Bevestig de ADB-melding op het paneel en probeer het dan nog eens.",
       "adb_credential_error": "Home Assistant kon de inloggegevens van ADB niet veilig laden of opslaan. Er is geen poging gedaan om het paneel te wijzigen. Controleer de opslag en logbestanden van Home Assistant voordat je het opnieuw probeert.",
       "retained_or_ambiguous": "Het paneel bevat mogelijk nog een record van het pakket Panel Assistant, of er kon niet worden aangetoond dat het pakket niet aanwezig is. Er zijn geen wijzigingen in het paneel aangebracht. Probeer het nog één keer als de verbinding onstabiel was; volg anders de stappen op {recovery_address}. Verwijder de app niet en reset deze niet zonder een geverifieerde back-up.",
@@ -2014,6 +2099,9 @@
       "panel_identity_changed": "Dit adres antwoordt niet meer als het geconfigureerde paneel. Controleer het paneel en het adres voordat je het opnieuw probeert.",
       "removal_busy": "Een andere bewerking wijzigt dit paneel al. Er is niets weggehaald; probeer het opnieuw als die klaar is.",
       "removal_adb_unreachable": "Home Assistant kon het paneel niet bereiken via de Android Debug Bridge (poort 5555). Er is niets weggehaald. Controleer of het paneel aan staat en foutopsporing via het netwerk nog is ingeschakeld, en probeer het opnieuw.",
+      "removal_adb_lease": "Er is niets verwijderd. De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant) en probeer het daarna opnieuw; verder is er niets nodig. Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
+      "removal_adb_lease_switch_now": "Er is niets verwijderd. De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant) en probeer het daarna opnieuw; verder is er niets nodig. Of schakel op de eigen instellingenpagina van het paneel (poort 8888) Network ADB in onder Systeem (een geavanceerde instelling); het paneel staat dit nu toe omdat het al enkele minuten geen verbinding met Home Assistant heeft. Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
+      "removal_adb_lease_switch": "Er is niets verwijderd. De app op het paneel heeft geantwoord, maar houdt Android Debug Bridge uitgeschakeld zolang deze Home Assistant het paneel beheert, ook wanneer het paneel Home Assistant niet kan bereiken. Laat het paneel Home Assistant weer bereiken om dit te herstellen (de verbinding met de eigen poort van Home Assistant) en probeer het daarna opnieuw; verder is er niets nodig. Of schakel op de eigen instellingenpagina van het paneel (poort 8888) Network ADB in onder Systeem (een geavanceerde instelling); het paneel staat dit toe zodra het enkele minuten geen verbinding met Home Assistant heeft gehad, over ongeveer {minutes} minuten. Of start het paneel opnieuw: Android Debug Bridge staat na een herstart open totdat het paneel weer verbinding maakt met Home Assistant.",
       "removal_adb_authorization": "Het paneel heeft deze Home Assistant-instantie nog niet geaccepteerd voor de Android Debug Bridge. Er is niets weggehaald. Kies eerst ‘Updates toestaan’ en probeer het daarna opnieuw.",
       "removal_adb_authorization_unavailable": "Het paneel heeft deze Home Assistant-instantie niet geaccepteerd voor de Android Debug Bridge. Er is niets verwijderd. Controleer of het paneel aanstaat en reageert en probeer het daarna opnieuw.",
       "removal_panel_changed": "Op het adres van dit paneel antwoordt nu een ander apparaat. Er is niets weggehaald.",

@@ -1668,6 +1668,40 @@ async def test_non_private_or_unpinned_target_fails_before_connection(
     assert caught.value.code is InstallAdbErrorCode.INVALID_REQUEST
 
 
+@pytest.mark.parametrize(
+    "host",
+    ["100.127.77.20", "2001:db8:77::20"],
+    ids=["cgnat", "global_ipv6"],
+)
+async def test_panel_outside_install_range_gets_no_adb_connection(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,
+    target: AdbInstallTarget,
+    descriptor: InstallDescriptor,
+    host: str,
+) -> None:
+    """A running panel added at such an address is never installed over ADB."""
+    _install_fakes(monkeypatch, [])
+    connections: list[tuple[Any, ...]] = []
+
+    def connect(*args: Any, **_kwargs: Any) -> None:
+        connections.append(args)
+        raise AssertionError(f"ADB connection opened to {host}")
+
+    monkeypatch.setattr(adb_protocol, "AdbDeviceAsync", connect)
+
+    with pytest.raises(InstallAdbError) as caught:
+        await async_preflight_install(
+            replace(target, address=PanelAddress(host=host, port=5555)),
+            signer,
+            descriptor,
+            admit_installed_target=True,
+        )
+
+    assert caught.value.code is InstallAdbErrorCode.INVALID_REQUEST
+    assert connections == []
+
+
 async def test_cleanup_requires_a_typed_definite_outcome(
     monkeypatch: pytest.MonkeyPatch,
     signer: PythonRSASigner,

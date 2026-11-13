@@ -10,6 +10,7 @@ import asyncio
 import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import replace
 from datetime import timedelta
 from ipaddress import ip_address
 from typing import Any
@@ -23,16 +24,21 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
+from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
-from pytest_homeassistant_custom_component.common import async_fire_time_changed
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
 
 from custom_components.panel_assistant import install_executor
 from custom_components.panel_assistant.adb_credentials import AdbCredential
 from custom_components.panel_assistant.client import (
     CannotConnectError,
+    HaPaneldClient,
     PanelAddress,
 )
-from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.const import DOMAIN, SOURCE_USB_INSTALL
 from custom_components.panel_assistant.install_executor import (
     async_get_install_executor,
     async_resume_loaded_install_jobs,
@@ -50,7 +56,13 @@ from custom_components.panel_assistant.provisioning import (
 )
 
 from . import config_flow_helpers, install_executor_harness
-from .config_flow_helpers import RELEASE, _choose_version, _start_step
+from .config_flow_helpers import (
+    HEALTH,
+    RELEASE,
+    _choose_version,
+    _start_step,
+    _zeroconf_info,
+)
 from .install_executor_harness import CREDENTIAL_ID, Harness, seed_phase, target
 
 # Bind the shared autouse fixtures here so pytest applies them to this module.
@@ -530,10 +542,12 @@ async def test_an_ordinary_refusal_is_logged_with_what_the_panel_answered(
 ) -> None:
     """Every refusal a person sees has a log line a helper can read."""
     unreachable = InstallTargetProbe(state=InstallTargetState.ADB_UNREACHABLE)
+    timed_out = CannotConnectError()
+    timed_out.__cause__ = TimeoutError()
     with (
         patch(
             f"{FLOW}.HaPaneldClient.async_get_health",
-            AsyncMock(side_effect=CannotConnectError),
+            AsyncMock(side_effect=timed_out),
         ),
         patch(
             f"{FLOW}.async_probe_install_target", AsyncMock(return_value=unreachable)
@@ -551,7 +565,7 @@ async def test_an_ordinary_refusal_is_logged_with_what_the_panel_answered(
         "step=add_panel",
         "error=panel_unreachable",
         f"panel={OTHER_IP}",
-        f"cause=adb_state=adb_unreachable pinned={OTHER_IP}",
+        f"cause=port_8888=timed_out adb_state=adb_unreachable pinned={OTHER_IP}",
     )
 
 
@@ -712,3 +726,221 @@ async def test_carrying_on_while_the_install_is_being_cancelled_is_told_to_wait(
     ended = await _stored(hass, receipt.job_id)
     assert ended.phase is InstallPhase.RECOVERY_REQUIRED
     assert ended.result_subcode == "job:cancelled_by_owner"
+
+
+# The app names itself in its health answer; an install's receipt keeps only the
+# address it used. These are the panel's own name and its other address family.
+PANEL_DID = "d" * 64
+OTHER_DID = "e" * 64
+SEEDED_IPV6 = "fd00::23"
+
+
+@contextmanager
+def _app_answers(by_host: dict[str, str | None]) -> Iterator[None]:
+    """The running app at each host, by the name it gives (None: an app too old
+    to give one); nothing answers at any other host."""
+
+    async def health(client: HaPaneldClient) -> object:
+        if client.address.host not in by_host:
+            raise CannotConnectError
+        did = by_host[client.address.host]
+        return replace(HEALTH, discovery_id=did, installation_identity=did is not None)
+
+    with patch.object(
+        HaPaneldClient, "async_get_health", autospec=True, side_effect=health
+    ):
+        yield
+
+
+def _executor_health_names_the_panel(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The installed app, re-proved at the receipt's address, gives its name."""
+    stand_in = install_executor.HaPaneldClient
+    answer = stand_in.async_get_health
+
+    async def named(self: object) -> object:
+        return replace(
+            await answer(self), discovery_id=PANEL_DID, installation_identity=True
+        )
+
+    monkeypatch.setattr(stand_in, "async_get_health", named)
+
+
+async def test_the_panel_added_by_its_other_address_family_meets_its_install(
+    hass: HomeAssistant, harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Installed by IPv4 and waiting at setup, then added by IPv6: one panel.
+
+    The address lookup cannot see that the two are one panel; the app's own
+    name at both can. Carrying on then makes the one entry the install owed.
+    """
+    harness.expected_version = "0.1.0"
+    monkeypatch.setattr(install_executor, "async_verify_installed_target", AsyncMock())
+    receipt, _manager = await seed_phase(hass, InstallPhase.HEALTHY_UNCLAIMED)
+
+    with (
+        _app_answers({SEEDED_IP: PANEL_DID, SEEDED_IPV6: PANEL_DID}),
+        patch("custom_components.panel_assistant.async_setup_entry", return_value=True),
+    ):
+        menu = await _add(hass, f"[{SEEDED_IPV6}]")
+        assert menu["type"] is FlowResultType.MENU
+        assert menu["step_id"] == "install_unfinished"
+        assert menu["description_placeholders"]["existing_address"] == SEEDED.address
+        assert hass.config_entries.async_entries(DOMAIN) == []
+
+        result = await _choose(hass, menu, "resume_install")
+        await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    (entry,) = hass.config_entries.async_entries(DOMAIN)
+    assert entry.data[CONF_ADDRESS] == SEEDED.address
+    consumed = await _stored(hass, receipt.job_id)
+    assert consumed.phase is InstallPhase.CONSUMED
+    assert consumed.consumed_entry_id == entry.entry_id
+
+
+async def test_a_card_for_the_other_address_family_meets_the_install_too(
+    hass: HomeAssistant,
+) -> None:
+    """A discovery card heard over IPv6 is the same panel as the IPv4 install."""
+    receipt, _manager = await seed_phase(hass, InstallPhase.HEALTHY_UNCLAIMED)
+
+    with (
+        _app_answers({SEEDED_IP: PANEL_DID, SEEDED_IPV6: PANEL_DID}),
+        patch(
+            f"{FLOW}.HaPaneldClient.async_get_status",
+            AsyncMock(side_effect=CannotConnectError),
+        ),
+    ):
+        card = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": SOURCE_ZEROCONF},
+            data=_zeroconf_info(discovery_id=PANEL_DID, host=SEEDED_IPV6),
+        )
+        assert card["type"] is FlowResultType.FORM
+        assert card["step_id"] == "confirm_discovery"
+        result = await hass.config_entries.flow.async_configure(card["flow_id"], {})
+
+    assert result["type"] is FlowResultType.MENU
+    assert result["step_id"] == "install_unfinished"
+    assert hass.config_entries.async_entries(DOMAIN) == []
+    assert (await _stored(hass, receipt.job_id)).phase is InstallPhase.HEALTHY_UNCLAIMED
+
+
+@pytest.mark.parametrize(
+    ("at_install", "at_typed"), [(PANEL_DID, OTHER_DID), (None, None)]
+)
+async def test_another_panel_at_the_other_address_is_not_mistaken_for_the_install(
+    hass: HomeAssistant, at_install: str | None, at_typed: str | None
+) -> None:
+    """A different app, or two that give no name, are found as before."""
+    receipt, _manager = await seed_phase(hass, InstallPhase.HEALTHY_UNCLAIMED)
+
+    with _app_answers({SEEDED_IP: at_install, SEEDED_IPV6: at_typed}):
+        result = await _add(hass, f"[{SEEDED_IPV6}]")
+
+    assert result["type"] is FlowResultType.MENU
+    assert result["step_id"] in {"found_panel", "found_unconfigured"}
+    assert (await _stored(hass, receipt.job_id)).phase is InstallPhase.HEALTHY_UNCLAIMED
+
+
+async def test_the_usb_installer_adds_its_panel_though_an_install_waits(
+    hass: HomeAssistant,
+) -> None:
+    """Nobody is at the USB installer's flow to answer a menu, so it adds the panel."""
+    receipt, _manager = await seed_phase(hass, InstallPhase.HEALTHY_UNCLAIMED)
+
+    with (
+        _app_answers({SEEDED_IP: PANEL_DID, SEEDED_IPV6: PANEL_DID}),
+        patch(
+            f"{FLOW}.HaPaneldClient.async_get_status",
+            AsyncMock(side_effect=CannotConnectError),
+        ),
+        patch("custom_components.panel_assistant.async_setup_entry", return_value=True),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": SOURCE_USB_INSTALL},
+            data={CONF_ADDRESS: f"[{SEEDED_IPV6}]"},
+        )
+        await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["result"].unique_id == PANEL_DID
+    assert (await _stored(hass, receipt.job_id)).phase is InstallPhase.HEALTHY_UNCLAIMED
+
+
+async def test_finishing_an_install_already_added_by_another_address_adds_no_second(
+    hass: HomeAssistant, harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The panel was added by IPv6 meanwhile; finishing the install is that entry.
+
+    Without this the receipt became a second entry for one panel, with no name,
+    and a false Repair said the panel did not answer as itself.
+    """
+    harness.expected_version = "0.1.0"
+    monkeypatch.setattr(install_executor, "async_verify_installed_target", AsyncMock())
+    _executor_health_names_the_panel(monkeypatch)
+    receipt, _manager = await seed_phase(hass, InstallPhase.HEALTHY_UNCLAIMED)
+    added = MockConfigEntry(
+        domain=DOMAIN,
+        title="panel",
+        unique_id=PANEL_DID,
+        data={CONF_ADDRESS: f"[{SEEDED_IPV6}]", "installation_identity": True},
+    )
+    added.add_to_hass(hass)
+
+    with patch(
+        "custom_components.panel_assistant.async_setup_entry", return_value=True
+    ):
+        result = await _add(hass, SEEDED.address)
+        await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert hass.config_entries.async_entries(DOMAIN) == [added]
+    consumed = await _stored(hass, receipt.job_id)
+    assert consumed.phase is InstallPhase.CONSUMED
+    assert consumed.consumed_entry_id == added.entry_id
+    executor = await async_get_install_executor(hass)
+    assert not executor.is_finalizer_active(receipt.job_id)
+
+
+async def test_a_first_install_a_restart_interrupted_ends_when_the_domain_starts(
+    hass: HomeAssistant, caplog: pytest.LogCaptureFixture
+) -> None:
+    """No panel added yet: the install cut off by a restart still ends by itself.
+
+    Android may have installed the package, so it ends asking for the panel to
+    be checked, with no dialog open and nobody adding a panel.
+    """
+    receipt, _manager = await seed_phase(hass, InstallPhase.INSTALLING)
+
+    with caplog.at_level(logging.WARNING):
+        assert await async_setup_component(hass, DOMAIN, {DOMAIN: {}})
+        await hass.async_block_till_done()
+
+    assert hass.config_entries.async_entries(DOMAIN) == []
+    assert hass.config_entries.flow.async_progress() == []
+    ended = await _stored(hass, receipt.job_id)
+    assert ended.phase is InstallPhase.RECOVERY_REQUIRED
+    assert ended.failure_stage is InstallPhase.INSTALLING
+    assert ended.result_subcode == "job:interrupted_mutation"
+    assert _logged(caplog, JOBS_LOG, "install failure", "stage=installing")
+
+
+async def test_an_unclaimed_install_with_no_panel_added_ends_on_its_own_clock(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """The look at unfinished installs is arranged by the domain, not an entry."""
+    receipt, _manager = await seed_phase(hass, InstallPhase.HEALTHY_UNCLAIMED)
+    assert await async_setup_component(hass, DOMAIN, {DOMAIN: {}})
+    await hass.async_block_till_done()
+
+    freezer.tick(timedelta(hours=25))
+    async_fire_time_changed(hass, dt_util.utcnow())
+    await hass.async_block_till_done()
+
+    assert hass.config_entries.async_entries(DOMAIN) == []
+    ended = await _stored(hass, receipt.job_id)
+    assert ended.phase is InstallPhase.RECOVERY_REQUIRED
+    assert ended.result_subcode == "job:unclaimed_expired"

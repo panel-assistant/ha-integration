@@ -195,7 +195,7 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
         "issue_tracker": "https://github.com/panel-assistant/ha-integration/issues",
         "name": "Panel Assistant",
         "requirements": ["adb-shell[async]>=0.4.4", "aiosendspin[server]==10.3.0"],
-        "version": "1.0.2",
+        "version": "1.0.3",
         "zeroconf": [
             "_adb._tcp.local.",
             "_ha-paneld._tcp.local.",
@@ -211,7 +211,7 @@ def test_release_version_guard_accepts_current_and_prerelease_versions(
     """Tag admission uses exact raw equality for stable and prerelease versions."""
     verifier = _load_release_version_module()
 
-    verifier.verify_release_version("1.0.2", INTEGRATION / "manifest.json")
+    verifier.verify_release_version("1.0.3", INTEGRATION / "manifest.json")
     manifest = tmp_path / "manifest.json"
     manifest.write_text('{"version":"0.3.0b2"}', encoding="utf-8")
     verifier.verify_release_version("0.3.0b2", manifest)
@@ -310,7 +310,7 @@ def test_release_version_guard_cli_does_not_parse_tag_as_option(tag: str) -> Non
     )
 
     assert result.returncode != 0
-    assert "does not match manifest version '1.0.2'" in result.stderr
+    assert "does not match manifest version '1.0.3'" in result.stderr
 
 
 def test_hacs_workflow_runs_release_version_guard_for_tags() -> None:
@@ -857,6 +857,8 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
         f"{json.dumps((source / 'home-chooser.mjs').resolve().as_uri())};"
         "import * as a from "
         f"{json.dumps((source / 'app-identity.mjs').resolve().as_uri())};"
+        "import * as l from "
+        f"{json.dumps((source / 'install-contract.mjs').resolve().as_uri())};"
         "console.log(JSON.stringify({"
         "program: v.buildVendorSetup('0123456789abcdef0123456789abcdef'),"
         "devices: v.META_PORTAL_DEVICES, record: v.META_RESTORE_RECORD,"
@@ -870,7 +872,18 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
         ".map(c => [c, h.buildHomeClaim(c)])),"
         "grants: Object.fromEntries(Object.keys(a.HOME_COMPONENTS).map(c => [c,"
         " p.buildPermissionGrant('0123456789abcdef0123456789abcdef', 34, '',"
-        " c.split('/')[0], c)]))}));"
+        " c.split('/')[0], c)])),"
+        "ownerDecision: p.OWNER_DECISION,"
+        "repairs: Object.fromEntries(['POST_NOTIFICATIONS', 'CAMERA', 'RECORD_AUDIO']"
+        ".map(n => 'android.permission.' + n)"
+        ".map(n => [n, p.runtimePermissionRepair(a.PACKAGE_ID, n)])),"
+        "appOpGrant: p.appOpGrant(a.PACKAGE_ID),"
+        "appOpReadback: p.appOpReadback(a.PACKAGE_ID),"
+        "verification: p.buildPermissionVerification("
+        "'0123456789abcdef0123456789abcdef', 34,"
+        " a.PACKAGE_ID, a.LAUNCH_COMPONENTS[a.PACKAGE_ID][1]),"
+        "launch: l.buildLaunch('0123456789abcdef0123456789abcdef', a.PACKAGE_ID,"
+        " a.LAUNCH_COMPONENTS[a.PACKAGE_ID][1], 34)}));"
     )
     javascript = json.loads(
         subprocess.run(
@@ -908,6 +921,33 @@ def test_both_installers_send_the_same_portal_setup_and_read_home_the_same_way()
         assert setup_claim in adb_protocol._permission_grant_command(
             "0" * 32, launch.partition("/")[0], launch
         )
+    # Both installers keep the owner's permission choices by one rule, sent as
+    # the same text: a runtime permission is granted only where its line shows
+    # no decision, and an app operation is allowed only while nobody set it.
+    assert javascript["ownerDecision"] == adb_protocol._OWNER_DECISION
+    moved = app_identity.LAUNCH_COMPONENTS[app_identity.PACKAGE_ID][1]
+    network = adb_protocol._permission_grant_command(
+        "0" * 32, app_identity.PACKAGE_ID, moved
+    )
+    browser = javascript["grants"][moved]
+    for permission, repair in javascript["repairs"].items():
+        assert repair == adb_protocol._runtime_permission_repair_command(
+            app_identity.PACKAGE_ID, permission
+        )
+        assert repair in browser
+    notifications = javascript["repairs"]["android.permission.POST_NOTIFICATIONS"]
+    assert notifications in javascript["launch"]
+    assert notifications in adb_protocol._notification_grant_command(
+        "0" * 32, app_identity.PACKAGE_ID
+    )
+    # The browser stops on a refused write, where the network route reads it back.
+    assert javascript["appOpGrant"] in browser
+    assert (
+        javascript["appOpGrant"].replace(" allow || exit 1;", " allow >/dev/null 2>&1;")
+        in network
+    )
+    assert javascript["appOpReadback"] in javascript["verification"]
+    assert javascript["appOpReadback"] in network
     # Neither install program can claim admin before first setup completes.
     # The emitted shell contract is compared here; real Android-shell behavior
     # is covered by the network/USB permission tests and coordinator tests.

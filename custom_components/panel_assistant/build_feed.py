@@ -8,6 +8,7 @@ bytes, and every APK must match the size and SHA-256 the signed feed names.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import re
@@ -166,6 +167,10 @@ class FeedInstallBundle:
     artifact: ReleaseArtifact
     feed: bytes
     feed_signature: bytes
+
+
+def _sha256_hex(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
 
 
 def feed_release_artifact(build: FeedBuild) -> ReleaseArtifact:
@@ -466,6 +471,8 @@ async def async_download_build(
         raise BuildDownloadError from err
     # The fetch already refused anything longer than the signed size, and a
     # shorter body cannot carry the signed hash.
-    if hashlib.sha256(body).hexdigest() != artifact.sha256:
+    # Hashed in the executor: a whole APK would hold the event loop.
+    digest = await asyncio.get_running_loop().run_in_executor(None, _sha256_hex, body)
+    if digest != artifact.sha256:
         raise BuildFeedError
     return body

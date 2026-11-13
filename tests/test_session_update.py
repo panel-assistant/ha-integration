@@ -23,6 +23,7 @@ from homeassistant.helpers import issue_registry as ir
 from custom_components.panel_assistant import (
     blob,
     feed_coordinator,
+    session_carrier,
     transport_protocol,
     update_staging,
 )
@@ -54,6 +55,7 @@ from custom_components.panel_assistant.update_coordinator import (
     PanelUpdateSnapshot,
 )
 from custom_components.panel_assistant.update_errors import _UpdateRefusalError
+from tests.loop_io_guard import LoopIoGuard
 
 from .test_availability import UPDATE_ENTITY, _load, _load_offline
 from .test_lan_staged_update import (  # noqa: F401
@@ -373,6 +375,27 @@ async def test_an_unreachable_panel_updates_over_its_session(
     assert not async_get_blobs(hass)._transfers
     for name in _HTTP_UPDATE_CALLS:
         getattr(HaPaneldClient, name).assert_not_awaited()
+
+
+async def test_a_session_update_hashes_nothing_whole_on_the_event_loop(
+    hass: HomeAssistant, offline: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The app and the backup cross the blob view without blocking the loop.
+
+    An upload is hashed a chunk at a time as it arrives; a whole body is
+    hashed and a backup's zip is checked only in the executor.
+    """
+    entity, panel = offline
+    guard = LoopIoGuard()
+    for module in (blob, session_carrier):
+        monkeypatch.setattr(module, "hashlib", guard.hashlib(), raising=False)
+    guard.install_files(monkeypatch)
+
+    await _install(entity)
+
+    assert panel.fetched == APK
+    assert entity.installed_version == VERSION
+    assert guard.on_loop == []
 
 
 async def test_an_address_that_answers_before_the_first_snapshot_raises_nothing(
@@ -702,7 +725,12 @@ async def test_a_download_is_served_once_to_its_panel_only(
     hass_read_only_access_token: str,
 ) -> None:
     blobs = async_get_blobs(hass)
-    _token, reference = blobs.download(bound, b"app bytes", "application/x-test")
+    _token, reference = blobs.download(
+        bound,
+        b"app bytes",
+        "application/x-test",
+        sha256=hashlib.sha256(b"app bytes").hexdigest(),
+    )
     admin = await hass_client()
     panel = await hass_client(hass_read_only_access_token)
 
@@ -747,7 +775,9 @@ async def test_an_expired_token_is_refused(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     blobs = async_get_blobs(hass)
-    _token, reference = blobs.download(bound, b"app", "application/x-test")
+    _token, reference = blobs.download(
+        bound, b"app", "application/x-test", sha256=hashlib.sha256(b"app").hexdigest()
+    )
     upload, _received = blobs.upload(bound)
     panel = await hass_client(hass_read_only_access_token)
     now = blob._now()
@@ -766,7 +796,9 @@ async def test_a_token_answers_only_its_own_direction(
     hass_read_only_access_token: str,
 ) -> None:
     blobs = async_get_blobs(hass)
-    _token, reference = blobs.download(bound, b"app", "application/x-test")
+    _token, reference = blobs.download(
+        bound, b"app", "application/x-test", sha256=hashlib.sha256(b"app").hexdigest()
+    )
     upload, received = blobs.upload(bound)
     upload_url = f"/api/panel_assistant/blob/{upload}"
     panel = await hass_client(hass_read_only_access_token)

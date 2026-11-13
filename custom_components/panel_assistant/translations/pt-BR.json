@@ -9,7 +9,8 @@
     "webview_recovery_refused": "O Android recusou a instalação do WebView. Siga o guia de atualização do WebView específico para seu modelo e verifique a compatibilidade do pacote, da versão do Android e da assinatura. Salve um relatório de suporte se a recusa persistir; repetir as tentativas não resolve uma incompatibilidade do pacote.",
     "webview_recovery_mismatch": "O WebView baixado não correspondia à atualização verificada. Mantenha o painel conectado e selecione Tentar novamente para baixá-lo de novo. Se isso se repetir, salve um relatório de suporte; não instale um APK não verificado.",
     "webview_recovery_uncertain": "Não foi possível confirmar o resultado da instalação. Mantenha o painel conectado e selecione Tentar novamente: o WebView instalado é verificado primeiro e uma nova tentativa só começa se a atualização ainda atender aos requisitos.",
-    "webview_recovery_retry": "A operação do WebView foi interrompida ou não conseguiu concluir a preparação. Verifique a conexão do painel e o espaço de armazenamento disponível e selecione Tentar novamente. Salve um relatório de suporte se isso se repetir."
+    "webview_recovery_retry": "A operação do WebView foi interrompida ou não conseguiu concluir a preparação. Verifique a conexão do painel e o espaço de armazenamento disponível e selecione Tentar novamente. Salve um relatório de suporte se isso se repetir.",
+    "webview_recovery_download": "O painel não conseguiu baixar a atualização do WebView de panel-assistant.io, por isso ela não foi instalada. Permita que o Home Assistant acesse {webview_site}, para baixar a atualização e entregá-la ao painel, ou permita que o painel acesse esse site e selecione Tentar novamente. O registro do Home Assistant informa o que impediu o download."
   },
   "config": {
     "flow_title": "{name}",
@@ -28,7 +29,7 @@
       },
       "install_usb": {
         "title": "Instalar via USB",
-        "description": "Conecte o painel a este computador, não ao servidor do Home Assistant. A depuração USB deve estar ativada nas configurações de desenvolvedor do painel; o [guia de acesso específico para o modelo do painel]({panel_access_url}) mostra como.",
+        "description": "Plug the panel into this computer, not into the Home Assistant server. USB debugging must be on in the panel's developer options; the [model-specific panel access guide]({panel_access_url}) shows how.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.",
         "submit": "Abrir o instalador USB"
       },
       "add_panel": {
@@ -90,19 +91,19 @@
       },
       "confirm_install_candidate": {
         "title": "Instalar Panel Assistant {version}?",
-        "description": "Tudo pronto para instalar no painel, no endereço {address}.\n\nSeus outros aplicativos não serão alterados."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
       },
       "confirm_install_rc": {
         "title": "Instalar Panel Assistant {version}?",
-        "description": "Apenas para testes: Panel Assistant {version} é uma versão candidata, não uma versão estável, e pode conter erros.\n\nTudo pronto para instalar no painel, no endereço {address}.\n\nSeus outros aplicativos não serão alterados."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
       },
       "confirm_reinstall_candidate": {
         "title": "Instalar Panel Assistant {version}?",
-        "description": "Tudo pronto para instalar no painel em {address}.\n\nSeus outros aplicativos não são alterados.\n\nEste painel volta a se vincular a {entry_title} e mantém suas entidades e seu histórico."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "confirm_reinstall_rc": {
         "title": "Instalar Panel Assistant {version}?",
-        "description": "Apenas para testes: o Panel Assistant {version} é uma versão candidata, não uma versão estável, e pode conter erros.\n\nTudo pronto para instalar no painel em {address}.\n\nSeus outros aplicativos não são alterados.\n\nEste painel volta a se vincular a {entry_title} e mantém suas entidades e seu histórico."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "release_preview_only": {
         "title": "A versão não pode ser instalada automaticamente",
@@ -113,21 +114,21 @@
         "description": "Panel Assistant {version} foi instalado em {address}.\n\nSelecione Enviar para repetir apenas as verificações finais de identidade e funcionamento, que são somente de leitura. Nenhuma etapa da instalação será repetida.\n\nDepois que o Home Assistant adicionar o dispositivo, acesse o link de configuração pelo navegador na caixa de diálogo Adicionar, em um computador que consiga acessar o painel na rede local dele. Se solicitado, autorize o ADB no painel."
       },
       "install_unfinished": {
-        "title": "This panel has an unfinished install",
-        "description": "Home Assistant already started installing Panel Assistant {version} on this panel, as {existing_address}, and that install has not finished.\n\nYou can carry on with it, or cancel it and start again at {address}.",
+        "title": "Este painel tem uma instalação não concluída",
+        "description": "O Home Assistant já começou a instalar o Panel Assistant {version} neste painel, como {existing_address}, e essa instalação ainda não terminou.\n\nVocê pode continuar essa instalação ou cancelá-la e recomeçar em {address}.",
         "menu_options": {
-          "resume_install": "Carry on with that install",
-          "cancel_install": "Cancel it and start again"
+          "resume_install": "Continuar essa instalação",
+          "cancel_install": "Cancelar e recomeçar"
         },
         "menu_option_descriptions": {
-          "cancel_install": "Nothing is removed from the panel. If the app is already installed it stays, and Home Assistant looks at the panel afresh."
+          "cancel_install": "Nada é removido do painel. Se o aplicativo já estiver instalado, ele permanece, e o Home Assistant verifica o painel novamente desde o início."
         }
       },
       "install_unfinished_busy": {
-        "title": "This panel has an unfinished install",
-        "description": "Home Assistant is installing Panel Assistant {version} on this panel right now, as {existing_address}. It cannot be cancelled while it is changing the panel.\n\nCarry on with it to see it finish.",
+        "title": "Este painel tem uma instalação não concluída",
+        "description": "O Home Assistant está instalando o Panel Assistant {version} neste painel agora, como {existing_address}. Não é possível cancelar enquanto ele estiver alterando o painel.\n\nContinue essa instalação para acompanhar sua conclusão.",
         "menu_options": {
-          "resume_install": "Carry on with that install"
+          "resume_install": "Continuar essa instalação"
         }
       }
     },
@@ -138,6 +139,7 @@
     },
     "error": {
       "panel_setup_not_finished": "O painel ainda não concluiu sua configuração. Conclua a página de configuração e, em seguida, selecione Enviar novamente.",
+      "panel_setup_refused": "O painel se recusou a informar se a configuração foi concluída. Ele respondeu: {refusal}. Selecione Enviar para tentar novamente.",
       "old_app_installed": "Este painel ainda executa o aplicativo antigo ha-paneld. O Panel Assistant 1.0 não pode migrá-lo para o novo aplicativo e não instala nada ao lado dele. Siga as [etapas de recuperação segura]({old_app_help_url}) para concluir a migração com o Panel Assistant 0.9.0. Se algum painel já executa o aplicativo 1.0, ou se você não tem um backup anterior à atualização, peça ajuda antes de mudar de versão.",
       "cannot_connect": "Não foi possível conectar-se a um endpoint válido de verificação de funcionamento do Panel Assistant.",
       "invalid_address": "Informe um nome de host ou endereço IP sem esquema de URL nem caminho.",
@@ -146,9 +148,14 @@
       "install_resolution_timeout": "O tempo limite da resolução de nome local foi atingido antes que o endereço do painel pudesse ser fixado com segurança. Verifique o DNS local e tente novamente.",
       "install_too_many_addresses": "Este nome de host foi resolvido para endereços demais para fixá-los com segurança. Use um nome de host local dedicado ou um endereço IP privado.",
       "unsafe_install_target": "A instalação só é permitida em um endereço IPv4 local privado ou em um endereço IPv6 local único. Nenhuma conexão ADB foi tentada.",
+      "not_answering_outside_install_range": "Nenhum painel respondeu na porta 8888 neste endereço. Um painel que já está em execução pode ser adicionado em qualquer endereço, mas o Panel Assistant só é instalado pela rede em um endereço IPv4 local privado ou em um endereço IPv6 local único, por isso nenhuma conexão de ADB foi tentada. Verifique se o painel está ligado e se o Home Assistant consegue acessá-lo na porta 8888, ou digite o endereço local privado do painel para instalá-lo.",
       "install_target_changed": "O nome de host não é mais resolvido para o mesmo endereço fixado do painel. Nenhuma chave ADB nem instalação foi enviada. Verifique o endereço e comece novamente.",
       "adb_unreachable": "O painel respondeu, mas nada respondeu na porta do Android Debug Bridge (5555). No painel, habilite o Android Debug Bridge e permita seu uso pela rede. Depois, tente novamente. Se você puder conectar o painel ao computador em que está navegando, instale via USB.",
+      "panel_connected_unreachable": "Este painel se conectou ao Home Assistant, mas o Home Assistant não consegue acessá-lo na porta 8888. Permita que o Home Assistant abra conexões com o painel na porta TCP 8888 no firewall ou roteador e tente novamente.",
       "panel_unreachable": "Nada respondeu nesse endereço. Verifique se o endereço está correto e se o painel está ligado e conectado à sua rede. Depois, tente novamente. Se você puder conectar o painel ao computador em que está navegando, instale via USB.",
+      "app_port_refused": "A porta 8888 neste endereço recusou a conexão, e nada respondeu na porta Android Debug Bridge do painel (5555). A porta 8888 é onde o aplicativo do painel responde ao Home Assistant; a porta 5555 é usada apenas para instalar o aplicativo. Se o aplicativo do painel já estiver em execução, algo entre o Home Assistant e o painel está rejeitando conexões na porta 8888: permita que o Home Assistant acesse o painel pela porta 8888 e tente novamente. Se o aplicativo ainda não estiver instalado, ative o Android Debug Bridge no painel e permita o acesso pela rede; depois, tente novamente. Se puder conectar o painel ao computador em que está navegando, instale o aplicativo por USB como alternativa.",
+      "app_port_no_answer": "O Home Assistant não recebeu nenhuma resposta utilizável da porta 8888 neste endereço, e nada respondeu na porta Android Debug Bridge do painel (5555). A porta 8888 é onde o aplicativo do painel responde ao Home Assistant; a porta 5555 é usada apenas para instalar o aplicativo. Se o aplicativo do painel já estiver em execução, verifique se nada entre o Home Assistant e o painel bloqueia ou filtra a porta 8888 e tente novamente. Se o aplicativo ainda não estiver instalado, ative o Android Debug Bridge no painel e permita o acesso pela rede; depois, tente novamente. Se puder conectar o painel ao computador em que está navegando, instale o aplicativo por USB como alternativa.",
+      "app_port_not_panel": "Algo respondeu na porta 8888 neste endereço, mas não com a resposta de verificação de integridade do aplicativo do painel, e nada respondeu na porta Android Debug Bridge do painel (5555). A porta 8888 é onde o aplicativo do painel responde ao Home Assistant; a porta 5555 é usada apenas para instalar o aplicativo. Verifique se o endereço é o do painel e se nada entre o Home Assistant e o painel responde no lugar dele na porta 8888 e tente novamente. Se o aplicativo ainda não estiver instalado, ative o Android Debug Bridge no painel e permita o acesso pela rede; depois, tente novamente. Se puder conectar o painel ao computador em que está navegando, instale o aplicativo por USB como alternativa.",
       "adb_still_unauthorized": "O painel ainda não aceitou esta instância do Home Assistant ou não a memorizou.",
       "adb_credential_error": "O Home Assistant não conseguiu carregar ou salvar sua credencial ADB com segurança. Nenhuma alteração no painel foi tentada. Verifique o armazenamento e os logs do Home Assistant antes de tentar novamente.",
       "installed_without_health": "O pacote Panel Assistant está instalado, mas seu endpoint de verificação de funcionamento não respondeu. Este processo não irá sobrescrevê-lo nem repará-lo. Não tente novamente a instalação automática; abra o Panel Assistant no painel ou siga as etapas em {recovery_address}. Depois de restaurar uma instalação que funcione corretamente, comece novamente para conectá-la.",
@@ -175,6 +182,7 @@
       "reinstall_identity_mismatch": "O aplicativo está instalado, mas não foi possível vinculá-lo ao painel mantido. Seu histórico e suas configurações no Home Assistant foram mantidos. Verifique o painel no Home Assistant antes de tentar novamente.",
       "not_panel": "Não é um painel no qual o Panel Assistant possa instalar o aplicativo.",
       "invalid_discovery": "Não foi comprovado que o painel descoberto é a mesma instalação do Panel Assistant em bom funcionamento. Nenhuma entrada do Home Assistant nem configuração do painel foi alterada.",
+      "cannot_connect": "O Home Assistant recebeu o anúncio deste painel, mas não conseguiu se conectar a ele em nenhum dos endereços anunciados. Verifique se o Home Assistant consegue acessar o painel na porta TCP 8888. Nenhuma entrada do Home Assistant ou configuração do painel foi alterada.",
       "install_cancelled": "A instalação foi cancelada antes que um APK fosse instalado. Nenhuma entrada do Home Assistant foi criada. Para tentar novamente, adicione a integração Panel Assistant e informe o mesmo endereço do painel.",
       "install_cancelled_after_staging_cleanup": "A instalação foi cancelada e o APK preparado foi removido antes da instalação. Nenhuma entrada do Home Assistant foi criada. Para tentar novamente, adicione a integração Panel Assistant e informe o mesmo endereço do painel.",
       "install_authorization_failed": "O Home Assistant não conseguiu carregar ou validar com segurança sua credencial ADB armazenada. Nenhum APK foi instalado. Verifique o armazenamento e os logs do Home Assistant. Depois, adicione a integração Panel Assistant e informe o mesmo endereço para tentar novamente.",
@@ -186,6 +194,7 @@
       "install_health_check_failed": "O APK está instalado, mas o Panel Assistant não passou na verificação de funcionamento. Não tente novamente a instalação automática. Abra o Panel Assistant no painel; se ele não iniciar, siga as etapas em [{recovery_address}]({recovery_url}).",
       "install_ambiguous_mutation": "Uma operação ADB de preparação, instalação ou inicialização pode ter alterado o painel. Não tente novamente a instalação automática, não desinstale nem redefina o aplicativo. Siga as etapas em [{recovery_address}]({recovery_url}) para verificar o painel.",
       "install_verification_required": "O painel foi alterado, mas o Home Assistant não conseguiu verificar o pacote instalado ou remover o arquivo exato que havia preparado. Não tente novamente a instalação automática, não desinstale nem redefina o aplicativo. Siga as etapas em [{recovery_address}]({recovery_url}) para verificar o painel.",
+      "install_health_unreachable": "O Panel Assistant está instalado no painel, mas o Home Assistant não conseguiu acessá-lo na porta 8888. Verifique se a rede permite que o Home Assistant acesse o painel na porta 8888, por exemplo, nas regras de firewall ou VLAN, e adicione o painel novamente com o mesmo endereço. Não é necessário reinstalar, desinstalar ou redefinir o aplicativo.",
       "install_failed": "O instalador parou com um resultado não reconhecido. Nenhuma entrada do Home Assistant foi criada. Não tente novamente a instalação automática antes de verificar o painel conforme descrito em [{recovery_address}]({recovery_url}).",
       "install_worker_stopped": "O instalador parou e não executará novamente esta tarefa no processo atual do Home Assistant. Reinicie o Home Assistant, reabra a configuração e informe o mesmo endereço do painel para retomar ou receber um resultado de recuperação. Nenhuma entrada foi criada.",
       "install_recovery_required": "O Home Assistant não consegue comprovar que é seguro continuar automaticamente. Nenhuma entrada foi criada. Não tente novamente a instalação automática, não desinstale nem redefina o aplicativo antes de seguir as etapas em [{recovery_address}]({recovery_url}).",
@@ -615,7 +624,8 @@
           "restarting_recovery": "Reiniciando (recuperação)",
           "restarting_reboot": "Reiniciando (reinicialização)",
           "another_home_assistant": "Com login em outro Home Assistant",
-          "not_signed_in": "Not signed in to Home Assistant"
+          "cannot_reach_home_assistant": "Não consegue acessar o Home Assistant",
+          "not_signed_in": "Não conectado à conta do Home Assistant"
         }
       },
       "storage_health": {
@@ -950,6 +960,10 @@
     }
   },
   "issues": {
+    "permissions_turned_off": {
+      "title": "Some app permissions are turned off on {panel}.",
+      "description": "Someone turned off {features} for the panel app in Android settings on {panel}. Home Assistant keeps that choice when it installs or updates the app, so the features that need them will not work until they are turned on again on the panel. This Repair clears itself the next time Home Assistant updates the app.\n\nTo fix:\n1. At the panel, follow the [Android permission guide]({permissions_url}) and allow {features} for Panel Assistant.\n2. If you meant to turn them off, select Ignore instead."
+    },
     "panel_app_too_old": {
       "title": "{panel} precisa do app {required_version}",
       "description": "O Home Assistant não consegue ver nem controlar {panel} porque o app {version} não oferece suporte a este protocolo de conexão.\n\nPara corrigir:\n1. Abra [Atualizações]({updates_url}) e instale uma atualização compatível do app para {panel}, se houver uma disponível.\n2. Aguarde o painel se reconectar."
@@ -1480,6 +1494,49 @@
         }
       }
     },
+    "installer_failure_health_unreachable": {
+      "title": "O Home Assistant não consegue acessar o Panel Assistant em {panel} na porta 8888",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Resolver erro do painel",
+            "description": "O Panel Assistant está instalado no painel, mas o Home Assistant não conseguiu acessá-lo na porta 8888.\n\nPara corrigir:\n1. Permita que o Home Assistant acesse o painel na porta 8888 nas regras de firewall ou VLAN da rede ([ajuda]({repair_url})).\n2. Adicione o painel novamente com o mesmo endereço e selecione **Limpar erro** aqui.\n\n[Saiba mais]({learn_more_url})",
+            "menu_options": {
+              "retry": "Tentar novamente",
+              "support_report": "Relatório de suporte",
+              "clear_error": "Limpar erro"
+            }
+          },
+          "support_report": {
+            "title": "Relatório de suporte",
+            "description": "Este relatório contém os detalhes salvos da instalação ou atualização que falhou.\n\nPara corrigir:\n1. Leia [como usar este relatório de suporte]({guide_url}).\n2. Revise o relatório para identificar informações privadas e copie-o para um [novo problema da integração Panel Assistant]({issue_url}).\n\n{report}\n\n[Saiba mais]({learn_more_url})"
+          },
+          "clear_error": {
+            "title": "Limpar erro",
+            "description": "Limpar este erro exclui seu relatório salvo sem alterar o painel.\n\nPara corrigir:\n1. [Salve um relatório de suporte]({guide_url}) primeiro, se precisar dele.\n2. Selecione **Enviar** para remover este erro e seu relatório.\n\n[Saiba mais]({learn_more_url})"
+          },
+          "retry_error": {
+            "title": "Nova tentativa incompleta",
+            "description": "A nova tentativa não pôde ser concluída, então este erro e seu relatório continuam em Reparos.\n\nPara corrigir:\n1. Siga as [etapas de recuperação]({repair_url}).\n2. Selecione **Enviar** e depois **Relatório de suporte** para verificar a causa antes de tentar novamente.\n\n[Saiba mais]({learn_more_url})"
+          }
+        },
+        "progress": {
+          "retrying": "O Home Assistant está verificando o painel e tentando executar novamente a operação salva.\n\nPara corrigir:\n1. Leia as [orientações para tentar novamente]({repair_url}), se necessário.\n2. Aguarde aqui o resultado antes de decidir o que fazer em seguida.\n\n[Saiba mais]({learn_more_url})"
+        },
+        "error": {
+          "retry_target_changed": "O painel não corresponde mais ao destino salvo. Verifique-o antes de tentar novamente.",
+          "retry_release_changed": "A versão selecionada não corresponde mais à versão salva. Escolha uma nova tentativa de instalação.",
+          "retry_credential_changed": "A credencial ADB do Home Assistant mudou. Verifique o painel antes de tentar novamente.",
+          "retry_panel_ambiguous": "Não foi possível verificar o aplicativo instalado no painel. Nenhuma nova instalação foi iniciada.",
+          "retry_cannot_prove_safe": "Não foi possível verificar o painel o suficiente para tentar novamente com segurança. Tente novamente mais tarde.",
+          "retry_update_unavailable": "O controle de atualização do painel está indisponível. Verifique a conexão e tente novamente.",
+          "retry_finalization": "O aplicativo está pronto, mas o Home Assistant não conseguiu concluir a adição do painel. Tente novamente.",
+          "retry_failed": "A nova tentativa falhou. O relatório de suporte tem detalhes.",
+          "retry_panel_busy": "Este painel ainda está ocupado com uma atualização ou outra tarefa. Aguarde a conclusão e tente novamente. Se uma atualização for bem-sucedida, este reparo se fecha sozinho.",
+          "retry_no_longer_needed": "Esta instalação não precisa mais de uma nova tentativa. Reabra o reparo se um erro voltar a ocorrer."
+        }
+      }
+    },
     "installer_failure_update": {
       "title": "A atualização em {panel} não foi concluída",
       "fix_flow": {
@@ -1534,6 +1591,9 @@
           "unsafe_install_target": "A instalação é permitida somente em um endereço IPv4 local privado ou em um endereço IPv6 local único. Nenhuma conexão ADB foi tentada.",
           "install_target_changed": "O nome de host não é mais resolvido para o mesmo endereço fixado do painel. Nenhuma chave ADB ou instalação foi enviada. Verifique o endereço e comece novamente.",
           "adb_unreachable": "O painel respondeu, mas nada respondeu na porta do Android Debug Bridge (5555). No painel, habilite o Android Debug Bridge e permita seu uso pela rede. Depois, tente novamente. Se puder conectar o painel ao computador em que está navegando, faça a instalação por USB.",
+          "adb_lease": "O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant). Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
+          "adb_lease_switch_now": "O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant). Ou, na página de configurações do próprio painel (porta 8888), ative Network ADB em Sistema (uma configuração avançada); o painel permite isso agora, pois está sem conexão com o Home Assistant há alguns minutos. Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
+          "adb_lease_switch": "O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant). Ou, na página de configurações do próprio painel (porta 8888), ative Network ADB em Sistema (uma configuração avançada); o painel permite isso depois de ficar sem conexão com o Home Assistant por alguns minutos, daqui a aproximadamente mais {minutes} minutos. Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
           "adb_still_unauthorized": "O painel ainda não aceitou esta instância do Home Assistant. Aprove a solicitação ADB no painel e tente novamente.",
           "adb_credential_error": "O Home Assistant não conseguiu carregar ou salvar de forma persistente sua credencial ADB com segurança. Nenhuma alteração no painel foi tentada. Verifique o armazenamento e os registros do Home Assistant antes de tentar novamente.",
           "retained_or_ambiguous": "O painel pode conter um registro retido do pacote Panel Assistant ou não foi possível comprovar a ausência do estado do pacote. Nenhuma alteração foi feita no painel. Tente novamente uma vez se a conexão estava instável; caso contrário, siga as etapas em {recovery_address}. Não desinstale nem redefina o aplicativo sem uma cópia de segurança verificada.",
@@ -1599,6 +1659,9 @@
           "unsafe_install_target": "A instalação é permitida somente em um endereço IPv4 local privado ou em um endereço IPv6 local único. Nenhuma conexão ADB foi tentada.",
           "install_target_changed": "O nome de host não é mais resolvido para o mesmo endereço fixado do painel. Nenhuma chave ADB ou instalação foi enviada. Verifique o endereço e comece novamente.",
           "adb_unreachable": "O painel respondeu, mas nada respondeu na porta do Android Debug Bridge (5555). No painel, habilite o Android Debug Bridge e permita seu uso pela rede. Depois, tente novamente. Se puder conectar o painel ao computador em que está navegando, faça a instalação por USB.",
+          "adb_lease": "O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant). Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
+          "adb_lease_switch_now": "O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant). Ou, na página de configurações do próprio painel (porta 8888), ative Network ADB em Sistema (uma configuração avançada); o painel permite isso agora, pois está sem conexão com o Home Assistant há alguns minutos. Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
+          "adb_lease_switch": "O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant). Ou, na página de configurações do próprio painel (porta 8888), ative Network ADB em Sistema (uma configuração avançada); o painel permite isso depois de ficar sem conexão com o Home Assistant por alguns minutos, daqui a aproximadamente mais {minutes} minutos. Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
           "adb_still_unauthorized": "O painel ainda não aceitou esta instância do Home Assistant. Aprove a solicitação ADB no painel e tente novamente.",
           "adb_credential_error": "O Home Assistant não conseguiu carregar ou salvar de forma persistente sua credencial ADB com segurança. Nenhuma alteração no painel foi tentada. Verifique o armazenamento e os registros do Home Assistant antes de tentar novamente.",
           "retained_or_ambiguous": "O painel pode conter um registro retido do pacote Panel Assistant ou não foi possível comprovar a ausência do estado do pacote. Nenhuma alteração foi feita no painel. Tente novamente uma vez se a conexão estava instável; caso contrário, siga as etapas em {recovery_address}. Não desinstale nem redefina o aplicativo sem uma cópia de segurança verificada.",
@@ -1663,6 +1726,9 @@
           "unsafe_install_target": "A instalação é permitida somente em um endereço IPv4 local privado ou em um endereço IPv6 local único. Nenhuma conexão ADB foi tentada.",
           "install_target_changed": "O nome de host não é mais resolvido para o mesmo endereço fixado do painel. Nenhuma chave ADB ou instalação foi enviada. Verifique o endereço e comece novamente.",
           "adb_unreachable": "O painel respondeu, mas nada respondeu na porta do Android Debug Bridge (5555). No painel, habilite o Android Debug Bridge e permita seu uso pela rede. Depois, tente novamente. Se puder conectar o painel ao computador em que está navegando, faça a instalação por USB.",
+          "adb_lease": "O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant). Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
+          "adb_lease_switch_now": "O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant). Ou, na página de configurações do próprio painel (porta 8888), ative Network ADB em Sistema (uma configuração avançada); o painel permite isso agora, pois está sem conexão com o Home Assistant há alguns minutos. Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
+          "adb_lease_switch": "O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant). Ou, na página de configurações do próprio painel (porta 8888), ative Network ADB em Sistema (uma configuração avançada); o painel permite isso depois de ficar sem conexão com o Home Assistant por alguns minutos, daqui a aproximadamente mais {minutes} minutos. Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
           "adb_still_unauthorized": "O painel ainda não aceitou esta instância do Home Assistant. Aprove a solicitação ADB no painel e tente novamente.",
           "adb_credential_error": "O Home Assistant não conseguiu carregar ou salvar de forma persistente sua credencial ADB com segurança. Nenhuma alteração no painel foi tentada. Verifique o armazenamento e os registros do Home Assistant antes de tentar novamente.",
           "retained_or_ambiguous": "O painel pode conter um registro retido do pacote Panel Assistant ou não foi possível comprovar a ausência do estado do pacote. Nenhuma alteração foi feita no painel. Tente novamente uma vez se a conexão estava instável; caso contrário, siga as etapas em {recovery_address}. Não desinstale nem redefina o aplicativo sem uma cópia de segurança verificada.",
@@ -1725,8 +1791,8 @@
       "description": "{panel} está conectado, mas seu endereço salvo {address} está inacessível para operações que precisam dele.\n\nPara corrigir:\n1. [Abra os dispositivos do Panel Assistant]({integration_url}).\n2. Se o endereço do painel mudou, adicione-o novamente usando o endereço atual.\n3. Caso contrário, restaure o acesso a {address}; este reparo desaparece quando esse endereço responder como este painel."
     },
     "panel_address_unverified": {
-      "title": "{panel} mudou de endereço, e não foi possível confirmar o novo endereço",
-      "description": "{panel} está conectado, mas nem {address} nem o endereço sugerido {session_address} puderam ser confirmados para operações que precisam do endereço do painel.\n\nPara corrigir:\n1. [Abra os dispositivos do Panel Assistant]({integration_url}).\n2. Se o endereço do painel mudou, adicione-o novamente usando o endereço atual.\n3. Caso contrário, restaure o acesso a {address}; este reparo desaparece quando esse endereço responder como este painel."
+      "title": "Can't reach {panel} at {address} or {session_address}",
+      "description": "{panel} is connected, but Home Assistant cannot reach it at its stored address {address}, or at {session_address}, the address its connection reports. Some actions need one of them.\n\nTo fix:\n1. Let Home Assistant reach the panel at {address} again. A firewall may be blocking it. This clears when the panel answers, as shown in [Panel Assistant devices]({integration_url}).\n2. If the panel has moved, add it again there at its current address."
     },
     "panel_identity_mismatch": {
       "title": "Verificar o endereço de {panel}",
@@ -1808,6 +1874,9 @@
           "unsafe_install_target": "A instalação é permitida somente em um endereço IPv4 local privado ou em um endereço IPv6 local único. Nenhuma conexão ADB foi tentada.",
           "install_target_changed": "O nome de host não é mais resolvido para o mesmo endereço fixado do painel. Nenhuma chave ADB ou instalação foi enviada. Verifique o endereço e comece novamente.",
           "adb_unreachable": "O painel respondeu, mas não houve resposta na porta do Android Debug Bridge (5555). No painel, ative o Android Debug Bridge e permita seu uso pela rede. Depois, tente novamente. Se puder conectar o painel ao computador em que está navegando, instale pelo USB.",
+          "adb_lease": "O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant). Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
+          "adb_lease_switch_now": "O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant). Ou, na página de configurações do próprio painel (porta 8888), ative Network ADB em Sistema (uma configuração avançada); o painel permite isso agora, pois está sem conexão com o Home Assistant há alguns minutos. Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
+          "adb_lease_switch": "O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant). Ou, na página de configurações do próprio painel (porta 8888), ative Network ADB em Sistema (uma configuração avançada); o painel permite isso depois de ficar sem conexão com o Home Assistant por alguns minutos, daqui a aproximadamente mais {minutes} minutos. Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
           "adb_still_unauthorized": "O painel ainda não aceitou esta instância do Home Assistant. Aprove a solicitação de ADB no painel e tente novamente.",
           "adb_credential_error": "O Home Assistant não conseguiu carregar ou salvar sua credencial de ADB com segurança. Nenhuma alteração no painel foi tentada. Verifique o armazenamento e os registros do Home Assistant antes de tentar novamente.",
           "retained_or_ambiguous": "O painel pode conter um registro remanescente do pacote Panel Assistant, ou não foi possível comprovar a ausência do pacote. Nenhuma alteração foi feita no painel. Tente novamente uma vez se a conexão estava instável; caso contrário, siga as etapas em {recovery_address}. Não desinstale nem redefina o aplicativo sem um backup verificado.",
@@ -1837,6 +1906,9 @@
           "unsafe_install_target": "A instalação só é permitida em um endereço IPv4 local privado ou em um endereço IPv6 local único. Nenhuma conexão de ADB foi tentada.",
           "install_target_changed": "O nome de host deixou de resolver para o mesmo endereço fixado do painel. Nenhuma chave de ADB ou instalação foi enviada. Verifique o endereço e recomece.",
           "adb_unreachable": "O painel respondeu, mas não houve resposta na porta do Android Debug Bridge (5555). No painel, ative o Android Debug Bridge e permita seu uso pela rede. Depois, tente novamente. Se puder conectar o painel ao computador em que está navegando, instale pelo USB.",
+          "adb_lease": "O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant). Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
+          "adb_lease_switch_now": "O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant). Ou, na página de configurações do próprio painel (porta 8888), ative Network ADB em Sistema (uma configuração avançada); o painel permite isso agora, pois está sem conexão com o Home Assistant há alguns minutos. Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
+          "adb_lease_switch": "O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant). Ou, na página de configurações do próprio painel (porta 8888), ative Network ADB em Sistema (uma configuração avançada); o painel permite isso depois de ficar sem conexão com o Home Assistant por alguns minutos, daqui a aproximadamente mais {minutes} minutos. Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
           "adb_still_unauthorized": "O painel ainda não aceitou esta instância do Home Assistant. Aprove a solicitação de ADB no painel e tente novamente.",
           "adb_credential_error": "O Home Assistant não conseguiu carregar ou salvar sua credencial de ADB com segurança. Nenhuma alteração no painel foi tentada. Verifique o armazenamento e os registros do Home Assistant antes de tentar novamente.",
           "retained_or_ambiguous": "O painel pode conter um registro remanescente do pacote Panel Assistant, ou não foi possível comprovar a ausência do pacote. Nenhuma alteração foi feita no painel. Tente novamente uma vez se a conexão estava instável; caso contrário, siga as etapas em {recovery_address}. Não desinstale nem redefina o aplicativo sem um backup verificado.",
@@ -1887,6 +1959,9 @@
           "unsafe_install_target": "A instalação só é permitida em um endereço IPv4 local privado ou em um endereço IPv6 local único. Nenhuma conexão de ADB foi tentada.",
           "install_target_changed": "O nome de host deixou de resolver para o mesmo endereço fixado do painel. Nenhuma chave de ADB ou instalação foi enviada. Verifique o endereço e recomece.",
           "adb_unreachable": "O painel respondeu, mas não houve resposta na porta do Android Debug Bridge (5555). No painel, ative o Android Debug Bridge e permita seu uso pela rede. Depois, tente novamente. Se puder conectar o painel ao computador em que está navegando, instale pelo USB.",
+          "adb_lease": "O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant). Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
+          "adb_lease_switch_now": "O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant). Ou, na página de configurações do próprio painel (porta 8888), ative Network ADB em Sistema (uma configuração avançada); o painel permite isso agora, pois está sem conexão com o Home Assistant há alguns minutos. Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
+          "adb_lease_switch": "O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant). Ou, na página de configurações do próprio painel (porta 8888), ative Network ADB em Sistema (uma configuração avançada); o painel permite isso depois de ficar sem conexão com o Home Assistant por alguns minutos, daqui a aproximadamente mais {minutes} minutos. Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
           "adb_still_unauthorized": "O painel ainda não aceitou esta instância do Home Assistant. Aprove a solicitação de ADB no painel e tente novamente.",
           "adb_credential_error": "O Home Assistant não conseguiu carregar ou salvar sua credencial de ADB com segurança. Nenhuma alteração no painel foi tentada. Verifique o armazenamento e os registros do Home Assistant antes de tentar novamente.",
           "retained_or_ambiguous": "O painel pode conter um registro remanescente do pacote Panel Assistant, ou não foi possível comprovar a ausência do pacote. Nenhuma alteração foi feita no painel. Tente novamente uma vez se a conexão estava instável; caso contrário, siga as etapas em {recovery_address}. Não desinstale nem redefina o aplicativo sem um backup verificado.",
@@ -1894,6 +1969,9 @@
           "panel_identity_changed": "O endereço deixou de responder como este painel configurado. Verifique o painel e seu endereço antes de tentar novamente.",
           "removal_busy": "Outra operação já está alterando este painel. Nada foi removido; tente novamente quando ela terminar.",
           "removal_adb_unreachable": "O Home Assistant não conseguiu acessar o painel pelo Android Debug Bridge (porta 5555). Nada foi removido. Verifique se o painel está ligado e se a depuração pela rede continua ativada. Depois, tente novamente.",
+          "removal_adb_lease": "Nada foi removido. O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant), depois tente novamente; não é necessário fazer mais nada. Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
+          "removal_adb_lease_switch_now": "Nada foi removido. O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant), depois tente novamente; não é necessário fazer mais nada. Ou, na página de configurações do próprio painel (porta 8888), ative Network ADB em Sistema (uma configuração avançada); o painel permite isso agora, pois está sem conexão com o Home Assistant há alguns minutos. Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
+          "removal_adb_lease_switch": "Nada foi removido. O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant), depois tente novamente; não é necessário fazer mais nada. Ou, na página de configurações do próprio painel (porta 8888), ative Network ADB em Sistema (uma configuração avançada); o painel permite isso depois de ficar sem conexão com o Home Assistant por alguns minutos, daqui a aproximadamente mais {minutes} minutos. Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
           "removal_adb_authorization": "O painel não aceitou esta instância do Home Assistant para o Android Debug Bridge. Nada foi removido. Primeiro escolha “Permitir atualizações” e depois tente novamente.",
           "removal_panel_changed": "Outro dispositivo está respondendo no endereço deste painel. Nada foi removido.",
           "removal_approval_required": "A segurança reforçada está ativada, então a devolução da tela inicial precisa ser aprovada no próprio painel. Nada foi alterado e o Panel Assistant continua instalado. Aprove a solicitação no painel e depois envie o formulário novamente.",
@@ -1933,8 +2011,12 @@
       }
     },
     "not_signed_in": {
-      "title": "{panel} has not connected to Home Assistant",
-      "description": "{panel} answers on the network but has not connected to Home Assistant, so its controls and its sidebar page are missing.\n\nTo fix:\n1. [Open the panel’s setup page]({panel_page}) and sign in to this Home Assistant.\n2. Wait for the panel to connect; this Repair then goes away."
+      "title": "{panel} não se conectou ao Home Assistant",
+      "description": "{panel} responde na rede, mas não se conectou ao Home Assistant, por isso seus controles e sua página na barra lateral não aparecem.\n\nPara corrigir:\n1. [Abra a página de configuração do painel]({panel_page}) e entre nesta instância do Home Assistant.\n2. Aguarde o painel se conectar; este Reparo desaparecerá."
+    },
+    "cannot_reach_home_assistant": {
+      "title": "{panel} não consegue acessar o Home Assistant",
+      "description": "{panel} está conectado à conta e está tentando se conectar ao Home Assistant em {home_assistant}, mas nenhuma conexão dele chegou, por isso seus controles e sua página na barra lateral não aparecem. Entrar na conta novamente não ajudará.\n\nPara corrigir:\n1. Permita que o painel acesse {host} na porta TCP {port}: um firewall ou uma rede isolada deve permitir que o painel abra conexões com o Home Assistant. A [página de registros]({panel_logs}) do painel mostra cada tentativa.\n2. Se {home_assistant} não for o endereço desta instância do Home Assistant, [altere-o no painel]({panel_connection}).\n3. Aguarde o painel se conectar; este Reparo desaparecerá."
     }
   },
   "options": {
@@ -2007,6 +2089,9 @@
       "unsafe_install_target": "A instalação só é permitida em um endereço IPv4 local privado ou em um endereço IPv6 local único. Nenhuma conexão de ADB foi tentada.",
       "install_target_changed": "O nome de host deixou de resolver para o mesmo endereço fixado do painel. Nenhuma chave de ADB ou instalação foi enviada. Verifique o endereço e recomece.",
       "adb_unreachable": "O painel respondeu, mas não houve resposta na porta do Android Debug Bridge (5555). No painel, ative o Android Debug Bridge e permita seu uso pela rede. Depois, tente novamente. Se puder conectar o painel ao computador em que está navegando, instale pelo USB.",
+      "adb_lease": "O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant). Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
+      "adb_lease_switch_now": "O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant). Ou, na página de configurações do próprio painel (porta 8888), ative Network ADB em Sistema (uma configuração avançada); o painel permite isso agora, pois está sem conexão com o Home Assistant há alguns minutos. Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
+      "adb_lease_switch": "O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant). Ou, na página de configurações do próprio painel (porta 8888), ative Network ADB em Sistema (uma configuração avançada); o painel permite isso depois de ficar sem conexão com o Home Assistant por alguns minutos, daqui a aproximadamente mais {minutes} minutos. Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
       "adb_still_unauthorized": "O painel ainda não aceitou esta instância do Home Assistant. Aprove a solicitação de ADB no painel e tente novamente.",
       "adb_credential_error": "O Home Assistant não conseguiu carregar ou salvar sua credencial de ADB com segurança. Nenhuma alteração no painel foi tentada. Verifique o armazenamento e os registros do Home Assistant antes de tentar novamente.",
       "retained_or_ambiguous": "O painel pode conter um registro remanescente do pacote Panel Assistant, ou não foi possível comprovar a ausência do pacote. Nenhuma alteração foi feita no painel. Tente novamente uma vez se a conexão estava instável; caso contrário, siga as etapas em {recovery_address}. Não desinstale nem redefina o aplicativo sem um backup verificado.",
@@ -2014,6 +2099,9 @@
       "panel_identity_changed": "O endereço deixou de responder como este painel configurado. Verifique o painel e seu endereço antes de tentar novamente.",
       "removal_busy": "Outra operação já está alterando este painel. Nada foi removido; tente novamente quando ela terminar.",
       "removal_adb_unreachable": "O Home Assistant não conseguiu acessar o painel pelo Android Debug Bridge (porta 5555). Nada foi removido. Verifique se o painel está ligado e se a depuração pela rede continua ativada. Depois, tente novamente.",
+      "removal_adb_lease": "Nada foi removido. O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant), depois tente novamente; não é necessário fazer mais nada. Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
+      "removal_adb_lease_switch_now": "Nada foi removido. O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant), depois tente novamente; não é necessário fazer mais nada. Ou, na página de configurações do próprio painel (porta 8888), ative Network ADB em Sistema (uma configuração avançada); o painel permite isso agora, pois está sem conexão com o Home Assistant há alguns minutos. Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
+      "removal_adb_lease_switch": "Nada foi removido. O aplicativo do painel respondeu, mas mantém o Android Debug Bridge desativado enquanto esta instância do Home Assistant gerencia o painel, e continua assim enquanto o painel não consegue acessar o Home Assistant. Para reativá-lo, permita que o painel acesse o Home Assistant novamente (a conexão dele à própria porta do Home Assistant), depois tente novamente; não é necessário fazer mais nada. Ou, na página de configurações do próprio painel (porta 8888), ative Network ADB em Sistema (uma configuração avançada); o painel permite isso depois de ficar sem conexão com o Home Assistant por alguns minutos, daqui a aproximadamente mais {minutes} minutos. Ou reinicie o painel: o Android Debug Bridge fica aberto após a reinicialização até que o painel se conecte ao Home Assistant novamente.",
       "removal_adb_authorization": "O painel não aceitou esta instância do Home Assistant para o Android Debug Bridge. Nada foi removido. Primeiro escolha “Permitir atualizações” e depois tente novamente.",
       "removal_adb_authorization_unavailable": "O painel não aceitou esta instância do Home Assistant para o Android Debug Bridge. Nada foi removido. Verifique se o painel está ligado e respondendo, depois tente novamente.",
       "removal_panel_changed": "Outro dispositivo está respondendo no endereço deste painel. Nada foi removido.",

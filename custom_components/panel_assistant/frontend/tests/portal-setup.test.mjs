@@ -18,6 +18,7 @@ const STAND_IN = String.raw`
 am() {
   case "$*" in
     *"operation dashboard_home_policy"*)
+      touch "$STATE/policy.asked"
       if [ -f "$STATE/incomplete.setup" ] || [ -f "$STATE/legacy.receiver" ]; then echo "Broadcast completed: result=0"
       else echo 'Broadcast completed: result=1, data="panel-assistant-home-builtin"'; fi ;;
     *"operation setup_eligibility"*)
@@ -49,12 +50,16 @@ pm() {
 }
 dumpsys() {
   echo "Package [$2]"
-  if [ -f "$STATE/package.unreadable" ]; then
+  # Unreadable once, for the HOME claim's receiver check; the permission reads
+  # before it are not what this refusal is about.
+  if [ -f "$STATE/package.unreadable" ] && [ -f "$STATE/policy.asked" ]; then
     mv "$STATE/package.unreadable" "$STATE/package.unreadable.read"; return 1
   fi
+  # As a fresh install shows them: nobody has answered a permission not granted.
   for p in POST_NOTIFICATIONS CAMERA RECORD_AUDIO; do
-    g=false; [ ! -f "$STATE/permission.android.permission.$p" ] || g=true
-    echo "      android.permission.$p: granted=$g, flags=[ USER_SET]"
+    g='false, flags=[ USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]'
+    [ ! -f "$STATE/permission.android.permission.$p" ] || g='true, flags=[ USER_SET]'
+    echo "      android.permission.$p: granted=$g"
   done
 }
 cmd() {

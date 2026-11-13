@@ -28,6 +28,7 @@ from custom_components.panel_assistant.adb_protocol import (
     AdbInstallTarget,
     AdbRootMode,
     LaunchOutcome,
+    OwnerDenials,
 )
 from custom_components.panel_assistant.app_identity import (
     LAUNCH_COMPONENTS,
@@ -318,7 +319,13 @@ dumpsys() {
     if [ -f "$STATE/permission.$2.$permission" ]; then
       granted=$(cat "$STATE/permission.$2.$permission")
     fi
-    echo "      $permission: granted=$granted, flags=[ USER_SET|USER_FIXED]"
+    # Android's own defaults, as a real Android 11 panel printed them; a
+    # flags file holds a decision such as USER_SET|USER_FIXED.
+    flags="USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED"
+    if [ -f "$STATE/flags.$2.$permission" ]; then
+      flags=$(cat "$STATE/flags.$2.$permission")
+    fi
+    echo "      $permission: granted=$granted, flags=[ $flags]"
   done
   # An install-time permission, listed as granted only once it is, as Android
   # 11 prints it. Held unless a test says it is missing.
@@ -550,14 +557,20 @@ def _run_notification_program(flags: str, calls: Path) -> list[str]:
     return calls.read_text().splitlines()
 
 
-def test_the_grant_program_grants_over_a_persons_denial(tmp_path: Path) -> None:
+def test_the_grant_program_keeps_a_persons_denial(tmp_path: Path) -> None:
     calls = tmp_path / "calls"
     grant = "pm grant io.panelassistant.android android.permission.POST_NOTIFICATIONS"
     for flags in (
         "USER_SET|USER_SENSITIVE_WHEN_GRANTED",
         "USER_SET|USER_FIXED",
         "USER_FIXED",
+        "POLICY_FIXED",
+    ):
+        assert _run_notification_program(flags, calls) == [], flags
+    # Android's own defaults, as real panels print them: nobody answered.
+    for flags in (
         "USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED",
+        "REVIEW_REQUIRED",
     ):
         assert _run_notification_program(flags, calls) == [grant], flags
 
@@ -1741,7 +1754,12 @@ async def test_a_refused_boot_port_write_is_reported_and_never_stops_the_start(
     )
     assert _boot_port_writes(tmp_path) == [f"setprop {_BOOT_PORT} {ADB_PORT}"]
     assert sum("am start" in command for command in commands) == 1
-    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    # This integration's warnings only: under load asyncio adds a slow-callback one.
+    warnings = [
+        r
+        for r in caplog.records
+        if r.levelno == logging.WARNING and r.name.startswith("custom_components.")
+    ]
     assert [r.getMessage() for r in warnings] == [
         "Could not keep network ADB enabled after a reboot on this panel; "
         "the app's helper sets it when it first runs"
@@ -1790,3 +1808,195 @@ async def test_the_apps_own_session_leaves_the_boot_port_to_its_helper(
     )
     assert sum(_BOOT_PORT in command for command in commands) == 0
     assert sum("am start" in command for command in commands) == 1
+
+
+# The owner's choices --------------------------------------------------------
+#
+# An install or update grants only what nobody decided. A denial the owner
+# made in Android settings is kept and reported, never turned back on.
+
+#: The owner's Deny, as Android 11 printed it on a Shelly X2i after Settings,
+#: Apps, Panel Assistant, Permissions, Microphone, Deny.
+_OWNER_DENIAL = "USER_SET|USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED"
+
+
+async def _launch_reporting(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    installed: InstallDescriptor,
+    state: Path,
+) -> list[OwnerDenials]:
+    reports: list[OwnerDenials] = []
+    _install_fakes(monkeypatch, [_RoutingFakeDevice(state, sdk=target.android_sdk)])
+    outcome = await async_launch_installed_app(
+        target,
+        signer,
+        installed,
+        expected_root_mode=AdbRootMode.ROOTLESS,
+        report_denials=reports.append,
+    )
+    assert outcome is LaunchOutcome.STARTED
+    return reports
+
+
+def _calls(state: Path) -> list[str]:
+    calls = state / "calls"
+    return calls.read_text().splitlines() if calls.exists() else []
+
+
+def _deny(state: Path, package_id: str, permission: str, flags: str) -> None:
+    permission = f"android.permission.{permission}"
+    (state / f"permission.{package_id}.{permission}").write_text("false\n")
+    (state / f"flags.{package_id}.{permission}").write_text(flags + "\n")
+
+
+async def test_a_hardware_denial_nobody_answered_is_granted(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    _seed_granted_panel(tmp_path, descriptor.package_id)
+    for permission in ("CAMERA", "RECORD_AUDIO"):
+        _deny(
+            tmp_path,
+            descriptor.package_id,
+            permission,
+            "USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED",
+        )
+
+    reports = await _launch_reporting(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert sorted(c for c in _calls(tmp_path) if c.startswith("pm grant")) == [
+        f"pm grant {descriptor.package_id} android.permission.{permission}"
+        for permission in ("CAMERA", "RECORD_AUDIO")
+    ]
+    assert reports == [OwnerDenials(features=(), complete=True)]
+
+
+@pytest.mark.parametrize(
+    "flags", ["USER_SET", "USER_FIXED", _OWNER_DENIAL, "POLICY_FIXED"]
+)
+async def test_the_owners_hardware_denial_is_kept_and_reported(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    flags: str,
+) -> None:
+    _seed_granted_panel(tmp_path, descriptor.package_id)
+    for permission in ("CAMERA", "RECORD_AUDIO"):
+        _deny(tmp_path, descriptor.package_id, permission, flags)
+
+    reports = await _launch_reporting(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert not any(call.startswith("pm grant") for call in _calls(tmp_path))
+    for permission in ("CAMERA", "RECORD_AUDIO"):
+        assert (
+            _panel_value(
+                tmp_path,
+                f"permission.{descriptor.package_id}.android.permission.{permission}",
+            )
+            == "false"
+        )
+    assert reports == [OwnerDenials(features=("camera", "microphone"), complete=True)]
+    # A kept choice is reported as a Repair, not as a grant that failed.
+    assert _GRANT_WARNING not in caplog.text
+
+
+async def test_the_owners_notification_denial_is_kept_and_reported(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    _seed_granted_panel(tmp_path, descriptor.package_id)
+    _deny(tmp_path, descriptor.package_id, "POST_NOTIFICATIONS", _OWNER_DENIAL)
+
+    reports = await _launch_reporting(
+        monkeypatch, signer, replace(target, android_sdk=34), descriptor, tmp_path
+    )
+
+    assert not any(call.startswith("pm grant") for call in _calls(tmp_path))
+    assert reports == [OwnerDenials(features=("notifications",), complete=True)]
+    assert "notification permission" not in caplog.text
+
+
+@pytest.mark.parametrize("mode", ["deny", "ignore"])
+async def test_the_owners_app_op_choice_is_kept_and_reported(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    mode: str,
+) -> None:
+    _seed_granted_panel(tmp_path, descriptor.package_id)
+    for operation in ("WRITE_SETTINGS", "SYSTEM_ALERT_WINDOW"):
+        (tmp_path / f"appop.{descriptor.package_id}.{operation}").write_text(
+            mode + "\n"
+        )
+
+    reports = await _launch_reporting(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert not any(call.startswith("appops set") for call in _calls(tmp_path))
+    for operation in ("WRITE_SETTINGS", "SYSTEM_ALERT_WINDOW"):
+        assert (
+            _panel_value(tmp_path, f"appop.{descriptor.package_id}.{operation}") == mode
+        )
+    assert reports == [
+        OwnerDenials(
+            features=("modify system settings", "display over other apps"),
+            complete=True,
+        )
+    ]
+    assert _GRANT_WARNING not in caplog.text
+
+
+async def test_an_app_op_nobody_set_is_allowed(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    _seed_granted_panel(tmp_path, descriptor.package_id)
+    (tmp_path / f"appop.{descriptor.package_id}.REQUEST_INSTALL_PACKAGES").write_text(
+        "default\n"
+    )
+
+    reports = await _launch_reporting(monkeypatch, signer, target, descriptor, tmp_path)
+
+    assert _calls(tmp_path) == [
+        f"appops set {descriptor.package_id} REQUEST_INSTALL_PACKAGES allow"
+    ]
+    assert reports == [OwnerDenials(features=(), complete=True)]
+
+
+# Below Android 13 there is no notification read to fall back on, so the
+# permission program's own readback must say it was incomplete.
+@pytest.mark.parametrize("sdk", [30, 34])
+async def test_an_unread_grant_never_proves_nothing_is_turned_off(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+    sdk: int,
+) -> None:
+    _seed_granted_panel(tmp_path, descriptor.package_id)
+    (tmp_path / "unreadable.permissions").write_text("permission denied\n")
+
+    reports = await _launch_reporting(
+        monkeypatch, signer, replace(target, android_sdk=sdk), descriptor, tmp_path
+    )
+
+    assert not any(call.startswith("pm grant") for call in _calls(tmp_path))
+    assert reports == [OwnerDenials(features=(), complete=False)]

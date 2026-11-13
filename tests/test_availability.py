@@ -605,6 +605,38 @@ async def test_unverified_session_address_is_refused_and_reported(
     assert _state(hass, UPDATE_ENTITY) != STATE_UNAVAILABLE
 
 
+async def test_a_blocked_panel_is_not_told_it_moved(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """Neither address answers: the Repair says so, and restoring access comes first.
+
+    A firewall that lets the panel reach Home Assistant but not back looks like
+    this; the panel has not moved, and adding it again fails behind it.
+    """
+    await _connect(hass, hass_ws_client, hass_read_only_access_token, entry)
+
+    await _poll(
+        hass, entry, {STORED: CannotConnectError(), MOVED: CannotConnectError()}
+    )
+
+    issue = _issue(hass, entry)
+    assert issue is not None
+    assert issue.translation_key == ISSUE_PANEL_ADDRESS_UNVERIFIED
+    texts = await async_get_translations(hass, "en", "issues", {DOMAIN})
+    prefix = f"component.{DOMAIN}.issues.{issue.translation_key}"
+    placeholders = issue.translation_placeholders or {}
+    title = texts[f"{prefix}.title"].format(**placeholders)
+    steps = texts[f"{prefix}.description"].format(**placeholders).split("\n1. ")[1]
+    assert "moved" not in title
+    assert STORED in title and MOVED in title
+    first, second = steps.split("\n2. ")
+    assert "reach" in first and STORED in first
+    assert "moved" in second and "add it again" in second
+
+
 @pytest.mark.parametrize(
     "remote", [None, "8.8.8.8", "proxy.example"], ids=["unknown", "public", "name"]
 )
