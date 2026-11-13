@@ -1219,7 +1219,11 @@ async def test_every_embed_response_runs_with_an_opaque_origin_and_transfers_sti
     browser = await hass_client_no_auth()
     blobs = async_get_blobs(hass)
     download, _ = blobs.download(
-        entry.entry_id, b"export", "application/zip", hass_admin_user.id
+        entry.entry_id,
+        b"export",
+        "application/zip",
+        hass_admin_user.id,
+        sha256=hashlib.sha256(b"export").hexdigest(),
     )
     upload, _ = blobs.upload(entry.entry_id, 1024, hass_admin_user.id)
     null = {"Origin": "null"}
@@ -1754,7 +1758,13 @@ async def test_an_unused_transfer_is_forgotten_when_it_expires(
 ) -> None:
     """Expired bytes go without waiting for another transfer to be minted."""
     blobs = async_get_blobs(hass)
-    blobs.download(entry.entry_id, b"x" * 1024, "text/plain", hass_admin_user.id)
+    blobs.download(
+        entry.entry_id,
+        b"x" * 1024,
+        "text/plain",
+        hass_admin_user.id,
+        sha256=hashlib.sha256(b"x" * 1024).hexdigest(),
+    )
     blobs.upload(entry.entry_id, 1024, hass_admin_user.id)
     assert len(blob_registry(hass)) == 2
     async_fire_time_changed(
@@ -1864,7 +1874,11 @@ async def test_a_browser_transfer_belongs_to_one_administrator_and_one_panel(
 
     blobs = async_get_blobs(hass)
     download, _ = blobs.download(
-        entry.entry_id, b"export", "application/zip", hass_admin_user.id
+        entry.entry_id,
+        b"export",
+        "application/zip",
+        hass_admin_user.id,
+        sha256=hashlib.sha256(b"export").hexdigest(),
     )
     upload, _ = blobs.upload(entry.entry_id, 1024, hass_admin_user.id)
     for view in (their_view, own_elsewhere):

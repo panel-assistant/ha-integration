@@ -9,7 +9,6 @@ same parsers and the same refusals apply; only the carrier differs.
 
 from __future__ import annotations
 
-import hashlib
 import json
 from typing import Any, Final, Protocol
 
@@ -17,7 +16,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from . import transport_protocol, transport_sessions
-from .blob import BLOB_PATH, async_get_blobs
+from .blob import BLOB_PATH, async_get_blobs, sha256_hex
 from .client import (
     CannotConnectError,
     HaPaneldError,
@@ -152,7 +151,8 @@ class SessionCarrier:
             if (
                 reference.get("url") != f"{BLOB_PATH}{token}"
                 or reference.get("size") != len(data)
-                or reference.get("sha256") != hashlib.sha256(data).hexdigest()
+                or reference.get("sha256")
+                != await self._hass.async_add_executor_job(sha256_hex, data)
             ):
                 raise HaPaneldError
             return data
@@ -162,7 +162,7 @@ class SessionCarrier:
     async def async_stage_apk(self, apk: bytes) -> StagedApk:
         """Offer the exact verified bytes for the panel to fetch and inspect."""
         blobs = async_get_blobs(self._hass)
-        token, reference = blobs.download(self._entry_id, apk, APK_TYPE)
+        token, reference = await blobs.async_download(self._entry_id, apk, APK_TYPE)
         try:
             outcome = await self._request(
                 OP_STAGE, APK_STAGE_TIMEOUT_SECONDS, {"blob": reference}

@@ -43,6 +43,11 @@ _CHUNK_BYTES: Final = 64 * 1024
 _now = time.monotonic
 
 
+def sha256_hex(data: bytes) -> str:
+    """Return the SHA-256 of ``data``; run it in the executor for large bodies."""
+    return hashlib.sha256(data).hexdigest()
+
+
 class BlobTransferError(Exception):
     """An upload that started and could not be received whole."""
 
@@ -95,10 +100,15 @@ class BlobRegistry:
         data: bytes,
         content_type: str,
         user_id: str | None = None,
+        *,
+        sha256: str,
     ) -> tuple[str, dict[str, Any]]:
         """Register bytes the panel may fetch once; return the token and reference.
 
-        With ``user_id``, the bytes are for that administrator's browser.
+        With ``user_id``, the bytes are for that administrator's browser. The
+        caller supplies the SHA-256 of ``data``: hashing a body of up to
+        hundreds of megabytes here would hold the event loop, so it is
+        computed in the executor by ``async_download`` or known already.
         """
         token = self._mint(
             _Transfer(
@@ -112,9 +122,20 @@ class BlobRegistry:
         return token, {
             "url": f"{BLOB_PATH}{token}",
             "size": len(data),
-            "sha256": hashlib.sha256(data).hexdigest(),
+            "sha256": sha256,
             "type": content_type,
         }
+
+    async def async_download(
+        self,
+        entry_id: str,
+        data: bytes,
+        content_type: str,
+        user_id: str | None = None,
+    ) -> tuple[str, dict[str, Any]]:
+        """Hash ``data`` in the executor, then register it like ``download``."""
+        digest = await self._hass.async_add_executor_job(sha256_hex, data)
+        return self.download(entry_id, data, content_type, user_id, sha256=digest)
 
     @callback
     def download_file(
@@ -270,11 +291,14 @@ async def receive(request: web.Request, transfer: _Transfer) -> web.Response:
     if received is None:
         return _not_found()
     body = bytearray()
+    # Hashed a chunk at a time as it arrives, never the whole body at once.
+    digest = hashlib.sha256()
     try:
         # Read in chunks: request.read() is capped by the server's own
         # request size limit, which a panel backup can exceed.
         async for chunk in request.content.iter_chunked(_CHUNK_BYTES):
             body.extend(chunk)
+            digest.update(chunk)
             if len(body) > transfer.max_bytes:
                 raise BlobTransferError("too large")
     except BlobTransferError as err:
@@ -290,9 +314,7 @@ async def receive(request: web.Request, transfer: _Transfer) -> web.Response:
         # Its caller gave up while the bytes arrived.
         return _not_found()
     received.set_result(data)
-    return web.json_response(
-        {"size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
-    )
+    return web.json_response({"size": len(data), "sha256": digest.hexdigest()})
 
 
 class BlobView(HomeAssistantView):

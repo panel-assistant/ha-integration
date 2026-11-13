@@ -419,13 +419,15 @@ class _Subscription:
         )
 
 
-def _blob_reference(
+async def _async_blob_reference(
     hass: HomeAssistant, entry_id: str, user_id: str, data: bytes, reference: Any
 ) -> dict[str, Any]:
     """Hand the browser a panel's blob, once, under the embed view."""
     reference = reference if isinstance(reference, dict) else {}
     kind = media_type(reference.get("type"))
-    token, minted = async_get_blobs(hass).download(entry_id, data, kind, user_id)
+    token, minted = await async_get_blobs(hass).async_download(
+        entry_id, data, kind, user_id
+    )
     return {**reference, **minted, "url": f"blob/{token}"}
 
 
@@ -468,7 +470,9 @@ async def _async_relay(
         if data is None:
             return _refused(command_id)
         assert isinstance(reference, dict)
-        sent, minted = blobs.download(entry_id, data, media_type(reference.get("type")))
+        sent, minted = await blobs.async_download(
+            entry_id, data, media_type(reference.get("type"))
+        )
         args["blob"] = {**reference, "url": minted["url"]}
     outcome, data = await async_manage(
         hass,
@@ -497,7 +501,7 @@ async def _async_relay(
         assert isinstance(outcome.result, dict)
         frame["result"] = {
             **outcome.result,
-            "blob": _blob_reference(
+            "blob": await _async_blob_reference(
                 hass, entry_id, user_id, data, outcome.result["blob"]
             ),
         }
