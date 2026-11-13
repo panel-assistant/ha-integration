@@ -30,6 +30,8 @@ from custom_components.panel_assistant.release import (
 )
 from custom_components.panel_assistant.repairs_permission import (
     ISSUE_PERMISSIONS_TURNED_OFF,
+    async_reconcile_permission_issue,
+    permission_issue_id,
     turned_off_issue_id,
 )
 
@@ -46,6 +48,7 @@ from .test_install_adb_grants import (
     _RoutingFakeDevice,
     _seed_granted_panel,
 )
+from .test_permission_repairs import HELD, _status
 
 
 async def _update_repair(
@@ -167,3 +170,43 @@ async def test_removing_the_panel_removes_its_repair(
     await async_delete_entry_issues(hass, entry.entry_id)
 
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
+async def test_a_permission_the_owner_turned_off_is_never_asked_back(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="Test display", data={CONF_ADDRESS: "192.168.1.30"}
+    )
+    entry.add_to_hass(hass)
+    _seed_granted_panel(tmp_path, descriptor.package_id)
+    _deny(tmp_path, descriptor.package_id, "RECORD_AUDIO", _OWNER_DENIAL)
+    (tmp_path / f"appop.{descriptor.package_id}.WRITE_SETTINGS").write_text("deny\n")
+    registry = ir.async_get(hass)
+    allow_them = permission_issue_id(entry.entry_id)
+
+    # The panel's poll reports what the owner turned off as missing.
+    owner_choices = _status(
+        {**HELD, "write_settings": "missing", "microphone": "missing"}
+    )
+    async_reconcile_permission_issue(hass, entry, owner_choices)
+    assert registry.async_get_issue(DOMAIN, allow_them) is not None
+
+    # Once an update has read the owner's choices, the next poll stops asking.
+    await _update_repair(hass, monkeypatch, entry, target, signer, descriptor, tmp_path)
+    assert registry.async_get_issue(DOMAIN, turned_off_issue_id(entry.entry_id))
+    async_reconcile_permission_issue(hass, entry, owner_choices)
+    assert registry.async_get_issue(DOMAIN, allow_them) is None
+
+    # A grant missing for any other reason still asks.
+    async_reconcile_permission_issue(
+        hass,
+        entry,
+        _status({**HELD, "write_settings": "missing", "overlay": "missing"}),
+    )
+    assert registry.async_get_issue(DOMAIN, allow_them) is not None

@@ -12,6 +12,15 @@ from .transport_sessions import async_get_sessions
 ISSUE_PANEL_PERMISSIONS = "panel_permissions"
 ISSUE_PERMISSIONS_TURNED_OFF = "permissions_turned_off"
 
+#: The owner-facing names an install or update reports as turned off, by the
+#: permission name the panel's status uses.
+_TURNED_OFF_PERMISSIONS = {
+    "modify system settings": "write_settings",
+    "display over other apps": "overlay",
+    "camera": "camera",
+    "microphone": "microphone",
+}
+
 
 def permission_issue_id(entry_id: str) -> str:
     """Keep commissioning attached to the configured panel across address changes."""
@@ -40,7 +49,19 @@ def permission_observations(
         permissions["camera"] = "not_required"
         if voice_off:
             permissions["microphone"] = "not_required"
+    # The owner turned these off; that Repair says so, this one never asks to undo it.
+    for name in _owner_turned_off(hass, entry.entry_id):
+        if permissions.get(name) == "missing":
+            permissions[name] = "not_required"
     return permissions
+
+
+def _owner_turned_off(hass: HomeAssistant, entry_id: str) -> frozenset[str]:
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, turned_off_issue_id(entry_id))
+    if issue is None or not issue.data:
+        return frozenset()
+    names = issue.data.get("permissions")
+    return frozenset(names.split(",")) if isinstance(names, str) else frozenset()
 
 
 def permissions_held(permissions: ComponentStatus | None) -> bool:
@@ -128,7 +149,14 @@ def async_reconcile_turned_off_issue(
             "features": _feature_list(denials.features),
             "permissions_url": help_url("repair", issue=ISSUE_PANEL_PERMISSIONS),
         },
-        data={"entry_id": entry_id},
+        data={
+            "entry_id": entry_id,
+            "permissions": ",".join(
+                _TURNED_OFF_PERMISSIONS[feature]
+                for feature in denials.features
+                if feature in _TURNED_OFF_PERMISSIONS
+            ),
+        },
     )
 
 
