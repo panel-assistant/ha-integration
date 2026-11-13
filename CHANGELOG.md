@@ -4,7 +4,16 @@ All notable changes to this project will be documented in this file.
 
 Each section is what Home Assistant shows in its update dialog: a short, friendly summary, a few highlights and a link to the full notes on [panel-assistant.io](https://panel-assistant.io/go/release-notes). The full notes, including every pre-release, are kept on the website. From 1.0.0 onward; earlier sections are the full notes as they were released.
 
-## 1.0.3
+## 1.0.3 - 2026-11-13
+
+Panel Assistant 1.0.3 makes panels on a separate network, such as a VLAN or an IoT network, easier to add and keep working, and includes the 1.0.3 Android app.
+
+- **Firewall problems explained.** When a panel and Home Assistant cannot reach each other, Panel Assistant says which address and port to allow.
+- **Add a panel at any of its addresses.** IPv4, IPv6 or a name now all find the same panel, with one discovered card.
+- **WebView updates without panel internet.** Home Assistant can fetch the update and hand it to the panel.
+- **Your choices on the panel are kept.** Installs and updates no longer turn back on permissions or settings you changed on the panel.
+
+[Full release notes](https://panel-assistant.io/go/release-notes?v=1.0.3)
 
 ## 1.0.2 - 2026-11-11
 
