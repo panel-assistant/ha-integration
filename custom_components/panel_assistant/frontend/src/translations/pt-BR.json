@@ -75,7 +75,7 @@
     "allowBody": "No painel, marque “Sempre permitir a partir deste computador” e toque em Permitir, para que o Panel Assistant possa atualizá-lo depois sem o cabo.",
     "checkingPanel": "Verificando seu painel…",
     "confirmHeading": "Pronto para instalar",
-    "confirmBody": "Isso instala o aplicativo e o torna a tela inicial do seu painel. Seus outros aplicativos não são alterados.",
+    "confirmBody": "Isso instala o aplicativo e o torna a tela inicial do seu painel. O Panel Assistant não remove nem desativa seus outros aplicativos.",
     "install": "Instalar",
     "restartedDifferentVersion": "Uma tentativa anterior de instalação usou uma versão diferente. Essa tentativa foi deixada de lado.",
     "alreadyInstalledHeading": "Já instalado",

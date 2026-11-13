@@ -64,9 +64,10 @@ function failedPermissions(panelOptions) {
 const english = FRONTEND_TRANSLATIONS.en;
 
 test('a permission readback with one wrong line says the permissions were not confirmed and names that line', () => {
-  // Line 6 of the readback: notifications refused on Android 13.
+  // Line 6 of the readback: notifications refused on Android 13, though
+  // nobody had decided them (an owner's own "Don't allow" is kept instead).
   const result = failedPermissions(`{ verifyLines: lines => lines.with(5,
-    'android.permission.POST_NOTIFICATIONS: granted=false, flags=[ USER_SET ]') }`);
+    'android.permission.POST_NOTIFICATIONS: granted=false, flags=[ USER_SENSITIVE_WHEN_GRANTED ]') }`);
   assert.equal(result.granted, true);
   assert.equal(result.error, true);
   assert.equal(result.text, english.errors.installErrorPermissions);

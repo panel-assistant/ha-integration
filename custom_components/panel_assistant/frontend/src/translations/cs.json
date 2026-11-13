@@ -75,7 +75,7 @@
     "allowBody": "Na panelu zaškrtněte „Vždy povolit z tohoto počítače“ a klepněte na Povolit, aby ho Panel Assistant mohl později aktualizovat bez kabelu.",
     "checkingPanel": "Kontrola panelu…",
     "confirmHeading": "Připraveno k instalaci",
-    "confirmBody": "Tímto nainstalujete aplikaci a nastavíte ji jako domovskou obrazovku panelu. Vašich ostatních aplikací se to nedotkne.",
+    "confirmBody": "Tímto nainstalujete aplikaci a nastavíte ji jako domovskou obrazovku panelu. Panel Assistant vaše ostatní aplikace neodstraní ani nevypne.",
     "install": "Nainstalovat",
     "restartedDifferentVersion": "Předchozí pokus o instalaci používal jinou verzi. Ten pokus byl ponechán stranou.",
     "alreadyInstalledHeading": "Už nainstalováno",

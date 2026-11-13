@@ -75,7 +75,7 @@
     "allowBody": "On the panel, tick “Always allow from this computer” and tap Allow, so Panel Assistant can update it later without the cable.",
     "checkingPanel": "Checking your panel…",
     "confirmHeading": "Ready to install",
-    "confirmBody": "This installs the app and makes it your panel’s home screen. Your other apps are not touched.",
+    "confirmBody": "This installs the app and makes it your panel’s home screen. Panel Assistant does not remove or disable your other apps.",
     "install": "Install",
     "restartedDifferentVersion": "An earlier installation attempt used a different version. That attempt has been set aside.",
     "alreadyInstalledHeading": "Already installed",

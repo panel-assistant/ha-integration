@@ -30,7 +30,8 @@ am() { echo "am $*" >&3; case "$*" in
   *"broadcast"*) echo 'Broadcast completed: result=1, data="panel-assistant-setup-eligible"' ;;
   *) echo 'Status: ok' ;; esac; }
 settings() { echo "settings $*" >&3; if [ "$1" = get ]; then echo 'com.other/.Reader'; fi; }
-appops() { echo "appops $*" >&3; ${failGrant ? 'return 1' : ':'}; }
+appops() { echo "appops $*" >&3; if [ "$1" = get ]; then echo "$3: default"; else ${failGrant ? 'return 1' : ':'}; fi; }
+dumpsys() { echo '      android.permission.POST_NOTIFICATIONS: granted=false, flags=[ USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]'; }
 cmd() { echo "cmd $*" >&3; echo '${homeComponentFor(launchComponent)}'; }
 input() { echo "input $*" >&3; return 1; }; uiautomator() { return 1; }
 rm() { return 1; }; sleep() { return 1; }
@@ -68,7 +69,7 @@ ${program}`], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe', 'pipe'], time
     } else {
       assert.ok(command.includes('HAPANELD_PERMISSIONS_VERIFY_BEGIN:'));
       body = [`HAPANELD_PERMISSIONS_VERIFY_BEGIN:${n}`, ...verifyLines([`com.other/.Reader:${accessibilityComponentFor(launchComponent)}`, '1',
-        `WRITE_SETTINGS: ${badVerify ? 'deny' : 'allow'}`, 'SYSTEM_ALERT_WINDOW: allow',
+        `WRITE_SETTINGS: ${badVerify ? 'default' : 'allow'}`, 'SYSTEM_ALERT_WINDOW: allow',
         'REQUEST_INSTALL_PACKAGES: allow',
         sdk >= 33 ? 'android.permission.POST_NOTIFICATIONS: granted=true, flags=[]' : 'not_required',
         'granted', 'granted', 'granted', `home:${homeComponentFor(launchComponent)}`, 'device:generic']),

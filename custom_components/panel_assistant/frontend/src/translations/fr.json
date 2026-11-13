@@ -75,7 +75,7 @@
     "allowBody": "Sur le panneau, cochez « Toujours autoriser cet ordinateur » et appuyez sur « Autoriser », pour que Panel Assistant puisse le mettre à jour plus tard sans le câble.",
     "checkingPanel": "Vérification de votre panneau…",
     "confirmHeading": "Prêt à installer",
-    "confirmBody": "L’application sera installée et deviendra l’écran d’accueil de votre panneau. Vos autres applications ne seront pas modifiées.",
+    "confirmBody": "L’application sera installée et deviendra l’écran d’accueil de votre panneau. Panel Assistant ne supprime ni ne désactive vos autres applications.",
     "install": "Installer",
     "restartedDifferentVersion": "Une tentative d’installation précédente utilisait une autre version. Cette tentative a été mise de côté.",
     "alreadyInstalledHeading": "Déjà installée",

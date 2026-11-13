@@ -7,10 +7,64 @@ import { receiverAbsenceCheck } from './previous-home.mjs';
 
 // What HOME resolves to now, as the network installer reads it.
 export { HOME_QUERY };
-// Each runtime permission is granted only where Android lists its hardware
+// Each runtime permission is asked for only where Android lists its hardware
 // feature, the same pairs the network installer grants (adb_protocol.py
 // RUNTIME_GRANTS); a refusal is reported, never fatal.
 export const RUNTIME_GRANTS = Object.freeze([['camera.any', 'CAMERA'], ['microphone', 'RECORD_AUDIO']]);
+
+// The installers keep every decision already made about a permission and
+// grant only what nobody has decided, by one rule written out the same way as
+// the network installer's (adb_protocol.py; tests/test_repository.py compares
+// the text). A permission line whose flags record the owner's answer
+// (USER_SET, USER_FIXED) or a device policy's (POLICY_FIXED) is a decision;
+// Android's own USER_SENSITIVE_WHEN_* defaults are not.
+export const OWNER_DECISION = String.raw`flags=\[([ A-Z0-9_|]*[ |])?(USER_SET|USER_FIXED|POLICY_FIXED)[]| ]`;
+// The same pattern for this side's parsers (JavaScript reads `[]` as empty).
+const OWNER_DECIDED = new RegExp(OWNER_DECISION.replace('[]| ]', String.raw`[\]| ]`));
+// Grant `permission` only where its dump line shows a denial nobody decided.
+// A denial the owner or a policy decided is kept and sets runtime_denied=1; a
+// missing or malformed dump is unknown, never a reason to grant. Leaves the
+// line it last read in $runtime and prints nothing.
+export function runtimePermissionRepair(packageId, permission) {
+  const denied = String.raw`[[:space:]]*${permission.replaceAll('.', '\\.')}: granted=false(, flags=\[[ A-Z0-9_|]*\])?[[:space:]]*`;
+  const read = `runtime_dump=$(dumpsys package ${packageId}); runtime_status=$?; runtime=; ` +
+    `if [ "$runtime_status" -eq 0 ]; then runtime=$(printf '%s\\n' "$runtime_dump" | grep -F '${permission}: granted='); fi`;
+  return `${read}; runtime_denied=0; if [ -n "$runtime" ] && ! printf '%s\\n' "$runtime" | grep -Evq '^${denied}$'; then ` +
+    `if printf '%s\\n' "$runtime" | grep -Eq '${OWNER_DECISION}'; then runtime_denied=1; else ` +
+    `pm grant ${packageId} ${permission} >/dev/null 2>&1; ${read}; fi; fi`;
+}
+// The app operations the app needs, set to allow only while nobody has set
+// them. Android 14 answers an unset operation with two lines, including its
+// default; nobody chose that default for this app, so it reads as `default`
+// unless it already allows. An explicit mode, such as the deny the owner's
+// Settings switch writes, is kept.
+const APP_OPS = 'WRITE_SETTINGS SYSTEM_ALERT_WINDOW REQUEST_INSTALL_PACKAGES';
+const readAppOp = packageId => `mode=$(appops get ${packageId} "$operation"); mode_status=$?; case "$mode" in ` +
+  `'No operations.\nDefault mode: allow') mode="$operation: allow" ;; ` +
+  ['default', 'deny', 'ignore', 'foreground', 'errored'].map(mode => `'No operations.\nDefault mode: ${mode}'`).join('|') +
+  `) mode="$operation: default" ;; esac; `;
+// A refused write stops the grant program, so it cannot report success.
+export function appOpGrant(packageId) {
+  return `for operation in ${APP_OPS}; do ${readAppOp(packageId)}` +
+    `if [ "$mode_status" -eq 0 ] && [ -n "$mode" ] && ! printf '%s\\n' "$mode" | grep -Evq "^($operation: ` +
+    `default(; [ -~]+)?|No operations\\.)$"; then appops set ${packageId} "$operation" allow || exit 1; fi; done`;
+}
+// One line per operation, in order: its mode, folded as the grant reads it.
+export function appOpReadback(packageId) {
+  return `for operation in ${APP_OPS}; do ${readAppOp(packageId)}` +
+    `if [ "$mode_status" -eq 0 ]; then printf '%s\\n' "$mode"; else echo unknown; fi; done`;
+}
+// granted, denied (decided by the owner or a policy) or unknown, by the same
+// reading as the network installer's readback.
+function runtimeState(packageId, permission) {
+  const escaped = permission.replaceAll('.', '\\.');
+  const granted = String.raw`[[:space:]]*${escaped}: granted=true(, flags=\[[ A-Z0-9_|]*\])?[[:space:]]*`;
+  const denied = String.raw`[[:space:]]*${escaped}: granted=false(, flags=\[[ A-Z0-9_|]*\])?[[:space:]]*`;
+  return `runtime=$(dumpsys package ${packageId} 2>/dev/null | grep -F '${permission}: granted='); ` +
+    `if [ -n "$runtime" ] && ! printf '%s\\n' "$runtime" | grep -Evq '^${granted}$'; then echo granted; ` +
+    `elif [ -n "$runtime" ] && ! printf '%s\\n' "$runtime" | grep -Evq '^${denied}$' && ` +
+    `printf '%s\\n' "$runtime" | grep -Eq '${OWNER_DECISION}'; then echo denied; else echo unknown; fi`;
+}
 const listed = feature => `hp_has=; for hp_f in $hp_features; do case "$hp_f" in ` +
   `feature:android.hardware.${feature}|feature:android.hardware.${feature}=*) hp_has=1 ;; esac; done`;
 
@@ -134,25 +188,25 @@ export function buildPermissionGrant(nonce, sdk, existing, packageId, launchComp
   const PACKAGE = packageId;
   const expected = expectedServices(existing, packageId, launchComponent);
   // Validated component characters cannot escape single-quoted shell literals.
-  // Runtime permissions and HOME come last and never decide the status: `:` ends
-  // the program successfully whatever they answered; the readback reports them.
-  // The HOME claim prints the one line this program answers: what it did.
+  // Notifications, the app operations and the runtime permissions are granted
+  // only where nobody has decided them; a decision is kept, never granted over,
+  // and the readback reports it. Runtime permissions and HOME come last and
+  // never decide the status: `:` ends the program successfully whatever they
+  // answered. The HOME claim prints the one line this program answers: what it did.
   // Check again immediately before the list write: unrelated services must not
   // disappear if another setup operation changed this device-wide setting.
   return `echo HAPANELD_PERMISSIONS_GRANT_BEGIN:${nonce}; (
 current=$(settings get secure enabled_accessibility_services) || exit 1
 [ "$current" = '${existing}' ] || exit 1
-${sdk >= 33 ? `pm grant ${PACKAGE} android.permission.POST_NOTIFICATIONS || exit 1` : ':'}
-appops set ${PACKAGE} WRITE_SETTINGS allow || exit 1
-appops set ${PACKAGE} SYSTEM_ALERT_WINDOW allow || exit 1
-appops set ${PACKAGE} REQUEST_INSTALL_PACKAGES allow || exit 1
+${sdk >= 33 ? runtimePermissionRepair(PACKAGE, 'android.permission.POST_NOTIFICATIONS') : ':'}
+${appOpGrant(PACKAGE)}
 current=$(settings get secure enabled_accessibility_services) || exit 1
 [ "$current" = '${existing}' ] || exit 1
 ${expected === existing ? ':' : `settings put secure enabled_accessibility_services '${expected}' || exit 1`}
 settings put secure accessibility_enabled 1 || exit 1
 hp_features=$(pm list features 2>/dev/null) || hp_features=
 ${RUNTIME_GRANTS.map(([feature, permission]) => `${listed(feature)}
-[ -z "$hp_has" ] || pm grant ${PACKAGE} android.permission.${permission} >/dev/null 2>&1`).join('\n')}
+[ -z "$hp_has" ] || { ${runtimePermissionRepair(PACKAGE, `android.permission.${permission}`)}; }`).join('\n')}
 pm grant ${PACKAGE} ${SECURE_SETTINGS} >/dev/null 2>&1
 ${buildSetupHomeClaim(PACKAGE, launchComponent)}
 echo "home_chooser:$hp_chooser"
@@ -176,12 +230,10 @@ export function buildPermissionVerification(nonce, sdk, packageId, launchCompone
   return `echo HAPANELD_PERMISSIONS_VERIFY_BEGIN:${nonce}; (
 settings get secure enabled_accessibility_services || exit 1
 settings get secure accessibility_enabled || exit 1
-appops get ${PACKAGE} WRITE_SETTINGS || exit 1
-appops get ${PACKAGE} SYSTEM_ALERT_WINDOW || exit 1
-appops get ${PACKAGE} REQUEST_INSTALL_PACKAGES || exit 1
+${appOpReadback(PACKAGE)}
 ${sdk >= 33 ? `dumpsys package ${PACKAGE} | grep 'android.permission.POST_NOTIFICATIONS: granted=' || exit 1` : "echo not_required"}
 hp_features=$(pm list features 2>/dev/null); hp_features_status=$?
-${RUNTIME_GRANTS.map(([feature, permission]) => `if [ "$hp_features_status" -eq 0 ]; then ${listed(feature)}; if [ -z "$hp_has" ]; then echo unsupported; else hp_r=$(dumpsys package ${PACKAGE} 2>/dev/null | grep -F 'android.permission.${permission}: granted='); case "$hp_r" in '') echo unknown ;; *granted=false*) echo denied ;; *) echo granted ;; esac; fi; else echo unknown; fi`).join('\n')}
+${RUNTIME_GRANTS.map(([feature, permission]) => `if [ "$hp_features_status" -eq 0 ]; then ${listed(feature)}; if [ -z "$hp_has" ]; then echo unsupported; else ${runtimeState(PACKAGE, `android.permission.${permission}`)}; fi; else echo unknown; fi`).join('\n')}
 hp_s=$(dumpsys package ${PACKAGE} 2>/dev/null) && case "$hp_s" in *"${SECURE_SETTINGS}: granted=true"*) echo granted ;; *) echo missing ;; esac || echo unknown
 echo "home:$(${HOME_QUERY})"
 echo "device:$(getprop ro.product.device)"
@@ -192,17 +244,26 @@ export function parsePermissionVerification(body, nonce, sdk, existing, packageI
   checkSdk(sdk); checkBuild(packageId, launchComponent);
   const lines = frame(body, nonce, 'PERMISSIONS_VERIFY');
   const services = expectedServices(existing, packageId, launchComponent);
-  const allowed = op => line => new RegExp(`^${op}: allow(?:; [\\x20-\\x7e]{1,1024})?$`).test(line);
+  const mode = (op, modes) => line => new RegExp(`^${op}: (?:${modes})(?:; [\\x20-\\x7e]{1,1024})?$`).test(line);
+  // An operation set to anything but allow or default was set by someone: the
+  // grant kept it, and it is reported, never a reason to fail.
+  const kept = op => mode(op, 'deny|ignore|errored|foreground');
+  const allowedOrKept = op => line => mode(op, 'allow')(line) || kept(op)(line);
+  const notificationsGranted = line => /^\s*android\.permission\.POST_NOTIFICATIONS: granted=true, flags=\[[ A-Z0-9_|]*\]\s*$/.test(line);
+  // A "Don't allow" the owner (or a policy) gave is kept; an undecided denial
+  // after the grant is a refusal, and fails as before.
+  const notificationsKept = line => /^\s*android\.permission\.POST_NOTIFICATIONS: granted=false, flags=\[[ A-Z0-9_|]*\]\s*$/.test(line)
+    && OWNER_DECIDED.test(line);
   const reading = values => line => values.includes(line);
   // One check per line the verification program prints, in its order.
   const checks = [
     ['accessibility services', line => line === services],
     ['accessibility enabled', line => line === '1'],
-    ['WRITE_SETTINGS', allowed('WRITE_SETTINGS')],
-    ['SYSTEM_ALERT_WINDOW', allowed('SYSTEM_ALERT_WINDOW')],
-    ['REQUEST_INSTALL_PACKAGES', allowed('REQUEST_INSTALL_PACKAGES')],
+    ['WRITE_SETTINGS', allowedOrKept('WRITE_SETTINGS')],
+    ['SYSTEM_ALERT_WINDOW', allowedOrKept('SYSTEM_ALERT_WINDOW')],
+    ['REQUEST_INSTALL_PACKAGES', allowedOrKept('REQUEST_INSTALL_PACKAGES')],
     ['notifications', sdk >= 33
-      ? line => /^\s*android\.permission\.POST_NOTIFICATIONS: granted=true, flags=\[[ A-Z0-9_|]*\]\s*$/.test(line)
+      ? line => notificationsGranted(line) || notificationsKept(line)
       : line => line === 'not_required'],
     ['camera', reading(['granted', 'denied', 'unknown', 'unsupported'])],
     ['microphone', reading(['granted', 'denied', 'unknown', 'unsupported'])],
@@ -220,11 +281,19 @@ export function parsePermissionVerification(body, nonce, sdk, existing, packageI
   });
   if (lines.length !== checks.length) fail(`verify: ${lines.length} lines, expected ${checks.length}`);
   const device = lines[10].slice(7);
-  // HOME, the camera, the microphone and secure settings are reported, never a reason to
-  // fail the install: the app runs without them (without secure settings the
-  // screen dims instead of switching off) and the person can choose HOME on
-  // the panel.
-  return Object.freeze({permissionsVerified: true, notificationsRequired: sdk >= 33,
+  // What the owner (or a policy) turned off and the grant kept, by the names
+  // the network installer reports, in its order.
+  const denied = Object.freeze([
+    ...[['modify system settings', 'WRITE_SETTINGS', 2], ['display over other apps', 'SYSTEM_ALERT_WINDOW', 3],
+      ['install packages', 'REQUEST_INSTALL_PACKAGES', 4]].filter(([, op, index]) => kept(op)(lines[index])).map(([name]) => name),
+    ...[['camera', 6], ['microphone', 7]].filter(([, index]) => lines[index] === 'denied').map(([name]) => name),
+    ...(sdk >= 33 && notificationsKept(lines[5]) ? ['notifications'] : []),
+  ]);
+  // HOME, the camera, the microphone, secure settings and every permission the
+  // owner turned off are reported, never a reason to fail the install: the app
+  // runs without them (without secure settings the screen dims instead of
+  // switching off) and the person can choose HOME on the panel.
+  return Object.freeze({permissionsVerified: true, notificationsRequired: sdk >= 33, denied,
     camera: lines[6], microphone: lines[7], secureSettings: lines[8],
     home: homeComponentsFor(launchComponent).includes(lines[9].slice(5)),
     device: /^[A-Za-z0-9_.-]{1,64}$/.test(device) ? device : null});

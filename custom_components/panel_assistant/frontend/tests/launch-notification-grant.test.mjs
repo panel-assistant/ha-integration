@@ -14,13 +14,14 @@ const [OLD_CLASSES, NEW_CLASSES] = LAUNCH_COMPONENTS[PACKAGE_ID];
 // Runs the real launch program against stand-ins for `pm` and `am` that record
 // the order they were called in, so the test sees what the panel would run.
 // The record goes to a file: the program itself silences the grant's output.
-function executeLaunch(sdk, launchComponent, {refuseGrant = false, refuseStart = false, flags = 'USER_SENSITIVE_WHEN_GRANTED'} = {}) {
+function executeLaunch(sdk, launchComponent, {refuseGrant = false, refuseStart = false, flags = 'USER_SENSITIVE_WHEN_GRANTED',
+  dump = `echo '    android.permission.POST_NOTIFICATIONS'; echo '      android.permission.POST_NOTIFICATIONS: granted=false, flags=[ ${flags}]'`} = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'launch-grant-'));
   const log = join(dir, 'calls');
   try {
     const program = `pm() { echo "pm $*" >> '${log}'; echo "Exception occurred while executing 'grant'"; echo denied >&2; ${refuseGrant ? 'return 255' : ':'}; }
 am() { echo "am $*" >> '${log}'; echo 'Status: ok'; ${refuseStart ? 'return 1' : ':'}; }
-dumpsys() { echo '    android.permission.POST_NOTIFICATIONS'; echo '      android.permission.POST_NOTIFICATIONS: granted=false, flags=[ ${flags}]'; }
+dumpsys() { ${dump}; }
 : > '${log}'
 ${buildLaunch(nonce, PACKAGE_ID, launchComponent, sdk)}`;
     const result = spawnSync('/bin/sh', ['-c', program], {encoding: 'utf8'});
@@ -64,11 +65,28 @@ test('the platform level is required and bounded', () => {
   }
 });
 
-test("a person's own \"Don't allow\" is granted over, and the app still starts", () => {
-  for (const flags of ['USER_SET|USER_SENSITIVE_WHEN_GRANTED', 'USER_SET|USER_FIXED', 'USER_FIXED']) {
+test("a \"Don't allow\" the owner or a device policy gave is kept, and the app still starts", () => {
+  for (const flags of ['USER_SET|USER_SENSITIVE_WHEN_GRANTED', 'USER_SET|USER_FIXED', 'USER_FIXED', 'POLICY_FIXED',
+    'USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED|USER_SET']) {
+    const result = executeLaunch(34, NEW_CLASSES, {flags});
+    assert.deepEqual(result.calls, [`am start -W -n ${NEW_CLASSES} -p ${PACKAGE_ID}`], flags);
+    assert.equal(parseLaunch(result.stdout, nonce), 'started');
+  }
+});
+
+test("Android's own USER_SENSITIVE defaults are not a decision: the permission is granted", () => {
+  for (const flags of ['USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED', 'USER_SENSITIVE_WHEN_DENIED', '']) {
     const result = executeLaunch(34, NEW_CLASSES, {flags});
     assert.equal(result.calls[0], `pm grant ${PACKAGE_ID} android.permission.POST_NOTIFICATIONS`, flags);
     assert.match(result.calls[1], /^am start -W -n /, flags);
+  }
+});
+
+test('a dump that cannot be read, or names no such permission, is never a reason to grant', () => {
+  for (const dump of ['return 1', ':', "echo '      android.permission.POST_NOTIFICATIONS: granted=maybe'",
+    "echo '      android.permission.POST_NOTIFICATIONS: granted=true, flags=[ USER_SET]'"]) {
+    const result = executeLaunch(34, NEW_CLASSES, {dump});
+    assert.deepEqual(result.calls, [`am start -W -n ${NEW_CLASSES} -p ${PACKAGE_ID}`], dump);
     assert.equal(parseLaunch(result.stdout, nonce), 'started');
   }
 });
