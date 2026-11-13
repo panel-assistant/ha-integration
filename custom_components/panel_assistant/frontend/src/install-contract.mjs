@@ -1,6 +1,7 @@
 /** Fixed package-manager/activity-manager commands and bounded response contracts. */
 export const MAX_INSTALL_RESPONSE_BYTES = 32 * 1024;
 import { isLaunchComponent } from './app-identity.mjs';
+import { runtimePermissionRepair } from './permission-contract.mjs';
 import { snapshotPreviousHome, transferPreviousHome } from './previous-home.mjs';
 import { decodeLines } from './shell-session.mjs';
 
@@ -27,11 +28,12 @@ export function buildInstall(nonce, jobId, sdk) {
  * stay in the legacy namespace, so the component is looked up, never built.
  *
  * From Android 13 the notification permission is granted here, before the
- * first start, whatever a person once answered: the service notification is part
- * of keeping the panel working, and a "Don't allow" may have been a mis-tap or a
- * prompt nobody saw. The start never waits on the grant: its output is discarded
- * and its status is not the launch's, because the permission step after
- * `healthy` reads the result back and fails the install if the panel refused it.
+ * first start, when nobody has answered it: the service notification is part
+ * of keeping the panel working. A "Don't allow" the owner gave (or a device
+ * policy) is kept, never granted over, as the network installer does; the
+ * permission step after `healthy` reports it. The start never waits on the
+ * grant: its output is discarded and its status is not the launch's, and that
+ * step fails the install only when the panel refused a grant nobody decided.
  */
 export function buildLaunch(nonce, packageId, launchComponent, sdk, previousHomeJobId = null) {
   checkId(nonce);
@@ -39,8 +41,7 @@ export function buildLaunch(nonce, packageId, launchComponent, sdk, previousHome
   if (!Number.isInteger(sdk) || sdk < 1 || sdk > 100) fail('invalid_request');
   if (previousHomeJobId !== null) checkId(previousHomeJobId);
   const transfer = previousHomeJobId === null ? '' : `${transferPreviousHome(`/data/local/tmp/ha-paneld-install-${previousHomeJobId}.apk`)} && `;
-  const permission = 'android.permission.POST_NOTIFICATIONS';
-  const grant = sdk >= 33 ? `pm grant ${packageId} ${permission} >/dev/null 2>&1; ` : '';
+  const grant = sdk >= 33 ? `${runtimePermissionRepair(packageId, 'android.permission.POST_NOTIFICATIONS')}; ` : '';
   return `echo HAPANELD_LAUNCH_BEGIN:${nonce}; ${grant}${transfer}am start -W -n ${launchComponent} -p ${packageId}; echo HAPANELD_LAUNCH_END:${nonce}:$?`;
 }
 

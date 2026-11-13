@@ -75,7 +75,7 @@
     "allowBody": "Sul pannello, seleziona «Consenti sempre da questo computer» e tocca Consenti, così Panel Assistant potrà aggiornarlo in seguito senza il cavo.",
     "checkingPanel": "Verifica del pannello…",
     "confirmHeading": "Pronto per l’installazione",
-    "confirmBody": "Questa operazione installa l’app e la imposta come schermata iniziale del pannello. Le altre app non vengono modificate.",
+    "confirmBody": "Questa operazione installa l’app e la imposta come schermata iniziale del pannello. Panel Assistant non rimuove né disattiva le altre app.",
     "install": "Installa",
     "restartedDifferentVersion": "Un precedente tentativo di installazione usava una versione diversa. Quel tentativo è stato accantonato.",
     "alreadyInstalledHeading": "Già installata",

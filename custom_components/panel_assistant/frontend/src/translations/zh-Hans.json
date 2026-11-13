@@ -75,7 +75,7 @@
     "allowBody": "请在面板上勾选“始终允许使用这台计算机进行调试”并点击“允许”，这样 Panel Assistant 以后无需数据线也能更新面板。",
     "checkingPanel": "正在检查您的面板…",
     "confirmHeading": "可以开始安装",
-    "confirmBody": "这会安装应用，并将其设为面板的主屏幕。您的其他应用不会受到影响。",
+    "confirmBody": "这会安装应用，并将其设为面板的主屏幕。Panel Assistant 不会移除或停用您的其他应用。",
     "install": "安装",
     "restartedDifferentVersion": "先前的一次安装尝试使用了另一个版本。那次尝试已搁置。",
     "alreadyInstalledHeading": "已安装",

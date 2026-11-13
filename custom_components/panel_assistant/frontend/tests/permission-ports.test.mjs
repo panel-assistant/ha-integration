@@ -21,7 +21,7 @@ test('permissions require current USB posture and exact installed APK before any
       const f = fixture({rootMode, sdk});
       await f.ports.authenticate();
       assert.deepEqual(await f.ports.commissionPermissions(f.receipt, f.release),
-        {permissionsVerified: true, notificationsRequired: sdk >= 33, camera: 'granted', microphone: 'granted', secureSettings: 'granted', home: true, homeChooser: 'kept',
+        {permissionsVerified: true, notificationsRequired: sdk >= 33, denied: [], camera: 'granted', microphone: 'granted', secureSettings: 'granted', home: true, homeChooser: 'kept',
           device: 'generic'});
       assert.equal(f.commands.length, 6);
       assert.match(f.commands[5], /HAPANELD_VENDOR_BEGIN/);
@@ -55,6 +55,18 @@ test('grant failure or denied readback quarantines connection and never claims c
   assert.equal(f.commands.length, 0);
 });
 
+test('what the owner turned off is kept and reported, and the install still completes', async () => {
+  const f = fixture({verifyLines: lines => lines.map((line, index) => [
+    line, line, 'WRITE_SETTINGS: deny', 'SYSTEM_ALERT_WINDOW: ignore; time=+2d', line,
+    'android.permission.POST_NOTIFICATIONS: granted=false, flags=[ USER_SET|USER_SENSITIVE_WHEN_GRANTED]',
+    'granted', 'denied'][index] ?? line)});
+  await f.ports.authenticate();
+  const result = await f.ports.commissionPermissions(f.receipt, f.release);
+  assert.equal(result.permissionsVerified, true);
+  assert.deepEqual(result.denied, ['modify system settings', 'display over other apps', 'microphone', 'notifications']);
+  assert.equal(f.quarantined, 0);
+});
+
 test('the launch step grants notifications before the first start from Android 13, and not below', async () => {
   for (const sdk of [32, 33, 34]) {
     const f = fixture({sdk}); await f.ports.authenticate();
@@ -71,7 +83,7 @@ test('a build whose classes moved package is started and granted by its own clas
   const f = fixture({launchComponent: MOVED}); await f.ports.authenticate();
   await f.ports.launch({...f.receipt, phase: 'launching'}, f.release);
   assert.deepEqual(await f.ports.commissionPermissions(f.receipt, f.release),
-    {permissionsVerified: true, notificationsRequired: true, camera: 'granted', microphone: 'granted', secureSettings: 'granted', home: true, homeChooser: 'kept',
+    {permissionsVerified: true, notificationsRequired: true, denied: [], camera: 'granted', microphone: 'granted', secureSettings: 'granted', home: true, homeChooser: 'kept',
       device: 'generic'});
   assert.ok(f.shellCalls.includes(`am start -W -n ${MOVED} -p ${PACKAGE_ID}`));
   assert.ok(f.shellCalls.includes('settings put secure enabled_accessibility_services com.other/.Reader:'
