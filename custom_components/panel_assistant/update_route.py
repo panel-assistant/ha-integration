@@ -45,6 +45,7 @@ from .install_network import (
 from .provisioning import InstallTargetState, async_probe_install_target
 from .release import ReleaseArtifact
 from .repairs_failure import async_clear_adb_authorization
+from .repairs_permission import turned_off_reporter
 from .repairs_upgrade import speaks_this_protocol
 from .transport_sessions import async_get_sessions, session_manages
 from .update_errors import UPDATE_LOGGER as _LOGGER
@@ -262,6 +263,9 @@ async def async_relaunch_stopped_app(
             credential.signer,
             descriptor,
             expected_root_mode=installed.root_mode,
+            report_denials=None
+            if entry is None
+            else turned_off_reporter(hass, entry.entry_id),
         )
     except (InstallAdbError, AdbCredentialError, InstallNetworkError, OSError) as err:
         _LOGGER.debug("Could not start the app on %s over ADB: %r", panel_name(), err)

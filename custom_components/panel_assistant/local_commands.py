@@ -74,12 +74,19 @@ _VALUE = re.compile(r"[\x20-\x3c\x3e-\x7e]{0,255}", flags=re.ASCII)
 REFUSAL_UNKNOWN_COMMAND: Final = "unknown_command"
 REFUSAL_EXPIRED: Final = "expired"
 
-_GRANT_STATES: Final = ("granted", "unsupported", "unknown")
+_GRANT_STATES: Final = ("granted", "denied", "unsupported", "unknown")
+#: The explicit modes a grant keeps, as the shell route reads them.
+_OP_DENIED: Final = ("deny", "ignore", "errored", "foreground")
 _OP_STATE = re.compile(r"[a-z_]{1,32}", flags=re.ASCII)
 # "none" means no policy broadcast reply was recognised; the shell route
 # deferred then too.
 _HOME_POLICIES: Final = ("builtin", "retained", "restore", "claimed", "shell", "none")
 _APP_OPS: Final = ("WRITE_SETTINGS", "SYSTEM_ALERT_WINDOW", "REQUEST_INSTALL_PACKAGES")
+_OP_NAMES: Final = (
+    "modify system settings",
+    "display over other apps",
+    "install packages",
+)
 _RESTORE_RESULTS: Final = ("restored", "unrestored", "none")
 
 
@@ -212,26 +219,37 @@ def permission_grant_from_fields(
     ):
         return refused
     camera, microphone, secure_settings = states
+    owner = {
+        name: "granted"
+        if op == "allow"
+        else "denied"
+        if op in _OP_DENIED
+        else "unknown"
+        for name, op in zip(_OP_NAMES, ops, strict=True)
+    } | {"camera": camera, "microphone": microphone}
     checks = (
         ("accessibility service", accessibility == "granted" and enabled == "1"),
-        ("modify system settings", ops[0] == "allow"),
-        ("display over other apps", ops[1] == "allow"),
-        ("install packages", ops[2] == "allow"),
+        *((name, owner[name] == "granted") for name in _OP_NAMES),
         ("camera", camera in ("granted", "unsupported")),
         ("microphone", microphone in ("granted", "unsupported")),
         ("secure settings", secure_settings in ("granted", "unsupported")),
     )
     return _PermissionGrant(
-        missing=tuple(name for name, ok in checks if not ok),
+        missing=tuple(
+            name for name, ok in checks if not ok and owner.get(name) != "denied"
+        ),
         home=current in EQUIVALENT_HOME_COMPONENTS[launch_component],
         chooser=chooser if chooser in CHOOSER_OUTCOMES else None,
         vendor_setup=vendor in ("shelly", "meta") or device in META_PORTAL_DEVICES,
+        denied=tuple(name for name, state in owner.items() if state == "denied"),
+        denials_read="unknown" not in owner.values(),
     )
 
 
-def notifications_granted(repair: dict[str, str]) -> bool:
-    """Only an explicit ``granted`` proves the notification permission."""
-    return repair.get("notifications") == "granted"
+def notifications_state(repair: dict[str, str]) -> str:
+    """``granted`` or ``denied`` as the helper said it; anything else is unknown."""
+    state = repair.get("notifications")
+    return state if state in ("granted", "denied") else "unknown"
 
 
 def vendor_setup_warning(fields: dict[str, str]) -> str | None:

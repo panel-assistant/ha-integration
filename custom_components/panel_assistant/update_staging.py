@@ -43,6 +43,7 @@ from .install_adb import (
 )
 from .panel_backup import PanelBackupInvalidError, async_store_panel_backup
 from .release import _RELEASE_SIGNER_CERTIFICATE_SHA256, ReleaseArtifact
+from .repairs_permission import turned_off_reporter
 from .session_carrier import SessionCarrier, UpdateCarrier
 from .update_errors import UPDATE_LOGGER as _LOGGER
 from .update_errors import (
@@ -343,6 +344,7 @@ class BuildDelivery:
                     credential.signer,
                     descriptor,
                     expected_root_mode=installed.root_mode,
+                    report_denials=turned_off_reporter(hass, self._entry_id),
                 )
                 is not LaunchOutcome.STARTED
             ):

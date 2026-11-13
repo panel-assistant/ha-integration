@@ -53,10 +53,12 @@ from .adb_protocol import (
     AdbInstallTarget,
     AdbPreflight,
     AdbRootMode,
+    DenialReporter,
     InstallAdbError,
     InstallAdbErrorCode,
     InstallOutcome,
     LaunchOutcome,
+    OwnerDenials,
     _artifact_observation_command,
     _async_close,
     _async_connect,
@@ -1191,14 +1193,17 @@ async def _async_repair_app_permissions(
     launch_component: str,
     *,
     deferred_setup: bool = False,
+    report_denials: DenialReporter | None = None,
 ) -> str | None:
     """Repair grants, retaining the caller's authority for HOME acquisition.
 
-    Returns what the HOME claim did (``home_chooser.CHOOSER_OUTCOMES``).
+    Grants nobody decided are made; the ones the owner turned off are kept and
+    passed to ``report_denials``. Returns what the HOME claim did
+    (``home_chooser.CHOOSER_OUTCOMES``).
     """
     if target.local_commands is not None:
         return await _async_repair_typed(
-            device, target, package_id, launch_component, deferred_setup
+            device, target, package_id, launch_component, deferred_setup, report_denials
         )
     nonce = token_hex(16)
     _parse_package_present(
@@ -1209,18 +1214,20 @@ async def _async_repair_app_permissions(
         ),
         nonce,
     )
+    notifications = "unsupported"
     if target.android_sdk >= _NOTIFICATIONS_RUNTIME_SDK:
         # Never a reason not to start: a refusal is reported, and the app
         # still runs without notification visibility.
         nonce = token_hex(16)
-        if not _parse_notification_grant(
+        notifications = _parse_notification_grant(
             await _async_shell(
                 device,
                 _notification_grant_command(nonce, package_id),
                 read_timeout=_READ_TIMEOUT_SECONDS,
             ),
             nonce,
-        ):
+        )
+        if notifications == "unknown":
             _warn_notifications(package_id)
     # The same rule as notifications: a refusal is reported, never fatal.
     nonce = token_hex(16)
@@ -1236,7 +1243,15 @@ async def _async_repair_app_permissions(
         nonce,
         launch_component,
     )
-    return await _async_finish_grant(device, target, package_id, grant, deferred_setup)
+    return await _async_finish_grant(
+        device,
+        target,
+        package_id,
+        grant,
+        deferred_setup,
+        notifications=notifications,
+        report_denials=report_denials,
+    )
 
 
 def _warn_notifications(package_id: str) -> None:
@@ -1254,15 +1269,17 @@ async def _async_repair_typed(
     package_id: str,
     launch_component: str,
     deferred_setup: bool,
+    report_denials: DenialReporter | None,
 ) -> str | None:
     """REPAIR then HOME, read back as the one grant the shell program prints."""
     launch = typed.launch_index(package_id, launch_component)
     # The helper re-checks whether the build asks for secure settings.
     repair = await _async_typed(target, typed.VERB_REPAIR, launch, "1")
-    if target.android_sdk >= _NOTIFICATIONS_RUNTIME_SDK and (
-        not typed.notifications_granted(repair)
-    ):
-        _warn_notifications(package_id)
+    notifications = "unsupported"
+    if target.android_sdk >= _NOTIFICATIONS_RUNTIME_SDK:
+        notifications = typed.notifications_state(repair)
+        if notifications == "unknown":
+            _warn_notifications(package_id)
     try:
         home = await _async_typed(
             target, typed.VERB_HOME, launch, "deferred" if deferred_setup else "repair"
@@ -1274,7 +1291,15 @@ async def _async_repair_typed(
         # flock failed then too, left the chooser deferred and went on.
         home = {"policy": "none", "chooser": "deferred", "home": "unknown"}
     grant = typed.permission_grant_from_fields(repair, home, launch_component)
-    return await _async_finish_grant(device, target, package_id, grant, deferred_setup)
+    return await _async_finish_grant(
+        device,
+        target,
+        package_id,
+        grant,
+        deferred_setup,
+        notifications=notifications,
+        report_denials=report_denials,
+    )
 
 
 async def _async_finish_grant(
@@ -1283,8 +1308,15 @@ async def _async_finish_grant(
     package_id: str,
     grant: _PermissionGrant,
     deferred_setup: bool,
+    *,
+    notifications: str,
+    report_denials: DenialReporter | None,
 ) -> str | None:
-    """Report a grant readback and finish vendor setup, on either route."""
+    """Report a grant readback and finish vendor setup, on either route.
+
+    ``notifications`` is ``granted``, ``denied``, ``unknown`` or, below
+    Android 13, ``unsupported``.
+    """
     if not grant.home and grant.chooser not in ("deferred", "retained"):
         _LOGGER.warning(
             "The panel did not make %s its home screen (%s). It still runs; "
@@ -1310,6 +1342,21 @@ async def _async_finish_grant(
                 _GRANT_CONSEQUENCES.get(name, f"what needs {name} stays unavailable")
                 for name in grant.missing
             ),
+        )
+    denied = (*grant.denied, *(("notifications",) if notifications == "denied" else ()))
+    if denied:
+        _LOGGER.info(
+            "Kept the owner's choice on panel %s: %s turned off for %s",
+            target.address.stored_value,
+            ", ".join(denied),
+            package_id,
+        )
+    if report_denials is not None:
+        report_denials(
+            OwnerDenials(
+                features=denied,
+                complete=grant.denials_read and notifications != "unknown",
+            )
         )
     return grant.chooser
 
@@ -1502,6 +1549,7 @@ async def async_repair_installed_app_permissions(
     descriptor: InstallDescriptor,
     *,
     expected_root_mode: AdbRootMode,
+    report_denials: DenialReporter | None = None,
 ) -> None:
     """Repair an installed app's grants without relaunching or replacing it."""
     _validate_request(target, descriptor)
@@ -1512,7 +1560,11 @@ async def async_repair_installed_app_permissions(
             device = await _async_connect(target, signer)
             await _async_require_identity_root(device, target, expected_root_mode)
             await _async_repair_app_permissions(
-                device, target, descriptor.package_id, descriptor.launch_component
+                device,
+                target,
+                descriptor.package_id,
+                descriptor.launch_component,
+                report_denials=report_denials,
             )
     except InstallAdbError:
         raise
@@ -1534,6 +1586,7 @@ async def async_launch_installed_app(
     *,
     expected_root_mode: AdbRootMode,
     previous_home_job_id: str | None = None,
+    report_denials: DenialReporter | None = None,
 ) -> LaunchOutcome:
     """Launch the descriptor's one fixed package component exactly once."""
     launch = await async_start_installed_app(
@@ -1542,6 +1595,7 @@ async def async_launch_installed_app(
         descriptor,
         expected_root_mode=expected_root_mode,
         previous_home_job_id=previous_home_job_id,
+        report_denials=report_denials,
     )
     return launch.outcome
 
@@ -1574,6 +1628,7 @@ async def async_start_installed_app(
     *,
     expected_root_mode: AdbRootMode,
     previous_home_job_id: str | None = None,
+    report_denials: DenialReporter | None = None,
 ) -> AppLaunch:
     """Launch once, reporting what the HOME claim before the start did."""
     _validate_request(target, descriptor)
@@ -1599,7 +1654,11 @@ async def async_start_installed_app(
                 ):
                     raise InstallAdbError(InstallAdbErrorCode.TARGET_UNREACHABLE)
             home_chooser = await _async_repair_app_permissions(
-                device, target, descriptor.package_id, descriptor.launch_component
+                device,
+                target,
+                descriptor.package_id,
+                descriptor.launch_component,
+                report_denials=report_denials,
             )
             # The app's own session runs its helper, which keeps this itself.
             if (
