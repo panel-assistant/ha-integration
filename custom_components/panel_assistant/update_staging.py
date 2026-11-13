@@ -20,6 +20,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from . import local_adb
 from .adb_credentials import AdbCredential
 from .adb_protocol import (
     AdbInstallTarget,
@@ -413,28 +414,16 @@ class BuildDelivery:
         """Wait for exactly the committed build, then remember its number.
 
         An app that installed but never came back is started once over
-        authorized ADB, and the owner is told it had stopped.
+        authorized ADB, and the owner is told it had stopped. Where no ADB
+        lease has to lapse first, that start is tried as soon as the app has
+        been absent for the restart grace, not when the whole wait ends.
         """
+        started = False
 
-        async def wait() -> tuple[int, tuple[str, str]] | None:
-            return await self._progress.async_wait_for_build(
-                hass,
-                artifact,
-                before,
-                watch_refusal=watch_refusal,
-                carrier=self._carrier(hass) if self.session else None,
-            )
-
-        try:
-            proven = await wait()
-        except HomeAssistantError as err:
-            if (
-                err.translation_key != "update_not_complete"
-                # A panel that answers, over HTTP or its own session, has its app.
-                or self._coordinator.reachable
-                or self._coordinator.connected
-            ):
-                raise
+        async def relaunch() -> bool:
+            nonlocal started
+            if started:
+                return False
             started = await async_relaunch_stopped_app(
                 hass, self._coordinator, artifact, self._panel_name
             )
@@ -445,7 +434,36 @@ class BuildDelivery:
                     self._panel_name(),
                     artifact.tag,
                 )
-            elif not self._coordinator.available:
+            return started
+
+        async def early() -> bool:
+            # A lease the stopped app held keeps ADB closed until it lapses,
+            # which the end of the wait already allows for.
+            entry = self._coordinator._entry()
+            if entry is not None and local_adb.recovery_wait(hass, entry):
+                return False
+            return await relaunch()
+
+        async def wait() -> tuple[int, tuple[str, str]] | None:
+            return await self._progress.async_wait_for_build(
+                hass,
+                artifact,
+                before,
+                watch_refusal=watch_refusal,
+                carrier=self._carrier(hass) if self.session else None,
+                absent=early,
+            )
+
+        try:
+            proven = await wait()
+        except HomeAssistantError as err:
+            if (
+                err.translation_key != "update_not_complete"
+                # A panel that answers, over HTTP or its own session, has its app.
+                or self._coordinator.available
+            ):
+                raise
+            if not await relaunch() and not self._coordinator.available:
                 raise
             # Independent recovery can outlast the app's own restart. A panel
             # that returned meanwhile still has to prove this exact build.

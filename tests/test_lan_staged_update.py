@@ -47,6 +47,7 @@ from yarl import URL
 from custom_components.panel_assistant import (
     feed_coordinator,
     install_network,
+    local_adb,
     release,
     update_errors,
     update_panel_install,
@@ -1766,6 +1767,9 @@ async def test_an_app_that_never_comes_back_after_an_update_is_started_and_repor
             await entity.async_install(None, False)
         _assert_translated(raised.value, "update_not_complete")
         assert launched() == 0
+        if panel_state in ("session", "answering"):
+            # A panel that answers has its app: ADB is not even opened.
+            assert all(device.constructor is None for device in panel.devices)
         # Nothing on the panel changed: no grant, HOME or vendor step ran.
         assert not any(
             marker in command
@@ -1779,6 +1783,176 @@ async def test_an_app_that_never_comes_back_after_an_update_is_started_and_repor
         )
     await hass.async_block_till_done(wait_background_tasks=True)
     assert entity.in_progress is False
+
+
+@pytest.mark.parametrize(
+    "panel_state",
+    [
+        "stopped",
+        "returns",
+        "flaps",
+        "lease",
+        "no-dashboard",
+        "not-installed",
+        "crashes",
+    ],
+)
+async def test_an_app_stopped_after_its_update_is_started_without_the_whole_wait(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    signer: PythonRSASigner,  # noqa: F811
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    panel_state: str,
+) -> None:
+    """The panel showed its install prompt, installed, then stopped answering.
+
+    Seen on a wall display whose vendor app stopped the new app a second after
+    the install: Home Assistant waited out the prompt's whole allowance before
+    starting it. An app absent for the restart grace is started then. One that
+    comes back by itself (14 s on that panel), or answers again before the
+    grace runs out, is left alone. A panel whose stopped app held the ADB lease
+    keeps the wait that lets the lease lapse. An app started that never shows
+    its dashboard is started once and given one restart window, one that
+    stops again is not started a second time, and a panel whose build is not
+    yet installed is checked once early and once at the end.
+    """
+    panel = await _lan_grant_repair_panel(hass, monkeypatch, key, signer, tmp_path)
+    entity, client = panel.entity, panel.client
+    clock = SimpleNamespace(seconds=0.0, launched_at=None)
+
+    async def advance(seconds: float) -> None:
+        clock.seconds += seconds
+
+    monkeypatch.setattr(
+        update_progress,
+        "asyncio",
+        SimpleNamespace(
+            get_running_loop=lambda: SimpleNamespace(time=lambda: clock.seconds),
+            sleep=advance,
+        ),
+    )
+    monkeypatch.setattr(
+        update_route,
+        "async_get_durable_adb_credential",
+        AsyncMock(return_value=AdbCredential(signer, "existing-host-key")),
+    )
+    if panel_state == "lease":
+        entity.coordinator._entry_id = "entry-id"
+        monkeypatch.setattr(
+            local_adb,
+            "recovery_wait",
+            lambda _hass, _entry: (
+                local_adb.LOCAL_ADB_RECOVERY_SECONDS
+                + local_adb.LOCAL_ADB_RECOVERY_OVERHEAD_SECONDS
+            ),
+        )
+    panel.devices.extend(_InstalledPanel(tmp_path) for _ in range(6))
+    if panel_state == "not-installed":
+        for device in panel.devices:
+            device.installed_apk = b"another build of the same app"
+    # Without a prompt the wait is the plain restart window, not the prompt's.
+    prompt = panel_state != "no-dashboard"
+    client.async_get_panel_install_status.return_value = PanelInstallStatus(
+        running=True, component="APK", awaiting_confirmation=prompt
+    )
+    if panel_state == "no-dashboard":
+        client.async_get_status.return_value = PanelStatus(
+            warning_count=0,
+            capability_count=0,
+            home_ui={"state": "starting", "reason": "dashboard", "evidence": ""},
+        )
+    grace = update_progress._RESTART_HEALTH_GRACE_SECONDS
+    recheck = update_progress._UPDATE_RECHECK_SECONDS
+    restart_window = update_progress._ANDROID_PACKAGE_INSTALL_MAX_SECONDS + grace
+    # Prompt five minutes, install three, health one: the whole window.
+    window = restart_window + (
+        update_progress._ANDROID_CONFIRMATION_MAX_SECONDS if prompt else 0
+    )
+    prompt_accepted_at = 10.0
+
+    def answering(now: float) -> bool:
+        """When the app answers by itself, apart from being started."""
+        if now < prompt_accepted_at:
+            return True
+        if panel_state == "returns":
+            return now >= prompt_accepted_at + 14
+        if panel_state == "flaps":
+            # Away just short of the grace, briefly back, away again, then back.
+            away_again = prompt_accepted_at + grace - 2
+            return away_again - 4 <= now < away_again or now >= away_again + 14
+        return False
+
+    def launched() -> int:
+        return sum(
+            "am start" in command
+            for device in panel.devices
+            for command in device.commands
+        )
+
+    async def refresh() -> None:
+        if launched() and clock.launched_at is None:
+            clock.launched_at = clock.seconds
+        back = (launched() and panel_state != "crashes") or (
+            answering(clock.seconds) and clock.seconds >= prompt_accepted_at
+        )
+        if back and (
+            panel_state != "flaps" or clock.seconds >= prompt_accepted_at + grace
+        ):
+            entity.coordinator.data = _snapshot(VERSION, "2000", PACKAGE_ID)
+        entity.coordinator.reachable = bool(back) or answering(clock.seconds)
+
+    entity.coordinator.async_request_refresh = AsyncMock(side_effect=refresh)  # type: ignore[method-assign]
+
+    try:
+        if panel_state in ("no-dashboard", "not-installed", "crashes"):
+            with pytest.raises(HomeAssistantError) as raised:
+                await entity.async_install(None, False)
+            _assert_translated(raised.value, "update_not_complete")
+        else:
+            await entity.async_install(None, False)
+            assert entity.installed_version == VERSION
+    finally:
+        # The restart notice runs on Core's real clock, not this one.
+        async_get_sessions(hass).clear_restart_notice(entity._entry_id)
+
+    stopped_warnings = [
+        record
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+        and "did not start again" in record.getMessage()
+    ]
+    preflights = sum(
+        "HAPANELD_PREFLIGHT_BEGIN" in command
+        for device in panel.devices
+        for command in device.commands
+    )
+    if panel_state in ("returns", "flaps", "not-installed"):
+        assert launched() == 0
+        assert not stopped_warnings
+        if panel_state == "not-installed":
+            # One ADB look early and one when the wait ends, never one a poll.
+            assert preflights == 2
+        return
+    assert launched() == 1
+    if panel_state == "crashes":
+        # Started once; when it stops again ADB is not even looked at.
+        assert preflights == 1
+    assert len(stopped_warnings) == 1
+    if panel_state == "lease":
+        assert clock.launched_at >= window
+        return
+    assert (
+        prompt_accepted_at + grace
+        <= clock.launched_at
+        <= prompt_accepted_at + grace + 2 * recheck
+    )
+    if panel_state == "no-dashboard":
+        # One restart window from the start, and no second wait after it.
+        ends = max(window, clock.launched_at + restart_window)
+        assert ends - 2 * recheck <= clock.seconds <= ends + 2 * recheck
 
 
 @pytest.mark.parametrize("incomplete_response", [False, True])

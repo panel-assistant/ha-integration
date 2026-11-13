@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 import math
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
@@ -382,6 +382,7 @@ class UpdateProgress:
         *,
         watch_refusal: bool = False,
         carrier: UpdateCarrier | None = None,
+        absent: Callable[[], Awaitable[bool]] | None = None,
     ) -> tuple[int, tuple[str, str]] | None:
         """Wait for the panel to restart into exactly the committed build.
 
@@ -389,6 +390,9 @@ class UpdateProgress:
         for, or None when the build carries no number to prove. With
         ``watch_refusal``, a panel that finished the committed install by
         refusing it raises ``UpdateRejectedError`` with its reason at once.
+        ``absent`` is called once when the panel has answered nothing for the
+        restart grace; when it starts the app, the wait runs a full restart
+        window from then.
         """
         coordinator = self._coordinator
         # A carrier is the panel's session, used while its address cannot be.
@@ -405,9 +409,29 @@ class UpdateProgress:
         # Retain the first prompt observation; later polls cannot renew it.
         confirmation_deadline: float | None = None
         observation = _CompletionObservation()
+        absent_since: float | None = None
         while loop.time() < deadline:
             await coordinator.async_request_refresh()
             self.hold_through_restart(hass)
+            # A prompt still open keeps the old app answering, so only an app
+            # gone from both its address and its session counts as absent.
+            if coordinator.available:
+                absent_since = None
+            elif absent_since is None:
+                absent_since = loop.time()
+            elif (
+                absent is not None
+                and loop.time() - absent_since >= _RESTART_HEALTH_GRACE_SECONDS
+            ):
+                started = await absent()
+                absent = None
+                if started:
+                    deadline = max(
+                        deadline,
+                        loop.time()
+                        + _ANDROID_PACKAGE_INSTALL_MAX_SECONDS
+                        + _RESTART_HEALTH_GRACE_SECONDS,
+                    )
             health = coordinator.data.health if coordinator.data else None
             observation.health_available = coordinator.last_update_success and (
                 session or coordinator.reachable
