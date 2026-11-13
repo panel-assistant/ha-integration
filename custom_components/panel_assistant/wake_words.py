@@ -71,6 +71,17 @@ CODE_UNKNOWN_COMMAND: Final = "unknown_command"
 CODE_INVALID_VALUE: Final = "invalid_value"
 
 
+def _decode_model(encoded: str) -> tuple[bytes, str] | None:
+    """Decode a shared model and hash it, or None when it is not a valid one."""
+    try:
+        model = base64.b64decode(encoded, validate=True)
+    except binascii.Error:
+        return None
+    if not 0 < len(model) <= MAX_MODEL_BYTES:
+        return None
+    return model, hashlib.sha256(model).hexdigest()
+
+
 @dataclass(frozen=True, slots=True)
 class SharedWakeWord:
     """One model Panel Assistant installs on every panel."""
@@ -165,13 +176,11 @@ class SharedWakeWords:
             or not isinstance(encoded, str)
         ):
             return
-        try:
-            model = base64.b64decode(encoded, validate=True)
-        except binascii.Error:
+        # Decoding and hashing a model of up to 2 MiB runs in the executor.
+        decoded = await self._hass.async_add_executor_job(_decode_model, encoded)
+        if decoded is None:
             return
-        if not 0 < len(model) <= MAX_MODEL_BYTES:
-            return
-        sha256 = hashlib.sha256(model).hexdigest()
+        model, sha256 = decoded
         async with self._record_lock:
             if not await self._async_keep(
                 wake_word_id, phrase, manifest, model, sha256

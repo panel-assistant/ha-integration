@@ -317,9 +317,9 @@ def ws_hello(
     if entry is None:
         _follow_refused_panel(hass, connection, msg)
         if _may_ask_to_bind(hass, connection):
-            # There is no entry to raise a Repairs issue against, so remember the
-            # account instead. The administrator who adds this panel is then asked
-            # to confirm it while they are still here, rather than afterwards.
+            # There is no entry to bind yet, so remember the account instead.
+            # The entry the add flow creates for this panel is bound to it, if it
+            # is still a live account then; nobody is asked.
             async_record_binding_request(hass, did, connection.user.id)
         # An entry added again that failed setup still owns the panel, which then
         # retries as an unknown panel rather than slowly as a removed one.

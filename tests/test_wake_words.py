@@ -16,8 +16,9 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.panel_assistant import wake_words
+from custom_components.panel_assistant import blob, wake_words
 from custom_components.panel_assistant.const import DOMAIN
+from tests.loop_io_guard import LoopIoGuard
 from tests.test_repair_links import assert_repair_links
 
 from .test_embed import (  # noqa: F401  (fixtures)
@@ -207,6 +208,30 @@ async def test_a_wake_word_imported_in_the_sidebar_is_installed_on_every_other_p
     await hass.async_block_till_done(wait_background_tasks=True)
     assert len(_imports(hall)) == 1
     assert _imports(kitchen) == []
+
+
+async def test_an_imported_wake_word_is_decoded_and_hashed_off_the_event_loop(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    entry: MockConfigEntry,  # noqa: F811
+    panels: tuple[SessionPanel, SessionPanel, MockConfigEntry],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A model of up to 2 MiB is hashed in the executor, never on the loop."""
+    kitchen, hall, _ = panels
+    fetched: list[bytes] = []
+    hall.answers["voice.wake_words.import"] = _fetching(hall, fetched)
+    guard = LoopIoGuard()
+    for module in (wake_words, blob):
+        monkeypatch.setattr(module, "hashlib", guard.hashlib(), raising=False)
+
+    await _import_in_sidebar(hass, hass_ws_client, kitchen, entry.entry_id)
+    request = (await hall.event("voice.wake_words.import"))["args"]
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert fetched == [MODEL]
+    assert request["blob"]["sha256"] == hashlib.sha256(MODEL).hexdigest()
+    assert guard.on_loop == []
 
 
 async def test_a_panel_that_connects_later_gets_the_wake_word_after_a_restart(
