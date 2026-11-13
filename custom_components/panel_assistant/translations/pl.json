@@ -29,7 +29,7 @@
       },
       "install_usb": {
         "title": "Zainstaluj za pomocą USB",
-        "description": "Podłącz panel do tego komputera, a nie do serwera Home Assistant. Debugowanie USB musi być włączone w opcjach programisty panelu; [instrukcja dostępu do panelu dla danego modelu]({panel_access_url}) pokazuje, jak to zrobić.",
+        "description": "Plug the panel into this computer, not into the Home Assistant server. USB debugging must be on in the panel's developer options; the [model-specific panel access guide]({panel_access_url}) shows how.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.",
         "submit": "Otwórz instalator USB"
       },
       "add_panel": {
@@ -91,19 +91,19 @@
       },
       "confirm_install_candidate": {
         "title": "Zainstalować Panel Assistant {version}?",
-        "description": "Gotowe do instalacji na panelu pod adresem {address}.\n\nPozostałe aplikacje nie zostaną zmienione."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
       },
       "confirm_install_rc": {
         "title": "Zainstalować Panel Assistant {version}?",
-        "description": "Tylko do testów: Panel Assistant {version} to kandydat do wydania, a nie wersja stabilna, i może zawierać błędy.\n\nGotowe do instalacji na panelu pod adresem {address}.\n\nPozostałe aplikacje nie zostaną zmienione."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
       },
       "confirm_reinstall_candidate": {
         "title": "Zainstalować Panel Assistant {version}?",
-        "description": "Wszystko gotowe do instalacji na panelu pod adresem {address}.\n\nTwoje inne aplikacje pozostaną nietknięte.\n\nTen panel ponownie dołączy do {entry_title} i zachowa swoje encje oraz historię."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "confirm_reinstall_rc": {
         "title": "Zainstalować Panel Assistant {version}?",
-        "description": "Tylko do testów: Panel Assistant {version} jest wersją kandydującą do wydania, a nie wersją stabilną, i może zawierać błędy.\n\nWszystko gotowe do instalacji na panelu pod adresem {address}.\n\nTwoje inne aplikacje pozostaną nietknięte.\n\nTen panel ponownie dołączy do {entry_title} i zachowa swoje encje oraz historię."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "release_preview_only": {
         "title": "Nie można zainstalować tej wersji automatycznie",

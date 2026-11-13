@@ -29,7 +29,7 @@
       },
       "install_usb": {
         "title": "Installa tramite USB",
-        "description": "Collega il pannello a questo computer, non al server Home Assistant. Il debug USB deve essere attivo nelle impostazioni sviluppatore del pannello; la [guida all'accesso al pannello specifica per modello]({panel_access_url}) spiega come fare.",
+        "description": "Plug the panel into this computer, not into the Home Assistant server. USB debugging must be on in the panel's developer options; the [model-specific panel access guide]({panel_access_url}) shows how.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.",
         "submit": "Apri l'installer USB"
       },
       "add_panel": {
@@ -91,19 +91,19 @@
       },
       "confirm_install_candidate": {
         "title": "Installare Panel Assistant {version}?",
-        "description": "Pronto per l’installazione sul pannello all’indirizzo {address}.\n\nLe altre app non verranno modificate."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
       },
       "confirm_install_rc": {
         "title": "Installare Panel Assistant {version}?",
-        "description": "Solo per i test: Panel Assistant {version} è una versione candidata al rilascio, non una versione stabile, e potrebbe contenere errori.\n\nPronto per l’installazione sul pannello all’indirizzo {address}.\n\nLe altre app non verranno modificate."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
       },
       "confirm_reinstall_candidate": {
         "title": "Installare Panel Assistant {version}?",
-        "description": "Tutto pronto per l'installazione sul pannello all'indirizzo {address}.\n\nLe tue altre app non vengono toccate.\n\nQuesto pannello torna a far parte di {entry_title} e mantiene le sue entità e la sua cronologia."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "confirm_reinstall_rc": {
         "title": "Installare Panel Assistant {version}?",
-        "description": "Solo per i test: Panel Assistant {version} è una release candidate, non una versione stabile, e potrebbe contenere bug.\n\nTutto pronto per l'installazione sul pannello all'indirizzo {address}.\n\nLe tue altre app non vengono toccate.\n\nQuesto pannello torna a far parte di {entry_title} e mantiene le sue entità e la sua cronologia."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "release_preview_only": {
         "title": "La versione non può essere installata automaticamente",

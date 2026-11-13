@@ -138,7 +138,7 @@ async def test_a_native_entry_sets_up_on_protocol_5_without_its_authority(
     assert entry.state is ConfigEntryState.LOADED
     assert "authority" not in entry.options
     assert "supported_channels" not in entry.data
-    assert (entry.version, entry.minor_version) == (1, 2)
+    assert (entry.version, entry.minor_version) == (1, 3)
     assert ir.async_get(hass).issues == {}
     response = await _hello_response(hass, hass_ws_client, hass_read_only_access_token)
     assert response["success"], response

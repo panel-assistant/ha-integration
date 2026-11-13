@@ -214,7 +214,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
     # 2: the authority option is gone (see ``async_migrate_entry``).
-    MINOR_VERSION = 2
+    # 3: the device setup record (``CONF_DEVICE_SETUP``) is kept.
+    MINOR_VERSION = 3
 
     @staticmethod
     @callback
