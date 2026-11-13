@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
+import tempfile
+import threading
 from dataclasses import replace
 from io import BytesIO
 from pathlib import Path
@@ -664,6 +667,81 @@ async def test_an_adb_update_keeps_file_work_off_the_event_loop(
     route.adb_install.assert_awaited_once()
     verified.assert_awaited_once()
     assert guard.on_loop == []
+
+
+def _update_files(directory: Path) -> list[Path]:
+    return list(directory.glob("panel-assistant-update-*"))
+
+
+async def _no_update_file_left(hass: HomeAssistant, directory: Path) -> list[Path]:
+    """Return update files still present once the executor has caught up."""
+    for _ in range(50):
+        await hass.async_block_till_done()
+        left = await hass.async_add_executor_job(_update_files, directory)
+        if not left:
+            return left
+        await asyncio.sleep(0.02)
+    return left
+
+
+async def test_an_update_cancelled_while_its_apk_is_written_leaves_no_file(
+    route: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
+    hass: HomeAssistant,
+    tmp_path: Path,
+) -> None:
+    """The file belongs to the update from the moment the executor creates it."""
+    MockConfigEntry(domain=DOMAIN, entry_id="entry-id", data={}).add_to_hass(hass)
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+    written = threading.Event()
+    release = threading.Event()
+    write = update_staging._write_update_apk
+
+    def slow_write(apk: bytes) -> Path:
+        path = write(apk)
+        written.set()
+        release.wait(10)
+        return path
+
+    monkeypatch.setattr(update_staging, "_write_update_apk", slow_write)
+    install = hass.async_create_task(route.entity.async_install(None, False))
+    assert await hass.async_add_executor_job(written.wait, 10)
+
+    install.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await install
+    release.set()
+
+    assert await _no_update_file_left(hass, tmp_path) == []
+    route.adb_install.assert_not_awaited()
+
+
+async def test_an_update_cancelled_during_install_removes_its_apk_file(
+    route: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
+    hass: HomeAssistant,
+    tmp_path: Path,
+) -> None:
+    MockConfigEntry(domain=DOMAIN, entry_id="entry-id", data={}).add_to_hass(hass)
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+    started = asyncio.Event()
+
+    async def hang(*_args: Any, **_kwargs: Any) -> InstallOutcome:
+        started.set()
+        await asyncio.Event().wait()
+        raise AssertionError("unreachable")
+
+    route.adb_install.side_effect = hang
+    install = hass.async_create_task(route.entity.async_install(None, False))
+    async with asyncio.timeout(10):
+        await started.wait()
+    assert await hass.async_add_executor_job(_update_files, tmp_path)
+
+    install.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await install
+
+    assert await _no_update_file_left(hass, tmp_path) == []
 
 
 async def test_post_install_launch_refusal_does_not_report_success(

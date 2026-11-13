@@ -8,9 +8,11 @@ waits for the panel to return on that build.
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import os
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
+from functools import partial
 from pathlib import Path
 from tempfile import mkstemp
 
@@ -82,6 +84,34 @@ def _write_update_apk(apk: bytes) -> Path:
 
 def _remove_update_apk(path: Path) -> None:
     path.unlink(missing_ok=True)
+
+
+def _remove_when_written(hass: HomeAssistant, created: asyncio.Future[Path]) -> None:
+    """Remove a file whose writer was abandoned, once the write has finished."""
+    if not created.cancelled() and created.exception() is None:
+        hass.async_add_executor_job(_remove_update_apk, created.result())
+
+
+@contextlib.asynccontextmanager
+async def _async_update_apk_file(
+    hass: HomeAssistant, apk: bytes
+) -> AsyncIterator[Path]:
+    """Hold the APK in a temporary file whose filesystem work runs in the executor.
+
+    The file is owned here from the moment the executor creates it. A caller
+    cancelled while it is being written still has it removed when the write
+    ends, and the removal itself cannot be cancelled once it is submitted.
+    """
+    created = hass.async_add_executor_job(_write_update_apk, apk)
+    try:
+        path = await asyncio.shield(created)
+    except asyncio.CancelledError:
+        created.add_done_callback(partial(_remove_when_written, hass))
+        raise
+    try:
+        yield path
+    finally:
+        await asyncio.shield(hass.async_add_executor_job(_remove_update_apk, path))
 
 
 class BuildDelivery:
@@ -328,23 +358,19 @@ class BuildDelivery:
                 "update_unavailable",
                 "The requested Panel Assistant update is unavailable",
             )
-        # The file is created, written and removed in the executor: none of
-        # that filesystem work runs on the event loop.
-        apk_path = await hass.async_add_executor_job(_write_update_apk, apk)
         try:
-            outcome = await async_update_installed_apk(
-                target,
-                credential.signer,
-                descriptor,
-                apk_path,
-                before_install=lambda: self._offer.async_admit(artifact),
-            )
+            async with _async_update_apk_file(hass, apk) as apk_path:
+                outcome = await async_update_installed_apk(
+                    target,
+                    credential.signer,
+                    descriptor,
+                    apk_path,
+                    before_install=lambda: self._offer.async_admit(artifact),
+                )
         except InstallAdbError as err:
             raise _update_error(
                 "update_not_complete", "The panel update did not complete"
             ) from err
-        finally:
-            await hass.async_add_executor_job(_remove_update_apk, apk_path)
         if outcome is InstallOutcome.REFUSED:
             raise _UpdateRefusalError(self._panel_name())
         self._progress.enter("installing")
