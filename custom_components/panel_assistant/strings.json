@@ -960,6 +960,10 @@
     }
   },
   "issues": {
+    "permissions_turned_off": {
+      "title": "Some app permissions are turned off on {panel}.",
+      "description": "Someone turned off {features} for the panel app in Android settings on {panel}. Home Assistant keeps that choice when it installs or updates the app, so the features that need them will not work until they are turned on again on the panel. This Repair clears itself the next time Home Assistant updates the app.\n\nTo fix:\n1. At the panel, follow the [Android permission guide]({permissions_url}) and allow {features} for Panel Assistant.\n2. If you meant to turn them off, select Ignore instead."
+    },
     "panel_app_too_old": {
       "title": "{panel} needs app {required_version}",
       "description": "Home Assistant cannot see or control {panel} because app {version} does not support this connection protocol.\n\nTo fix:\n1. Open [Updates]({updates_url}) and install a compatible app update for {panel}, if offered.\n2. Wait for the panel to reconnect."

@@ -49,7 +49,10 @@ from .const import (
 from .feed_coordinator import async_get_feed_coordinator
 from .identity import accept_health, is_installation, reinstalled
 from .repairs_entity_hold import async_reconcile_entity_hold_issue
-from .repairs_permission import async_reconcile_permission_issue
+from .repairs_permission import (
+    async_reconcile_permission_issue,
+    turned_off_reporter,
+)
 from .repairs_proximity import async_reconcile_proximity_issue
 from .repairs_root import async_reconcile_root_issue
 from .repairs_webview import async_reconcile_webview_issue
@@ -616,6 +619,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                         package,
                         LAUNCH_COMPONENTS[package][-1],
                         deferred_setup=True,
+                        report_denials=turned_off_reporter(self.hass, entry.entry_id),
                     )
                 self._admin_done, home = await _async_admin_claim(
                     device, target, package
