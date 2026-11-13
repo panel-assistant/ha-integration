@@ -39,6 +39,7 @@ from custom_components.panel_assistant.build_feed import (
     parse_build_feed,
     parse_build_request,
 )
+from tests.loop_io_guard import LoopIoGuard
 
 from .http_fakes import FakeResponse, FakeSession
 
@@ -726,6 +727,25 @@ async def test_a_github_asset_redirect_is_followed_only_to_github(
         with pytest.raises(BuildFeedError):
             await async_download_build(session, artifact)  # type: ignore[arg-type]
     assert (location in [url for url, _ in session.requests]) is downloaded
+
+
+async def test_a_downloaded_build_is_hashed_off_the_event_loop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The whole APK's digest is computed in the executor, not on the loop."""
+    guard = LoopIoGuard()
+    monkeypatch.setattr(build_feed, "hashlib", guard.hashlib())
+    session = _FakeSession(
+        {
+            str(APK_URL): FakeResponse(
+                200, [APK[:500], APK[500:]], APK_URL, declared_length=len(APK)
+            )
+        }
+    )
+    artifact = feed_release_artifact(_download_build())
+
+    assert await async_download_build(session, artifact) == APK  # type: ignore[arg-type]
+    assert guard.on_loop == []
 
 
 async def test_download_maps_network_failure() -> None:

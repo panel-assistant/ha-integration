@@ -301,7 +301,7 @@ class SharedWakeWords:
             "Installing the shared wake word %s on panel %s", word.id, entry_id
         )
         blobs = async_get_blobs(self._hass)
-        token, reference = blobs.download(entry_id, model, MODEL_TYPE)
+        token, reference = await blobs.async_download(entry_id, model, MODEL_TYPE)
         try:
             outcome = await async_manage_outcome(
                 self._hass,

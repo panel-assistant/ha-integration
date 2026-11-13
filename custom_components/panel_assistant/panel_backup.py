@@ -119,7 +119,9 @@ async def async_store_panel_backup(
     hass: HomeAssistant, entry_id: str, version_code: int | None, data: bytes
 ) -> PanelBackupReceipt:
     """Verify one backup, write it atomically, and keep the newest few."""
-    entries, digest = verify_panel_backup(data)
+    # testzip() reads every entry and the digest covers the whole archive:
+    # both run in the executor, never on the event loop.
+    entries, digest = await hass.async_add_executor_job(verify_panel_backup, data)
     taken_at = datetime.now(UTC)
     stamp = taken_at.strftime("%Y%m%dT%H%M%SZ")
     prefix = f"{entry_id}-"

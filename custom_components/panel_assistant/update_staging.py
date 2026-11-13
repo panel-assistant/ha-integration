@@ -9,9 +9,10 @@ waits for the panel to return on that build.
 from __future__ import annotations
 
 import contextlib
+import os
 from collections.abc import Callable
 from pathlib import Path
-from tempfile import NamedTemporaryFile
+from tempfile import mkstemp
 
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -64,6 +65,23 @@ from .update_route import (
 
 # A panel's refusal of a build its own order ranks lower (panelUpdateRefusal).
 _DOWNGRADE_REFUSAL = "panel-app downgrades are not permitted"
+
+
+def _write_update_apk(apk: bytes) -> Path:
+    """Write the verified APK to a new private temporary file; return its path."""
+    descriptor, name = mkstemp(prefix="panel-assistant-update-", suffix=".apk")
+    path = Path(name)
+    try:
+        with os.fdopen(descriptor, "wb") as file:
+            file.write(apk)
+    except BaseException:
+        path.unlink(missing_ok=True)
+        raise
+    return path
+
+
+def _remove_update_apk(path: Path) -> None:
+    path.unlink(missing_ok=True)
 
 
 class BuildDelivery:
@@ -310,23 +328,23 @@ class BuildDelivery:
                 "update_unavailable",
                 "The requested Panel Assistant update is unavailable",
             )
+        # The file is created, written and removed in the executor: none of
+        # that filesystem work runs on the event loop.
+        apk_path = await hass.async_add_executor_job(_write_update_apk, apk)
         try:
-            with NamedTemporaryFile(
-                prefix="panel-assistant-update-", suffix=".apk"
-            ) as file:
-                await hass.async_add_executor_job(file.write, apk)
-                await hass.async_add_executor_job(file.flush)
-                outcome = await async_update_installed_apk(
-                    target,
-                    credential.signer,
-                    descriptor,
-                    Path(file.name),
-                    before_install=lambda: self._offer.async_admit(artifact),
-                )
+            outcome = await async_update_installed_apk(
+                target,
+                credential.signer,
+                descriptor,
+                apk_path,
+                before_install=lambda: self._offer.async_admit(artifact),
+            )
         except InstallAdbError as err:
             raise _update_error(
                 "update_not_complete", "The panel update did not complete"
             ) from err
+        finally:
+            await hass.async_add_executor_job(_remove_update_apk, apk_path)
         if outcome is InstallOutcome.REFUSED:
             raise _UpdateRefusalError(self._panel_name())
         self._progress.enter("installing")

@@ -65,6 +65,7 @@ from custom_components.panel_assistant.update_coordinator import (
     PanelUpdateCoordinator,
     PanelUpdateSnapshot,
 )
+from tests.loop_io_guard import LoopIoGuard
 from tests.test_repair_links import assert_repair_links
 
 
@@ -648,6 +649,23 @@ async def test_adb_package_manager_refusal_reports_panel_action(
     assert route.entity.extra_state_attributes == {}
 
 
+async def test_an_adb_update_keeps_file_work_off_the_event_loop(
+    route: SimpleNamespace, monkeypatch: pytest.MonkeyPatch, hass: HomeAssistant
+) -> None:
+    """The backup check and the APK's temporary file run in the executor."""
+    MockConfigEntry(domain=DOMAIN, entry_id="entry-id", data={}).add_to_hass(hass)
+    guard = LoopIoGuard()
+    guard.install_files(monkeypatch)
+    verified = AsyncMock()
+    monkeypatch.setattr(route.entity._delivery, "async_wait_for_build", verified)
+
+    await route.entity.async_install(None, False)
+
+    route.adb_install.assert_awaited_once()
+    verified.assert_awaited_once()
+    assert guard.on_loop == []
+
+
 async def test_post_install_launch_refusal_does_not_report_success(
     route: SimpleNamespace,
 ) -> None:
@@ -663,7 +681,7 @@ async def test_post_install_launch_refusal_does_not_report_success(
     assert route.entity.extra_state_attributes == {}
 
 
-@pytest.mark.parametrize("revoke_at", ["flush", "push", "verification", "submitted"])
+@pytest.mark.parametrize("revoke_at", ["write", "push", "verification", "submitted"])
 async def test_adb_transaction_uses_current_consent_until_command_submission(
     route, hass, monkeypatch, revoke_at
 ):
@@ -705,7 +723,9 @@ async def test_adb_transaction_uses_current_consent_until_command_submission(
 
     async def executor(target, *args):
         result = await original_executor(target, *args)
-        if revoke_at == "flush" and getattr(target, "__name__", "") == "flush":
+        if revoke_at == "write" and getattr(target, "__name__", "") == (
+            "_write_update_apk"
+        ):
             revoke()
         return result
 
