@@ -10,7 +10,7 @@
     "webview_recovery_mismatch": "下载的 WebView 与已验证的更新不匹配。请保持面板连接，并选择重试以重新下载。如果此问题反复出现，请保存支持报告；不要安装未经验证的 APK。",
     "webview_recovery_uncertain": "无法确认安装结果。请保持面板连接，并选择重试：系统会先检查已安装的 WebView，仅在更新仍符合条件时才发起新的尝试。",
     "webview_recovery_retry": "WebView 操作已中断，或无法完成准备工作。请检查面板连接和可用存储空间，然后选择重试。如果此问题反复出现，请保存支持报告。",
-    "webview_recovery_download": "The panel could not download its WebView update from panel-assistant.io, so it was not installed. Allow Home Assistant to reach {webview_site}, so it can download the update and hand it to the panel, or allow the panel to reach it, then select Try again. The Home Assistant log names what stopped the download."
+    "webview_recovery_download": "面板无法从 panel-assistant.io 下载 WebView 更新，因此未安装更新。请允许 Home Assistant 访问 {webview_site}，以便下载更新并传给面板，或者允许面板访问该网站，然后选择“重试”。Home Assistant 日志会说明下载受阻的原因。"
   },
   "config": {
     "flow_title": "{name}",
@@ -114,21 +114,21 @@
         "description": "Panel Assistant {version} 已安装在 {address}。\n\n提交后只会重试最终的只读身份和健康检查，不会重复任何安装步骤。\n\nHome Assistant 添加设备后，请在能通过局域网访问面板的电脑上打开“添加”对话框中的浏览器设置链接。如有提示，请在面板上批准 ADB 调试。"
       },
       "install_unfinished": {
-        "title": "This panel has an unfinished install",
-        "description": "Home Assistant already started installing Panel Assistant {version} on this panel, as {existing_address}, and that install has not finished.\n\nYou can carry on with it, or cancel it and start again at {address}.",
+        "title": "此面板有未完成的安装",
+        "description": "Home Assistant 已开始在此面板上安装 Panel Assistant {version}，使用的地址为 {existing_address}，但安装尚未完成。\n\n您可以继续该安装，也可以取消并使用 {address} 重新开始。",
         "menu_options": {
-          "resume_install": "Carry on with that install",
-          "cancel_install": "Cancel it and start again"
+          "resume_install": "继续该安装",
+          "cancel_install": "取消并重新开始"
         },
         "menu_option_descriptions": {
-          "cancel_install": "Nothing is removed from the panel. If the app is already installed it stays, and Home Assistant looks at the panel afresh."
+          "cancel_install": "不会从面板移除任何内容。如果应用已安装，它会保留，Home Assistant 会重新检查面板。"
         }
       },
       "install_unfinished_busy": {
-        "title": "This panel has an unfinished install",
-        "description": "Home Assistant is installing Panel Assistant {version} on this panel right now, as {existing_address}. It cannot be cancelled while it is changing the panel.\n\nCarry on with it to see it finish.",
+        "title": "此面板有未完成的安装",
+        "description": "Home Assistant 正在此面板上安装 Panel Assistant {version}，使用的地址为 {existing_address}。在更改面板期间无法取消。\n\n请继续该安装以查看其完成情况。",
         "menu_options": {
-          "resume_install": "Carry on with that install"
+          "resume_install": "继续该安装"
         }
       }
     },
@@ -139,7 +139,7 @@
     },
     "error": {
       "panel_setup_not_finished": "面板尚未完成设置。请完成设置页面，然后再次选择“提交”。",
-      "panel_setup_refused": "The panel refused to say whether its setup is finished. It answered: {refusal}. Select Submit to try again.",
+      "panel_setup_refused": "面板拒绝说明其设置是否已完成。它的回复是：{refusal}。请选择“提交”以重试。",
       "old_app_installed": "此面板仍在运行旧版 ha-paneld 应用。Panel Assistant 1.0 无法将其迁移到新应用，也不会与其并存安装任何内容。请按照[安全恢复步骤]({old_app_help_url})，使用 Panel Assistant 0.9.0 完成迁移。如果任何面板已在运行 1.0 应用，或者您没有升级前的备份，请在更改版本之前寻求帮助。",
       "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
       "invalid_address": "请输入不含 URL 方案或路径的主机名或 IP 地址。",
@@ -148,14 +148,14 @@
       "install_resolution_timeout": "在能够安全固定面板地址之前，本地名称解析已超时。请检查本地 DNS，然后重试。",
       "install_too_many_addresses": "此主机名解析出的地址过多，无法安全固定。请使用专用的本地主机名或私有 IP 地址。",
       "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
-      "not_answering_outside_install_range": "No panel answered on port 8888 at this address. A panel that is already running can be added at any address, but Panel Assistant installs over the network only to a private local IPv4 address or a unique-local IPv6 address, so no ADB connection was attempted. Check that the panel is switched on and that Home Assistant can reach it on port 8888, or enter the panel's private local address to install it.",
+      "not_answering_outside_install_range": "此地址的端口 8888 上没有面板响应。已在运行的面板可以使用任何地址添加，但 Panel Assistant 只能通过网络安装到私有本地 IPv4 地址或 IPv6 唯一本地地址，因此未尝试 ADB 连接。请确认面板已开启且 Home Assistant 可以通过端口 8888 访问它，或者输入面板的私有本地地址以进行安装。",
       "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥，也未执行安装。请检查地址并重新开始。",
       "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到您正在使用的这台计算机上，也可以改用 USB 安装。",
-      "panel_connected_unreachable": "This panel has connected to Home Assistant, but Home Assistant cannot reach it on port 8888. Allow Home Assistant to open connections to the panel on TCP port 8888 in your firewall or router, then try again.",
+      "panel_connected_unreachable": "此面板已连接到 Home Assistant，但 Home Assistant 无法通过端口 8888 访问它。请在防火墙或路由器中允许 Home Assistant 通过 TCP 端口 8888 向面板发起连接，然后重试。",
       "panel_unreachable": "该地址没有任何响应。请确认地址正确、面板已开机并连接到您的网络，然后再试一次。如果可以把面板插到您正在使用的这台计算机上，也可以改用 USB 安装。",
-      "app_port_refused": "Port 8888 at this address refused the connection, and nothing answered on the panel's Android Debug Bridge port (5555). Port 8888 is where the panel app answers Home Assistant; port 5555 is used only to install the app. If the panel app is already running, something between Home Assistant and the panel is rejecting port 8888: allow Home Assistant to reach the panel on port 8888, then try again. If the app is not installed yet, turn on Android Debug Bridge on the panel and allow it over the network, then try again. If you can plug the panel into the computer you are browsing on, install over USB instead.",
-      "app_port_no_answer": "Home Assistant got no usable answer from port 8888 at this address, and nothing answered on the panel's Android Debug Bridge port (5555). Port 8888 is where the panel app answers Home Assistant; port 5555 is used only to install the app. If the panel app is already running, check that nothing between Home Assistant and the panel holds back or filters port 8888, then try again. If the app is not installed yet, turn on Android Debug Bridge on the panel and allow it over the network, then try again. If you can plug the panel into the computer you are browsing on, install over USB instead.",
-      "app_port_not_panel": "Something answered on port 8888 at this address, but not with the panel app's health answer, and nothing answered on the panel's Android Debug Bridge port (5555). Port 8888 is where the panel app answers Home Assistant; port 5555 is used only to install the app. Check that the address is the panel's and that nothing between Home Assistant and the panel answers in its place on port 8888, then try again. If the app is not installed yet, turn on Android Debug Bridge on the panel and allow it over the network, then try again. If you can plug the panel into the computer you are browsing on, install over USB instead.",
+      "app_port_refused": "此地址的端口 8888 拒绝了连接，面板的 Android Debug Bridge 端口 (5555) 也没有响应。面板应用通过端口 8888 响应 Home Assistant；端口 5555 仅用于安装应用。如果面板应用已经在运行，则 Home Assistant 与面板之间有设备或规则拒绝连接端口 8888：请允许 Home Assistant 访问面板的端口 8888，然后重试。如果尚未安装应用，请在面板上启用 Android Debug Bridge 并允许通过网络访问，然后重试。如果可以将面板连接到您当前浏览此页面所用的计算机，请改用 USB 安装。",
+      "app_port_no_answer": "Home Assistant 未从此地址的端口 8888 获得可用的响应，面板的 Android Debug Bridge 端口 (5555) 也没有响应。面板应用通过端口 8888 响应 Home Assistant；端口 5555 仅用于安装应用。如果面板应用已经在运行，请检查 Home Assistant 与面板之间是否有设备或规则阻止或过滤端口 8888，然后重试。如果尚未安装应用，请在面板上启用 Android Debug Bridge 并允许通过网络访问，然后重试。如果可以将面板连接到您当前浏览此页面所用的计算机，请改用 USB 安装。",
+      "app_port_not_panel": "此地址的端口 8888 有响应，但不是面板应用的健康检查响应，面板的 Android Debug Bridge 端口 (5555) 也没有响应。面板应用通过端口 8888 响应 Home Assistant；端口 5555 仅用于安装应用。请检查该地址是否属于面板，以及 Home Assistant 与面板之间是否有设备或服务在端口 8888 上代替面板作出响应，然后重试。如果尚未安装应用，请在面板上启用 Android Debug Bridge 并允许通过网络访问，然后重试。如果可以将面板连接到您当前浏览此页面所用的计算机，请改用 USB 安装。",
       "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例，或没有记住它。",
       "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
       "installed_without_health": "Panel Assistant 软件包已安装，但其健康检查端点未响应。此流程不会覆盖或修复该安装。请勿重试自动安装；请在面板上打开 Panel Assistant，或按照 {recovery_address} 中的步骤操作。恢复为正常运行的安装后，请重新开始以连接面板。",
@@ -182,7 +182,7 @@
       "reinstall_identity_mismatch": "应用已安装，但无法关联到保留的面板。该面板在 Home Assistant 中的历史记录和设置已保留。请先在 Home Assistant 中检查此面板，再重试。",
       "not_panel": "这不是 Panel Assistant 可以在其上进行安装的面板。",
       "invalid_discovery": "发现的面板无法证明它是同一健康的 Panel Assistant 安装。未更改 Home Assistant 条目或面板设置。",
-      "cannot_connect": "Home Assistant heard this panel announce itself but could not connect to it at any address it announced. Check that Home Assistant can reach the panel on TCP port 8888. No Home Assistant entry or panel setting was changed.",
+      "cannot_connect": "Home Assistant 收到了此面板的发现广播，但无法连接到它广播的任何地址。请确认 Home Assistant 可以通过 TCP 端口 8888 访问面板。未更改任何 Home Assistant 条目或面板设置。",
       "install_cancelled": "安装流程已在 APK 安装前取消。未创建 Home Assistant 条目。要重试，请添加 Panel Assistant 集成并输入相同的面板地址。",
       "install_cancelled_after_staging_cleanup": "安装已取消，并在安装前移除了暂存的 APK。未创建 Home Assistant 条目。要重试，请添加 Panel Assistant 集成并输入相同的面板地址。",
       "install_authorization_failed": "Home Assistant 无法安全加载或验证其存储的 ADB 凭据。未安装 APK。请检查 Home Assistant 的存储和日志，然后添加 Panel Assistant 集成并输入相同地址以重试。",
@@ -194,7 +194,7 @@
       "install_health_check_failed": "APK 已安装，但 Panel Assistant 未通过健康检查。请勿重试自动安装。请在面板上打开 Panel Assistant；如果无法启动，请按照 [{recovery_address}]({recovery_url}) 中的步骤操作。",
       "install_ambiguous_mutation": "ADB 暂存、安装或启动操作可能已经更改了面板。请勿重试自动安装、卸载或重置应用。请按照 [{recovery_address}]({recovery_url}) 中的步骤操作，以检查面板。",
       "install_verification_required": "面板已经发生更改，但 Home Assistant 无法验证已安装的软件包或清理此次安装所暂存的确切文件。请勿重试自动安装、卸载或重置应用。请按照 [{recovery_address}]({recovery_url}) 中的步骤操作，以检查面板。",
-      "install_health_unreachable": "Panel Assistant is installed on the panel, but Home Assistant could not reach it on port 8888. Check that your network lets Home Assistant reach the panel on port 8888, for example a firewall or VLAN rule, then add the panel again with the same address. There is no need to reinstall, uninstall or reset the app.",
+      "install_health_unreachable": "Panel Assistant 已安装在面板上，但 Home Assistant 无法通过端口 8888 访问它。请检查网络是否允许 Home Assistant 通过端口 8888 访问面板，例如检查防火墙或 VLAN 规则，然后使用相同地址重新添加面板。无需重新安装、卸载或重置应用。",
       "install_failed": "安装程序因无法识别的结果而停止。未创建 Home Assistant 条目。在按照 [{recovery_address}]({recovery_url}) 中的说明检查面板之前，请勿重试自动安装。",
       "install_worker_stopped": "安装程序已停止，在当前 Home Assistant 进程中不会重新运行此任务。请重启 Home Assistant，重新打开集成设置流程并输入相同的面板地址，以恢复任务或获取恢复结果。未创建条目。",
       "install_recovery_required": "Home Assistant 无法确认可以安全地自动继续。未创建条目。在按照 [{recovery_address}]({recovery_url}) 中的步骤操作之前，请勿重试自动安装、卸载或重置应用。",
@@ -220,8 +220,8 @@
           "restarting_recovery": "正在重启（恢复）",
           "restarting_reboot": "正在重启（系统重启）",
           "another_home_assistant": "已登录另一个 Home Assistant",
-          "cannot_reach_home_assistant": "Cannot reach Home Assistant",
-          "not_signed_in": "Not signed in to Home Assistant"
+          "cannot_reach_home_assistant": "无法访问 Home Assistant",
+          "not_signed_in": "尚未登录 Home Assistant"
         }
       },
       "diag_boot": {
@@ -1491,12 +1491,12 @@
       }
     },
     "installer_failure_health_unreachable": {
-      "title": "Home Assistant cannot reach Panel Assistant on {panel} on port 8888",
+      "title": "Home Assistant 无法通过端口 8888 访问 {panel} 上的 Panel Assistant",
       "fix_flow": {
         "step": {
           "init": {
             "title": "解决面板错误",
-            "description": "Panel Assistant is installed on the panel, but Home Assistant could not reach it on port 8888.\n\nTo fix:\n1. Let Home Assistant reach the panel on port 8888 in your network's firewall or VLAN rules ([help]({repair_url})).\n2. Add the panel again with the same address, then select **Clear error** here.\n\n[Learn more]({learn_more_url})",
+            "description": "Panel Assistant 已安装在面板上，但 Home Assistant 无法通过端口 8888 访问它。\n\n解决方法：\n1. 在网络的防火墙或 VLAN 规则中允许 Home Assistant 通过端口 8888 访问面板（[帮助]({repair_url})）。\n2. 使用相同地址重新添加面板，然后在此处选择 **清除错误**。\n\n[了解更多]({learn_more_url})",
             "menu_options": {
               "retry": "重试",
               "support_report": "支持报告",
@@ -1587,9 +1587,9 @@
           "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
           "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥，也未执行安装。请检查地址并重新开始。",
           "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到您正在使用的这台计算机上，也可以改用 USB 安装。",
-          "adb_lease": "The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port). Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
-          "adb_lease_switch_now": "The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port). Or, on the panel's own settings page (port 8888), turn on Network ADB under System (an advanced setting); the panel allows this now, because it has been without its connection to Home Assistant for a few minutes. Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
-          "adb_lease_switch": "The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port). Or, on the panel's own settings page (port 8888), turn on Network ADB under System (an advanced setting); the panel allows this once it has been without its connection to Home Assistant for a few minutes, about {minutes} more from now. Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
+          "adb_lease": "面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口）。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
+          "adb_lease_switch_now": "面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口）。或者，在面板自身的设置页面（端口 8888）中，打开“系统”下的 Network ADB（高级设置）；由于面板与 Home Assistant 的连接已中断几分钟，现在面板已允许此操作。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
+          "adb_lease_switch": "面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口）。或者，在面板自身的设置页面（端口 8888）中，打开“系统”下的 Network ADB（高级设置）；与 Home Assistant 的连接中断几分钟后，面板才会允许此操作，从现在起还需大约 {minutes} 分钟。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
           "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
           "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
           "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照 {recovery_address} 中的步骤操作。在备份经过验证之前，请勿卸载或重置应用。",
@@ -1655,9 +1655,9 @@
           "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
           "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥，也未执行安装。请检查地址并重新开始。",
           "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到您正在使用的这台计算机上，也可以改用 USB 安装。",
-          "adb_lease": "The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port). Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
-          "adb_lease_switch_now": "The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port). Or, on the panel's own settings page (port 8888), turn on Network ADB under System (an advanced setting); the panel allows this now, because it has been without its connection to Home Assistant for a few minutes. Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
-          "adb_lease_switch": "The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port). Or, on the panel's own settings page (port 8888), turn on Network ADB under System (an advanced setting); the panel allows this once it has been without its connection to Home Assistant for a few minutes, about {minutes} more from now. Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
+          "adb_lease": "面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口）。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
+          "adb_lease_switch_now": "面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口）。或者，在面板自身的设置页面（端口 8888）中，打开“系统”下的 Network ADB（高级设置）；由于面板与 Home Assistant 的连接已中断几分钟，现在面板已允许此操作。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
+          "adb_lease_switch": "面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口）。或者，在面板自身的设置页面（端口 8888）中，打开“系统”下的 Network ADB（高级设置）；与 Home Assistant 的连接中断几分钟后，面板才会允许此操作，从现在起还需大约 {minutes} 分钟。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
           "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
           "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
           "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照 {recovery_address} 中的步骤操作。在备份经过验证之前，请勿卸载或重置应用。",
@@ -1722,9 +1722,9 @@
           "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
           "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥，也未执行安装。请检查地址并重新开始。",
           "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到您正在使用的这台计算机上，也可以改用 USB 安装。",
-          "adb_lease": "The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port). Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
-          "adb_lease_switch_now": "The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port). Or, on the panel's own settings page (port 8888), turn on Network ADB under System (an advanced setting); the panel allows this now, because it has been without its connection to Home Assistant for a few minutes. Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
-          "adb_lease_switch": "The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port). Or, on the panel's own settings page (port 8888), turn on Network ADB under System (an advanced setting); the panel allows this once it has been without its connection to Home Assistant for a few minutes, about {minutes} more from now. Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
+          "adb_lease": "面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口）。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
+          "adb_lease_switch_now": "面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口）。或者，在面板自身的设置页面（端口 8888）中，打开“系统”下的 Network ADB（高级设置）；由于面板与 Home Assistant 的连接已中断几分钟，现在面板已允许此操作。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
+          "adb_lease_switch": "面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口）。或者，在面板自身的设置页面（端口 8888）中，打开“系统”下的 Network ADB（高级设置）；与 Home Assistant 的连接中断几分钟后，面板才会允许此操作，从现在起还需大约 {minutes} 分钟。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
           "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
           "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
           "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照 {recovery_address} 中的步骤操作。在备份经过验证之前，请勿卸载或重置应用。",
@@ -1870,9 +1870,9 @@
           "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
           "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥，也未执行安装。请检查地址并重新开始。",
           "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到您正在使用的这台计算机上，也可以改用 USB 安装。",
-          "adb_lease": "The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port). Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
-          "adb_lease_switch_now": "The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port). Or, on the panel's own settings page (port 8888), turn on Network ADB under System (an advanced setting); the panel allows this now, because it has been without its connection to Home Assistant for a few minutes. Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
-          "adb_lease_switch": "The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port). Or, on the panel's own settings page (port 8888), turn on Network ADB under System (an advanced setting); the panel allows this once it has been without its connection to Home Assistant for a few minutes, about {minutes} more from now. Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
+          "adb_lease": "面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口）。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
+          "adb_lease_switch_now": "面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口）。或者，在面板自身的设置页面（端口 8888）中，打开“系统”下的 Network ADB（高级设置）；由于面板与 Home Assistant 的连接已中断几分钟，现在面板已允许此操作。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
+          "adb_lease_switch": "面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口）。或者，在面板自身的设置页面（端口 8888）中，打开“系统”下的 Network ADB（高级设置）；与 Home Assistant 的连接中断几分钟后，面板才会允许此操作，从现在起还需大约 {minutes} 分钟。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
           "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
           "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
           "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照 {recovery_address} 中的步骤操作。在备份经过验证之前，请勿卸载或重置应用。",
@@ -1902,9 +1902,9 @@
           "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
           "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥，也未执行安装。请检查地址并重新开始。",
           "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到您正在使用的这台计算机上，也可以改用 USB 安装。",
-          "adb_lease": "The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port). Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
-          "adb_lease_switch_now": "The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port). Or, on the panel's own settings page (port 8888), turn on Network ADB under System (an advanced setting); the panel allows this now, because it has been without its connection to Home Assistant for a few minutes. Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
-          "adb_lease_switch": "The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port). Or, on the panel's own settings page (port 8888), turn on Network ADB under System (an advanced setting); the panel allows this once it has been without its connection to Home Assistant for a few minutes, about {minutes} more from now. Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
+          "adb_lease": "面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口）。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
+          "adb_lease_switch_now": "面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口）。或者，在面板自身的设置页面（端口 8888）中，打开“系统”下的 Network ADB（高级设置）；由于面板与 Home Assistant 的连接已中断几分钟，现在面板已允许此操作。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
+          "adb_lease_switch": "面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口）。或者，在面板自身的设置页面（端口 8888）中，打开“系统”下的 Network ADB（高级设置）；与 Home Assistant 的连接中断几分钟后，面板才会允许此操作，从现在起还需大约 {minutes} 分钟。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
           "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
           "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
           "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照 {recovery_address} 中的步骤操作。在备份经过验证之前，请勿卸载或重置应用。",
@@ -1955,9 +1955,9 @@
           "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
           "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥或安装内容。请检查地址并重新开始。",
           "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以将面板连接到您当前用于浏览的计算机，请改用 USB 安装。",
-          "adb_lease": "The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port). Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
-          "adb_lease_switch_now": "The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port). Or, on the panel's own settings page (port 8888), turn on Network ADB under System (an advanced setting); the panel allows this now, because it has been without its connection to Home Assistant for a few minutes. Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
-          "adb_lease_switch": "The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port). Or, on the panel's own settings page (port 8888), turn on Network ADB under System (an advanced setting); the panel allows this once it has been without its connection to Home Assistant for a few minutes, about {minutes} more from now. Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
+          "adb_lease": "面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口）。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
+          "adb_lease_switch_now": "面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口）。或者，在面板自身的设置页面（端口 8888）中，打开“系统”下的 Network ADB（高级设置）；由于面板与 Home Assistant 的连接已中断几分钟，现在面板已允许此操作。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
+          "adb_lease_switch": "面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口）。或者，在面板自身的设置页面（端口 8888）中，打开“系统”下的 Network ADB（高级设置）；与 Home Assistant 的连接中断几分钟后，面板才会允许此操作，从现在起还需大约 {minutes} 分钟。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
           "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
           "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
           "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照 {recovery_address} 中的步骤操作。在备份经过验证之前，请勿卸载或重置应用。",
@@ -1965,9 +1965,9 @@
           "panel_identity_changed": "该地址上响应的已不再是此已配置的面板。请检查面板及其地址后重试。",
           "removal_busy": "另一项操作正在更改此面板。未移除任何内容；请在该操作完成后重试。",
           "removal_adb_unreachable": "Home Assistant 无法通过 Android Debug Bridge（端口 5555）连接到面板。未移除任何内容。请确认面板已开启且网络调试仍处于启用状态，然后重试。",
-          "removal_adb_lease": "Nothing was removed. The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port), then try again; nothing else is needed. Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
-          "removal_adb_lease_switch_now": "Nothing was removed. The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port), then try again; nothing else is needed. Or, on the panel's own settings page (port 8888), turn on Network ADB under System (an advanced setting); the panel allows this now, because it has been without its connection to Home Assistant for a few minutes. Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
-          "removal_adb_lease_switch": "Nothing was removed. The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port), then try again; nothing else is needed. Or, on the panel's own settings page (port 8888), turn on Network ADB under System (an advanced setting); the panel allows this once it has been without its connection to Home Assistant for a few minutes, about {minutes} more from now. Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
+          "removal_adb_lease": "未移除任何内容。面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口），然后重试；无需其他操作。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
+          "removal_adb_lease_switch_now": "未移除任何内容。面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口），然后重试；无需其他操作。或者，在面板自身的设置页面（端口 8888）中，打开“系统”下的 Network ADB（高级设置）；由于面板与 Home Assistant 的连接已中断几分钟，现在面板已允许此操作。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
+          "removal_adb_lease_switch": "未移除任何内容。面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口），然后重试；无需其他操作。或者，在面板自身的设置页面（端口 8888）中，打开“系统”下的 Network ADB（高级设置）；与 Home Assistant 的连接中断几分钟后，面板才会允许此操作，从现在起还需大约 {minutes} 分钟。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
           "removal_adb_authorization": "面板尚未接受此 Home Assistant 实例的 Android Debug Bridge 连接。未移除任何内容。请先选择“允许更新”，然后重试。",
           "removal_panel_changed": "此面板的地址现在由另一台设备响应。未移除任何内容。",
           "removal_approval_required": "已开启强化安全模式，因此交还主屏幕必须在面板上批准。未做任何更改，Panel Assistant 仍已安装。请在面板上批准请求，然后再次提交。",
@@ -2007,12 +2007,12 @@
       }
     },
     "not_signed_in": {
-      "title": "{panel} has not connected to Home Assistant",
-      "description": "{panel} answers on the network but has not connected to Home Assistant, so its controls and its sidebar page are missing.\n\nTo fix:\n1. [Open the panel’s setup page]({panel_page}) and sign in to this Home Assistant.\n2. Wait for the panel to connect; this Repair then goes away."
+      "title": "{panel} 尚未连接到 Home Assistant",
+      "description": "{panel} 在网络上有响应，但尚未连接到 Home Assistant，因此其控件和侧边栏页面未显示。\n\n解决方法：\n1. [打开面板的设置页面]({panel_page})，登录此 Home Assistant。\n2. 等待面板连接；连接后，此修复项会自动消失。"
     },
     "cannot_reach_home_assistant": {
-      "title": "{panel} cannot reach Home Assistant",
-      "description": "{panel} is signed in and is trying to connect to Home Assistant at {home_assistant}, but no connection from it has arrived, so its controls and its sidebar page are missing. Signing in again will not help.\n\nTo fix:\n1. Allow the panel to reach {host} on TCP port {port}: a firewall or an isolated network must let the panel open connections to Home Assistant. The panel’s [Logs page]({panel_logs}) shows each attempt.\n2. If {home_assistant} is not this Home Assistant’s address, [change it on the panel]({panel_connection}).\n3. Wait for the panel to connect; this Repair then goes away."
+      "title": "{panel} 无法访问 Home Assistant",
+      "description": "{panel} 已登录，正在尝试连接到 {home_assistant} 上的 Home Assistant，但尚未收到它发起的连接，因此其控件和侧边栏页面未显示。重新登录无济于事。\n\n解决方法：\n1. 允许面板通过 TCP 端口 {port} 访问 {host}：防火墙或隔离网络必须允许面板向 Home Assistant 发起连接。面板的[日志页面]({panel_logs})会显示每次尝试。\n2. 如果 {home_assistant} 不是此 Home Assistant 的地址，请[在面板上更改它]({panel_connection})。\n3. 等待面板连接；连接后，此修复项会自动消失。"
     }
   },
   "options": {
@@ -2085,9 +2085,9 @@
       "unsafe_install_target": "只允许安装到私有本地 IPv4 地址或 IPv6 唯一本地地址。未尝试 ADB 连接。",
       "install_target_changed": "该主机名解析出的地址已不再是之前固定的面板地址。未发送 ADB 密钥，也未执行安装。请检查地址并重新开始。",
       "adb_unreachable": "面板有响应，但其 Android Debug Bridge 端口（5555）没有响应。请在面板上开启 Android Debug Bridge 并允许通过网络访问，然后再试一次。如果可以把面板插到您正在使用的这台计算机上，也可以改用 USB 安装。",
-      "adb_lease": "The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port). Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
-      "adb_lease_switch_now": "The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port). Or, on the panel's own settings page (port 8888), turn on Network ADB under System (an advanced setting); the panel allows this now, because it has been without its connection to Home Assistant for a few minutes. Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
-      "adb_lease_switch": "The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port). Or, on the panel's own settings page (port 8888), turn on Network ADB under System (an advanced setting); the panel allows this once it has been without its connection to Home Assistant for a few minutes, about {minutes} more from now. Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
+      "adb_lease": "面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口）。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
+      "adb_lease_switch_now": "面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口）。或者，在面板自身的设置页面（端口 8888）中，打开“系统”下的 Network ADB（高级设置）；由于面板与 Home Assistant 的连接已中断几分钟，现在面板已允许此操作。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
+      "adb_lease_switch": "面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口）。或者，在面板自身的设置页面（端口 8888）中，打开“系统”下的 Network ADB（高级设置）；与 Home Assistant 的连接中断几分钟后，面板才会允许此操作，从现在起还需大约 {minutes} 分钟。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
       "adb_still_unauthorized": "面板尚未接受此 Home Assistant 实例。请在面板上批准 ADB 提示，然后重试。",
       "adb_credential_error": "Home Assistant 无法安全加载或持久保存其 ADB 凭据。未尝试更改面板。请先检查 Home Assistant 存储和日志，再重试。",
       "retained_or_ambiguous": "面板可能保留了 Panel Assistant 软件包记录，或无法证明面板上不存在该软件包。未更改面板。如果连接不稳定，请重试一次；否则，请按照 {recovery_address} 中的步骤操作。在备份经过验证之前，请勿卸载或重置应用。",
@@ -2095,9 +2095,9 @@
       "panel_identity_changed": "该地址上响应的已不再是此已配置的面板。请检查面板及其地址后重试。",
       "removal_busy": "另一项操作正在更改此面板。未移除任何内容；请在该操作完成后重试。",
       "removal_adb_unreachable": "Home Assistant 无法通过 Android Debug Bridge（端口 5555）连接到面板。未移除任何内容。请确认面板已开启且网络调试仍处于启用状态，然后重试。",
-      "removal_adb_lease": "Nothing was removed. The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port), then try again; nothing else is needed. Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
-      "removal_adb_lease_switch_now": "Nothing was removed. The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port), then try again; nothing else is needed. Or, on the panel's own settings page (port 8888), turn on Network ADB under System (an advanced setting); the panel allows this now, because it has been without its connection to Home Assistant for a few minutes. Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
-      "removal_adb_lease_switch": "Nothing was removed. The panel app answered, but it keeps the Android Debug Bridge off while this Home Assistant manages the panel, and it goes on doing so while the panel cannot reach Home Assistant. To get it back, let the panel reach Home Assistant again (its connection to Home Assistant's own port), then try again; nothing else is needed. Or, on the panel's own settings page (port 8888), turn on Network ADB under System (an advanced setting); the panel allows this once it has been without its connection to Home Assistant for a few minutes, about {minutes} more from now. Or restart the panel: the Android Debug Bridge is open after a restart until the panel connects to Home Assistant again.",
+      "removal_adb_lease": "未移除任何内容。面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口），然后重试；无需其他操作。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
+      "removal_adb_lease_switch_now": "未移除任何内容。面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口），然后重试；无需其他操作。或者，在面板自身的设置页面（端口 8888）中，打开“系统”下的 Network ADB（高级设置）；由于面板与 Home Assistant 的连接已中断几分钟，现在面板已允许此操作。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
+      "removal_adb_lease_switch": "未移除任何内容。面板应用有响应，但在此 Home Assistant 管理面板期间，它会保持 Android Debug Bridge 关闭；即使面板无法访问 Home Assistant，也会继续保持关闭。要重新启用它，请让面板再次能够访问 Home Assistant（即连接到 Home Assistant 自身的端口），然后重试；无需其他操作。或者，在面板自身的设置页面（端口 8888）中，打开“系统”下的 Network ADB（高级设置）；与 Home Assistant 的连接中断几分钟后，面板才会允许此操作，从现在起还需大约 {minutes} 分钟。或者重启面板：重启后 Android Debug Bridge 会保持开放，直到面板再次连接到 Home Assistant。",
       "removal_adb_authorization": "面板尚未接受此 Home Assistant 实例的 Android Debug Bridge 连接。未移除任何内容。请先选择“允许更新”，然后重试。",
       "removal_adb_authorization_unavailable": "面板尚未授权此 Home Assistant 实例使用 Android 调试桥。未移除任何内容。请检查面板是否已开机且能响应，然后重试。",
       "removal_panel_changed": "此面板的地址现在由另一台设备响应。未移除任何内容。",
