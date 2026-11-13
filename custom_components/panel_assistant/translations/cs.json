@@ -29,7 +29,7 @@
       },
       "install_usb": {
         "title": "Nainstalovat přes USB",
-        "description": "Připojte panel k tomuto počítači, nikoli k serveru Home Assistant. Ladění přes USB musí být zapnuté v nastavení pro vývojáře na panelu; [průvodce přístupem k panelu pro konkrétní model]({panel_access_url}) ukazuje, jak na to.",
+        "description": "Plug the panel into this computer, not into the Home Assistant server. USB debugging must be on in the panel's developer options; the [model-specific panel access guide]({panel_access_url}) shows how.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.",
         "submit": "Otevřít instalátor USB"
       },
       "add_panel": {
@@ -91,19 +91,19 @@
       },
       "confirm_install_candidate": {
         "title": "Nainstalovat Panel Assistant {version}?",
-        "description": "Připraveno k instalaci na panelu na adrese {address}.\n\nOstatní aplikace se nezmění."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
       },
       "confirm_install_rc": {
         "title": "Nainstalovat Panel Assistant {version}?",
-        "description": "Pouze pro testování: Panel Assistant {version} je kandidát na vydání, nikoli stabilní verze, a může obsahovat chyby.\n\nPřipraveno k instalaci na panelu na adrese {address}.\n\nOstatní aplikace se nezmění."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
       },
       "confirm_reinstall_candidate": {
         "title": "Nainstalovat Panel Assistant {version}?",
-        "description": "Vše je připraveno k instalaci na panel na adrese {address}.\n\nVaše ostatní aplikace zůstanou beze změny.\n\nTento panel se znovu připojí k {entry_title} a zachová si své entity a historii."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "confirm_reinstall_rc": {
         "title": "Nainstalovat Panel Assistant {version}?",
-        "description": "Pouze pro testování: Panel Assistant {version} je kandidát na vydání, nikoli stabilní vydání, a může obsahovat chyby.\n\nVše je připraveno k instalaci na panel na adrese {address}.\n\nVaše ostatní aplikace zůstanou beze změny.\n\nTento panel se znovu připojí k {entry_title} a zachová si své entity a historii."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "release_preview_only": {
         "title": "Vydání nelze nainstalovat automaticky",

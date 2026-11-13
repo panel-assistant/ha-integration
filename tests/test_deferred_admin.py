@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import fcntl
+import json
 import os
 import re
 import subprocess
@@ -312,7 +313,8 @@ async def test_completion_pending_home_claims_once_and_handback_survives_ha_relo
     connections = panel.state.connections
     assert panel.state.closes == connections
     # Native handback has cleared pending intent. A fresh HA coordinator must
-    # not turn that explicit choice back into another takeover.
+    # not turn that explicit choice back into another takeover, and the entry
+    # records that this build's setup pass is done, so it opens no ADB at all.
     (panel.directory / "home").write_text(previous + "\n")
     reloaded = HaPaneldDataUpdateCoordinator(
         hass, panel.coordinator.client, panel.entry.entry_id
@@ -322,7 +324,7 @@ async def test_completion_pending_home_claims_once_and_handback_survives_ha_relo
     assert reloaded.last_update_success
     assert (panel.directory / "home").read_text().strip() == previous
     assert panel.state.vendor_passes == 0
-    assert panel.state.connections == panel.state.closes == connections + 1
+    assert panel.state.connections == panel.state.closes == connections
 
 
 @pytest.mark.parametrize("boundary", ["connect", "package", "notifications"])
@@ -365,7 +367,8 @@ async def test_delayed_setup_completion_preserves_later_owner_home_handback(
     )
 
     # Polling and HA reload preserve the owner's choice after the delayed work
-    # returns, as well as at the instant it resumes.
+    # returns, as well as at the instant it resumes: the finished pass is
+    # recorded, so neither opens ADB again.
     await panel.coordinator.async_refresh()
     reloaded = HaPaneldDataUpdateCoordinator(
         hass, panel.coordinator.client, panel.entry.entry_id
@@ -374,7 +377,7 @@ async def test_delayed_setup_completion_preserves_later_owner_home_handback(
     assert reloaded.last_update_success
     assert (panel.directory / "home").read_text().strip() == previous
     assert panel.state.vendor_passes == 0
-    assert panel.state.connections == panel.state.closes == 2
+    assert panel.state.connections == panel.state.closes == 1
 
 
 async def test_owner_handback_after_native_claim_receipt_prevents_shell_reclaim(
@@ -719,3 +722,117 @@ async def test_completed_setup_uses_local_shell_without_network_adb(
     await panel.coordinator.async_refresh()
     assert (panel.directory / "admin").exists()
     assert panel.state.connections == 0
+
+
+async def _finish_setup_pass(panel: Any) -> None:
+    """Setup completes with the app holding HOME: one admin claim, one vendor pass."""
+    panel.state.health = replace(
+        panel.state.health, setup_complete=True, home_pending=False
+    )
+    (panel.directory / "home").write_text(f"{PACKAGE}/.DashboardActivity\n")
+    await panel.coordinator.async_refresh()
+    assert panel.coordinator.last_update_success
+    assert panel.state.vendor_passes == 1
+    assert panel.state.connections == panel.state.closes == 1
+
+
+def _restarted(hass: HomeAssistant, panel: Any) -> HaPaneldDataUpdateCoordinator:
+    """A fresh coordinator over the entry as Home Assistant reloads it from disk."""
+    hass.config_entries.async_update_entry(
+        panel.entry, data=json.loads(json.dumps(dict(panel.entry.data)))
+    )
+    return HaPaneldDataUpdateCoordinator(
+        hass, panel.coordinator.client, panel.entry.entry_id
+    )
+
+
+async def test_finished_setup_pass_is_not_repeated_by_later_polls(
+    panel: Any, hass: HomeAssistant
+) -> None:
+    """The owner's own changes on the panel survive the poll, even after a move."""
+    await _finish_setup_pass(panel)
+    hass.config_entries.async_update_entry(
+        panel.entry, data={**panel.entry.data, CONF_ADDRESS: "192.168.1.24"}
+    )
+    for _ in range(3):
+        panel.state.now += 301
+        await panel.coordinator.async_refresh()
+    assert panel.coordinator.last_update_success
+    assert panel.state.vendor_passes == 1
+    assert panel.state.connections == panel.state.closes == 1
+    assert (panel.directory / "calls").read_text().splitlines() == [
+        f"set-active-admin {PACKAGE}/{PACKAGE}.platform.PanelDeviceAdminReceiver"
+    ]
+
+
+async def test_home_assistant_restart_does_not_repeat_finished_setup_pass(
+    panel: Any, hass: HomeAssistant
+) -> None:
+    await _finish_setup_pass(panel)
+    # The owner takes the device admin away again on the panel.
+    (panel.directory / "admin").unlink()
+    restarted = _restarted(hass, panel)
+    await restarted.async_refresh()
+    panel.state.now += 301
+    await restarted.async_refresh()
+    assert restarted.last_update_success
+    assert panel.state.vendor_passes == 1
+    assert panel.state.connections == panel.state.closes == 1
+    assert not (panel.directory / "admin").exists()
+
+
+async def test_each_update_gets_one_setup_pass(panel: Any, hass: HomeAssistant) -> None:
+    await _finish_setup_pass(panel)
+    panel.state.health = replace(panel.state.health, version="1.0.1", version_code=2)
+    await panel.coordinator.async_refresh()
+    await panel.coordinator.async_refresh()
+    assert panel.state.vendor_passes == 2
+    assert panel.state.connections == panel.state.closes == 2
+    restarted = _restarted(hass, panel)
+    await restarted.async_refresh()
+    panel.state.now += 301
+    await restarted.async_refresh()
+    assert restarted.last_update_success
+    assert panel.state.vendor_passes == 2
+    assert panel.state.connections == panel.state.closes == 2
+
+
+@pytest.mark.parametrize("finished", [True, False], ids=["set_up", "mid_setup"])
+async def test_upgrading_home_assistant_integration_adopts_panels_already_set_up(
+    panel: Any, hass: HomeAssistant, finished: bool
+) -> None:
+    """An entry from an earlier version had the pass on every start already."""
+    from custom_components.panel_assistant import async_migrate_entry
+
+    hass.config_entries.async_update_entry(panel.entry, minor_version=2)
+    assert await async_migrate_entry(hass, panel.entry)
+    (panel.directory / "home").write_text(f"{PACKAGE}/.DashboardActivity\n")
+    if not finished:
+        # Integration updated while the panel's own setup was still open.
+        await panel.coordinator.async_refresh()
+    panel.state.health = replace(
+        panel.state.health, setup_complete=True, home_pending=False
+    )
+    await panel.coordinator.async_refresh()
+    await _restarted(hass, panel).async_refresh()
+    assert panel.state.vendor_passes == (0 if finished else 1)
+    assert panel.state.connections == panel.state.closes == (0 if finished else 1)
+    assert panel.entry.minor_version == 3
+
+
+async def test_pending_home_intent_still_runs_the_pass_after_a_restart(
+    panel: Any, hass: HomeAssistant
+) -> None:
+    """Setup's own pending HOME request is install intent, not a re-run."""
+    await _finish_setup_pass(panel)
+    previous = "com.vendor.launcher/.Home"
+    (panel.directory / "home").write_text(previous + "\n")
+    panel.state.health = replace(panel.state.health, home_pending=True)
+    restarted = _restarted(hass, panel)
+    await restarted.async_refresh()
+    assert restarted.last_update_success
+    assert (
+        panel.directory / "home"
+    ).read_text().strip() == f"{PACKAGE}/.DashboardActivity"
+    assert (panel.directory / "home_ack").exists()
+    assert panel.state.connections == panel.state.closes == 2

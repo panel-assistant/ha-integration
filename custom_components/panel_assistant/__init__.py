@@ -25,7 +25,7 @@ from .browser_delivery import async_register_browser_delivery
 from .browser_panel import async_register_browser_panel
 from .build_feed import BuildFeedError, normalize_feed_url
 from .client import HaPaneldClient, PanelHealth, normalize_address
-from .const import CONF_AUTHORITY, DOMAIN
+from .const import CONF_AUTHORITY, CONF_DEVICE_SETUP, DEVICE_SETUP_ADOPT, DOMAIN
 from .coordinator import HaPaneldDataUpdateCoordinator
 from .device import (
     async_follow_panel_area,
@@ -207,6 +207,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     A minor version, so Panel Assistant 0.9.0, which a panel never moved off
     MQTT must go back to, still loads the entry. The move record stays.
+    Minor version 3 adds the device setup record.
     """
     if entry.version == 1 and entry.minor_version < 2:
         options = {
@@ -219,6 +220,15 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         }
         hass.config_entries.async_update_entry(
             entry, data=data, options=options, minor_version=2
+        )
+    if entry.version == 1 and entry.minor_version < 3:
+        # Earlier versions ran the device admin claim and vendor setup on every
+        # start, so a panel already set up has had them; its next completed
+        # poll records that build as done without running them again.
+        hass.config_entries.async_update_entry(
+            entry,
+            data={**entry.data, CONF_DEVICE_SETUP: DEVICE_SETUP_ADOPT},
+            minor_version=3,
         )
     return True
 

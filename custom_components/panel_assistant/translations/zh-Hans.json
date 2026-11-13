@@ -29,7 +29,7 @@
       },
       "install_usb": {
         "title": "使用 USB 安装",
-        "description": "将面板连接到这台计算机，而不是 Home Assistant 服务器。必须在面板的开发者选项中开启 USB 调试；[适用于具体型号的面板访问指南]({panel_access_url})介绍了方法。",
+        "description": "Plug the panel into this computer, not into the Home Assistant server. USB debugging must be on in the panel's developer options; the [model-specific panel access guide]({panel_access_url}) shows how.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.",
         "submit": "打开 USB 安装程序"
       },
       "add_panel": {
@@ -91,19 +91,19 @@
       },
       "confirm_install_candidate": {
         "title": "安装 Panel Assistant {version}？",
-        "description": "已准备好在地址为 {address} 的面板上安装。\n\n不会改动你的其他应用。"
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
       },
       "confirm_install_rc": {
         "title": "安装 Panel Assistant {version}？",
-        "description": "仅供测试：Panel Assistant {version} 是候选发布版，并非稳定版，可能存在错误。\n\n已准备好在地址为 {address} 的面板上安装。\n\n不会改动你的其他应用。"
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
       },
       "confirm_reinstall_candidate": {
         "title": "安装 Panel Assistant {version}？",
-        "description": "已准备好在地址为 {address} 的面板上安装。\n\n您的其他应用不会受到影响。\n\n此面板将重新加入 {entry_title}，并保留其实体和历史记录。"
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "confirm_reinstall_rc": {
         "title": "安装 Panel Assistant {version}？",
-        "description": "仅供测试：Panel Assistant {version} 是候选发布版，并非稳定版，可能存在缺陷。\n\n已准备好在地址为 {address} 的面板上安装。\n\n您的其他应用不会受到影响。\n\n此面板将重新加入 {entry_title}，并保留其实体和历史记录。"
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "release_preview_only": {
         "title": "无法自动安装此版本",

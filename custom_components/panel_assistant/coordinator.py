@@ -42,7 +42,9 @@ from .client import (
     parse_health_response,
 )
 from .const import (
+    CONF_DEVICE_SETUP,
     DEFAULT_SCAN_INTERVAL,
+    DEVICE_SETUP_ADOPT,
     DOMAIN,
     MAX_STATUS_RESPONSE_BYTES,
 )
@@ -190,7 +192,8 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         # The live session whose ADB recovery daemon was last proved running.
         self._recovery_session: PanelSession | None = None
         # Whether the finished pass saw root over ADB, which recovery needs.
-        # Each pass sets it before it can finish, so a key change needs no reset.
+        # Each pass sets it before it can finish, or the entry's device setup
+        # record restores it, so a key change needs no reset.
         self._admin_root = False
         # True until the first poll answers otherwise, as `last_update_success` starts.
         self.reachable = True
@@ -478,9 +481,17 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
     async def _async_activate_completed_admin(self, health: PanelHealth) -> None:
         """Finish setup-owned HOME and the screen-lock fallback after completion.
 
-        The ordinary poll drives attempts at most once every five minutes.
-        Success needs Android readback and ends further ADB work. Nothing
-        keeps an ADB connection or adds a timer.
+        The install programs never claim the device admin, and the panel's own
+        setup finishes after they return, so the poll is what sees it finish.
+        The pass runs once per installed build: its success is recorded in the
+        entry (``CONF_DEVICE_SETUP``), so a later poll, a Home Assistant
+        restart or a moved address never claims the admin or runs the vendor
+        setup again, and an owner who changes those settings back on the panel
+        keeps the change until the next install or update. Only the panel's own
+        pending HOME intent, which setup leaves until HOME is claimed, runs it
+        again. Attempts are at most once every five minutes. Success needs
+        Android readback and ends further ADB work. Nothing keeps an ADB
+        connection or adds a timer.
         """
         from . import adb_protocol as adb
         from . import local_adb
@@ -509,6 +520,15 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
 
         entry = self._entry()
         if (
+            entry is not None
+            and not health.setup_complete
+            and entry.data.get(CONF_DEVICE_SETUP) == DEVICE_SETUP_ADOPT
+            and health.discovery_id == entry.unique_id
+            and not self.identity_mismatch
+        ):
+            # Seen before its setup finished: this panel still owes the pass.
+            self._record_device_setup(entry, None)
+        if (
             not health.setup_complete
             or not self.available
             or entry is None
@@ -529,6 +549,24 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             self._admin_retry_at = 0.0
             self._admin_backoff = 0.0
             self._recovery_session = None
+        build: dict[str, Any] = {
+            "did": health.discovery_id,
+            "package": package,
+            "version_code": health.version_code,
+        }
+        recorded = entry.data.get(CONF_DEVICE_SETUP)
+        if not self._admin_done:
+            if recorded == DEVICE_SETUP_ADOPT:
+                # Root is unknown without ADB, so recovery is left to the
+                # operations that need it until the next install or update.
+                self._record_device_setup(entry, {**build, "root": None})
+                self._admin_done = True
+                self._admin_root = False
+            elif isinstance(recorded, dict) and all(
+                recorded.get(field) == value for field, value in build.items()
+            ):
+                self._admin_done = True
+                self._admin_root = recorded.get("root") is True
         session = local_adb.session_for(self.hass, entry)
         # A finished pass still restarts recovery once per new session: after a
         # reboot only the network route may have the root to start it.
@@ -630,6 +668,10 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                     # vendor commissioning only while the app still owns HOME;
                     # a deliberate handback must never be undone by HA reload.
                     await _async_vendor_setup(device, target)
+                if self._admin_done and self._entry() is entry:
+                    self._record_device_setup(
+                        entry, {**build, "root": self._admin_root}
+                    )
         except (
             AdbCredentialError,
             InstallNetworkError,
@@ -659,6 +701,20 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                 await adb._async_close(device)
             finally:
                 release_panel_operation(self.hass, entry.entry_id)
+
+    @callback
+    def _record_device_setup(
+        self, entry: ConfigEntry, record: dict[str, Any] | None
+    ) -> None:
+        """Keep which build had the device setup pass, or that one is owed."""
+        if entry.data.get(CONF_DEVICE_SETUP) == record:
+            return
+        data = {
+            key: value for key, value in entry.data.items() if key != CONF_DEVICE_SETUP
+        }
+        if record is not None:
+            data[CONF_DEVICE_SETUP] = record
+        self.hass.config_entries.async_update_entry(entry, data=data)
 
     async def _async_read_session(self, session: PanelSession) -> PanelSnapshot:
         """Read health and status from the panel's own session."""

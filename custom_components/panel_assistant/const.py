@@ -88,8 +88,9 @@ DISPLAY_PATH = "/api/v1/display"
 # for the panel to verify from its own network before accepting.
 CONFIG_PATH = "/api/v1/config"
 
-# The Home Assistant user a panel's native transport session is bound to. Only an
-# administrator's Repairs confirmation records it; the entry's identity does not
+# The Home Assistant user a panel's native transport session is bound to. The
+# first live account the panel signs in as records it, and only an
+# administrator's Repairs confirmation changes it; the entry's identity does not
 # change.
 CONF_TRANSPORT_USER_ID = "transport_user_id"
 # The entry option that chose who owned a panel's entities while MQTT could.
@@ -101,6 +102,12 @@ CONF_PRERELEASE_PANEL_BUILDS = "prerelease_panel_builds"
 # when they moved a panel's entities off MQTT: which entities moved, and whether
 # the move completed. Only read now.
 CONF_CUTOVER = "cutover"
+# The installed build that has had the device admin claim and the vendor setup
+# after its setup completed: {"did", "package", "version_code", "root"}. Absent
+# means a new install or update still owes that pass; DEVICE_SETUP_ADOPT marks an
+# entry from before this record existed, whose panel was set up on every start.
+CONF_DEVICE_SETUP = "device_setup"
+DEVICE_SETUP_ADOPT = "adopt"
 
 
 def update_unique_id(entry_id: str) -> str:

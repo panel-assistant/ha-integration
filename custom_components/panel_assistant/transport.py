@@ -18,10 +18,11 @@ commands are sent on the session, each waited for until its outcome (see
 ``transport_sessions.py``). A removed entry's panel is told so (see
 ``removed_panels.py``). This module itself writes no device registry entry.
 
-A panel's identity is public on the LAN, so ``hello`` never binds a panel to the
-account that sends it. Only an administrator binds one, by confirming the
-Repairs issue that an unconfirmed ``hello`` raises (see
-``transport_binding.py``).
+An entry not yet bound to an account is bound by the first ``hello`` for its
+panel's identity from a live account that is not one of Home Assistant's own,
+so an install never stops to ask. Every other account's ``hello`` is refused;
+one from another live account raises a Repairs issue, and only an administrator
+confirming it moves the panel to that account (see ``transport_binding.py``).
 """
 
 from __future__ import annotations
