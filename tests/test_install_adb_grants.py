@@ -1754,7 +1754,12 @@ async def test_a_refused_boot_port_write_is_reported_and_never_stops_the_start(
     )
     assert _boot_port_writes(tmp_path) == [f"setprop {_BOOT_PORT} {ADB_PORT}"]
     assert sum("am start" in command for command in commands) == 1
-    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    # This integration's warnings only: under load asyncio adds a slow-callback one.
+    warnings = [
+        r
+        for r in caplog.records
+        if r.levelno == logging.WARNING and r.name.startswith("custom_components.")
+    ]
     assert [r.getMessage() for r in warnings] == [
         "Could not keep network ADB enabled after a reboot on this panel; "
         "the app's helper sets it when it first runs"
