@@ -19,6 +19,7 @@ _TURNED_OFF_PERMISSIONS = {
     "display over other apps": "overlay",
     "camera": "camera",
     "microphone": "microphone",
+    "notifications": "notifications",
 }
 
 

@@ -21,6 +21,7 @@ from custom_components.panel_assistant import update_panel_install
 from custom_components.panel_assistant.adb_protocol import (
     AdbInstallTarget,
     AdbRootMode,
+    OwnerDenials,
 )
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.entry_issues import async_delete_entry_issues
@@ -31,6 +32,7 @@ from custom_components.panel_assistant.release import (
 from custom_components.panel_assistant.repairs_permission import (
     ISSUE_PERMISSIONS_TURNED_OFF,
     async_reconcile_permission_issue,
+    async_reconcile_turned_off_issue,
     permission_issue_id,
     turned_off_issue_id,
 )
@@ -217,3 +219,32 @@ async def test_a_permission_the_owner_turned_off_is_never_asked_back(
         _status({**HELD, "write_settings": "missing", "overlay": "missing"}),
     )
     assert registry.async_get_issue(DOMAIN, allow_them) is not None
+
+
+@pytest.mark.parametrize(
+    ("feature", "permission"),
+    [
+        ("modify system settings", "write_settings"),
+        ("display over other apps", "overlay"),
+        ("camera", "camera"),
+        ("microphone", "microphone"),
+        ("notifications", "notifications"),
+    ],
+)
+async def test_each_choice_an_owner_can_turn_off_is_never_asked_back(
+    hass: HomeAssistant, feature: str, permission: str
+) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="Test display", data={CONF_ADDRESS: "192.168.1.30"}
+    )
+    entry.add_to_hass(hass)
+    async_reconcile_turned_off_issue(
+        hass, entry.entry_id, OwnerDenials(features=(feature,), complete=True)
+    )
+    async_reconcile_permission_issue(
+        hass, entry, _status({**HELD, permission: "missing"})
+    )
+    assert (
+        ir.async_get(hass).async_get_issue(DOMAIN, permission_issue_id(entry.entry_id))
+        is None
+    )
