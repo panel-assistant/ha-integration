@@ -135,6 +135,15 @@ def async_reconcile_turned_off_issue(
         return
     from .device import panel_display_name
 
+    features = denials.features
+    if not denials.complete:
+        # A partial read proves nothing about what it missed: keep earlier choices.
+        names = {_TURNED_OFF_PERMISSIONS.get(feature) for feature in features}
+        features += tuple(
+            feature
+            for feature, name in _TURNED_OFF_PERMISSIONS.items()
+            if name in _owner_turned_off(hass, entry_id) and name not in names
+        )
     ir.async_create_issue(
         hass,
         DOMAIN,
@@ -146,14 +155,14 @@ def async_reconcile_turned_off_issue(
         learn_more_url=help_url("repair", issue=ISSUE_PERMISSIONS_TURNED_OFF),
         translation_placeholders={
             "panel": panel_display_name(hass, entry),
-            "features": _feature_list(denials.features),
+            "features": _feature_list(features),
             "permissions_url": help_url("repair", issue=ISSUE_PANEL_PERMISSIONS),
         },
         data={
             "entry_id": entry_id,
             "permissions": ",".join(
                 _TURNED_OFF_PERMISSIONS[feature]
-                for feature in denials.features
+                for feature in features
                 if feature in _TURNED_OFF_PERMISSIONS
             ),
         },

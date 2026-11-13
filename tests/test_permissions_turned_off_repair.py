@@ -203,6 +203,13 @@ async def test_a_permission_the_owner_turned_off_is_never_asked_back(
     async_reconcile_permission_issue(hass, entry, owner_choices)
     assert registry.async_get_issue(DOMAIN, allow_them) is None
 
+    # An update whose readback misses one grant keeps the owner's earlier choice.
+    (tmp_path / "unreadable.WRITE_SETTINGS").write_text("permission denied\n")
+    await _update_repair(hass, monkeypatch, entry, target, signer, descriptor, tmp_path)
+    async_reconcile_permission_issue(hass, entry, owner_choices)
+    assert registry.async_get_issue(DOMAIN, allow_them) is None
+    (tmp_path / "unreadable.WRITE_SETTINGS").unlink()
+
     # A grant missing for any other reason still asks.
     async_reconcile_permission_issue(
         hass,
