@@ -1,8 +1,9 @@
 """Record whole-body hashing, zip checks and update files that run on the event loop.
 
 Home Assistant runs every integration on one event loop. Hashing an APK or a
-backup of up to hundreds of megabytes there, reading every entry of a zip, or
-creating and removing a file holds every other integration until it ends. A
+backup of up to hundreds of megabytes there, reading every entry of a zip,
+creating and removing a file, or asking ``tempfile`` for its directory (whose
+first call writes a probe file) holds every other integration until it ends. A
 test installs these guards, drives the real caller, and asserts nothing was
 recorded.
 """
@@ -11,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import tempfile
 import threading
 from typing import Any
 from zipfile import ZipFile
@@ -83,3 +85,25 @@ class LoopIoGuard:
         monkeypatch.setattr(os, "open", guarded_open)
         monkeypatch.setattr(os, "unlink", guarded_unlink)
         monkeypatch.setattr(ZipFile, "testzip", guarded_testzip)
+
+    def install_tempfile(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Record calls through ``tempfile``'s attributes that may touch the disk.
+
+        A name a module imported with ``from tempfile import ...`` is not seen.
+        """
+        for name in (
+            "gettempdir",
+            "mkdtemp",
+            "mkstemp",
+            "NamedTemporaryFile",
+            "TemporaryDirectory",
+        ):
+            real = getattr(tempfile, name)
+
+            def guarded(
+                *args: Any, _name: str = name, _real: Any = real, **kwargs: Any
+            ) -> Any:
+                self._record(f"tempfile.{_name}")
+                return _real(*args, **kwargs)
+
+            monkeypatch.setattr(tempfile, name, guarded)

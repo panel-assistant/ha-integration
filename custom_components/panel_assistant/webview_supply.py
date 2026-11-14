@@ -246,8 +246,7 @@ class _Writer:
             os.remove(self.path)
 
 
-@callback
-def async_get_webview_supply(hass: HomeAssistant) -> WebViewSupply:
+async def async_get_webview_supply(hass: HomeAssistant) -> WebViewSupply:
     """Return the domain's WebView files."""
     data = hass.data.setdefault(DOMAIN, {})
     supply: WebViewSupply | None = data.get(DATA_SUPPLY)
@@ -255,9 +254,14 @@ def async_get_webview_supply(hass: HomeAssistant) -> WebViewSupply:
         # Outside the configuration directory, so a backup taken while a
         # panel updates never carries a 262 MB WebView. One directory per
         # configuration, so a restart finds and clears its own leftovers.
+        # The first gettempdir() in a process writes a probe file into each
+        # candidate directory, so it runs in the executor.
+        root = await hass.async_add_executor_job(tempfile.gettempdir)
         config = hashlib.sha256(hass.config.config_dir.encode()).hexdigest()[:16]
-        supply = data[DATA_SUPPLY] = WebViewSupply(
-            hass, os.path.join(tempfile.gettempdir(), f"{_DIRECTORY}-{config}")
+        # A caller that resolved it meanwhile has made the one supply.
+        supply = data.setdefault(
+            DATA_SUPPLY,
+            WebViewSupply(hass, os.path.join(root, f"{_DIRECTORY}-{config}")),
         )
     return supply
 
@@ -271,7 +275,8 @@ async def async_offer_webview(
     The file stays held until the caller's update step ends; the blob itself
     works once and expires, as every blob does.
     """
-    async with async_get_webview_supply(hass).async_lease(sha256, size) as path:
+    supply = await async_get_webview_supply(hass)
+    async with supply.async_lease(sha256, size) as path:
         _token, reference = async_get_blobs(hass).download_file(
             entry_id, path, size, sha256, APK_TYPE
         )

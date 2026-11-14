@@ -24,6 +24,7 @@ from custom_components.panel_assistant.webview_supply import (
     async_offer_webview,
 )
 
+from .loop_io_guard import LoopIoGuard
 from .test_webview import observation
 from .test_webview_update_outcomes import _install, _native
 
@@ -77,9 +78,12 @@ async def panel(hass: HomeAssistant, hass_read_only_user: Any) -> Any:
     )
 
 
-def _files(hass: HomeAssistant) -> list[str]:
-    directory = async_get_webview_supply(hass).directory
+def _listing(directory: str) -> list[str]:
     return sorted(os.listdir(directory)) if os.path.isdir(directory) else []
+
+
+async def _files(hass: HomeAssistant) -> list[str]:
+    return _listing((await async_get_webview_supply(hass)).directory)
 
 
 async def test_a_panel_without_internet_installs_the_file_home_assistant_downloads(
@@ -190,7 +194,7 @@ async def test_when_neither_can_download_the_repair_and_log_say_why(
     ]
     assert f"Home Assistant could not download it either: {reason}" in warning
     # Nothing half-written or unverified is kept.
-    assert _files(hass) == []
+    assert await _files(hass) == []
 
 
 async def test_an_unpublished_file_is_not_a_repair_when_home_assistant_sees_404_too(
@@ -253,7 +257,21 @@ async def test_panels_updating_together_or_in_turn_download_the_file_once(
     # Each panel gets its own one-use token for the same verified file.
     assert len({reference["url"] for reference in references}) == 3
     assert {reference["sha256"] for reference in references} == {SHA}
-    assert _files(hass) == [f"{SHA}.apk"]
+    assert await _files(hass) == [f"{SHA}.apk"]
+
+
+async def test_the_file_is_held_without_tempfile_work_on_the_event_loop(
+    hass: HomeAssistant, aioclient_mock: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Finding the temporary directory writes a probe file, so not on the loop."""
+    assert await async_setup_component(hass, "http", {})
+    aioclient_mock.get(URL, content=PAYLOAD)
+    guard = LoopIoGuard()
+    guard.install_tempfile(monkeypatch)
+    async with async_offer_webview(hass, "one", SHA, len(PAYLOAD)):
+        pass
+    assert guard.on_loop == []
+    assert await _files(hass) == [f"{SHA}.apk"]
 
 
 async def test_the_file_is_deleted_an_hour_after_its_last_use(
@@ -266,10 +284,10 @@ async def test_the_file_is_deleted_an_hour_after_its_last_use(
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=59))
     # The removal runs in the executor, outside any tracked task.
     await hass.async_block_till_done(wait_background_tasks=True)
-    assert _files(hass) == [f"{SHA}.apk"]
+    assert await _files(hass) == [f"{SHA}.apk"]
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=61))
     await hass.async_block_till_done(wait_background_tasks=True)
-    assert _files(hass) == []
+    assert await _files(hass) == []
 
 
 async def test_a_size_beyond_any_webview_is_never_downloaded(
@@ -316,7 +334,7 @@ async def test_a_panel_that_leases_the_file_as_it_expires_keeps_it(
         async with async_offer_webview(hass, "two", SHA, len(PAYLOAD)):
             leased.set()
             await hass.async_block_till_done(wait_background_tasks=True)
-            assert _files(hass) == [f"{SHA}.apk"]
+            assert await _files(hass) == [f"{SHA}.apk"]
 
 
 async def test_a_file_already_held_is_served_on_a_nearly_full_disk(
