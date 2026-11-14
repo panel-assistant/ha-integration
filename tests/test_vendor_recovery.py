@@ -547,10 +547,8 @@ async def test_session_arming_never_prompts_or_rearms_the_local_route(
     monkeypatch.setattr(local_adb, "async_manage_outcome", manage)
     monkeypatch.setattr(local_adb, "_bootstrap", bootstrap)
     monkeypatch.setattr(vendor_recovery, "async_probe_install_target", probe)
-    # Only the Shelly observation is under test, not the coordinator's own pass.
-    monkeypatch.setattr(
-        panel.coordinator, "_async_activate_completed_admin", AsyncMock()
-    )
+    # Only the Shelly observation is under test, not the poll's recovery restart.
+    monkeypatch.setattr(panel.coordinator, "_async_keep_recovery", AsyncMock())
     recovery = panel.coordinator._vendor_recovery
     recovery._witness = None
     panel.state.commands.clear()

@@ -36,6 +36,8 @@ from .device import (
     panel_display_name,
     panel_reported_name,
 )
+from .device_setup import async_reconcile as async_reconcile_device_setup
+from .discovery import async_offer_migration_targets
 from .embed import (
     REASON_ENTRY_UNLOADED as EMBED_ENTRY_UNLOADED,
 )
@@ -195,7 +197,12 @@ async def _async_reconcile_install_receipt(
     except Exception:
         _LOGGER.warning("Unable to reconcile a durable ha-paneld install receipt")
         return
-    await executor.async_reconcile_entry(entry.entry_id, address, health)
+    if await executor.async_reconcile_entry(entry.entry_id, address, health) is True:
+        # The install was finished by this restart, not by its add flow, so
+        # its device setup pass never started: the Repair asks for it.
+        from .device_setup import OWED_INSTALL, async_mark_owed
+
+        async_mark_owed(hass, entry, OWED_INSTALL)
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -276,6 +283,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
         platforms=platforms,
     )
     await async_forget_removed_panel(hass, entry)
+    # Sends nothing to the panel: an owed pass a restart interrupted waits
+    # for the owner to confirm its Repair.
+    async_reconcile_device_setup(hass, entry)
     entry.async_on_unload(coordinator.async_follow_session())
     entry.async_on_unload(
         lambda: async_get_sessions(hass).close_entry(

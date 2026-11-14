@@ -34,6 +34,7 @@ from .config_flow import AdbAuthorization, async_authorize_adb_form
 from .const import CONF_TRANSPORT_USER_ID, DOMAIN, help_url, update_unique_id
 from .coordinator import HaPaneldDataUpdateCoordinator, PanelSnapshot
 from .device import panel_display_name
+from .device_setup import ISSUE_DEVICE_SETUP, DeviceSetupFlow, device_setup_issue_id
 from .identity import (
     ISSUE_IDENTITY,
     can_confirm_identity,
@@ -795,6 +796,11 @@ async def async_create_fix_flow(
         return RemoveFromPanelFlow(entry_id)
     if issue_id == ISSUE_RESTART_REQUIRED:
         return RestartRequiredFlow()
+    if issue_id.startswith(f"{ISSUE_DEVICE_SETUP}_"):
+        entry_id = values.get("entry_id")
+        if not isinstance(entry_id, str) or issue_id != device_setup_issue_id(entry_id):
+            raise UnknownStep
+        return DeviceSetupFlow(entry_id)
     if issue_id.startswith(f"{ISSUE_PANEL_PERMISSIONS}_"):
         entry_id = values.get("entry_id")
         if not isinstance(entry_id, str) or issue_id != permission_issue_id(entry_id):

@@ -870,8 +870,9 @@ def async_setup_transport(hass: HomeAssistant) -> None:
     @callback
     def _user_removed(event: Event[Any]) -> None:
         # Removing a user does not close its sockets, so end its sessions here,
-        # release its panels for an administrator to bind to a replacement
-        # account, and withdraw any request to bind it.
+        # delete its panels' bindings, so the next live account a panel signs
+        # in as binds it as for a panel never bound, and withdraw any request
+        # to bind it.
         user_id = event.data.get("user_id")
         if not isinstance(user_id, str):
             return

@@ -596,13 +596,25 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             result = await self._async_create_panel_entry(address, health)
         except AbortFlow as abort:
             if abort.reason == "already_configured":
+                self._owe_usb_reinstall(health)
                 await self._async_finish_usb_installers()
             raise
         if result["type"] is FlowResultType.CREATE_ENTRY or (
             result.get("reason") == "already_configured"
         ):
+            if result["type"] is not FlowResultType.CREATE_ENTRY:
+                self._owe_usb_reinstall(health)
             await self._async_finish_usb_installers()
         return result
+
+    def _owe_usb_reinstall(self, health: PanelHealth) -> None:
+        """A USB install over a panel already added is an install too."""
+        if health.discovery_id is not None:
+            self._owe_device_setup(
+                self.hass.config_entries.async_entry_for_domain_unique_id(
+                    DOMAIN, health.discovery_id
+                )
+            )
 
     async def _async_finish_usb_installers(self) -> None:
         """End every Add dialog still waiting on the USB installer window."""
@@ -1828,6 +1840,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             )
             self._finalizer_job_id = None
             close_offers(self.hass, receipt.target.address, self.flow_id, pressed=True)
+            self._owe_device_setup(known)
             return self.async_abort(reason="already_configured")
 
         # The lease stays held through ConfigEntries' actual add.
@@ -1879,6 +1892,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 executor.release_finalizer(job_id, self.flow_id)
             self._finalizer_job_id = None
         result = await super().async_on_create_entry(result)
+        if isinstance(entry, ConfigEntry) and (
+            job_id is not None or self.source == SOURCE_USB_INSTALL
+        ):
+            self._owe_device_setup(entry)
         if isinstance(entry, ConfigEntry) and isinstance(
             address := entry.data.get(CONF_ADDRESS), str
         ):
@@ -1917,6 +1934,17 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._finalizer_job_id, self.flow_id
             )
         super().async_remove()
+
+    def _owe_device_setup(self, entry: ConfigEntry | None) -> None:
+        """The install the owner started owes its panel the device setup pass.
+
+        Only an install reaches here, once the panel reports its own setup
+        complete; adding a panel whose app was already installed does not.
+        """
+        from .device_setup import OWED_INSTALL, async_request
+
+        if entry is not None and entry.source != SOURCE_IGNORE:
+            async_request(self.hass, entry, OWED_INSTALL)
 
     def _address_is_configured(self, address: str) -> bool:
         """Check the configured host without contacting the panel."""
@@ -2047,6 +2075,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 or not accept_health(self.hass, retained, health)
             ):
                 return self.async_abort(reason="reinstall_identity_mismatch")
+            self._owe_device_setup(retained)
             return self.async_abort(reason="reinstall_successful")
         data: dict[str, Any] = {CONF_ADDRESS: address.stored_value}
         if health.installation_identity:

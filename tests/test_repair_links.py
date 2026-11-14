@@ -125,6 +125,7 @@ async def test_every_issue_has_a_repair_map_entry(hass: HomeAssistant) -> None:
         "not_signed_in",
         "cannot_reach_home_assistant",
         "permissions_turned_off",
+        "device_setup_unfinished",
     }
     assert fault_issues and fault_issues == set(pinned)
     assert len(set(pinned.values())) == len(fault_issues)

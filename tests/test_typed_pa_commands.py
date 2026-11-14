@@ -522,11 +522,11 @@ async def test_typed_repair_without_a_vendor_skips_vendor_setup() -> None:
 async def test_typed_admin_claim_reads_back_like_the_shell(
     fields: dict[str, str], done: bool, home: str
 ) -> None:
-    from custom_components.panel_assistant.coordinator import _async_admin_claim
+    from custom_components.panel_assistant.device_setup import async_admin_claim
 
     commands = FakeCommands({"PA_ADMIN": fields})
     target = _target(commands)
-    assert await _async_admin_claim(
+    assert await async_admin_claim(
         target.local_shell,  # type: ignore[arg-type]
         target,
         PACKAGE_ID,

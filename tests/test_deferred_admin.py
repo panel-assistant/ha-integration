@@ -1,10 +1,14 @@
-"""Deferred admin activation through normal coordinator refresh and Android shell."""
+"""The device setup pass on fresh health, through the Android shell stand-in.
+
+These tests drive the pass itself (device_setup.async_attempt), which only an
+install, an update or a confirmed Repair starts; test_device_setup_trigger.py
+proves that the poll, a session and a restart never do.
+"""
 
 from __future__ import annotations
 
 import asyncio
 import fcntl
-import json
 import os
 import re
 import subprocess
@@ -33,6 +37,7 @@ from custom_components.panel_assistant.client import (
 )
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.coordinator import HaPaneldDataUpdateCoordinator
+from custom_components.panel_assistant.device_setup import async_attempt
 from custom_components.panel_assistant.home_chooser import CHOOSER_DUMP
 from custom_components.panel_assistant.panel_operations import (
     claim_panel_operation,
@@ -207,15 +212,31 @@ dpm() { echo "$*" >> "$STATE/calls"; [ "$REFUSE" = 1 ] || touch "$STATE/admin"; 
     client = HaPaneldClient(MagicMock(), normalize_address(entry.data[CONF_ADDRESS]))
     coordinator = HaPaneldDataUpdateCoordinator(hass, client, entry.entry_id)
     return SimpleNamespace(
-        state=state, entry=entry, coordinator=coordinator, directory=tmp_path
+        state=state,
+        entry=entry,
+        coordinator=coordinator,
+        directory=tmp_path,
+        hass=hass,
+    )
+
+
+async def _pass(panel: Any, coordinator: Any = None) -> dict[str, Any] | None:
+    """One device setup pass, as an install, update or Repair runs it."""
+    return await async_attempt(
+        panel.hass, panel.entry, coordinator or panel.coordinator, refresh=True
     )
 
 
 async def test_setup_completion_activates_admin_once_and_closes_adb(panel: Any) -> None:
-    await panel.coordinator.async_refresh()
+    assert await _pass(panel) is None
     assert panel.state.connections == 0
     panel.state.health = replace(panel.state.health, setup_complete=True)
-    await panel.coordinator.async_refresh()
+    assert await _pass(panel) == {
+        "did": DID,
+        "package": PACKAGE,
+        "version_code": 1,
+        "root": False,
+    }
     await panel.coordinator.async_refresh()
     assert panel.coordinator.last_update_success
     assert (panel.directory / "admin").exists()
@@ -228,35 +249,34 @@ async def test_setup_completion_activates_admin_once_and_closes_adb(panel: Any) 
 async def test_existing_admin_needs_readback_without_another_claim(panel: Any) -> None:
     (panel.directory / "admin").touch()
     panel.state.health = replace(panel.state.health, setup_complete=True)
-    await panel.coordinator.async_refresh()
+    assert await _pass(panel) is not None
     await panel.coordinator.async_refresh()
     assert not (panel.directory / "calls").exists()
     assert panel.state.connections == panel.state.closes == 1
 
 
-async def test_admin_refusal_retries_are_spaced_and_connections_close(
+async def test_admin_refusal_leaves_the_pass_unfinished_and_connections_close(
     panel: Any,
 ) -> None:
     panel.state.health = replace(panel.state.health, setup_complete=True)
     panel.state.refused = True
-    for _ in range(5):
-        await panel.coordinator.async_refresh()
-    assert panel.state.connections == 1
-    for _ in range(5):
-        panel.state.now += 301
-        await panel.coordinator.async_refresh()
-    assert panel.state.connections == panel.state.closes == 6
+    for _ in range(3):
+        assert await _pass(panel) is None
+    # Polls in between open nothing.
+    await panel.coordinator.async_refresh()
+    assert panel.state.connections == panel.state.closes == 3
     assert not (panel.directory / "admin").exists()
     assert panel.coordinator.last_update_success
 
 
-async def test_transient_admin_refusal_converges_on_later_poll(panel: Any) -> None:
+async def test_transient_admin_refusal_converges_on_the_next_attempt(
+    panel: Any,
+) -> None:
     panel.state.health = replace(panel.state.health, setup_complete=True)
     panel.state.refused = True
-    await panel.coordinator.async_refresh()
+    assert await _pass(panel) is None
     panel.state.refused = False
-    panel.state.now += 301
-    await panel.coordinator.async_refresh()
+    assert await _pass(panel) is not None
     await panel.coordinator.async_refresh()
     assert (panel.directory / "admin").exists()
     assert panel.state.connections == panel.state.closes == 2
@@ -278,7 +298,7 @@ async def test_admin_never_races_another_panel_operation_or_changed_identity(
     else:
         panel.state.serial = "OTHER-PANEL"
     try:
-        await panel.coordinator.async_refresh()
+        assert await _pass(panel) is None
     finally:
         release_panel_operation(hass, panel.entry.entry_id)
     assert not (panel.directory / "admin").exists()
@@ -296,13 +316,13 @@ async def test_completion_pending_home_claims_once_and_handback_survives_ha_relo
     (panel.directory / "home").write_text(previous + "\n")
     (panel.directory / "incomplete.setup").touch()
     panel.state.health = replace(panel.state.health, home_pending=True)
-    await panel.coordinator.async_refresh()
+    await _pass(panel)
     assert panel.state.connections == 0
     assert (panel.directory / "home").read_text().strip() == previous
 
     (panel.directory / "incomplete.setup").unlink()
     panel.state.health = replace(panel.state.health, setup_complete=True)
-    await panel.coordinator.async_refresh()
+    await _pass(panel)
     assert panel.coordinator.last_update_success
     assert (
         panel.directory / "home"
@@ -339,7 +359,7 @@ async def test_delayed_setup_completion_preserves_later_owner_home_handback(
         panel.state.health, setup_complete=True, home_pending=True
     )
     panel.state.pause_at = boundary
-    refresh = asyncio.create_task(panel.coordinator.async_refresh())
+    refresh = asyncio.create_task(_pass(panel))
     try:
         async with asyncio.timeout(5):
             await panel.state.paused.wait()
@@ -393,7 +413,7 @@ async def test_owner_handback_after_native_claim_receipt_prevents_shell_reclaim(
         panel.state.health, setup_complete=True, home_pending=True
     )
 
-    await panel.coordinator.async_refresh()
+    await _pass(panel)
 
     assert (panel.directory / "handback.done").exists()
     assert panel.coordinator.last_update_success
@@ -416,7 +436,7 @@ async def test_deferred_setup_never_uses_legacy_home_authority(
     panel.state.health = replace(
         panel.state.health, setup_complete=True, home_pending=True
     )
-    await panel.coordinator.async_refresh()
+    await _pass(panel)
     assert panel.coordinator.last_update_success
     assert (panel.directory / "admin").exists()
     assert (panel.directory / "home").read_text().strip() == previous
@@ -430,7 +450,7 @@ async def test_rootless_setup_rechecks_pending_after_shell_offer(panel: Any) -> 
     panel.state.health = replace(
         panel.state.health, setup_complete=True, home_pending=True
     )
-    await panel.coordinator.async_refresh()
+    await _pass(panel)
     assert (panel.directory / "handback.done").exists()
     assert panel.coordinator.last_update_success
     assert (panel.directory / "home").read_text().strip() == previous
@@ -459,7 +479,7 @@ async def test_rootless_setup_chooser_uses_current_pending_intent(
     panel.state.health = replace(
         panel.state.health, setup_complete=True, home_pending=True
     )
-    await panel.coordinator.async_refresh()
+    await _pass(panel)
     assert panel.coordinator.last_update_success
     assert (panel.directory / "chooser.shown").exists()
     assert (panel.directory / "home").read_text().strip() == (
@@ -493,7 +513,7 @@ async def test_rootless_setup_rechecks_native_recovery_before_mutation(
         panel.state.health, setup_complete=True, home_pending=True
     )
 
-    await panel.coordinator.async_refresh()
+    await _pass(panel)
 
     assert panel.coordinator.last_update_success
     assert (panel.directory / "native.home").exists()
@@ -512,8 +532,7 @@ async def test_rootless_setup_rechecks_native_recovery_before_mutation(
     )
     assert panel.state.connections == panel.state.closes == 1
 
-    panel.state.now += 301
-    await panel.coordinator.async_refresh()
+    await _pass(panel)
     assert panel.coordinator.last_update_success
     assert (panel.directory / "home").read_text().strip() == own
     assert (panel.directory / "home_ack").exists()
@@ -565,7 +584,7 @@ async def test_rootless_final_mutation_excludes_handback_until_shell_finishes(
     panel.state.health = replace(
         panel.state.health, setup_complete=True, home_pending=True
     )
-    refresh = asyncio.create_task(panel.coordinator.async_refresh())
+    refresh = asyncio.create_task(_pass(panel))
     try:
         async with asyncio.timeout(20):
             # This barrier is published by an OS shell, not an asyncio task.
@@ -627,7 +646,7 @@ async def test_rootless_setup_defers_without_shared_exclusion_and_recovers(
             fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
         else:
             (panel.directory / unavailable).touch()
-        await panel.coordinator.async_refresh()
+        await _pass(panel)
         assert panel.coordinator.last_update_success
         assert (panel.directory / "home").read_text().strip() == previous
         assert not (panel.directory / "home_ack").exists()
@@ -642,8 +661,7 @@ async def test_rootless_setup_defers_without_shared_exclusion_and_recovers(
         if unavailable != "busy":
             (panel.directory / unavailable).unlink()
 
-    panel.state.now += 301
-    await panel.coordinator.async_refresh()
+    await _pass(panel)
     assert panel.coordinator.last_update_success
     assert (panel.directory / "home").read_text().strip() == (
         f"{PACKAGE}/.DashboardActivity"
@@ -660,7 +678,7 @@ async def test_native_completed_home_receives_vendor_pass_without_reclaiming_hom
     )
     home = f"{PACKAGE}/.DashboardActivity"
     (panel.directory / "home").write_text(home + "\n")
-    await panel.coordinator.async_refresh()
+    await _pass(panel)
     await panel.coordinator.async_refresh()
     assert panel.coordinator.last_update_success
     assert panel.state.vendor_passes == 1
@@ -674,15 +692,15 @@ async def test_vendor_transport_drop_retries_then_finishes_completed_setup(
     panel.state.health = replace(panel.state.health, setup_complete=True)
     (panel.directory / "home").write_text(f"{PACKAGE}/.DashboardActivity\n")
     panel.state.vendor_drop = True
-    await panel.coordinator.async_refresh()
+    # Admin readback alone cannot finish a pass whose vendor I/O failed.
+    assert await _pass(panel) is None
     assert panel.coordinator.last_update_success
     assert panel.state.vendor_passes == 1
     panel.state.vendor_drop = False
+    # The poll never retries it; the operation's next attempt does.
     await panel.coordinator.async_refresh()
     assert panel.state.vendor_passes == 1
-    panel.state.now += 301
-    await panel.coordinator.async_refresh()
-    await panel.coordinator.async_refresh()
+    assert await _pass(panel) is not None
     assert panel.coordinator.last_update_success
     assert panel.state.vendor_passes == 2
     assert panel.state.connections == panel.state.closes == 2
@@ -719,120 +737,6 @@ async def test_completed_setup_uses_local_shell_without_network_adb(
         ),
     )
     panel.state.health = replace(panel.state.health, setup_complete=True)
-    await panel.coordinator.async_refresh()
+    await _pass(panel)
     assert (panel.directory / "admin").exists()
     assert panel.state.connections == 0
-
-
-async def _finish_setup_pass(panel: Any) -> None:
-    """Setup completes with the app holding HOME: one admin claim, one vendor pass."""
-    panel.state.health = replace(
-        panel.state.health, setup_complete=True, home_pending=False
-    )
-    (panel.directory / "home").write_text(f"{PACKAGE}/.DashboardActivity\n")
-    await panel.coordinator.async_refresh()
-    assert panel.coordinator.last_update_success
-    assert panel.state.vendor_passes == 1
-    assert panel.state.connections == panel.state.closes == 1
-
-
-def _restarted(hass: HomeAssistant, panel: Any) -> HaPaneldDataUpdateCoordinator:
-    """A fresh coordinator over the entry as Home Assistant reloads it from disk."""
-    hass.config_entries.async_update_entry(
-        panel.entry, data=json.loads(json.dumps(dict(panel.entry.data)))
-    )
-    return HaPaneldDataUpdateCoordinator(
-        hass, panel.coordinator.client, panel.entry.entry_id
-    )
-
-
-async def test_finished_setup_pass_is_not_repeated_by_later_polls(
-    panel: Any, hass: HomeAssistant
-) -> None:
-    """The owner's own changes on the panel survive the poll, even after a move."""
-    await _finish_setup_pass(panel)
-    hass.config_entries.async_update_entry(
-        panel.entry, data={**panel.entry.data, CONF_ADDRESS: "192.168.1.24"}
-    )
-    for _ in range(3):
-        panel.state.now += 301
-        await panel.coordinator.async_refresh()
-    assert panel.coordinator.last_update_success
-    assert panel.state.vendor_passes == 1
-    assert panel.state.connections == panel.state.closes == 1
-    assert (panel.directory / "calls").read_text().splitlines() == [
-        f"set-active-admin {PACKAGE}/{PACKAGE}.platform.PanelDeviceAdminReceiver"
-    ]
-
-
-async def test_home_assistant_restart_does_not_repeat_finished_setup_pass(
-    panel: Any, hass: HomeAssistant
-) -> None:
-    await _finish_setup_pass(panel)
-    # The owner takes the device admin away again on the panel.
-    (panel.directory / "admin").unlink()
-    restarted = _restarted(hass, panel)
-    await restarted.async_refresh()
-    panel.state.now += 301
-    await restarted.async_refresh()
-    assert restarted.last_update_success
-    assert panel.state.vendor_passes == 1
-    assert panel.state.connections == panel.state.closes == 1
-    assert not (panel.directory / "admin").exists()
-
-
-async def test_each_update_gets_one_setup_pass(panel: Any, hass: HomeAssistant) -> None:
-    await _finish_setup_pass(panel)
-    panel.state.health = replace(panel.state.health, version="1.0.1", version_code=2)
-    await panel.coordinator.async_refresh()
-    await panel.coordinator.async_refresh()
-    assert panel.state.vendor_passes == 2
-    assert panel.state.connections == panel.state.closes == 2
-    restarted = _restarted(hass, panel)
-    await restarted.async_refresh()
-    panel.state.now += 301
-    await restarted.async_refresh()
-    assert restarted.last_update_success
-    assert panel.state.vendor_passes == 2
-    assert panel.state.connections == panel.state.closes == 2
-
-
-@pytest.mark.parametrize("finished", [True, False], ids=["set_up", "mid_setup"])
-async def test_upgrading_home_assistant_integration_adopts_panels_already_set_up(
-    panel: Any, hass: HomeAssistant, finished: bool
-) -> None:
-    """An entry from an earlier version had the pass on every start already."""
-    from custom_components.panel_assistant import async_migrate_entry
-
-    hass.config_entries.async_update_entry(panel.entry, minor_version=2)
-    assert await async_migrate_entry(hass, panel.entry)
-    (panel.directory / "home").write_text(f"{PACKAGE}/.DashboardActivity\n")
-    if not finished:
-        # Integration updated while the panel's own setup was still open.
-        await panel.coordinator.async_refresh()
-    panel.state.health = replace(
-        panel.state.health, setup_complete=True, home_pending=False
-    )
-    await panel.coordinator.async_refresh()
-    await _restarted(hass, panel).async_refresh()
-    assert panel.state.vendor_passes == (0 if finished else 1)
-    assert panel.state.connections == panel.state.closes == (0 if finished else 1)
-    assert panel.entry.minor_version == 3
-
-
-async def test_pending_home_intent_still_runs_the_pass_after_a_restart(
-    panel: Any, hass: HomeAssistant
-) -> None:
-    """Setup's own pending HOME request is install intent, not a re-run."""
-    await _finish_setup_pass(panel)
-    previous = "com.vendor.launcher/.Home"
-    (panel.directory / "home").write_text(previous + "\n")
-    panel.state.health = replace(panel.state.health, home_pending=True)
-    restarted = _restarted(hass, panel)
-    await restarted.async_refresh()
-    assert restarted.last_update_success
-    assert (
-        panel.directory / "home"
-    ).read_text().strip() == f"{PACKAGE}/.DashboardActivity"
-    assert (panel.directory / "home_ack").exists()
-    assert panel.state.connections == panel.state.closes == 2

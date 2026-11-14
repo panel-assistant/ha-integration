@@ -102,12 +102,17 @@ CONF_PRERELEASE_PANEL_BUILDS = "prerelease_panel_builds"
 # when they moved a panel's entities off MQTT: which entities moved, and whether
 # the move completed. Only read now.
 CONF_CUTOVER = "cutover"
-# The installed build that has had the device admin claim and the vendor setup
-# after its setup completed: {"did", "package", "version_code", "root"}. Absent
-# means a new install or update still owes that pass; DEVICE_SETUP_ADOPT marks an
-# entry from before this record existed, whose panel was set up on every start.
+# The installed build that last had the device setup pass (the device admin
+# claim and the vendor setup, see device_setup.py): {"did", "package",
+# "version_code", "root"}. Only its root flag is read afterwards, by the poll's
+# recovery restart. DEVICE_SETUP_ADOPT marks an entry from before this record
+# existed, whose panel was set up on every start.
 CONF_DEVICE_SETUP = "device_setup"
 DEVICE_SETUP_ADOPT = "adopt"
+# Set only by an operation the owner started, an install ("install") or an
+# update ("update"), and removed when its device setup pass finishes. An entry
+# without it never gets the pass unless the owner confirms its Repair.
+CONF_DEVICE_SETUP_OWED = "device_setup_owed"
 
 
 def update_unique_id(entry_id: str) -> str:

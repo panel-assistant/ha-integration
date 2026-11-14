@@ -1,8 +1,8 @@
-"""The background admin pass over the local command channel never waits on approvals.
+"""The device setup pass over the local command channel and on-panel approvals.
 
-In Hardened mode every local shell needs its own on-panel approval. The poll
-and the panel-operation claim must not wait for one, and the pass must not ask
-again faster than its back-off.
+In Hardened mode every local shell needs its own on-panel approval. An
+operation's unattended pass never waits for one and asks once, then leaves the
+Repair; the poll never asks at all.
 """
 
 from __future__ import annotations
@@ -16,9 +16,15 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry as ir
 
-from custom_components.panel_assistant import coordinator as coordinator_module
+from custom_components.panel_assistant import device_setup
 from custom_components.panel_assistant.client import HaPaneldClient
+from custom_components.panel_assistant.const import CONF_DEVICE_SETUP_OWED, DOMAIN
+from custom_components.panel_assistant.device_setup import (
+    SetupApprovalPending,
+    async_attempt,
+)
 from custom_components.panel_assistant.panel_operations import (
     claim_panel_operation,
     release_panel_operation,
@@ -111,15 +117,12 @@ async def _panel(
     return entry, shells, responder
 
 
-async def test_background_admin_pass_never_waits_on_panel_approval(
+async def test_unattended_setup_pass_never_waits_on_panel_approval(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
     hass_read_only_user: Any,
     hass_read_only_access_token: str,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    now = [1000.0]
-    monkeypatch.setattr(coordinator_module, "monotonic", lambda: now[0])
     with patch.multiple(
         HaPaneldClient,
         async_get_health=AsyncMock(return_value=HEALTH),
@@ -134,35 +137,62 @@ async def test_background_admin_pass_never_waits_on_panel_approval(
         )
         coordinator = entry.runtime_data.coordinator
         try:
-            # The poll budget, well inside the 45 s network deadline.
-            await asyncio.wait_for(coordinator.async_refresh(), 5)
+            # Well inside the 45 s network deadline: the prompt is not waited on.
+            with pytest.raises(SetupApprovalPending):
+                await asyncio.wait_for(
+                    async_attempt(hass, entry, coordinator, refresh=True), 5
+                )
             assert coordinator.last_update_success
             assert coordinator.data.health.setup_complete
             assert len(shells) == 1
             # An owner action is not refused as busy while the prompt is shown.
             assert claim_panel_operation(hass, entry.entry_id)
             release_panel_operation(hass, entry.entry_id)
-
-            # Later polls inside the back-off send no new approval request,
-            # even after the ordinary five-minute retry spacing.
+            # Polls never ask again.
             for _ in range(3):
-                now[0] += 301
                 await asyncio.wait_for(coordinator.async_refresh(), 5)
             assert len(shells) == 1
-            # Past the back-off, exactly one more request.
-            now[0] += 3600
-            await asyncio.wait_for(coordinator.async_refresh(), 5)
-            await asyncio.wait_for(coordinator.async_refresh(), 5)
-            assert len(shells) == 2
-            # And the next back-off is longer than the last.
-            now[0] += 3601
-            await asyncio.wait_for(coordinator.async_refresh(), 5)
-            assert len(shells) == 2
         finally:
             responder.cancel()
 
 
-async def test_background_admin_pass_completes_when_the_panel_answers(
+async def test_an_operations_pass_stops_at_one_prompt_and_raises_the_repair(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Hardened mode needs someone at the panel; the owner is asked once."""
+    monkeypatch.setattr(device_setup, "SETUP_RETRY_SECONDS", 0)
+    with patch.multiple(
+        HaPaneldClient,
+        async_get_health=AsyncMock(return_value=HEALTH),
+        async_get_status=AsyncMock(return_value=None),
+    ):
+        entry, shells, responder = await _panel(
+            hass,
+            hass_ws_client,
+            hass_read_only_user,
+            hass_read_only_access_token,
+            approve=False,
+        )
+        try:
+            # A poll over the session reads the finished setup first.
+            await asyncio.wait_for(entry.runtime_data.coordinator.async_refresh(), 5)
+            device_setup.async_request(hass, entry, device_setup.OWED_UPDATE)
+            await hass.async_block_till_done(wait_background_tasks=True)
+            assert len(shells) == 1
+            issue = ir.async_get(hass).async_get_issue(
+                DOMAIN, device_setup.device_setup_issue_id(entry.entry_id)
+            )
+            assert issue is not None and issue.is_fixable
+            assert entry.data[CONF_DEVICE_SETUP_OWED] == device_setup.OWED_UPDATE
+        finally:
+            responder.cancel()
+
+
+async def test_setup_pass_completes_when_the_panel_answers(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
     hass_read_only_user: Any,
@@ -182,10 +212,11 @@ async def test_background_admin_pass_completes_when_the_panel_answers(
         )
         coordinator = entry.runtime_data.coordinator
         try:
-            await asyncio.wait_for(coordinator.async_refresh(), 5)
-            assert coordinator.last_update_success
+            record = await asyncio.wait_for(
+                async_attempt(hass, entry, coordinator, refresh=True), 5
+            )
+            assert record is not None and record["did"] == DID
             assert any("HAPANELD_ADMIN_BEGIN" in shell for shell in shells)
-            assert coordinator._admin_done
             count = len(shells)
             await asyncio.wait_for(coordinator.async_refresh(), 5)
             assert len(shells) == count

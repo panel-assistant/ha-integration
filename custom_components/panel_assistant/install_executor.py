@@ -547,13 +547,13 @@ class InstallExecutor:
 
     async def async_reconcile_entry(
         self, entry_id: str, address: str, health: PanelHealth
-    ) -> None:
+    ) -> bool:
         """Settle a healthy receipt a loaded entry turns out to be the result of.
 
         A restart between entry creation and consumption leaves the receipt
         waiting to be claimed. The entry's own first health read settles it with
         the same rule the worker and the flow apply, under the same lease, so a
-        flow still finalizing it keeps it.
+        flow still finalizing it keeps it. True when it consumed one here.
         """
         owner = f"setup_{entry_id}"
         job_id: str | None = None
@@ -568,10 +568,10 @@ class InstallExecutor:
                 None,
             )
             if job_id is None:
-                return
+                return False
             receipt = await self._async_acquire_finalizer(job_id, owner)
             if receipt is None:
-                return
+                return False
             if health_is_installed_app(health, receipt.artifact):
                 await self._manager.async_transition(
                     job_id,
@@ -583,19 +583,20 @@ class InstallExecutor:
                 from .local_adb import installation_finished
 
                 installation_finished(self._hass, entry_id)
-            else:
-                await self._manager.async_transition(
-                    job_id,
-                    receipt.revision,
-                    InstallPhase.RECOVERY_REQUIRED,
-                    result_code=InstallResultCode.VERIFICATION_REQUIRED,
-                    result_subcode="finalization:entry_health_mismatch",
-                )
+                return True
+            await self._manager.async_transition(
+                job_id,
+                receipt.revision,
+                InstallPhase.RECOVERY_REQUIRED,
+                result_code=InstallResultCode.VERIFICATION_REQUIRED,
+                result_subcode="finalization:entry_health_mismatch",
+            )
         except Exception:
             _LOGGER.warning("Unable to reconcile a durable ha-paneld install receipt")
         finally:
             if job_id is not None:
                 self.release_finalizer(job_id, owner)
+        return False
 
     async def _async_reverify(self, receipt: InstallJobReceipt) -> FinalizationResult:
         """Prove the panel still is what this receipt installed, read-only."""

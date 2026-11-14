@@ -183,6 +183,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             panel_name=self._panel_name,
         )
         self._observer_task: asyncio.Task[None] | None = None
+        # Set when this install delivered the app: the device setup pass it
+        # owes runs once the install has ended, after this grant repair.
+        self._setup_owed: asyncio.Task[None] | bool = False
         self._recovery_started = False
         self._attr_extra_state_attributes = {}
         self._adb_ready_key: tuple[object, ...] | None = None
@@ -773,6 +776,26 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             await self._async_install_claimed(version)
         finally:
             release_panel_operation(self.hass, self._entry_id)
+            self._start_owed_setup()
+
+    @callback
+    def _start_owed_setup(self) -> None:
+        """Run the device setup pass a delivered update owes, once it has ended.
+
+        After the grant repair, so the two never send ADB work at once, and
+        after this install released the panel, so the pass is not refused as
+        busy by the update that asked for it.
+        """
+        from .device_setup import async_start
+
+        owed, self._setup_owed = self._setup_owed, False
+        owner = self.hass.config_entries.async_get_entry(self._entry_id)
+        if owed is False or owner is None:
+            return
+        if isinstance(owed, asyncio.Task) and not owed.done():
+            owed.add_done_callback(lambda _task: async_start(self.hass, owner))
+            return
+        async_start(self.hass, owner)
 
     async def _async_install_claimed(self, version: str | None) -> None:
         """Start one exact admitted offer, then follow the expected panel restart."""
@@ -997,8 +1020,19 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
     def _schedule_permission_repair(
         self, route: str, repair_artifact: ReleaseArtifact | None
     ) -> None:
-        """Restore the panel's permissions after an app delivery succeeded."""
+        """Restore the panel's permissions after an app delivery succeeded.
+
+        The update also owes the panel the device setup pass, recorded here
+        and started when the install ends (``_start_owed_setup``). Over ADB the
+        launch has already repaired the grants.
+        """
+        from .device_setup import OWED_UPDATE, async_mark_owed
+
         owner = self.hass.config_entries.async_get_entry(self._entry_id)
+        if owner is None:
+            return
+        async_mark_owed(self.hass, owner, OWED_UPDATE)
+        self._setup_owed = True
         if (
             route != ROUTE_ADB
             and repair_artifact is not None
@@ -1016,7 +1050,7 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             # Not awaited: the panel already runs the update, and its ADB
             # may take minutes to answer again. The entry owns the task,
             # so unloading or removing the panel ends the repair.
-            owner.async_create_background_task(
+            self._setup_owed = owner.async_create_background_task(
                 self.hass,
                 async_repair_update_permissions(
                     self.hass,

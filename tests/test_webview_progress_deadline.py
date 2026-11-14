@@ -13,6 +13,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.panel_assistant import device_setup
 from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
 from custom_components.panel_assistant.repairs_failure import panel_failure_issue_id
 from custom_components.panel_assistant.update_route import ROUTE_STAGED
@@ -46,6 +47,9 @@ async def test_update_waits_for_active_webview_but_bounds_lost_contact(
         )
 
     entity._delivery.async_deliver_build = AsyncMock(side_effect=delivery)
+    # The device setup pass this update owes is not under test, and its waits
+    # would move this test's clock.
+    monkeypatch.setattr(device_setup, "async_start", lambda *_args: None)
     operations: list[str] = []
     elapsed = 0.0
     loop = asyncio.get_running_loop()

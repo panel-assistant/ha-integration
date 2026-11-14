@@ -45,6 +45,7 @@ from pytest_homeassistant_custom_component.common import (
 from yarl import URL
 
 from custom_components.panel_assistant import (
+    device_setup,
     feed_coordinator,
     install_network,
     local_adb,
@@ -78,7 +79,11 @@ from custom_components.panel_assistant.client import (
     UpdateRejectedError,
     normalize_address,
 )
-from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.const import (
+    CONF_DEVICE_SETUP,
+    CONF_DEVICE_SETUP_OWED,
+    DOMAIN,
+)
 from custom_components.panel_assistant.coordinator import (
     HaPaneldDataUpdateCoordinator,
     PanelSnapshot,
@@ -1539,7 +1544,9 @@ async def test_an_unusable_adb_key_ends_the_permission_repair_quietly(
 
     def owned_task(*args: Any, **kwargs: Any) -> asyncio.Task[Any]:
         task = create_task(*args, **kwargs)
-        repairs.append(task)
+        # The device setup pass the update owes follows it as a task of its own.
+        if task.get_name().startswith("permission repair"):
+            repairs.append(task)
         return task
 
     monkeypatch.setattr(panel.entry, "async_create_background_task", owned_task)
@@ -2001,3 +2008,40 @@ async def test_staged_update_repairs_grants_locally_without_an_adb_key(
     assert panel.entity.installed_version == VERSION
     panel.key_load.assert_not_awaited()
     panel.probe.assert_not_awaited()
+
+
+SETUP_RECORD = {"did": "d" * 64, "package": "p", "version_code": 2, "root": False}
+
+
+async def test_a_lan_update_runs_the_device_setup_pass_once_after_its_grant_repair(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    trust: None,
+    key: Any,
+    signer: PythonRSASigner,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    panel = await _lan_grant_repair_panel(hass, monkeypatch, key, signer, tmp_path)
+    order: list[str] = []
+    repair = panel_update.async_repair_update_permissions
+
+    async def repaired(*args: Any, **kwargs: Any) -> None:
+        await repair(*args, **kwargs)
+        order.append("repair")
+
+    async def setup_pass(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        order.append("pass")
+        return SETUP_RECORD
+
+    attempt = AsyncMock(side_effect=setup_pass)
+    monkeypatch.setattr(panel_update, "async_repair_update_permissions", repaired)
+    monkeypatch.setattr(device_setup, "async_attempt", attempt)
+
+    await panel.entity.async_install(None, False)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert order == ["repair", "pass"]
+    assert attempt.await_args.args[1] is panel.entry
+    assert attempt.await_args.kwargs == {"vendor": False}
+    assert panel.entry.data[CONF_DEVICE_SETUP] == SETUP_RECORD
+    assert CONF_DEVICE_SETUP_OWED not in panel.entry.data

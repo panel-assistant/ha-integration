@@ -2010,6 +2010,24 @@
         }
       }
     },
+    "device_setup_unfinished": {
+      "title": "Finish setting up {panel}",
+      "fix_flow": {
+        "step": {
+          "confirm_setup": {
+            "title": "Finish setting up {panel}",
+            "description": "The install or update of {panel} could not finish its last step on the panel. That step makes Panel Assistant the home screen if the panel's own setup asked for it, lets it lock the screen as the panel's device administrator, and applies the panel model's own setup. Nothing more is changed on {panel} until you confirm.\n\nTo fix:\n1. Read [what this step changes]({learn_more_url}).\n2. Make sure {panel} is switched on and connected.\n3. Select Submit to run the step now. If {panel} asks on its screen to allow Home Assistant, allow it there.\n\n[Learn more]({learn_more_url})"
+          }
+        },
+        "error": {
+          "panel_not_ready": "{panel} is still not ready: it did not answer, its own setup is not finished, or its request to become the home screen has not finished. Check that the panel is on and its setup is finished, then select Submit again.",
+          "panel_busy": "Another operation is using {panel}. Select Submit again when it has finished."
+        },
+        "abort": {
+          "entry_removed": "This panel is no longer set up in Home Assistant. Nothing was sent to it.\n\nTo fix:\n1. Read [what this step changes]({learn_more_url}).\n2. Add the panel again if you still use it.\n\n[Learn more]({learn_more_url})"
+        }
+      }
+    },
     "not_signed_in": {
       "title": "{panel} hat sich nicht mit Home Assistant verbunden",
       "description": "{panel} antwortet im Netzwerk, hat sich aber nicht mit Home Assistant verbunden. Daher fehlen seine Bedienelemente und seine Seite in der Seitenleiste.\n\nSo behebst du das Problem:\n1. [Öffne die Einrichtungsseite des Panels]({panel_page}) und melde dich bei diesem Home Assistant an.\n2. Warte, bis sich das Panel verbindet; diese Reparatur verschwindet dann."

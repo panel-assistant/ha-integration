@@ -7,11 +7,8 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from secrets import token_hex
 from time import monotonic
-from typing import Any
 
-from adb_shell.adb_device_async import AdbDeviceAsync
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant, callback
@@ -44,7 +41,6 @@ from .client import (
 from .const import (
     CONF_DEVICE_SETUP,
     DEFAULT_SCAN_INTERVAL,
-    DEVICE_SETUP_ADOPT,
     DOMAIN,
     MAX_STATUS_RESPONSE_BYTES,
 )
@@ -53,7 +49,6 @@ from .identity import accept_health, is_installation, reinstalled
 from .repairs_entity_hold import async_reconcile_entity_hold_issue
 from .repairs_permission import (
     async_reconcile_permission_issue,
-    turned_off_reporter,
 )
 from .repairs_proximity import async_reconcile_proximity_issue
 from .repairs_root import async_reconcile_root_issue
@@ -73,9 +68,6 @@ from .transport_sessions import (
 from .update_policy import prereleases_allowed
 
 _LOGGER = logging.getLogger(__name__)
-# Longer than an on-panel approval lives (600 s), so prompts never stack.
-_ADMIN_APPROVAL_BACKOFF = 3600.0
-_ADMIN_APPROVAL_BACKOFF_MAX = 86400.0
 # Refused senders are hints, not sessions. Repeated hellos replace only their
 # own hint, and a bound account cannot grow an unreachable entry's memory forever.
 _MAX_REFUSED_HELLOS = 16
@@ -98,50 +90,6 @@ def _webview_done(status: PanelStatus) -> bool:
     """
     webview = status.webview
     return webview is not None and webview.settled
-
-
-async def _async_admin_claim(
-    device: AdbDeviceAsync, target: Any, package: str
-) -> tuple[bool, str]:
-    """Claim the device admin if absent; return its readback and the HOME seen.
-
-    Only a successful, matching readback proves the admin, on either route.
-    """
-    from . import adb_protocol as adb
-    from . import local_commands as typed
-    from .app_identity import DEVICE_ADMIN_RECEIVER
-    from .home_chooser import HOME_QUERY
-    from .install_adb import _async_typed
-
-    if target.local_commands is not None:
-        return typed.admin_from_fields(await _async_typed(target, typed.VERB_ADMIN))
-    listed = f"{package}/{DEVICE_ADMIN_RECEIVER.removeprefix(package)}:"
-
-    def command(nonce: str) -> str:
-        return "; ".join(
-            (
-                f"echo HAPANELD_ADMIN_BEGIN:{nonce}",
-                adb.device_admin_claim_command(package),
-                # Only a successful, matching readback proves admin.
-                "policy=$(dumpsys device_policy 2>/dev/null); result=$?",
-                f'case "$result:$policy" in 0:*"{listed}"*) echo active ;; '
-                "*) echo unknown ;; esac",
-                f'echo "home:$({HOME_QUERY})"',
-                f"echo HAPANELD_ADMIN_END:{nonce}:0",
-            )
-        )
-
-    nonce = token_hex(16)
-    lines, status = adb._parse_single_section(
-        await adb._async_shell(
-            device, command(nonce), read_timeout=adb._READ_TIMEOUT_SECONDS
-        ),
-        prefix="ADMIN",
-        nonce=nonce,
-    )
-    if status != 0 or len(lines) != 2:
-        return False, ""
-    return lines[0] == "active", lines[1].removeprefix("home:")
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,16 +136,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         # A Panel Assistant-driven update restarts the app on purpose, so its
         # failed polls are not reported as errors.
         self.expected_restart = False
-        self._admin_key: tuple[str, str, int | None, str] | None = None
-        self._admin_done = False
-        self._admin_retry_at = 0.0
-        self._admin_backoff = 0.0
+        self._recovery_retry_at = 0.0
         # The live session whose ADB recovery daemon was last proved running.
         self._recovery_session: PanelSession | None = None
-        # Whether the finished pass saw root over ADB, which recovery needs.
-        # Each pass sets it before it can finish, or the entry's device setup
-        # record restores it, so a key change needs no reset.
-        self._admin_root = False
         # True until the first poll answers otherwise, as `last_update_success` starts.
         self.reachable = True
         # Where the panel last said it was in an accepted session:
@@ -468,7 +409,7 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                 if withheld and entry is not None and probe_current():
                     self._report(entry, *withheld[-1])
                 self._vendor_recovery.observe(snapshot)
-                await self._async_activate_completed_admin(snapshot.health)
+                await self._async_keep_recovery(snapshot.health)
                 return snapshot
             # The session ended before its reads returned: its failure says
             # nothing about the panel. Finish over HTTP, as for a panel
@@ -481,208 +422,58 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
                 self.client, entry.title, snapshot.status
             )
         self._vendor_recovery.observe(snapshot)
-        await self._async_activate_completed_admin(snapshot.health)
+        await self._async_keep_recovery(snapshot.health)
         return snapshot
 
-    async def _async_activate_completed_admin(self, health: PanelHealth) -> None:
-        """Finish setup-owned HOME and the screen-lock fallback after completion.
+    async def _async_keep_recovery(self, health: PanelHealth) -> None:
+        """Restart a rooted panel's ADB recovery once per new session.
 
-        The install programs never claim the device admin, and the panel's own
-        setup finishes after they return, so the poll is what sees it finish.
-        The pass runs once per installed build: its success is recorded in the
-        entry (``CONF_DEVICE_SETUP``), so a later poll, a Home Assistant
-        restart or a moved address never claims the admin or runs the vendor
-        setup again, and an owner who changes those settings back on the panel
-        keeps the change until the next install or update. Only the panel's own
-        pending HOME intent, which setup leaves until HOME is claimed, runs it
-        again. Attempts are at most once every five minutes. Success needs
-        Android readback and ends further ADB work. Nothing keeps an ADB
-        connection or adds a timer.
+        The only ADB work the poll does. It never claims the device admin,
+        never runs the vendor setup and never touches HOME or a grant: those
+        run only inside an install, an update or a Repair the owner confirms
+        (device_setup.py). After a reboot only the network route may have the
+        root to start recovery, so a panel whose last device setup pass saw
+        root gets it relaunched; ``adb.ready`` first, so a daemon that answers
+        is left alone and no on-panel approval is ever requested.
         """
         from . import adb_protocol as adb
         from . import local_adb
-        from .adb_credentials import (
-            AdbCredentialError,
-            async_get_durable_adb_credential,
-        )
-        from .app_identity import (
-            EQUIVALENT_HOME_COMPONENTS,
-            LAUNCH_COMPONENTS,
-        )
-        from .install_adb import (
-            _async_identity_root,
-            _async_repair_app_permissions,
-            _async_vendor_setup,
-        )
-        from .install_jobs import async_get_install_job_manager
-        from .install_network import (
-            InstallNetworkError,
-            async_pin_entry_target,
-            async_revalidate_install_target,
-        )
-        from .install_receipt import InstallJobError
+        from .adb_credentials import AdbCredentialError
+        from .install_network import InstallNetworkError
         from .panel_operations import claim_panel_operation, release_panel_operation
-        from .provisioning import InstallTargetState, async_probe_install_target
 
         entry = self._entry()
+        recorded = None if entry is None else entry.data.get(CONF_DEVICE_SETUP)
         if (
-            entry is not None
-            and not health.setup_complete
-            and entry.data.get(CONF_DEVICE_SETUP) == DEVICE_SETUP_ADOPT
-            and health.discovery_id == entry.unique_id
-            and not self.identity_mismatch
-        ):
-            # Seen before its setup finished: this panel still owes the pass.
-            self._record_device_setup(entry, None)
-        if (
-            not health.setup_complete
-            or not self.available
-            or entry is None
+            entry is None
+            or not isinstance(recorded, dict)
+            or recorded.get("root") is not True
+            or not health.setup_complete
             or not health.discovery_id
             or health.discovery_id != entry.unique_id
-            or health.package not in LAUNCH_COMPONENTS
+            or recorded.get("did") != health.discovery_id
+            or not self.available
             or self.identity_mismatch
             or self.hass.is_stopping
         ):
             return
-        package = health.package
-        assert package is not None
-        address = entry.data[CONF_ADDRESS]
-        key = (health.discovery_id, package, health.version_code, address)
-        if self._admin_key != key:
-            self._admin_key = key
-            self._admin_done = False
-            self._admin_retry_at = 0.0
-            self._admin_backoff = 0.0
-            self._recovery_session = None
-        build: dict[str, Any] = {
-            "did": health.discovery_id,
-            "package": package,
-            "version_code": health.version_code,
-        }
-        recorded = entry.data.get(CONF_DEVICE_SETUP)
-        if not self._admin_done:
-            if recorded == DEVICE_SETUP_ADOPT:
-                # Root is unknown without ADB, so recovery is left to the
-                # operations that need it until the next install or update.
-                self._record_device_setup(entry, {**build, "root": None})
-                self._admin_done = True
-                self._admin_root = False
-            elif isinstance(recorded, dict) and all(
-                recorded.get(field) == value for field, value in build.items()
-            ):
-                self._admin_done = True
-                self._admin_root = recorded.get("root") is True
         session = local_adb.session_for(self.hass, entry)
-        # A finished pass still restarts recovery once per new session: after a
-        # reboot only the network route may have the root to start it.
-        recovering = self._admin_done and not health.home_pending
         if (
-            (
-                recovering
-                and (
-                    not self._admin_root
-                    or session is None
-                    or session is self._recovery_session
-                )
-            )
-            or monotonic() < self._admin_retry_at
+            session is None
+            or session is self._recovery_session
+            or monotonic() < self._recovery_retry_at
             or not claim_panel_operation(self.hass, entry.entry_id)
         ):
             return
-        device: AdbDeviceAsync | None = None
         try:
-            async with asyncio.timeout(None if session is not None else 45):
-                manager = await async_get_install_job_manager(self.hass)
-                self._admin_retry_at = monotonic() + 300
-                if recovering:
-                    if await local_adb.async_ensure_recovery(
-                        self.hass, entry, self.client.address
-                    ):
-                        self._recovery_session = session
-                    return
-                # A background pass never waits on an on-panel approval.
-                target = await local_adb.async_target(
-                    self.hass, entry, self.client.address, approval=False
-                )
-                signer = None
-                if target is None:
-                    credential = await async_get_durable_adb_credential(self.hass)
-                    pinned = await async_pin_entry_target(
-                        self.hass, self.client.address, health, entry.unique_id
-                    )
-                    if pinned is None:
-                        return
-                    if await manager.async_find_active(
-                        address, pinned.pinned.stored_value
-                    ):
-                        return
-                    probe = await async_probe_install_target(
-                        pinned.pinned, credential.signer
-                    )
-                    target = probe.adb_target(pinned.pinned)
-                    if (
-                        probe.state is not InstallTargetState.INSTALLED
-                        or target is None
-                    ):
-                        return
-                    await async_revalidate_install_target(self.hass, pinned)
-                    if (
-                        self._entry() is not entry
-                        or entry.unique_id != health.discovery_id
-                        or entry.data[CONF_ADDRESS] != address
-                        or await manager.async_find_active(
-                            address, pinned.pinned.stored_value
-                        )
-                    ):
-                        return
-                    signer = credential.signer
-                elif any(
-                    not receipt.is_terminal
-                    and address
-                    in (receipt.target.address, receipt.target.pinned_address)
-                    for receipt in await manager.async_list()
-                ):
-                    return
-                if self._entry() is not entry or entry.data[CONF_ADDRESS] != address:
-                    return
-                device = await adb._async_connect(target, signer, authorize=False)
-                self._admin_root = await _async_identity_root(device, target) in (
-                    adb.AdbRootMode.ROOT_ADBD,
-                    adb.AdbRootMode.ROOT_SU,
-                )
-                if health.home_pending:
-                    # Only initial setup's durable pending intent permits a HOME
-                    # takeover here. Explicit handback clears it, across HA reloads.
-                    await _async_repair_app_permissions(
-                        device,
-                        target,
-                        package,
-                        LAUNCH_COMPONENTS[package][-1],
-                        deferred_setup=True,
-                        report_denials=turned_off_reporter(self.hass, entry.entry_id),
-                    )
-                self._admin_done, home = await _async_admin_claim(
-                    device, target, package
-                )
-                own_homes = {
-                    home
-                    for launch in LAUNCH_COMPONENTS[package]
-                    for home in EQUIVALENT_HOME_COMPONENTS[launch]
-                }
-                if self._admin_done and not health.home_pending and home in own_homes:
-                    # Native completion can finish HOME before this poll. Finish
-                    # vendor commissioning only while the app still owns HOME;
-                    # a deliberate handback must never be undone by HA reload.
-                    await _async_vendor_setup(device, target)
-                if self._admin_done and self._entry() is entry:
-                    self._record_device_setup(
-                        entry, {**build, "root": self._admin_root}
-                    )
+            self._recovery_retry_at = monotonic() + 300
+            if await local_adb.async_ensure_recovery(
+                self.hass, entry, self.client.address
+            ):
+                self._recovery_session = session
         except (
             AdbCredentialError,
             InstallNetworkError,
-            InstallJobError,
             HaPaneldError,
             adb.InstallAdbError,
             adb._MalformedAdbResponse,
@@ -690,38 +481,10 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
             *adb._ADB_EXCEPTIONS,
             OSError,
             TimeoutError,
-        ) as err:
-            # Admin readback alone cannot finish a pass whose vendor I/O failed.
-            # A failed recovery restart leaves a finished pass finished.
-            self._admin_done = recovering
-            _LOGGER.debug("Deferred panel device admin could not be activated")
-            if local_adb.approval_pending(err):
-                # Hardened mode: each shell needs someone at the panel. Ask
-                # again only after a doubling back-off, past the prompt's life.
-                self._admin_backoff = min(
-                    max(_ADMIN_APPROVAL_BACKOFF, self._admin_backoff * 2),
-                    _ADMIN_APPROVAL_BACKOFF_MAX,
-                )
-                self._admin_retry_at = monotonic() + self._admin_backoff
+        ):
+            _LOGGER.debug("ADB recovery could not be restarted on %s", entry.title)
         finally:
-            try:
-                await adb._async_close(device)
-            finally:
-                release_panel_operation(self.hass, entry.entry_id)
-
-    @callback
-    def _record_device_setup(
-        self, entry: ConfigEntry, record: dict[str, Any] | None
-    ) -> None:
-        """Keep which build had the device setup pass, or that one is owed."""
-        if entry.data.get(CONF_DEVICE_SETUP) == record:
-            return
-        data = {
-            key: value for key, value in entry.data.items() if key != CONF_DEVICE_SETUP
-        }
-        if record is not None:
-            data[CONF_DEVICE_SETUP] = record
-        self.hass.config_entries.async_update_entry(entry, data=data)
+            release_panel_operation(self.hass, entry.entry_id)
 
     async def _async_read_session(self, session: PanelSession) -> PanelSnapshot:
         """Read health and status from the panel's own session."""

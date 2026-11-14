@@ -1,8 +1,9 @@
 """A panel that comes back from a reboot gets its ADB recovery daemon again.
 
 On a rooted panel whose app has no working su, only Panel Assistant's network
-ADB route can start the recovery daemon that closes ADB. The admin pass is done
-for the build and address, so nothing else would start it after a reboot.
+ADB route can start the recovery daemon that closes ADB. The device setup pass
+ran once, inside the install, so nothing else would start it after a reboot:
+the poll restarts it once per new session when that pass saw root.
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.panel_assistant import (
     adb_credentials,
+    device_setup,
     install_network,
     provisioning,
 )
@@ -28,6 +30,7 @@ from custom_components.panel_assistant import adb_protocol as adb
 from custom_components.panel_assistant import coordinator as coordinator_module
 from custom_components.panel_assistant.adb_credentials import AdbCredential
 from custom_components.panel_assistant.client import HaPaneldClient
+from custom_components.panel_assistant.const import CONF_DEVICE_SETUP
 from custom_components.panel_assistant.transport_sessions import async_get_sessions
 
 from .install_adb_fakes import _identity_root_output, _identity_sections, _section
@@ -231,7 +234,7 @@ async def _rebooted_panel(
     daemon_after_boot: bool,
     route: str = "adbd",
 ) -> tuple[Any, _Panel, list[float], list[asyncio.Task[None]]]:
-    """Complete the admin pass, then reboot the panel into a fresh session."""
+    """Finish the install's setup pass, then reboot the panel into a fresh session."""
     now = [1000.0]
     monkeypatch.setattr(coordinator_module, "monotonic", lambda: now[0])
     health = replace(HEALTH, discovery_id=DID, package=PACKAGE, setup_complete=True)
@@ -246,9 +249,13 @@ async def _rebooted_panel(
     network_adb["panel"] = before
     first = await _connect(hass, hass_ws_client, token, [*MANAGED, "local_adb"])
     tasks = [asyncio.create_task(before.serve(first))]
-    coordinator = entry.runtime_data.coordinator
-    await asyncio.wait_for(coordinator.async_refresh(), 5)
-    assert coordinator._admin_done
+    # A poll over the session reads the finished setup; then the install the
+    # owner started runs the device setup pass once.
+    await asyncio.wait_for(entry.runtime_data.coordinator.async_refresh(), 5)
+    monkeypatch.setattr(device_setup, "SETUP_RETRY_SECONDS", 0)
+    device_setup.async_request(hass, entry, device_setup.OWED_INSTALL)
+    await asyncio.wait_for(hass.async_block_till_done(wait_background_tasks=True), 10)
+    assert entry.data[CONF_DEVICE_SETUP]["root"] is (route != "rootless")
     assert before.bootstraps == []
 
     # The reboot: the old session ends and the panel says hello again with the
