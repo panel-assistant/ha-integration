@@ -599,6 +599,9 @@ class EmbedView(HomeAssistantView):
             # A pure-Python parse of the whole page: in the executor, since a
             # panel page has no size bound below the session's transfer limit.
             shell = await self.hass.async_add_executor_job(_read_shell, data)
+            # The session may have been replaced while the page was parsed.
+            if live_ui_session(self.hass, entry.entry_id) is not panel:
+                return _retry(session)
             if shell.build is not None:
                 async_get_bundles(self.hass).observe_build(entry, panel, shell.build)
             if name != "info" and shell.has_nav and not shell.active_tab:

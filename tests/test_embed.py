@@ -900,6 +900,57 @@ async def test_a_page_is_parsed_off_the_event_loop(
     assert loop_thread not in parsed_on
 
 
+async def test_a_page_parsed_while_its_session_is_replaced_asks_again(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client: Any,
+    hass_client_no_auth: Any,
+    hass_read_only_user: Any,
+    hass_read_only_access_token: str,
+    session_panels: Any,
+    entry: MockConfigEntry,
+    live: SessionPanel,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A page the retired session sent is never served once a new session took over."""
+    parsing = asyncio.Event()
+    release = threading.Event()
+    loop = asyncio.get_running_loop()
+    read_shell = embed._read_shell
+
+    def delayed(page: bytes) -> embed._PageShell:
+        loop.call_soon_threadsafe(parsing.set)
+        assert release.wait(10)
+        return read_shell(page)
+
+    monkeypatch.setattr(embed, "_read_shell", delayed)
+    admin = await hass_ws_client(hass)
+    _, url = await _open_session(admin, entry.entry_id)
+    browser = await hass_client_no_auth()
+    old_request = asyncio.create_task(browser.get(url))
+    try:
+        await asyncio.wait_for(parsing.wait(), 3)
+        live.task.cancel()
+        await live.ws.close()
+        await _connect_panel(
+            hass,
+            hass_ws_client,
+            hass_client,
+            session_panels,
+            entry,
+            hass_read_only_user.id,
+            hass_read_only_access_token,
+            HELLO,
+        )
+        release.set()
+        response = await old_request
+        assert response.status == 503
+        assert "panel-assistant-wait" in await response.text()
+    finally:
+        release.set()
+        await asyncio.gather(old_request, return_exceptions=True)
+
+
 async def test_page_events_follow_navigation_inside_the_embed_frame(
     hass: HomeAssistant,
     hass_ws_client: WsClientFactory,
