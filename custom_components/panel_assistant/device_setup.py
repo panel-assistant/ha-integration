@@ -49,6 +49,10 @@ ISSUE_DEVICE_SETUP = "device_setup_unfinished"
 OWED_INSTALL = "install"
 OWED_UPDATE = "update"
 _DATA_RUNS = "device_setup_runs"
+# Unique ids of panels an install is adding over an Ignored entry: Core
+# creates that entry without ``async_on_create_entry``, so its first setup
+# starts the pass the install owes.
+_DATA_START_AT_SETUP = "device_setup_start_at_setup"
 
 
 class SetupApprovalPending(Exception):
@@ -130,12 +134,27 @@ def async_request(hass: HomeAssistant, entry: ConfigEntry, reason: str) -> None:
 
 
 @callback
+def async_request_at_setup(hass: HomeAssistant, unique_id: str) -> None:
+    """An install replacing an Ignored entry: its pass starts at entry setup."""
+    pending: set[str] = hass.data.setdefault(DOMAIN, {}).setdefault(
+        _DATA_START_AT_SETUP, set()
+    )
+    pending.add(unique_id)
+
+
+@callback
 def async_reconcile(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """At entry setup: a pass a restart or reload interrupted becomes the Repair.
 
-    Sends nothing to the panel. An entry no operation owed the pass to has
-    nothing to reconcile.
+    Sends nothing to the panel, except for the entry an install has just
+    created over an Ignored one, whose pass starts here. An entry no
+    operation owed the pass to has nothing to reconcile.
     """
+    pending: set[str] | None = hass.data.get(DOMAIN, {}).get(_DATA_START_AT_SETUP)
+    if pending and entry.unique_id in pending:
+        pending.discard(entry.unique_id)
+        async_request(hass, entry, OWED_INSTALL)
+        return
     if CONF_DEVICE_SETUP_OWED in entry.data and not _running(hass, entry.entry_id):
         async_raise_issue(hass, entry)
 

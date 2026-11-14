@@ -12,7 +12,7 @@ from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from homeassistant.config_entries import SOURCE_ZEROCONF
+from homeassistant.config_entries import SOURCE_IGNORE, SOURCE_ZEROCONF
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -122,6 +122,35 @@ async def test_the_usb_installer_runs_the_pass_for_the_panel_it_adds(
         _app_answers({SEEDED_IP: PANEL_DID, SEEDED_IPV6: PANEL_DID}),
         patch(f"{FLOW}.HaPaneldClient.async_get_status", AsyncMock()),
         patch(SETUP, return_value=True),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": SOURCE_USB_INSTALL},
+            data={CONF_ADDRESS: f"[{SEEDED_IPV6}]"},
+        )
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    _assert_one_pass(passes, result["result"])
+
+
+async def test_the_usb_installer_runs_the_pass_for_a_panel_it_adds_over_ignore(
+    hass: HomeAssistant, passes: AsyncMock
+) -> None:
+    """Core creates that entry without async_on_create_entry; setup starts it."""
+    MockConfigEntry(
+        domain=DOMAIN, source=SOURCE_IGNORE, unique_id=PANEL_DID, data={}
+    ).add_to_hass(hass)
+
+    async def setup_entry(hass: HomeAssistant, entry: Any) -> bool:
+        # The part of the real entry setup that concerns the pass.
+        device_setup.async_reconcile(hass, entry)
+        return True
+
+    with (
+        _app_answers({SEEDED_IP: PANEL_DID, SEEDED_IPV6: PANEL_DID}),
+        patch(f"{FLOW}.HaPaneldClient.async_get_status", AsyncMock()),
+        patch(SETUP, side_effect=setup_entry),
     ):
         result = await hass.config_entries.flow.async_init(
             DOMAIN,

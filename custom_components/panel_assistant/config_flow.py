@@ -81,6 +81,9 @@ from .device import panel_display_name
 from .device_setup import OWED_INSTALL, async_mark_owed
 from .device_setup import async_reconcile as async_reconcile_device_setup
 from .device_setup import async_request as async_request_device_setup
+from .device_setup import (
+    async_request_at_setup as async_request_device_setup_at_setup,
+)
 from .discovery import (
     CONFIRMED,
     MigrationTarget,
@@ -2114,6 +2117,12 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             # Core skips async_on_create_entry when it replaces Ignore. The
             # explicit flow is committing now, so its other cards can close.
             close_offers(self.hass, address.stored_value, self.flow_id, pressed=True)
+            if known.unique_id is not None and (
+                self._finalizer_job_id is not None or self.source == SOURCE_USB_INSTALL
+            ):
+                # The install still owes the panel its pass, which the new
+                # entry's first setup starts.
+                async_request_device_setup_at_setup(self.hass, known.unique_id)
         if health.adb_serial is not None:
             # The panel's own app answers as the panel an install failed on, so
             # that install's Repair no longer holds. Matched by the serial the
