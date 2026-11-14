@@ -307,14 +307,21 @@ dumpsys() {
     done
     return 0
   fi
-  echo "Package [$2]"
-  if [ -f "$STATE/package.unreadable" ]; then return 1; fi
+  # A refused read, such as a permission denial, never reaches the package.
   if [ -f "$STATE/unreadable.permissions" ]; then
     cat "$STATE/unreadable.permissions"
     return
   fi
+  echo "Package [$2]"
+  if [ -f "$STATE/package.unreadable" ]; then return 1; fi
   for permission in POST_NOTIFICATIONS CAMERA RECORD_AUDIO; do
     permission="android.permission.$permission"
+    # Android 9 and older list no line for a permission nobody decided until
+    # it is granted.
+    if [ -f "$STATE/unlisted.$2.$permission" ] &&
+        [ ! -f "$STATE/permission.$2.$permission" ]; then
+      continue
+    fi
     granted=false
     if [ -f "$STATE/permission.$2.$permission" ]; then
       granted=$(cat "$STATE/permission.$2.$permission")
@@ -1874,6 +1881,85 @@ async def test_a_hardware_denial_nobody_answered_is_granted(
         for permission in ("CAMERA", "RECORD_AUDIO")
     ]
     assert reports == [OwnerDenials(features=(), complete=True)]
+
+
+async def test_a_hardware_permission_android_9_never_listed_is_granted(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    # Android 8.1 and 9 (the Sonoff panels, the Portals) print no line for a
+    # permission nobody has decided, so a fresh install shows none.
+    _seed_granted_panel(tmp_path, descriptor.package_id)
+    for permission in ("CAMERA", "RECORD_AUDIO"):
+        permission = f"android.permission.{permission}"
+        (tmp_path / f"permission.{descriptor.package_id}.{permission}").unlink()
+        (tmp_path / f"unlisted.{descriptor.package_id}.{permission}").touch()
+
+    reports = await _launch_reporting(
+        monkeypatch, signer, replace(target, android_sdk=28), descriptor, tmp_path
+    )
+
+    assert sorted(c for c in _calls(tmp_path) if c.startswith("pm grant")) == [
+        f"pm grant {descriptor.package_id} android.permission.{permission}"
+        for permission in ("CAMERA", "RECORD_AUDIO")
+    ]
+    assert reports == [OwnerDenials(features=(), complete=True)]
+
+
+_UNDECIDED_LINE = (
+    "      android.permission.RECORD_AUDIO: granted=false,"
+    " flags=[ USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]"
+)
+
+
+@pytest.mark.parametrize(
+    ("dump", "status", "granted"),
+    [
+        # Android 9 and older: a readable dump of the package, no line.
+        (["Package [io.panelassistant.android] (1a2b3c):"], 0, True),
+        # A failed dump proves nothing, even with the header.
+        (["Package [io.panelassistant.android] (1a2b3c):"], 1, False),
+        # A dump that does not show this package proves nothing.
+        (["Unable to find package: io.panelassistant.android"], 0, False),
+        (["Package [io.panelassistant.android.other] (1a2b3c):"], 0, False),
+        # A line still decides: the owner's denial is kept ...
+        (
+            [
+                "Package [io.panelassistant.android] (1a2b3c):",
+                "      android.permission.RECORD_AUDIO: granted=false,"
+                " flags=[ USER_SET|USER_FIXED]",
+            ],
+            0,
+            False,
+        ),
+        # ... and a denial nobody decided is granted.
+        (["Package [io.panelassistant.android] (1a2b3c):", _UNDECIDED_LINE], 0, True),
+    ],
+)
+def test_a_runtime_permission_is_granted_only_where_nobody_decided_it(
+    tmp_path: Path, dump: list[str], status: int, granted: bool
+) -> None:
+    calls = tmp_path / "calls"
+    lines = "; ".join(f"echo {shlex.quote(line)}" for line in dump)
+    program = "\n".join(
+        (
+            f"dumpsys() {{ {lines}; return {status}; }}",
+            f'pm() {{ echo "pm $*" >> {shlex.quote(str(calls))}; }}',
+            f": > {shlex.quote(str(calls))}",
+            adb_protocol._runtime_permission_repair_command(
+                "io.panelassistant.android", "android.permission.RECORD_AUDIO"
+            ),
+        )
+    )
+    subprocess.run(["/bin/sh", "-c", program], capture_output=True, check=False)
+    assert calls.read_text().splitlines() == (
+        ["pm grant io.panelassistant.android android.permission.RECORD_AUDIO"]
+        if granted
+        else []
+    )
 
 
 @pytest.mark.parametrize(

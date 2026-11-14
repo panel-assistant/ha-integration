@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {buildPermissionRead, parsePermissionRead,
   buildPermissionGrant, parsePermissionGrant, expectedServices,
-  buildPermissionVerification, parsePermissionVerification} from '../src/permission-contract.mjs';
+  buildPermissionVerification, parsePermissionVerification, runtimePermissionRepair} from '../src/permission-contract.mjs';
 import {LAUNCH_COMPONENTS, LEGACY_PACKAGE_ID, PACKAGE_ID, accessibilityComponentFor,
   homeComponentFor} from '../src/app-identity.mjs';
 
@@ -252,10 +252,13 @@ test('a service already enabled in either spelling is kept, and the old app is n
 // A panel that keeps its grants between commands, so the grant program and the
 // readback run against one state, the way Android answers them. Each runtime
 // permission is one dump line (absent when `null`); each app operation is what
-// `appops get` prints for it.
+// `appops get` prints for it. With `header` the dump shows the package, as a
+// real one does, and a grant adds the line Android 9 and older leave out until
+// somebody decides the permission.
 function ownerPanel({notifications, camera = 'granted=true, flags=[ USER_SET]', microphone = camera,
-  ops = {}, sdk = 34} = {}) {
+  ops = {}, sdk = 34, header = false} = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'owner-'));
+  if (header) writeFileSync(join(dir, 'header'), `  Package [${PACKAGE_ID}] (1a2b3c):\n`);
   const runtime = {POST_NOTIFICATIONS: notifications, CAMERA: camera, RECORD_AUDIO: microphone,
     WRITE_SECURE_SETTINGS: 'granted=true'};
   for (const [name, line] of Object.entries(runtime)) {
@@ -265,9 +268,9 @@ function ownerPanel({notifications, camera = 'granted=true, flags=[ USER_SET]', 
     writeFileSync(join(dir, `op.${op}`), `${ops[op] ?? `${op}: default`}\n`);
   }
   writeFileSync(join(dir, 'services'), `${other}\n`);
-  const stubs = `dumpsys() { for f in "$D"/perm.*; do [ ! -e "$f" ] || cat "$f"; done; }
+  const stubs = `dumpsys() { [ ! -e "$D/header" ] || cat "$D/header"; for f in "$D"/perm.*; do [ ! -e "$f" ] || cat "$f"; done; }
 pm() { case "$1" in
-  grant) echo "pm $*" >> "$D/calls"; n=\${3##*.}; [ ! -e "$D/perm.$n" ] ||
+  grant) echo "pm $*" >> "$D/calls"; n=\${3##*.}; [ ! -e "$D/perm.$n" ] && [ ! -e "$D/header" ] ||
     printf '      %s: granted=true, flags=[ USER_SENSITIVE_WHEN_GRANTED]\\n' "$3" > "$D/perm.$n" ;;
   list) printf 'feature:android.hardware.camera.any\\nfeature:android.hardware.microphone\\n' ;; esac; }
 appops() { case "$1" in get) cat "$D/op.$3" ;; set) echo "appops $*" >> "$D/calls"; echo "$3: $4" > "$D/op.$3" ;; esac; }
@@ -314,13 +317,48 @@ test("Android's own USER_SENSITIVE defaults are not a decision: those permission
   assert.deepEqual([result.camera, result.microphone, result.denied], ['granted', 'granted', []]);
 });
 
-test('a runtime permission the dump does not show is never granted, and is not proof of a denial', () => {
+test('a runtime permission missing from a dump that does not show the package is never granted, and is not proof of a denial', () => {
   const panel = ownerPanel({notifications: undecided, camera: null, microphone: 'granted=maybe'});
   assert.ok(!/android\.permission\.(CAMERA|RECORD_AUDIO)/.test(panel.calls));
   const result = panel.read();
   assert.deepEqual([result.camera, result.microphone, result.denied], ['unknown', 'unknown', []]);
   // Notifications are required from Android 13: an unreadable line still fails.
   assert.throws(() => ownerPanel({notifications: null}).read(), /permissions_unverified/);
+});
+
+test('Android 9 and older list no line for a permission nobody decided: a fresh install grants it', () => {
+  for (const sdk of [27, 28]) {
+    const panel = ownerPanel({notifications: null, camera: null, microphone: null, sdk, header: true});
+    for (const permission of ['CAMERA', 'RECORD_AUDIO']) {
+      assert.ok(panel.calls.includes(`pm grant ${PACKAGE_ID} android.permission.${permission}\n`), `${sdk} ${permission}`);
+    }
+    const result = panel.read();
+    assert.deepEqual([result.camera, result.microphone, result.denied], ['granted', 'granted', []], String(sdk));
+  }
+});
+
+// Runs one permission's repair against a stand-in dump, recording `pm`.
+function repairOn(dump, status = 0) {
+  const dir = mkdtempSync(join(tmpdir(), 'repair-'));
+  try {
+    const lines = dump.map(line => `echo '${line}'`).join('; ');
+    spawnSync('/bin/sh', ['-c', `dumpsys() { ${lines}; return ${status}; }
+pm() { echo "pm $*" >> "$D/calls"; }
+${runtimePermissionRepair(PACKAGE_ID, 'android.permission.RECORD_AUDIO')}`], {encoding: 'utf8', env: {...process.env, D: dir}, timeout: 5000});
+    return existsSync(join(dir, 'calls')) ? readFileSync(join(dir, 'calls'), 'utf8').trim().split('\n') : [];
+  } finally { rmSync(dir, {recursive: true, force: true}); }
+}
+
+test('a missing line is undecided only in a dump that succeeded and shows this package', () => {
+  const header = `Package [${PACKAGE_ID}] (1a2b3c):`;
+  const grant = [`pm grant ${PACKAGE_ID} android.permission.RECORD_AUDIO`];
+  assert.deepEqual(repairOn([header]), grant, 'a valid dump with no line');
+  assert.deepEqual(repairOn([header], 1), [], 'a failed dump');
+  assert.deepEqual(repairOn([`Unable to find package: ${PACKAGE_ID}`]), [], 'no package header');
+  assert.deepEqual(repairOn([`Package [${PACKAGE_ID}.other] (1a2b3c):`]), [], 'another package');
+  assert.deepEqual(repairOn([header, '      android.permission.RECORD_AUDIO: granted=false, flags=[ USER_SET|USER_FIXED]']), [],
+    'a decided line is kept');
+  assert.deepEqual(repairOn([header, `      android.permission.RECORD_AUDIO: ${undecided}`]), grant, 'an undecided line');
 });
 
 test('an app operation the owner set is kept and reported; one nobody set is allowed', () => {

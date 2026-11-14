@@ -601,6 +601,12 @@ def _runtime_permission_repair_command(package_id: str, permission: str) -> str:
     owner's (or a device policy's) choice, and a shell grant would silently
     override it, so it is left alone and ``runtime_denied`` is set to 1. A
     denial without one of those flags was never answered and is granted.
+
+    Android 9 and older print no line at all for a permission nobody has
+    decided: a decision always sets a flag, which keeps the line. So a dump
+    that succeeded and shows this package's header but no line for the
+    permission is undecided too, and is granted. A failed dump, or one without
+    the package's header, is unknown and never a reason to grant.
     """
     permission_pattern = re.escape(permission)
     denied = (
@@ -613,14 +619,19 @@ def _runtime_permission_repair_command(package_id: str, permission: str) -> str:
         "runtime=$(printf '%s\\n' \"$runtime_dump\" | "
         f"grep -F '{permission}: granted='); fi"
     )
-    # A missing or malformed dump is unknown, never evidence of a missing grant.
+    grant = f"pm grant {package_id} {permission} >/dev/null 2>&1; {read}"
+    # A failed dump, one without this package, or a malformed line is unknown,
+    # never evidence of a missing grant.
     return (
         f"{read}; runtime_denied=0; "
         'if [ -n "$runtime" ] && ! printf \'%s\\n\' "$runtime" | '
         f"grep -Evq '^{denied}$'; then "
         "if printf '%s\\n' \"$runtime\" | "
         f"grep -Eq '{_OWNER_DECISION}'; then runtime_denied=1; else "
-        f"pm grant {package_id} {permission} >/dev/null 2>&1; {read}; fi; fi"
+        f"{grant}; fi; "
+        'elif [ -z "$runtime" ] && [ "$runtime_status" -eq 0 ] && '
+        "printf '%s\\n' \"$runtime_dump\" | "
+        f"grep -Fq 'Package [{package_id}]'; then {grant}; fi"
     )
 
 
