@@ -81,8 +81,12 @@ def sent(panel: Any, monkeypatch: pytest.MonkeyPatch) -> list[str]:  # noqa: F81
     return commands
 
 
-def _prepare(panel: Any, state: str) -> None:  # noqa: F811
-    """Put the entry and the panel into one of STATES, setup finished."""
+def _prepare(panel: Any, state: str, *, migrate: bool = False) -> None:  # noqa: F811
+    """Put the entry and the panel into one of STATES, setup finished.
+
+    With ``migrate``, an adopted entry is one Panel Assistant 1.0.2 stored,
+    which entry setup migrates.
+    """
     data: dict[str, Any] = {
         CONF_ADDRESS: panel.entry.data[CONF_ADDRESS],
         "installation_identity": True,
@@ -93,8 +97,12 @@ def _prepare(panel: Any, state: str) -> None:  # noqa: F811
         installation_identity=True,
         protocol=(5, 5),
     )
+    minor_version = 3
     if state == "adopted":
-        data[CONF_DEVICE_SETUP] = DEVICE_SETUP_ADOPT
+        if migrate:
+            minor_version = 2
+        else:
+            data[CONF_DEVICE_SETUP] = DEVICE_SETUP_ADOPT
         health = replace(health, home_pending=True)
     elif state == "home_pending":
         data[CONF_DEVICE_SETUP] = RECORDED
@@ -103,7 +111,7 @@ def _prepare(panel: Any, state: str) -> None:  # noqa: F811
         data[CONF_DEVICE_SETUP] = RECORDED
         health = replace(health, version="1.0.1", version_code=2)
     panel.hass.config_entries.async_update_entry(
-        panel.entry, data=data, minor_version=3
+        panel.entry, data=data, minor_version=minor_version
     )
     panel.state.health = health
     # A vendor launcher holds HOME, so a HOME claim would have work to do.
@@ -128,9 +136,13 @@ async def test_polls_send_no_setup_command(
     assert CONF_DEVICE_SETUP_OWED not in panel.entry.data
 
 
-async def _set_up(hass: HomeAssistant, entry: Any) -> None:
-    """Entry setup as after a Home Assistant restart, from the stored entry."""
-    executor = SimpleNamespace(async_reconcile_entry=AsyncMock(return_value=False))
+async def _set_up(hass: HomeAssistant, entry: Any, *, consumed: bool = False) -> None:
+    """Entry setup as after a Home Assistant restart, from the stored entry.
+
+    ``consumed``: the restart left the install's receipt for this setup to
+    settle, so its add flow never started the pass.
+    """
+    executor = SimpleNamespace(async_reconcile_entry=AsyncMock(return_value=consumed))
     with (
         patch(
             "custom_components.panel_assistant.async_resume_loaded_install_jobs",
@@ -153,8 +165,10 @@ async def test_entry_setup_after_a_restart_sends_no_setup_command(
     sent: list[str],
     state: str,
 ) -> None:
-    _prepare(panel, state)
+    _prepare(panel, state, migrate=True)
     await _set_up(hass, panel.entry)
+    if state == "adopted":
+        assert panel.entry.data[CONF_DEVICE_SETUP] == DEVICE_SETUP_ADOPT
     coordinator = panel.entry.runtime_data.coordinator
     for _ in range(2):
         panel.state.now += 3601
@@ -228,6 +242,22 @@ def _shell_answer(command: str) -> str | None:
             "PACKAGE", nonce, ["package:/data/app/panel/base.apk"], 0
         ).decode()
     return None
+
+
+async def test_an_install_a_restart_finished_becomes_a_repair_not_a_command(
+    hass: HomeAssistant,
+    panel: Any,  # noqa: F811
+    sent: list[str],
+) -> None:
+    """The restart came between the entry and the add flow's last step."""
+    _prepare(panel, "no_record")
+    await _set_up(hass, panel.entry, consumed=True)
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert sent == []
+    assert _owed(panel.entry) == device_setup.OWED_INSTALL
+    issue = _issue(hass, panel.entry)
+    assert issue is not None and issue.is_fixable
+    await hass.config_entries.async_unload(panel.entry.entry_id)
 
 
 @pytest.mark.parametrize("state", STATES)

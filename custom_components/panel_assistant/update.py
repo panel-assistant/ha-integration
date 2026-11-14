@@ -793,7 +793,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         if owed is False or owner is None:
             return
         if isinstance(owed, asyncio.Task) and not owed.done():
-            owed.add_done_callback(lambda _task: async_start(self.hass, owner))
+            # A repair cancelled by an unload leaves what is owed recorded;
+            # the entry's next setup turns it into the Repair.
+            owed.add_done_callback(
+                lambda task: None if task.cancelled() else async_start(self.hass, owner)
+            )
             return
         async_start(self.hass, owner)
 

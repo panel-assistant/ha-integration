@@ -78,6 +78,9 @@ from .const import (
     help_url,
 )
 from .device import panel_display_name
+from .device_setup import OWED_INSTALL, async_mark_owed
+from .device_setup import async_reconcile as async_reconcile_device_setup
+from .device_setup import async_request as async_request_device_setup
 from .discovery import (
     CONFIRMED,
     MigrationTarget,
@@ -596,25 +599,35 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             result = await self._async_create_panel_entry(address, health)
         except AbortFlow as abort:
             if abort.reason == "already_configured":
-                self._owe_usb_reinstall(health)
+                self._owe_usb_reinstall(address, health)
                 await self._async_finish_usb_installers()
             raise
         if result["type"] is FlowResultType.CREATE_ENTRY or (
             result.get("reason") == "already_configured"
         ):
             if result["type"] is not FlowResultType.CREATE_ENTRY:
-                self._owe_usb_reinstall(health)
+                self._owe_usb_reinstall(address, health)
             await self._async_finish_usb_installers()
         return result
 
-    def _owe_usb_reinstall(self, health: PanelHealth) -> None:
+    def _owe_usb_reinstall(self, address: PanelAddress, health: PanelHealth) -> None:
         """A USB install over a panel already added is an install too."""
-        if health.discovery_id is not None:
-            self._owe_device_setup(
-                self.hass.config_entries.async_entry_for_domain_unique_id(
-                    DOMAIN, health.discovery_id
-                )
+        self._owe_device_setup(
+            next(
+                (
+                    entry
+                    for entry in self.hass.config_entries.async_entries(DOMAIN)
+                    # USB replaces an Ignored card rather than aborting on it.
+                    if (
+                        health.discovery_id is not None
+                        and entry.unique_id == health.discovery_id
+                    )
+                    or entry.data.get(CONF_ADDRESS) == address.stored_value
+                    or reinstalled(self.hass, entry, health)
+                ),
+                None,
             )
+        )
 
     async def _async_finish_usb_installers(self) -> None:
         """End every Add dialog still waiting on the USB installer window."""
@@ -1787,6 +1800,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 )
                 self._finalizer_job_id = None
                 self._pending_reinstall_entry = retained
+                # Owed from here: closing the setup form leaves the Repair.
+                async_mark_owed(self.hass, retained, OWED_INSTALL)
                 self._pending_address = normalize_address(receipt.target.address)
                 self._pending_health = result.health
                 return await self.async_step_panel_setup()
@@ -1924,6 +1939,14 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     def async_remove(self) -> None:
         """Detach this UI flow without cancelling the process-owned worker."""
         self._flow_removed = True
+        retained = self._pending_reinstall_entry
+        if (
+            retained is not None
+            and self.hass.config_entries.async_get_entry(retained.entry_id) is retained
+        ):
+            # A reinstall closed before its panel finished setting up: the
+            # pass it owes waits for the owner to confirm its Repair.
+            async_reconcile_device_setup(self.hass, retained)
         if self._setup_watch is not None and not self._setup_watch.done():
             self._setup_watch.cancel()
         if self._progress_waiter is not None and not self._progress_waiter.done():
@@ -1941,10 +1964,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         Only an install reaches here, once the panel reports its own setup
         complete; adding a panel whose app was already installed does not.
         """
-        from .device_setup import OWED_INSTALL, async_request
-
-        if entry is not None and entry.source != SOURCE_IGNORE:
-            async_request(self.hass, entry, OWED_INSTALL)
+        if entry is not None:
+            async_request_device_setup(self.hass, entry, OWED_INSTALL)
 
     def _address_is_configured(self, address: str) -> bool:
         """Check the configured host without contacting the panel."""

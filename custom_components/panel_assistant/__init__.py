@@ -226,8 +226,8 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
     if entry.version == 1 and entry.minor_version < 3:
         # Earlier versions ran the device admin claim and vendor setup on every
-        # start, so a panel already set up has had them; its next completed
-        # poll records that build as done without running them again.
+        # start, so a panel already set up has had them. Nothing is owed: only
+        # its next install, update or a confirmed Repair runs them again.
         hass.config_entries.async_update_entry(
             entry,
             data={**entry.data, CONF_DEVICE_SETUP: DEVICE_SETUP_ADOPT},

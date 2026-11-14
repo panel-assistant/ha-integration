@@ -14,8 +14,13 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.panel_assistant import device_setup
 from custom_components.panel_assistant.client import CannotConnectError
-from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMAIN
+from custom_components.panel_assistant.const import (
+    CONF_DEVICE_SETUP_OWED,
+    CONF_TRANSPORT_USER_ID,
+    DOMAIN,
+)
 from custom_components.panel_assistant.install_executor import InstallExecutor
 from custom_components.panel_assistant.install_receipt import InstallPhase
 
@@ -37,6 +42,15 @@ CLEAN = _probe(
     primary_abi="arm64-v8a",
     android_sdk=31,
 )
+
+
+def _record_passes(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
+    """The device setup pass, as a stand-in that finishes on its first attempt."""
+    passes = AsyncMock(
+        return_value={"did": NEW, "package": "p", "version_code": 1, "root": False}
+    )
+    monkeypatch.setattr(device_setup, "async_attempt", passes)
+    return passes
 
 
 async def _keep_loaded_panel(hass: HomeAssistant, user_id: str) -> tuple[Any, Any, Any]:
@@ -90,12 +104,15 @@ async def test_kept_panel_installs_into_its_original_entry(
     hass_admin_user: Any,
     hass_ws_client: WsClientFactory,
     hass_access_token: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A kept panel reinstalled under another account binds that account.
 
     The entry stays loaded through the keep step, as production leaves it, and
-    the reinstalled panel's own hello during setup is what binds it.
+    the reinstalled panel's own hello during setup is what binds it. The
+    reinstall then runs the device setup pass once.
     """
+    passes = _record_passes(monkeypatch)
     entry, device, entity = await _keep_loaded_panel(hass, hass_read_only_user.id)
     # Outside a reinstall, another account asking for the kept panel is still
     # a takeover for an administrator to confirm.
@@ -226,7 +243,17 @@ async def test_kept_panel_installs_into_its_original_entry(
         assert result["type"] is FlowResultType.ABORT
         assert result["reason"] == "reinstall_successful"
         assert entry.data.get(CONF_TRANSPORT_USER_ID) == hass_admin_user.id
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert passes.await_count == 1
+    assert passes.await_args.args[1] is entry
+    assert CONF_DEVICE_SETUP_OWED not in entry.data
+    # The flow ending as the pass starts raises no Repair for it.
+    assert (
+        ir.async_get(hass).async_get_issue(
+            DOMAIN, device_setup.device_setup_issue_id(entry.entry_id)
+        )
+        is None
+    )
     assert hass.config_entries.async_entries(DOMAIN) == [entry]
     assert entry.unique_id == NEW
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue) is None
@@ -244,6 +271,76 @@ async def test_kept_panel_installs_into_its_original_entry(
     assert not executor.is_finalizer_active(receipt.job_id)
 
 
+async def test_a_reinstall_closed_before_setup_finishes_leaves_the_repair(
+    hass: HomeAssistant,
+    hass_read_only_user: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Closing the setup form sends nothing; the owed pass waits for its Repair."""
+    passes = _record_passes(monkeypatch)
+    entry, _device, _entity = await _keep_loaded_panel(hass, hass_read_only_user.id)
+    receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
+    manager = _manager_for(receipt)
+    executor = InstallExecutor(hass, manager)
+    health = replace(
+        HEALTH,
+        version=receipt.artifact.version_name,
+        discovery_id=NEW,
+        legacy_discovery_id=LINK,
+        installation_identity=True,
+    )
+    flow = "custom_components.panel_assistant.config_flow"
+    with (
+        patch(
+            f"{flow}.HaPaneldClient.async_get_health",
+            AsyncMock(side_effect=CannotConnectError),
+        ),
+        patch(f"{flow}.async_probe_install_target", AsyncMock(return_value=CLEAN)),
+        patch(f"{flow}.async_resolve_install_choice", AsyncMock(return_value=RELEASE)),
+        patch(f"{flow}.async_get_install_job_manager", AsyncMock(return_value=manager)),
+        patch(f"{flow}.async_get_install_executor", AsyncMock(return_value=executor)),
+        patch(f"{flow}.async_get_adb_credential", AsyncMock(return_value=CREDENTIAL)),
+        patch(
+            f"{flow}.async_get_durable_adb_credential",
+            AsyncMock(return_value=CREDENTIAL),
+        ),
+        patch.object(executor, "async_ensure_job", AsyncMock()),
+        patch.object(executor, "async_wait", AsyncMock(return_value=receipt)),
+        patch(
+            "homeassistant.config_entries.ConfigEntries.async_reload",
+            AsyncMock(return_value=True),
+        ),
+    ):
+        form = await _start_step(hass, "add_panel")
+        choose = await hass.config_entries.flow.async_configure(
+            form["flow_id"], {CONF_ADDRESS: "panel.local"}
+        )
+        confirm = await _choose_version(hass, choose)
+        progress = await hass.config_entries.flow.async_configure(
+            confirm["flow_id"], {}
+        )
+        manager.async_get.return_value = replace(
+            receipt, phase=InstallPhase.HEALTHY_UNCLAIMED
+        )
+        await hass.async_block_till_done()
+        with _final_proof(manager, health=AsyncMock(return_value=health)):
+            result = await hass.config_entries.flow.async_configure(progress["flow_id"])
+            if result.get("type") is FlowResultType.SHOW_PROGRESS_DONE:
+                result = await hass.config_entries.flow.async_configure(
+                    progress["flow_id"]
+                )
+            assert result["step_id"] == "panel_setup"
+            # The owner closes the dialog before the panel's setup is done.
+            hass.config_entries.flow.async_abort(result["flow_id"])
+    await hass.async_block_till_done(wait_background_tasks=True)
+    passes.assert_not_awaited()
+    assert entry.data[CONF_DEVICE_SETUP_OWED] == device_setup.OWED_INSTALL
+    issue = ir.async_get(hass).async_get_issue(
+        DOMAIN, device_setup.device_setup_issue_id(entry.entry_id)
+    )
+    assert issue is not None and issue.is_fixable
+
+
 @pytest.mark.parametrize("route", ["usb", "poll"])
 async def test_kept_panel_reinstall_binds_its_new_account(
     hass: HomeAssistant,
@@ -252,10 +349,15 @@ async def test_kept_panel_reinstall_binds_its_new_account(
     hass_admin_user: Any,
     hass_ws_client: WsClientFactory,
     hass_access_token: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """USB registration and the loaded entry's poll share reinstall admission."""
+    """USB registration and the loaded entry's poll share reinstall admission.
+
+    Only the USB install runs the device setup pass; the poll never does.
+    """
     from custom_components.panel_assistant.config_flow import SOURCE_USB_INSTALL
 
+    passes = _record_passes(monkeypatch)
     entry, device, entity = await _keep_loaded_panel(hass, hass_read_only_user.id)
     client = await hass_ws_client(hass, hass_access_token)
     issue = f"panel_user_mismatch_{entry.entry_id}"
@@ -292,6 +394,9 @@ async def test_kept_panel_reinstall_binds_its_new_account(
         # Repeated accepted health must not forget the newly signed-in account.
         await entry.runtime_data.coordinator.async_refresh()
         assert entry.data.get(CONF_TRANSPORT_USER_ID) == hass_admin_user.id
+        await hass.async_block_till_done(wait_background_tasks=True)
+    assert passes.await_count == (1 if route == "usb" else 0)
+    assert CONF_DEVICE_SETUP_OWED not in entry.data
     assert hass.config_entries.async_entries(DOMAIN) == [entry]
     preserved = er.async_get(hass).async_get(entity.entity_id)
     assert preserved is not None
