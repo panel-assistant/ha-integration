@@ -935,6 +935,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 else:
                     assert release is not None
                     await self._delivery.async_deliver_build(self.hass, release)
+            # The app is delivered: what it owes the panel is recorded before
+            # the WebView step, so a restart or unload during that step still
+            # leaves the Repair.
+            self._mark_setup_owed()
             reason = await async_update_webview(
                 self.hass, self._entry_id, allow_legacy=True
             )
@@ -1021,15 +1025,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         )
         raise error
 
-    def _schedule_permission_repair(
-        self, route: str, repair_artifact: ReleaseArtifact | None
-    ) -> None:
-        """Restore the panel's permissions after an app delivery succeeded.
-
-        The update also owes the panel the device setup pass, recorded here
-        and started when the install ends (``_start_owed_setup``). Over ADB the
-        launch has already repaired the grants.
-        """
+    def _mark_setup_owed(self) -> None:
+        """Record that this update owes the panel the device setup pass."""
         from .device_setup import OWED_UPDATE, async_mark_owed
 
         owner = self.hass.config_entries.async_get_entry(self._entry_id)
@@ -1037,6 +1034,20 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             return
         async_mark_owed(self.hass, owner, OWED_UPDATE)
         self._setup_owed = True
+
+    def _schedule_permission_repair(
+        self, route: str, repair_artifact: ReleaseArtifact | None
+    ) -> None:
+        """Restore the panel's permissions after an app delivery succeeded.
+
+        The device setup pass this update owes was recorded on delivery
+        (``_mark_setup_owed``) and starts when the install ends
+        (``_start_owed_setup``). Over ADB the launch has already repaired the
+        grants.
+        """
+        owner = self.hass.config_entries.async_get_entry(self._entry_id)
+        if owner is None:
+            return
         if (
             route != ROUTE_ADB
             and repair_artifact is not None
