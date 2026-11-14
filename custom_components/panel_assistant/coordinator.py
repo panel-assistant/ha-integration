@@ -428,7 +428,8 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
     async def _async_keep_recovery(self, health: PanelHealth) -> None:
         """Restart a rooted panel's ADB recovery once per new session.
 
-        The only ADB work the poll does. It never claims the device admin,
+        Besides the Shelly dashboard watch (vendor_recovery.py), the only ADB
+        work the poll does. It never claims the device admin,
         never runs the vendor setup and never touches HOME or a grant: those
         run only inside an install, an update or a Repair the owner confirms
         (device_setup.py). After a reboot only the network route may have the
