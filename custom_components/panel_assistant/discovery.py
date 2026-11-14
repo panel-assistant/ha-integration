@@ -620,10 +620,14 @@ async def async_find_migration_targets(hass: HomeAssistant) -> list[MigrationTar
     ]
     if not tasks:
         return []
-    done, pending = await asyncio.wait(tasks, timeout=_MIGRATION_LOOKUP_SECONDS)
-    for task in pending:
-        task.cancel()
-    await asyncio.gather(*pending, return_exceptions=True)
+    try:
+        done, _pending = await asyncio.wait(tasks, timeout=_MIGRATION_LOOKUP_SECONDS)
+    finally:
+        # At the cap, and when the form that asked is cancelled, no check
+        # outlives the lookup that started it.
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
     targets = [
         target
         for task in tasks

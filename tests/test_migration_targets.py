@@ -484,6 +484,47 @@ async def test_add_panel_form_waits_for_the_lookup_no_longer_than_its_cap(
         await hass.async_block_till_done(wait_background_tasks=True)
 
 
+async def test_cancelling_the_add_panel_form_stops_its_checks(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """No check of another integration's device outlives the form that asked."""
+    _host_entry(hass, "fully_kiosk", "Den tablet", "192.168.1.40")
+    MockConfigEntry(domain=DOMAIN, data={CONF_ADDRESS: "192.168.1.40"}).add_to_hass(
+        hass
+    )
+    adb_open.open.add("192.168.1.40")
+    started = asyncio.Event()
+    stopped = asyncio.Event()
+    release = asyncio.Event()
+
+    async def classifier_stuck(_address):
+        started.set()
+        try:
+            await release.wait()
+        except asyncio.CancelledError:
+            stopped.set()
+            raise
+        return InstallTargetProbe(state=InstallTargetState.INSTALLED)
+
+    with (
+        patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)),
+        patch(
+            "custom_components.panel_assistant.discovery.async_probe_install_target",
+            side_effect=classifier_stuck,
+        ),
+    ):
+        form = asyncio.ensure_future(_add_panel_form(hass))
+        async with asyncio.timeout(5):
+            await started.wait()
+        form.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await form
+        assert stopped.is_set()
+        # The cards' own checks were never the form's to stop.
+        release.set()
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+
 async def test_opening_add_integration_offers_a_panel_whose_adb_opened_since(
     hass: HomeAssistant, adb_open: SimpleNamespace
 ) -> None:
