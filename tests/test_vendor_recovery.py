@@ -593,3 +593,126 @@ async def test_typed_witness_reads_recovery_and_keeps_network_adb_only(
     assert witness is not None
     assert witness.target.local_commands is None
     assert witness.target.local_shell is None
+
+
+BUILD = "b" * 64
+STALE_BUILD = "a" * 64
+HELPER_SHA = "c" * 64
+
+
+@pytest.mark.parametrize(
+    ("ready", "running_build"),
+    [(False, None), (True, STALE_BUILD), (True, BUILD)],
+    ids=["not-ready", "stale-build", "ready"],
+)
+async def test_session_arming_never_prompts_or_rearms_the_local_route(
+    panel: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    ready: bool,
+    running_build: str | None,
+) -> None:
+    """A session connect observes; it never asks the panel or re-arms its helper."""
+    from custom_components.panel_assistant import local_adb
+    from custom_components.panel_assistant.app_identity import PACKAGE_ID
+    from custom_components.panel_assistant.transport_protocol import OUTCOME_APPLIED
+    from custom_components.panel_assistant.transport_sessions import CommandOutcome
+
+    # (op, args, whether the panel may hold it for on-screen approval)
+    requests: list[tuple[str, dict[str, Any], bool]] = []
+
+    async def manage(
+        _hass: HomeAssistant,
+        _session: PanelSession,
+        op: str,
+        _wait: float,
+        *,
+        args: dict[str, Any],
+        approval_seconds: float,
+        wait_for_approval: bool,
+    ) -> CommandOutcome:
+        requests.append((op, args, approval_seconds > 0 and wait_for_approval))
+        if op == "adb.ready":
+            result: dict[str, Any] = {
+                "ready": ready,
+                "managed": True,
+                "recovery_hold": False,
+                "build_id": running_build,
+            }
+        elif op == "adb.prepare":
+            result = {
+                "path": f"/data/user/0/{PACKAGE_ID}/cache/adb-recovery/"
+                f"helper-{HELPER_SHA}",
+                "sha256": HELPER_SHA,
+                "build_id": BUILD,
+            }
+        elif op == "adb.cmd":
+            result = {
+                "ok": True,
+                "fields": {
+                    "model": "Test Panel",
+                    "serial": "SERIAL-1",
+                    "abi": "arm64-v8a",
+                    "sdk": "34",
+                    "uid": "0",
+                    "secure": "1",
+                    "debuggable": "0",
+                    "su": "absent",
+                    "boot_id": panel.state.boot,
+                    "uptime": f"{panel.state.now:.2f}",
+                    "home": HOME,
+                    "vendor_pid": str(panel.state.vendor_pid),
+                    "stopped": "false",
+                },
+            }
+        else:
+            result = {}
+        return CommandOutcome(OUTCOME_APPLIED, None, result)
+
+    bootstrap = AsyncMock(return_value=None)
+    probe = AsyncMock(
+        return_value=InstallTargetProbe(
+            InstallTargetState.INSTALLED, "Test Panel", "SERIAL-1", "arm64-v8a", 34
+        )
+    )
+    monkeypatch.setattr(local_adb, "async_manage_outcome", manage)
+    monkeypatch.setattr(local_adb, "_bootstrap", bootstrap)
+    monkeypatch.setattr(vendor_recovery, "async_probe_install_target", probe)
+    # Only the Shelly observation is under test, not the coordinator's own pass.
+    monkeypatch.setattr(
+        panel.coordinator, "_async_activate_completed_admin", AsyncMock()
+    )
+    recovery = panel.coordinator._vendor_recovery
+    recovery._witness = None
+    panel.state.commands.clear()
+    panel.sessions.open(
+        replace(
+            panel.session,
+            token="local-session",
+            capabilities=frozenset(
+                {"management", "local_adb", "local_adb_commands_v1"}
+            ),
+        )
+    )
+    await panel.coordinator.hass.async_block_till_done()
+
+    ops = [op for op, _args, _approval in requests]
+    assert "adb.recover" not in ops
+    bootstrap.assert_not_called()
+    assert all(not approval for _op, _args, approval in requests), requests
+    witness = recovery._witness
+    assert witness is not None
+    assert witness.target.local_shell is None
+    if running_build == BUILD:
+        # The ready route is used; network ADB is not probed.
+        assert witness.local
+        assert ("adb.cmd", {"verb": "PA_OBSERVE", "args": ["recovery"]}, False) in (
+            requests
+        )
+        probe.assert_not_called()
+        assert not panel.state.commands
+    else:
+        # The not-ready route is left alone; the observation runs over network ADB.
+        assert not witness.local
+        assert "adb.cmd" not in ops
+        probe.assert_awaited()
+        assert any("HAPANELD_RECOVERY_BEGIN" in c for c in panel.state.commands)

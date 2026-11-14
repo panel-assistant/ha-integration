@@ -269,8 +269,11 @@ class VendorRecovery:
                 )
                 if pinned is None or not self._current(context, connected=True):
                     return
+                # A background pass never waits on an on-panel approval, and
+                # only a channel already ready is used: recovery and re-arming
+                # belong to the coordinator's gated pass.
                 target = await local_adb.async_target(
-                    hass, context.entry, pinned.pinned
+                    hass, context.entry, pinned.pinned, approval=False, recover=False
                 )
                 if target is None:
                     probe = await async_probe_install_target(
