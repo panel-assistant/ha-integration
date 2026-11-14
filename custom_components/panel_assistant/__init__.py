@@ -20,6 +20,8 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.typing import ConfigType
 
+# Loaded with the package: the coordinator imports it inside a function (a cycle).
+from . import vendor_recovery as vendor_recovery
 from .blob import async_get_blobs
 from .browser_delivery import async_register_browser_delivery
 from .browser_panel import async_register_browser_panel
@@ -57,6 +59,7 @@ from .install_executor import (
 from .lifecycle import async_setup_lifecycle
 from .native import CONF_NATIVE_ENTITIES, NATIVE_ONLY_PLATFORMS
 from .panel_backup import delete_panel_backups
+from .panel_logs import async_setup_panel_logs
 from .removed_panels import (
     async_forget_removed_panel,
     async_load_removed_panels,
@@ -126,8 +129,6 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     await async_setup_connection_info(hass)
     await async_setup_lifecycle(hass)
     await async_setup_voice_stream(hass)
-    from .panel_logs import async_setup_panel_logs
-
     await async_setup_panel_logs(hass)
     async_setup_transport(hass)
     async_setup_voice(hass)

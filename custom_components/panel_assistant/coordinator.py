@@ -205,6 +205,9 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
         # panel that moved while disconnected is still looked for there.
         self._last_hello: tuple[str | None, tuple[str, ...], int | None] | None = None
         self._refused_hellos: dict[str, tuple[str | None, tuple[str, ...]]] = {}
+        # In the function to break the cycle through device and install_jobs;
+        # the package's __init__ imports vendor_recovery at module level, so
+        # this is a sys.modules hit and never loads a file on the event loop.
         from .vendor_recovery import VendorRecovery
 
         self._vendor_recovery = VendorRecovery(self)

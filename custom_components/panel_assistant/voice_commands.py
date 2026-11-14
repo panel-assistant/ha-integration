@@ -27,6 +27,8 @@ from functools import partial
 from pathlib import Path
 from typing import Any
 
+from homeassistant.components.conversation import agent_manager
+from homeassistant.components.lovelace.const import LOVELACE_DATA
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
@@ -78,10 +80,6 @@ def _load_grammars() -> dict[str, dict[str, Any]]:
 
 async def async_setup_voice_commands(hass: HomeAssistant) -> None:
     """Register each command once, with every locale's sentences."""
-    from homeassistant.components.conversation import (
-        agent_manager,
-    )
-
     grammars = await hass.async_add_executor_job(_load_grammars)
     hass.data[DATA_GRAMMARS] = grammars
     manager = agent_manager.get_agent_manager(hass)
@@ -176,10 +174,6 @@ async def _async_page_path(
     The panel's own home dashboard's views first, then every dashboard by
     title or path; a word for "home" means the home dashboard itself.
     """
-    from homeassistant.components.lovelace.const import (
-        LOVELACE_DATA,
-    )
-
     wanted = _normalized(page)
     home_url = await _async_home_dashboard(hass, entry_id, session)
     home = f"/{home_url}"

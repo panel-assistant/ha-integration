@@ -20,6 +20,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from . import adb_protocol as adb
+from . import local_adb_bootstrap
 from . import local_commands as typed
 from .client import (
     _PACKAGE_NAME_PATTERN,
@@ -315,7 +316,6 @@ async def _bootstrap(
         async_pin_entry_target,
         async_revalidate_install_target,
     )
-    from .local_adb_bootstrap import async_bootstrap, prepared_asset
     from .provisioning import InstallTargetState, async_probe_install_target
 
     coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
@@ -336,10 +336,10 @@ async def _bootstrap(
         require_recovery_identity(hass, entry, target)
         if prepared is None:
             result = await _request(hass, entry, session, "adb.prepare", {}, 30)
-            prepared = prepared_asset(result)
+            prepared = local_adb_bootstrap.prepared_asset(result)
         path, sha, build = prepared
         await async_revalidate_install_target(hass, pinned)
-        launched = await async_bootstrap(
+        launched = await local_adb_bootstrap.async_bootstrap(
             target,
             credential.signer,
             path,
@@ -407,8 +407,6 @@ async def async_target(
     session = session_for(hass, entry)
     if session is None:
         return None
-    from .local_adb_bootstrap import prepared_asset
-
     ready = await _request(
         hass, entry, session, "adb.ready", {"include_build_id": True}, 10
     )
@@ -416,7 +414,7 @@ async def async_target(
     legacy = "build_id" not in ready
     prepared = None
     if is_ready and not legacy:
-        prepared = prepared_asset(
+        prepared = local_adb_bootstrap.prepared_asset(
             await _request(hass, entry, session, "adb.prepare", {}, 30)
         )
         if ready["build_id"] != prepared[2]:
