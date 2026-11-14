@@ -62,7 +62,7 @@ def passes(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
 def _assert_one_pass(passes: AsyncMock, entry: Any) -> None:
     assert passes.await_count == 1
     assert passes.await_args.args[1] is entry
-    assert passes.await_args.kwargs == {"vendor": True}
+    assert passes.await_args.kwargs == {}
     assert entry.data[CONF_DEVICE_SETUP] == RECORD
     assert CONF_DEVICE_SETUP_OWED not in entry.data
 

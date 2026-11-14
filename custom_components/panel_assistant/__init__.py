@@ -37,7 +37,6 @@ from .device import (
     panel_reported_name,
 )
 from .device_setup import async_reconcile as async_reconcile_device_setup
-from .discovery import async_offer_migration_targets
 from .embed import (
     REASON_ENTRY_UNLOADED as EMBED_ENTRY_UNLOADED,
 )

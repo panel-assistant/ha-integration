@@ -2,8 +2,9 @@
 
 The update entity is driven as the owner presses Install; the pass is a
 recording stand-in here (test_deferred_admin.py runs the real one). It leaves
-the vendor setup to the update's own grant repair. The LAN route's ordering
-after that repair is tested in test_lan_staged_update.py.
+the vendor setup in, so an update stopped before its own grant repair still
+applies it. The LAN route's ordering after that repair is tested in
+test_lan_staged_update.py.
 """
 
 from __future__ import annotations
@@ -48,7 +49,7 @@ async def test_an_adb_update_runs_the_pass_once(
     await hass.async_block_till_done(wait_background_tasks=True)
 
     assert attempt.await_count == 1
-    assert attempt.await_args.kwargs == {"vendor": False}
+    assert attempt.await_args.kwargs == {}
     assert entry.data[CONF_DEVICE_SETUP] == RECORD
     assert CONF_DEVICE_SETUP_OWED not in entry.data
 
@@ -115,3 +116,7 @@ async def test_an_update_stopped_during_its_webview_step_still_owes_the_pass(
     with pytest.raises(asyncio.CancelledError):
         await install
     await hass.async_block_till_done(wait_background_tasks=True)
+    # Stopped before its grant repair: the pass it then runs includes the
+    # vendor setup that repair would have applied.
+    assert attempt.await_count == 1
+    assert attempt.await_args.kwargs == {}

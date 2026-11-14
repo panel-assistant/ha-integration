@@ -504,11 +504,11 @@ async def test_the_repair_runs_the_pass_on_confirm_and_says_when_not_ready(
         assert _owed(panel.entry) == device_setup.OWED_INSTALL
 
 
-async def test_an_update_pass_leaves_the_vendor_setup_to_the_update(
+async def test_an_update_pass_includes_the_vendor_setup(
     hass: HomeAssistant,
     panel: Any,  # noqa: F811
 ) -> None:
-    """The update's own grant repair applied it; the pass claims the admin only."""
+    """An update stopped before its grant repair still owes the vendor setup."""
     _prepare(panel, "no_record")
     (panel.directory / "home").write_text(f"{PACKAGE}/.DashboardActivity\n")
     panel.entry.runtime_data = SimpleNamespace(coordinator=panel.coordinator)
@@ -517,7 +517,7 @@ async def test_an_update_pass_leaves_the_vendor_setup_to_the_update(
     device_setup.async_request(hass, panel.entry, device_setup.OWED_UPDATE)
     await hass.async_block_till_done(wait_background_tasks=True)
     assert (panel.directory / "admin").exists()
-    assert panel.state.vendor_passes == 0
+    assert panel.state.vendor_passes == 1
     assert _owed(panel.entry) is None
 
 

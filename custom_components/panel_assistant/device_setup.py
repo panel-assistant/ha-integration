@@ -103,7 +103,7 @@ def async_mark_owed(hass: HomeAssistant, entry: ConfigEntry, reason: str) -> Non
     """
     owed = entry.data.get(CONF_DEVICE_SETUP_OWED)
     if owed != OWED_INSTALL:
-        # An install's pass includes the vendor setup an update's leaves out.
+        # The first reason recorded stays; both owe the same pass.
         hass.config_entries.async_update_entry(
             entry, data={**entry.data, CONF_DEVICE_SETUP_OWED: reason}
         )
@@ -217,7 +217,6 @@ async def _async_run(hass: HomeAssistant, entry_id: str, run: _Run) -> None:
                     hass,
                     entry,
                     coordinator,
-                    vendor=entry.data.get(CONF_DEVICE_SETUP_OWED) != OWED_UPDATE,
                 )
             except SetupApprovalPending:
                 # Hardened mode: someone must be at the panel for every shell.
@@ -308,8 +307,9 @@ async def async_attempt(
 
     Finished means Android read the device admin back and the panel no longer
     reports its home-screen request pending: claimed here, or handed back by
-    the owner meanwhile. ``vendor`` is False after an update, whose own grant
-    repair has already applied the vendor setup. Waits on an on-panel
+    the owner meanwhile. Every operation's pass includes the vendor setup:
+    an update interrupted before its own grant repair has not applied it, and
+    writing the same vendor values again changes nothing. Waits on an on-panel
     approval only with ``approval`` (a confirmed Repair); otherwise a panel
     that asks for one raises SetupApprovalPending, so prompts never stack.
     """
@@ -511,7 +511,6 @@ class DeviceSetupFlow(RepairsFlow):
                     self.hass,
                     entry,
                     coordinator,
-                    vendor=entry.data.get(CONF_DEVICE_SETUP_OWED) != OWED_UPDATE,
                     approval=True,
                     refresh=True,
                 )

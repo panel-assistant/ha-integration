@@ -2042,6 +2042,6 @@ async def test_a_lan_update_runs_the_device_setup_pass_once_after_its_grant_repa
 
     assert order == ["repair", "pass"]
     assert attempt.await_args.args[1] is panel.entry
-    assert attempt.await_args.kwargs == {"vendor": False}
+    assert attempt.await_args.kwargs == {}
     assert panel.entry.data[CONF_DEVICE_SETUP] == SETUP_RECORD
     assert CONF_DEVICE_SETUP_OWED not in panel.entry.data
