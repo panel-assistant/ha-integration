@@ -686,6 +686,37 @@ async def test_native_completed_home_receives_vendor_pass_without_reclaiming_hom
     assert panel.state.connections == panel.state.closes == 1
 
 
+async def test_a_pass_after_the_owner_handed_home_back_keeps_their_choice(
+    panel: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No pending request: the pass claims the admin and touches nothing else."""
+    previous = "com.vendor.launcher/.Home"
+    (panel.directory / "home").write_text(previous + "\n")
+    panel.state.health = replace(
+        panel.state.health, setup_complete=True, home_pending=False
+    )
+    sent: list[str] = []
+    original = adb_protocol.AdbDeviceAsync.streaming_shell
+
+    async def recording(self: Any, command: str, **kwargs: Any) -> Any:
+        sent.append(command)
+        async for chunk in original(self, command, **kwargs):
+            yield chunk
+
+    monkeypatch.setattr(adb_protocol.AdbDeviceAsync, "streaming_shell", recording)
+    assert await _pass(panel) is not None
+    assert (panel.directory / "home").read_text().strip() == previous
+    assert panel.state.vendor_passes == 0
+    assert not any(
+        "HAPANELD_PERMISSIONS_BEGIN" in command
+        or "HAPANELD_NOTIFICATIONS_BEGIN" in command
+        for command in sent
+    )
+    assert (panel.directory / "calls").read_text().splitlines() == [
+        f"set-active-admin {PACKAGE}/{PACKAGE}.platform.PanelDeviceAdminReceiver"
+    ]
+
+
 async def test_vendor_transport_drop_retries_then_finishes_completed_setup(
     panel: Any,
 ) -> None:
