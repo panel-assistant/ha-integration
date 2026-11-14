@@ -6,6 +6,7 @@ import gc
 import hashlib
 import io
 import re
+import threading
 import weakref
 import zipfile
 from collections.abc import AsyncGenerator, Awaitable, Callable
@@ -870,6 +871,33 @@ async def test_a_page_comes_over_the_session_with_its_base_rewritten(
     }
     assert request["origin"]["user"] == hass_admin_user.id
     assert not panel.requests
+
+
+async def test_a_page_is_parsed_off_the_event_loop(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_client_no_auth: Any,
+    entry: MockConfigEntry,
+    live: SessionPanel,
+) -> None:
+    """The shell markers are read from the page in the executor, not on the loop."""
+    loop_thread = threading.get_ident()
+    parsed_on: list[int] = []
+    feed = embed._PageShell.feed
+
+    def recorded(shell: embed._PageShell, data: str) -> None:
+        parsed_on.append(threading.get_ident())
+        feed(shell, data)
+
+    ws = await hass_ws_client(hass)
+    _, url = await _open_session(ws, entry.entry_id)
+    browser = await hass_client_no_auth()
+    with patch.object(embed._PageShell, "feed", recorded):
+        response = await browser.get(url)
+
+    assert response.status == 200
+    assert parsed_on
+    assert loop_thread not in parsed_on
 
 
 async def test_page_events_follow_navigation_inside_the_embed_frame(

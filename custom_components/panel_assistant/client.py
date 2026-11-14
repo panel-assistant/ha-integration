@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -98,6 +99,18 @@ _KNOWN_HEALTH_FIELDS = frozenset(
 _LIFECYCLE_STATES = frozenset(
     {"normal", "shutting_down", "starting", "back_online", "connection_lost"}
 )
+
+
+# CPython's bytes.join releases the GIL from this size (GIL_THRESHOLD in
+# Objects/stringlib/join.h); below it the join is too quick to matter.
+_EXECUTOR_JOIN_BYTES = 1024 * 1024
+
+
+async def _async_join(chunks: list[bytes], size: int) -> bytes:
+    """Assemble a reply from its chunks; a large one (a backup) in the executor."""
+    if size < _EXECUTOR_JOIN_BYTES:
+        return b"".join(chunks)
+    return await asyncio.get_running_loop().run_in_executor(None, b"".join, chunks)
 
 
 class HaPaneldError(Exception):
@@ -767,10 +780,12 @@ class HaPaneldClient:
                         if isinstance(peer, tuple) and isinstance(peer[0], str)
                         else None
                     )
-                body = bytearray()
+                chunks: list[bytes] = []
+                size = 0
                 async for chunk in response.content.iter_chunked(maximum_bytes + 1):
-                    body.extend(chunk)
-                    if len(body) > maximum_bytes:
+                    chunks.append(chunk)
+                    size += len(chunk)
+                    if size > maximum_bytes:
                         break
         except CannotConnectError:
             raise
@@ -781,9 +796,9 @@ class HaPaneldClient:
         except ClientError as err:
             raise CannotConnectError from err
 
-        if len(body) > maximum_bytes:
+        if size > maximum_bytes:
             raise InvalidResponseError
-        return bytes(body)
+        return await _async_join(chunks, size)
 
     async def _async_post_bounded(
         self,
@@ -800,17 +815,19 @@ class HaPaneldClient:
                 headers={"Cache-Control": "no-cache"},
                 timeout=ClientTimeout(total=timeout_seconds),
             ) as response:
-                body = bytearray()
+                chunks: list[bytes] = []
+                size = 0
                 async for chunk in response.content.iter_chunked(maximum_bytes + 1):
-                    body.extend(chunk)
-                    if len(body) > maximum_bytes:
+                    chunks.append(chunk)
+                    size += len(chunk)
+                    if size > maximum_bytes:
                         break
                 status = response.status
         except (ClientError, TimeoutError) as err:
             raise CannotConnectError from err
-        if len(body) > maximum_bytes:
+        if size > maximum_bytes:
             raise InvalidResponseError
-        return status, bytes(body)
+        return status, await _async_join(chunks, size)
 
     async def async_get_health(self) -> PanelHealth:
         """Fetch and parse the bounded health response."""

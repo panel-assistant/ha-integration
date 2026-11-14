@@ -82,6 +82,13 @@ class _PageShell(HTMLParser):
             self._nav_depth -= 1
 
 
+def _read_shell(page: bytes) -> _PageShell:
+    """Parse one page for its shell markers. Blocking."""
+    shell = _PageShell()
+    shell.feed(page.decode("utf-8", errors="replace"))
+    return shell
+
+
 REASON_ENTRY_UNLOADED: Final = "entry_unloaded"
 REASON_USER_REMOVED: Final = "user_removed"
 
@@ -589,8 +596,9 @@ class EmbedView(HomeAssistantView):
         if data is None or (outcome.outcome != OUTCOME_APPLIED and not outcome.status):
             return _respond(502)
         if (outcome.status or 200) == 200:
-            shell = _PageShell()
-            shell.feed(data.decode("utf-8", errors="replace"))
+            # A pure-Python parse of the whole page: in the executor, since a
+            # panel page has no size bound below the session's transfer limit.
+            shell = await self.hass.async_add_executor_job(_read_shell, data)
             if shell.build is not None:
                 async_get_bundles(self.hass).observe_build(entry, panel, shell.build)
             if name != "info" and shell.has_nav and not shell.active_tab:

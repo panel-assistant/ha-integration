@@ -389,7 +389,10 @@ class AdbCredentialManager:
         self, credential: _StoredCredential
     ) -> _StoredCredential:
         """Persist and verify one identity without detaching a Store writer."""
-        document = _validated_credential_for_save(credential)
+        # The round trip loads the private key: CPU work kept off the loop.
+        document = await self._hass.async_add_executor_job(
+            _validated_credential_for_save, credential
+        )
         cancellation: asyncio.CancelledError | None = None
         _save_result, failure, cancellation = await self._async_drain_operation(
             lambda: self._async_store_save(document),

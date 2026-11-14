@@ -209,6 +209,46 @@ async def test_manager_persists_and_reuses_one_credential(
     assert second.Sign(digest) == first.Sign(digest)
 
 
+async def test_a_new_credential_is_checked_off_the_event_loop(
+    hass: HomeAssistant,
+) -> None:
+    """The round trip that loads a new private key runs in the executor."""
+    loop_thread = threading.get_ident()
+    checked_on: list[int] = []
+    parse = adb_credentials._parse_store_document
+    persisted: dict[str, str] = {}
+    store = MagicMock()
+    store.path = "/not/read/by/this/test"
+
+    async def save(data: dict[str, str]) -> None:
+        persisted.update(data)
+
+    store.async_save = AsyncMock(side_effect=save)
+
+    def recorded(body: bytes) -> _StoredCredential:
+        checked_on.append(threading.get_ident())
+        return parse(body)
+
+    with (
+        patch.object(adb_credentials, "Store", return_value=store),
+        patch.object(
+            adb_credentials,
+            "_store_presence",
+            side_effect=[(False, False), (True, False)],
+        ),
+        patch.object(
+            adb_credentials,
+            "_read_durable_credential",
+            side_effect=lambda _path: _parse_stored_credential(persisted.copy()),
+        ),
+        patch.object(adb_credentials, "_parse_store_document", recorded),
+    ):
+        await AdbCredentialManager(hass).async_get_credential()
+
+    assert checked_on
+    assert loop_thread not in checked_on
+
+
 async def test_manager_serializes_concurrent_generation(
     hass: HomeAssistant,
 ) -> None:

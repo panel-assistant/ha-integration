@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 from typing import Any
@@ -1118,6 +1119,25 @@ async def test_backup_returns_bytes_and_allows_plaintext() -> None:
     assert str(url) == "http://panel.local:8888/api/v1/backup"
     assert kwargs["data"]["allow_plaintext"] == "1"
     assert kwargs["data"] == {"allow_plaintext": "1", "include_companion": "false"}
+
+
+async def test_a_large_backup_is_assembled_in_the_executor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A backup of several MiB is put together off the event loop, unchanged."""
+    body = bytes(range(256)) * (3 * 4096 + 7)  # just over 3 MiB
+    loop = asyncio.get_running_loop()
+    handed_off: list[object] = []
+    run_in_executor = loop.run_in_executor
+
+    def spy(executor: object, func: Any, *args: object) -> Any:
+        handed_off.append(func)
+        return run_in_executor(executor, func, *args)
+
+    monkeypatch.setattr(loop, "run_in_executor", spy)
+
+    assert await _client(_session(body=body)).async_backup_panel() == body
+    assert b"".join in handed_off
 
 
 @pytest.mark.parametrize(
