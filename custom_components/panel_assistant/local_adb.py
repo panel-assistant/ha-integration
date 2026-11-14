@@ -399,13 +399,10 @@ async def async_target(
     address: PanelAddress,
     *,
     approval: bool = True,
-    recover: bool = True,
 ) -> adb.AdbInstallTarget | None:
     """Prove actual readiness and physical identity before selecting local I/O.
 
-    ``approval`` applies to every shell the returned target carries. Without
-    ``recover``, a channel that is not ready on the prepared build is not
-    reopened or re-armed: the result is None and the caller uses network ADB.
+    ``approval`` applies to every shell the returned target carries.
     """
     session = session_for(hass, entry)
     if session is None:
@@ -423,17 +420,12 @@ async def async_target(
             await _request(hass, entry, session, "adb.prepare", {}, 30)
         )
         if ready["build_id"] != prepared[2]:
-            if not recover:
-                return None
             # Explicitly reopen the original route before replacing its recovery
             # owner. The root bootstrap still pins and revalidates this panel.
             await async_recover(hass, entry, approval=approval)
             is_ready = False
-    if not is_ready and (
-        not recover
-        or not await _async_start_recovery(
-            hass, entry, session, address, prepared, legacy
-        )
+    if not is_ready and not await _async_start_recovery(
+        hass, entry, session, address, prepared, legacy
     ):
         return None
     device = LocalAdbDevice(hass, entry, session, approval)

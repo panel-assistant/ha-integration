@@ -15,7 +15,6 @@ from custom_components.panel_assistant import (
     install_adb,
     local_adb,
     local_commands,
-    vendor_recovery,
 )
 from custom_components.panel_assistant.adb_protocol import (
     AdbInstallTarget,
@@ -545,32 +544,6 @@ async def test_typed_identity_root_reads_the_posture_without_a_shell() -> None:
         )
         is AdbRootMode.ROOTLESS
     )
-
-
-def test_typed_recovery_observation_is_bounded_like_the_shell() -> None:
-    fields = {
-        **IDENTITY,
-        "boot_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
-        "uptime": "123.45",
-        "home": "io.panelassistant.android/.DashboardActivity",
-        "vendor_pid": "812",
-        "stopped": "false",
-    }
-    assert vendor_recovery._read_fields(fields) == (
-        "0f8fad5b-d9cb-469f-a165-70867728950e",
-        123.45,
-        "io.panelassistant.android/.DashboardActivity",
-        812,
-        False,
-    )
-    for key, value in (
-        ("boot_id", "not-a-uuid"),
-        ("uptime", "12"),
-        ("vendor_pid", "-1"),
-        ("stopped", "maybe"),
-    ):
-        with pytest.raises(ValueError):
-            vendor_recovery._read_fields({**fields, key: value})
 
 
 @pytest.mark.parametrize(

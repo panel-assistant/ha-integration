@@ -462,139 +462,6 @@ async def test_vendor_shutdown_with_real_android_user_sections_and_old_negative_
     assert panel.coordinator.reachable
 
 
-@pytest.mark.parametrize("stop_age", [301.0, 314.0])
-async def test_local_witness_survives_app_death_until_independent_adb_recovers(
-    panel: Any,
-    monkeypatch: pytest.MonkeyPatch,
-    stop_age: float,
-) -> None:
-    from custom_components.panel_assistant import local_adb
-    from custom_components.panel_assistant.adb_protocol import AdbInstallTarget
-
-    device = adb_protocol.AdbDeviceAsync(None)
-    target = AdbInstallTarget(
-        panel.coordinator.client.address,
-        "SERIAL-1",
-        "Test Panel",
-        "arm64-v8a",
-        34,
-        local_shell=device,
-    )
-    monkeypatch.setattr(local_adb, "async_target", AsyncMock(return_value=target))
-    monkeypatch.setattr(
-        vendor_recovery,
-        "async_probe_install_target",
-        AsyncMock(
-            side_effect=AssertionError("live local witness must not probe network ADB")
-        ),
-    )
-    session = replace(
-        panel.session,
-        token="local-session",
-        local_adb_identity=("SERIAL-1", "Test Panel", "arm64-v8a", 34),
-    )
-    panel.sessions.open(session)
-    await panel.coordinator.async_refresh()
-    await panel.coordinator.hass.async_block_till_done()
-    original = adb_protocol._async_connect
-    network_attempts = 0
-
-    async def connect(target: Any, signer: Any, *, authorize: bool = True) -> Any:
-        nonlocal network_attempts
-        assert target.local_shell is None, (
-            "app-death recovery needs an independent route"
-        )
-        network_attempts += 1
-        if network_attempts == 1:
-            raise adb_protocol.InstallAdbError(
-                adb_protocol.InstallAdbErrorCode.TARGET_UNREACHABLE
-            )
-        return await original(target, signer, authorize=authorize)
-
-    monkeypatch.setattr(adb_protocol, "_async_connect", connect)
-    monkeypatch.setattr(local_adb, "LOCAL_ADB_RECOVERY_RETRY_SECONDS", 0.001)
-    panel.state.online = False
-    panel.state.stopped = True
-    # Exact vendor provenance remains usable across the admitted recovery wait.
-    panel.state.now = 101.0 + stop_age
-    panel.state.logs.append(
-        f"  101.000 475 1207 I ActivityManager: Force stopping {PACKAGE} "
-        "appid=10115 user=0: from pid 1371"
-    )
-    panel.sessions.close(session, "app died")
-    await panel.coordinator.hass.async_block_till_done()
-    assert network_attempts == 2
-    assert panel.state.homes == 1
-    assert panel.coordinator.reachable
-
-
-async def test_typed_witness_reads_recovery_and_keeps_network_adb_only(
-    panel: Any, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from custom_components.panel_assistant import local_adb
-    from custom_components.panel_assistant.adb_protocol import AdbInstallTarget
-
-    calls: list[tuple[str, tuple[str, ...]]] = []
-
-    class Commands:
-        async def run(self, verb: str, args: tuple[str, ...] = ()) -> dict[str, str]:
-            calls.append((verb, tuple(args)))
-            return {
-                "model": "Test Panel",
-                "serial": "SERIAL-1",
-                "abi": "arm64-v8a",
-                "sdk": "34",
-                "uid": "0",
-                "secure": "1",
-                "debuggable": "0",
-                "su": "absent",
-                "boot_id": panel.state.boot,
-                "uptime": f"{panel.state.now:.2f}",
-                "home": HOME,
-                "vendor_pid": str(panel.state.vendor_pid),
-                "stopped": "false",
-            }
-
-    class NoShell:
-        async def streaming_shell(self, *args: Any, **kwargs: Any) -> Any:
-            raise AssertionError("a typed witness sent shell text")
-            yield  # pragma: no cover
-
-        async def close(self) -> None:
-            """Nothing to close."""
-
-    target = AdbInstallTarget(
-        panel.coordinator.client.address,
-        "SERIAL-1",
-        "Test Panel",
-        "arm64-v8a",
-        34,
-        local_shell=NoShell(),  # type: ignore[arg-type]
-        local_commands=Commands(),
-    )
-    monkeypatch.setattr(local_adb, "async_target", AsyncMock(return_value=target))
-    monkeypatch.setattr(
-        vendor_recovery,
-        "async_probe_install_target",
-        AsyncMock(side_effect=AssertionError("typed witness must not probe")),
-    )
-    recovery = panel.coordinator._vendor_recovery
-    recovery._witness = None
-    session = replace(
-        panel.session,
-        token="typed-session",
-        local_adb_identity=("SERIAL-1", "Test Panel", "arm64-v8a", 34),
-    )
-    panel.sessions.open(session)
-    await panel.coordinator.async_refresh()
-    await panel.coordinator.hass.async_block_till_done()
-    assert calls and set(calls) == {("PA_OBSERVE", ("recovery",))}
-    witness = recovery._witness
-    assert witness is not None
-    assert witness.target.local_commands is None
-    assert witness.target.local_shell is None
-
-
 BUILD = "b" * 64
 STALE_BUILD = "a" * 64
 HELPER_SHA = "c" * 64
@@ -611,7 +478,10 @@ async def test_session_arming_never_prompts_or_rearms_the_local_route(
     ready: bool,
     running_build: str | None,
 ) -> None:
-    """A session connect observes; it never asks the panel or re-arms its helper."""
+    """A session connect observes over network ADB only.
+
+    It never asks the panel for approval or re-arms its helper.
+    """
     from custom_components.panel_assistant import local_adb
     from custom_components.panel_assistant.app_identity import PACKAGE_ID
     from custom_components.panel_assistant.transport_protocol import OUTCOME_APPLIED
@@ -695,24 +565,15 @@ async def test_session_arming_never_prompts_or_rearms_the_local_route(
     )
     await panel.coordinator.hass.async_block_till_done()
 
-    ops = [op for op, _args, _approval in requests]
-    assert "adb.recover" not in ops
+    # Whatever state the local route is in, a session connect never uses it:
+    # nothing is asked of the panel's local route, so it cannot show an
+    # approval prompt, and nothing recovers or re-arms the helper.
+    assert requests == []
     bootstrap.assert_not_called()
-    assert all(not approval for _op, _args, approval in requests), requests
+    probe.assert_awaited()
     witness = recovery._witness
     assert witness is not None
     assert witness.target.local_shell is None
-    if running_build == BUILD:
-        # The ready route is used; network ADB is not probed.
-        assert witness.local
-        assert ("adb.cmd", {"verb": "PA_OBSERVE", "args": ["recovery"]}, False) in (
-            requests
-        )
-        probe.assert_not_called()
-        assert not panel.state.commands
-    else:
-        # The not-ready route is left alone; the observation runs over network ADB.
-        assert not witness.local
-        assert "adb.cmd" not in ops
-        probe.assert_awaited()
-        assert any("HAPANELD_RECOVERY_BEGIN" in c for c in panel.state.commands)
+    assert witness.target.local_commands is None
+    # The observation runs over network ADB with the key the panel trusts.
+    assert any("HAPANELD_RECOVERY_BEGIN" in c for c in panel.state.commands)

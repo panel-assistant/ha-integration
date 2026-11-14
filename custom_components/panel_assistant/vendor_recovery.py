@@ -7,7 +7,7 @@ import logging
 import re
 import shlex
 from collections.abc import Coroutine
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from secrets import token_hex
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -15,13 +15,11 @@ from uuid import UUID
 from homeassistant.const import CONF_ADDRESS
 
 from . import adb_protocol as adb
-from . import local_adb
-from . import local_commands as typed
 from .adb_credentials import AdbCredentialError, async_get_durable_adb_credential
 from .app_identity import EQUIVALENT_HOME_COMPONENTS, LAUNCH_COMPONENTS
 from .client import CannotConnectError, HaPaneldError
 from .home_chooser import HOME_QUERY
-from .install_adb import _async_target_section, _async_typed_section
+from .install_adb import _async_target_section
 from .install_jobs import async_get_install_job_manager
 from .install_network import (
     InstallNetworkError,
@@ -67,7 +65,6 @@ class _Witness:
     uptime: float
     home: str
     vendor_pid: int
-    local: bool = False
 
 
 def _observation(nonce: str, package: str, *, logs: bool = False) -> str:
@@ -108,24 +105,6 @@ def _read(lines: list[str]) -> tuple[str, float, str, int, bool]:
     return lines[0], uptime, lines[2], pid, stopped[0] == "true"
 
 
-def _read_fields(fields: dict[str, str]) -> tuple[str, float, str, int, bool]:
-    """The typed recovery observation, bounded like ``_read``."""
-    try:
-        boot, uptime_text, home = fields["boot_id"], fields["uptime"], fields["home"]
-        pid_text, stopped = fields["vendor_pid"], fields["stopped"]
-    except KeyError:
-        raise ValueError("incomplete vendor observation") from None
-    if str(UUID(boot)) != boot:
-        raise ValueError("incomplete vendor observation")
-    if not re.fullmatch(r"\d+\.\d+", uptime_text) or float(uptime_text) <= 0:
-        raise ValueError("invalid uptime")
-    if not re.fullmatch(r"\d+", pid_text):
-        raise ValueError("ambiguous vendor process")
-    if stopped not in ("true", "false"):
-        raise ValueError("unknown stopped state")
-    return boot, float(uptime_text), home, int(pid_text), stopped == "true"
-
-
 def _vendor_stop(lines: list[str], witness: _Witness, now: float) -> str | None:
     actors = {witness.vendor_pid: _VENDOR}
     previous = witness.uptime
@@ -157,15 +136,7 @@ def _vendor_stop(lines: list[str], witness: _Witness, now: float) -> str | None:
         and first <= witness.uptime
         and latest is not None
         and latest[1] == _VENDOR
-        and 0
-        <= now - latest[0]
-        <= _STOP_AGE_SECONDS
-        + (
-            local_adb.LOCAL_ADB_RECOVERY_SECONDS
-            + local_adb.LOCAL_ADB_RECOVERY_OVERHEAD_SECONDS
-            if witness.local
-            else 0
-        )
+        and 0 <= now - latest[0] <= _STOP_AGE_SECONDS
     ):
         return latest[2]
     return None
@@ -260,45 +231,30 @@ class VendorRecovery:
     async def _arm(self, context: _Context, snapshot: PanelSnapshot) -> None:
         hass = self._coordinator.hass
         try:
-            async with asyncio.timeout(
-                None if local_adb.session_for(hass, context.entry) is not None else 15
-            ):
+            async with asyncio.timeout(15):
                 credential = await async_get_durable_adb_credential(hass)
                 pinned = await async_pin_entry_target(
                     hass, self._coordinator.client.address, snapshot.health, context.did
                 )
                 if pinned is None or not self._current(context, connected=True):
                     return
-                # A background pass never waits on an on-panel approval, and
-                # only a channel already ready is used: recovery and re-arming
-                # belong to the coordinator's gated pass.
-                target = await local_adb.async_target(
-                    hass, context.entry, pinned.pinned, approval=False, recover=False
+                # A session connect only observes, over network ADB with the
+                # key the panel already trusts: the panel's local route can ask
+                # for on-screen approval, and recovery and re-arming belong to
+                # the coordinator's gated pass.
+                probe = await async_probe_install_target(
+                    pinned.pinned, credential.signer
                 )
-                if target is None:
-                    probe = await async_probe_install_target(
-                        pinned.pinned, credential.signer
-                    )
-                    target = probe.adb_target(pinned.pinned)
-                    if (
-                        probe.state is not InstallTargetState.INSTALLED
-                        or target is None
-                    ):
-                        return
-                if target.local_commands is not None:
-                    boot, uptime, home, vendor_pid, stopped = _read_fields(
-                        await _async_typed_section(
-                            target, typed.VERB_OBSERVE, "recovery"
-                        )
-                    )
-                else:
-                    lines = await _async_target_section(
-                        target,
-                        credential.signer,
-                        lambda nonce: _observation(nonce, context.package),
-                        "RECOVERY",
-                    )
-                    boot, uptime, home, vendor_pid, stopped = _read(lines)
+                target = probe.adb_target(pinned.pinned)
+                if probe.state is not InstallTargetState.INSTALLED or target is None:
+                    return
+                lines = await _async_target_section(
+                    target,
+                    credential.signer,
+                    lambda nonce: _observation(nonce, context.package),
+                    "RECOVERY",
+                )
+                boot, uptime, home, vendor_pid, stopped = _read(lines)
                 homes = {
                     home
                     for launch in LAUNCH_COMPONENTS[context.package]
@@ -318,14 +274,12 @@ class VendorRecovery:
                 ):
                     self._witness = _Witness(
                         context,
-                        # Recovery itself runs over network ADB only.
-                        replace(target, local_shell=None, local_commands=None),
+                        target,
                         credential.generation_id,
                         boot,
                         uptime,
                         home,
                         vendor_pid,
-                        target.local_shell is not None,
                     )
         except (
             AdbCredentialError,
@@ -347,10 +301,7 @@ class VendorRecovery:
         claimed = False
         device = None
         try:
-            recovery_wait = (
-                local_adb.recovery_wait(hass, context.entry) if witness.local else 0
-            )
-            async with asyncio.timeout(_RECOVERY_SECONDS + recovery_wait):
+            async with asyncio.timeout(_RECOVERY_SECONDS):
                 await asyncio.sleep(_GRACE_SECONDS)
                 if not self._allowed(context) or not claim_panel_operation(
                     hass, entry_id
@@ -380,26 +331,9 @@ class VendorRecovery:
                 )
                 if not self._allowed(context):
                     return
-                deadline = hass.loop.time() + recovery_wait
-                while True:
-                    try:
-                        device = await adb._async_connect(
-                            witness.target, credential.signer, authorize=False
-                        )
-                        break
-                    except adb.InstallAdbError as err:
-                        if (
-                            err.code is not adb.InstallAdbErrorCode.TARGET_UNREACHABLE
-                            or hass.loop.time() >= deadline
-                            or not self._allowed(context)
-                        ):
-                            raise
-                        await asyncio.sleep(
-                            min(
-                                local_adb.LOCAL_ADB_RECOVERY_RETRY_SECONDS,
-                                deadline - hass.loop.time(),
-                            )
-                        )
+                device = await adb._async_connect(
+                    witness.target, credential.signer, authorize=False
+                )
                 if not self._allowed(context):
                     return
                 nonce = token_hex(16)
