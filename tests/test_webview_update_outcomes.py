@@ -261,7 +261,8 @@ async def test_blocked_webview_download_raises_the_repair_and_logs_its_cause(
     ]
     assert len(warnings) == 1
     assert logged in warnings[0]
-    assert "https://panel-assistant.io" in warnings[0]
+    advice = "Allow Home Assistant to reach https://panel-assistant.io, then retry"
+    assert advice in warnings[0]
     assert "not published" not in warnings[0]
 
 
