@@ -17,7 +17,6 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.typing import ConfigType
 
 # Loaded with the package: the coordinator imports it inside a function (a cycle).
@@ -37,7 +36,6 @@ from .device import (
     panel_display_name,
     panel_reported_name,
 )
-from .discovery import async_offer_migration_targets
 from .embed import (
     REASON_ENTRY_UNLOADED as EMBED_ENTRY_UNLOADED,
 )
@@ -139,9 +137,6 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async_get_blobs(hass)
     await async_register_browser_panel(hass)
     await async_setup_restart_check(hass)
-    # Installing or updating Panel Assistant means a restart, and someone at
-    # work in Home Assistant: offer the panels other integrations know at once.
-    async_at_started(hass, async_offer_migration_targets)
     feed = config.get(DOMAIN, {}).get(CONF_BUILD_FEED)
     if feed is not None:
         try:

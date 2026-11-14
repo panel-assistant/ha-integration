@@ -1,5 +1,6 @@
 """Panels other integrations already know: offered in the add-panel form and
-raised under Discovered with no Panel Assistant entry."""
+raised under Discovered with no Panel Assistant entry, searched for only when
+someone opens Add integration."""
 
 import asyncio
 import json
@@ -12,8 +13,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant import config_entries
-from homeassistant.const import CONF_ADDRESS, CONF_HOST
-from homeassistant.core import HomeAssistant
+from homeassistant.const import CONF_ADDRESS, CONF_HOST, EVENT_HOMEASSISTANT_STARTED
+from homeassistant.core import CoreState, HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
@@ -396,26 +397,101 @@ async def test_a_rejected_candidate_at_a_new_address_is_probed_at_once(
     assert set(_discovered(hass)) == {"Wall tablet"}
 
 
-async def test_known_panels_are_audited_as_panel_assistant_starts(
+async def test_starting_home_assistant_looks_for_no_known_panels(
     hass: HomeAssistant, adb_open: SimpleNamespace
 ) -> None:
-    """An install or update restarts Core; the audit runs then, with no one asking."""
+    """Start reads no other integration and contacts none of its devices.
+
+    The panels those integrations know are searched for only when someone opens
+    Add integration; that search then offers them as before.
+    """
     _companion(hass, "Wall screen", "192.168.1.30", "a")
-    adb_open.open.add("192.168.1.30")
+    _host_entry(hass, "fully_kiosk", "Stairs tablet", "192.168.1.11")
+    _host_entry(hass, "shelly", "Porch plug", "192.168.1.22")
+    _esphome(hass, "Kiosk", "192.168.1.20", "Android 14")
+    adb_open.open.update({"192.168.1.30", "192.168.1.11", "192.168.1.20"})
+    foreign = {"fully_kiosk", "shelly", "esphome", "mobile_app"}
+    read: list[str] = []
+    entries = hass.config_entries.async_entries
 
-    assert await async_setup_component(hass, DOMAIN, {})
-    await hass.async_block_till_done()
+    def recording(domain: str | None = None, *args, **kwargs):
+        if domain in foreign:
+            read.append(domain)
+        return entries(domain, *args, **kwargs)
 
-    assert set(_discovered(hass)) == {"Wall screen"}
+    hass.set_state(CoreState.not_running)
+    with (
+        patch.object(hass.config_entries, "async_entries", side_effect=recording),
+        patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)) as health,
+    ):
+        assert await async_setup_component(hass, DOMAIN, {})
+        await hass.async_block_till_done()
+        hass.set_state(CoreState.running)
+        hass.bus.async_fire(EVENT_HOMEASSISTANT_STARTED)
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+        assert read == []
+        assert adb_open.asked == []
+        health.assert_not_called()
+        assert _discovered(hass) == {}
+
+        await _add_integration_opened(hass)
+
+    assert set(read) == foreign
+    assert set(_discovered(hass)) == {"Wall screen", "Stairs tablet", "Kiosk"}
+    assert sorted(adb_open.asked) == [
+        "192.168.1.11",
+        "192.168.1.20",
+        "192.168.1.22",
+        "192.168.1.30",
+    ]
 
 
-async def test_opening_add_integration_rechecks_known_panels(
+async def test_add_panel_form_waits_for_the_lookup_no_longer_than_its_cap(
     hass: HomeAssistant, adb_open: SimpleNamespace
 ) -> None:
-    """Network ADB turned on after the start audit is offered at the next Add."""
+    """A check still running at the cap is left to its card; the rest are shown."""
+    _companion(hass, "Wall screen", "192.168.1.30", "a")
+    _host_entry(hass, "fully_kiosk", "Den tablet", "192.168.1.40")
+    MockConfigEntry(domain=DOMAIN, data={CONF_ADDRESS: "192.168.1.40"}).add_to_hass(
+        hass
+    )
+    adb_open.open.update({"192.168.1.30", "192.168.1.40"})
+    release = asyncio.Event()
+
+    async def classifier_stuck(_address):
+        await release.wait()
+        return InstallTargetProbe(state=InstallTargetState.INSTALLED)
+
+    with (
+        patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)),
+        patch(
+            "custom_components.panel_assistant.discovery.async_probe_install_target",
+            side_effect=classifier_stuck,
+        ),
+        patch(
+            "custom_components.panel_assistant.discovery._MIGRATION_LOOKUP_SECONDS",
+            0.2,
+        ),
+    ):
+        async with asyncio.timeout(5):
+            form = await _add_panel_form(hass)
+        assert form["step_id"] == "add_known_panel"
+        assert _offered(form) == [
+            ("192.168.1.30", "✓ Wall screen · Home Assistant Companion · 192.168.1.30")
+        ]
+        release.set()
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+
+async def test_opening_add_integration_offers_a_panel_whose_adb_opened_since(
+    hass: HomeAssistant, adb_open: SimpleNamespace
+) -> None:
+    """Network ADB turned on after an earlier search is offered at the next Add."""
     _companion(hass, "Wall tablet", "192.168.1.30", "a")
     assert await async_setup_component(hass, DOMAIN, {})
     await hass.async_block_till_done()
+    await _add_integration_opened(hass)
     assert _discovered(hass) == {}
     adb_open.open.add("192.168.1.30")
 

@@ -5,9 +5,11 @@ The config flow's discovery steps delegate here: the app's own announcement
 network ADB announcement, and the panels other integrations already know.
 
 Those known panels are offered in the add-panel form so nobody has to look up an
-address, and each is raised as a discovery under Discovered when Panel Assistant
-starts and whenever someone opens Add integration. A device is a definite target
-when its network ADB port answers, because that is what the installer needs.
+address, and each is raised as a discovery under Discovered when someone opens
+Add integration. They are searched for only then, never as Panel Assistant
+starts or on a timer, so another integration's devices are not contacted
+unasked. A device is a definite target when its network ADB port answers,
+because that is what the installer needs.
 Otherwise it is listed only when its integration runs on nothing but Android
 screens; a relay with ADB closed is left out, and a phone never appears.
 """
@@ -55,7 +57,7 @@ from .client import (
     is_valid_discovery_id,
     normalize_address,
 )
-from .const import DOMAIN
+from .const import DEFAULT_TIMEOUT_SECONDS, DOMAIN
 from .ha_url import async_offer_ha_url
 from .identity import accept_health, is_installation, reinstalled
 from .install_network import is_allowed_install_address
@@ -80,6 +82,10 @@ _COMPANION_IP_SUFFIX = "_wifi_ip_address"
 # telephony (`FEATURE_TELEPHONY`): a phone, never a wall panel.
 _COMPANION_TELEPHONY_SUFFIXES = ("_phone_state", "_mobile_data", "_sim_1")
 _ADB_PROBE_SECONDS = 2
+# The add-panel form waits for its picker no longer than a candidate not yet
+# added takes at worst: one health request, then the ADB port. A slower check
+# (the reinstall classifier of an added address) is left to its card.
+_MIGRATION_LOOKUP_SECONDS = DEFAULT_TIMEOUT_SECONDS + _ADB_PROBE_SECONDS
 # Asking a waiting card's address whether the panel just proven answers there.
 _SAME_PANEL_PROBE_SECONDS = 2
 _SAME_PANEL_PROBE_CARDS = 8
@@ -602,11 +608,27 @@ async def async_check_migration_target(
 
 
 async def async_find_migration_targets(hass: HomeAssistant) -> list[MigrationTarget]:
-    """Return known, unconfigured panels: ADB-open ones first."""
-    checked = await asyncio.gather(
-        *(async_check_migration_target(hass, c) for c in _candidates(hass).values())
-    )
-    targets = [target for target in checked if target is not None]
+    """Return known, unconfigured panels: ADB-open ones first.
+
+    Every candidate is checked at once, and the form waits no longer than
+    `_MIGRATION_LOOKUP_SECONDS`; one still unanswered then is left out here and
+    stays offered by its card.
+    """
+    tasks = [
+        asyncio.create_task(async_check_migration_target(hass, candidate))
+        for candidate in _candidates(hass).values()
+    ]
+    if not tasks:
+        return []
+    done, pending = await asyncio.wait(tasks, timeout=_MIGRATION_LOOKUP_SECONDS)
+    for task in pending:
+        task.cancel()
+    await asyncio.gather(*pending, return_exceptions=True)
+    targets = [
+        target
+        for task in tasks
+        if task in done and (target := task.result()) is not None
+    ]
     return sorted(targets, key=lambda target: not target.adb_open)
 
 
