@@ -26,17 +26,22 @@ const OWNER_DECIDED = new RegExp(OWNER_DECISION.replace('[]| ]', String.raw`[\]|
 // nobody decided, a dump that succeeded and shows this package lists no line
 // for it (a decision always sets a flag, which keeps the line). A denial the
 // owner or a policy decided is kept and sets runtime_denied=1; a failed dump,
-// one without this package, or a malformed line is unknown, never a reason to
-// grant. Leaves the line it last read in $runtime and prints nothing.
+// one without this package, or a malformed line, wherever it names the
+// permission other than as a bare requested-list entry, is unknown, never a
+// reason to grant. Leaves the line it last read in $runtime and prints nothing.
 export function runtimePermissionRepair(packageId, permission) {
   const denied = String.raw`[[:space:]]*${permission.replaceAll('.', '\\.')}: granted=false(, flags=\[[ A-Z0-9_|]*\])?[[:space:]]*`;
   const read = `runtime_dump=$(dumpsys package ${packageId}); runtime_status=$?; runtime=; ` +
     `if [ "$runtime_status" -eq 0 ]; then runtime=$(printf '%s\\n' "$runtime_dump" | grep -F '${permission}: granted='); fi`;
   const grant = `pm grant ${packageId} ${permission} >/dev/null 2>&1; ${read}`;
+  // No line names the permission except a bare requested-list entry.
+  const unlisted = `! printf '%s\\n' "$runtime_dump" | ` +
+    `grep -E '(^|[^A-Za-z0-9_])${permission.split('.').pop()}([^A-Za-z0-9_]|$)' | ` +
+    `grep -Evq '^[[:space:]]*${permission.replaceAll('.', '\\.')}[[:space:]]*$'`;
   return `${read}; runtime_denied=0; if [ -n "$runtime" ] && ! printf '%s\\n' "$runtime" | grep -Evq '^${denied}$'; then ` +
     `if printf '%s\\n' "$runtime" | grep -Eq '${OWNER_DECISION}'; then runtime_denied=1; else ${grant}; fi; ` +
     `elif [ -z "$runtime" ] && [ "$runtime_status" -eq 0 ] && printf '%s\\n' "$runtime_dump" | ` +
-    `grep -Fq 'Package [${packageId}]'; then ${grant}; fi`;
+    `grep -Fq 'Package [${packageId}]' && ${unlisted}; then ${grant}; fi`;
 }
 // The app operations the app needs, set to allow only while nobody has set
 // them. Android 14 answers an unset operation with two lines, including its

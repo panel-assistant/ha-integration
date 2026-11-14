@@ -322,6 +322,11 @@ dumpsys() {
         [ ! -f "$STATE/permission.$2.$permission" ]; then
       continue
     fi
+    # A line this parser cannot read, printed as it stands.
+    if [ -f "$STATE/line.$2.$permission" ]; then
+      cat "$STATE/line.$2.$permission"
+      continue
+    fi
     granted=false
     if [ -f "$STATE/permission.$2.$permission" ]; then
       granted=$(cat "$STATE/permission.$2.$permission")
@@ -1909,6 +1914,29 @@ async def test_a_hardware_permission_android_9_never_listed_is_granted(
     assert reports == [OwnerDenials(features=(), complete=True)]
 
 
+async def test_a_malformed_line_android_9_prints_is_never_granted(
+    monkeypatch: pytest.MonkeyPatch,
+    signer: PythonRSASigner,  # noqa: F811
+    target: AdbInstallTarget,  # noqa: F811
+    descriptor: InstallDescriptor,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    # A line that names the permission but is not one this parser reads is
+    # unknown, not the absence Android 9 shows for a permission nobody decided.
+    _seed_granted_panel(tmp_path, descriptor.package_id)
+    permission = "android.permission.RECORD_AUDIO"
+    (tmp_path / f"permission.{descriptor.package_id}.{permission}").unlink()
+    (tmp_path / f"line.{descriptor.package_id}.{permission}").write_text(
+        f"      {permission}: granted = false, flags=[ USER_SET|USER_FIXED]\n"
+    )
+
+    await _launch_reporting(
+        monkeypatch, signer, replace(target, android_sdk=28), descriptor, tmp_path
+    )
+
+    assert f"pm grant {descriptor.package_id} {permission}" not in _calls(tmp_path)
+
+
 _UNDECIDED_LINE = (
     "      android.permission.RECORD_AUDIO: granted=false,"
     " flags=[ USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]"
@@ -1937,6 +1965,33 @@ _UNDECIDED_LINE = (
         ),
         # ... and a denial nobody decided is granted.
         (["Package [io.panelassistant.android] (1a2b3c):", _UNDECIDED_LINE], 0, True),
+        # Android 9's requested list names it bare: still no line, granted.
+        (
+            [
+                "Package [io.panelassistant.android] (1a2b3c):",
+                "      android.permission.RECORD_AUDIO",
+            ],
+            0,
+            True,
+        ),
+        # A line naming it that this parser cannot read is unknown, not absent.
+        (
+            [
+                "Package [io.panelassistant.android] (1a2b3c):",
+                "      android.permission.RECORD_AUDIO: granted = false,"
+                " flags=[ USER_SET|USER_FIXED]",
+            ],
+            0,
+            False,
+        ),
+        (
+            [
+                "Package [io.panelassistant.android] (1a2b3c):",
+                "      RECORD_AUDIO: granted=false, flags=[ USER_SET|USER_FIXED]",
+            ],
+            0,
+            False,
+        ),
     ],
 )
 def test_a_runtime_permission_is_granted_only_where_nobody_decided_it(

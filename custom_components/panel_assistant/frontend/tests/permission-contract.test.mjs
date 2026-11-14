@@ -359,6 +359,18 @@ test('a missing line is undecided only in a dump that succeeded and shows this p
   assert.deepEqual(repairOn([header, '      android.permission.RECORD_AUDIO: granted=false, flags=[ USER_SET|USER_FIXED]']), [],
     'a decided line is kept');
   assert.deepEqual(repairOn([header, `      android.permission.RECORD_AUDIO: ${undecided}`]), grant, 'an undecided line');
+  assert.deepEqual(repairOn([header, '      android.permission.RECORD_AUDIO']), grant, 'a bare requested-list entry');
+  assert.deepEqual(repairOn([header, '      android.permission.RECORD_AUDIO: granted = false, flags=[ USER_SET|USER_FIXED]']), [],
+    'a malformed line is unknown, not absent');
+  assert.deepEqual(repairOn([header, '      RECORD_AUDIO: granted=false, flags=[ USER_SET|USER_FIXED]']), [],
+    'a line naming it without the prefix is unknown, not absent');
+});
+
+test('Android 9 and older: a line naming the permission that this parser cannot read is never granted', () => {
+  const panel = ownerPanel({notifications: null, camera: null, sdk: 28, header: true,
+    microphone: 'granted = false, flags=[ USER_SET|USER_FIXED]'});
+  assert.ok(panel.calls.includes(`pm grant ${PACKAGE_ID} android.permission.CAMERA\n`));
+  assert.ok(!panel.calls.includes('android.permission.RECORD_AUDIO'));
 });
 
 test('an app operation the owner set is kept and reported; one nobody set is allowed', () => {

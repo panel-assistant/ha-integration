@@ -605,8 +605,10 @@ def _runtime_permission_repair_command(package_id: str, permission: str) -> str:
     Android 9 and older print no line at all for a permission nobody has
     decided: a decision always sets a flag, which keeps the line. So a dump
     that succeeded and shows this package's header but no line for the
-    permission is undecided too, and is granted. A failed dump, or one without
-    the package's header, is unknown and never a reason to grant.
+    permission is undecided too, and is granted. There the permission appears
+    only as its bare name in the requested list; any other line naming it is
+    one this parser cannot read, and like a failed dump, or one without the
+    package's header, it is unknown and never a reason to grant.
     """
     permission_pattern = re.escape(permission)
     denied = (
@@ -620,6 +622,13 @@ def _runtime_permission_repair_command(package_id: str, permission: str) -> str:
         f"grep -F '{permission}: granted='); fi"
     )
     grant = f"pm grant {package_id} {permission} >/dev/null 2>&1; {read}"
+    # No line names the permission except a bare requested-list entry.
+    name = permission.rsplit(".", 1)[-1]
+    unlisted = (
+        "! printf '%s\\n' \"$runtime_dump\" | "
+        f"grep -E '(^|[^A-Za-z0-9_]){name}([^A-Za-z0-9_]|$)' | "
+        f"grep -Evq '^[[:space:]]*{permission_pattern}[[:space:]]*$'"
+    )
     # A failed dump, one without this package, or a malformed line is unknown,
     # never evidence of a missing grant.
     return (
@@ -631,7 +640,7 @@ def _runtime_permission_repair_command(package_id: str, permission: str) -> str:
         f"{grant}; fi; "
         'elif [ -z "$runtime" ] && [ "$runtime_status" -eq 0 ] && '
         "printf '%s\\n' \"$runtime_dump\" | "
-        f"grep -Fq 'Package [{package_id}]'; then {grant}; fi"
+        f"grep -Fq 'Package [{package_id}]' && {unlisted}; then {grant}; fi"
     )
 
 
