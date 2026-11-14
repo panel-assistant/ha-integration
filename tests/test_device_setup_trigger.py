@@ -39,7 +39,11 @@ from custom_components.panel_assistant.const import (
 )
 from custom_components.panel_assistant.repairs import async_create_fix_flow
 
-from .install_adb_fakes import _identity_root_output, _identity_sections
+from .install_adb_fakes import (
+    _identity_root_output,
+    _identity_sections,
+    _single_output,
+)
 from .test_deferred_admin import DID, PACKAGE, panel  # noqa: F401
 from .test_management import MANAGED, STATUS_BODY, _connect
 from .test_transport import WsClientFactory, _receive
@@ -200,7 +204,7 @@ SESSION_HEALTH = (
 
 
 def _shell_answer(command: str) -> str | None:
-    """Answer the identity reads a local route makes; refuse everything else."""
+    """Answer the read-only steps a local route makes; refuse everything else."""
     match = re.search(r"HAPANELD_(\w+?)_BEGIN:([a-f0-9]{32})", command)
     if match is None:
         return None
@@ -218,6 +222,11 @@ def _shell_answer(command: str) -> str | None:
         )
     if prefix == "POSTURE":
         return _identity_root_output(nonce, uid="0").decode()
+    if prefix == "PACKAGE":
+        # Read-only: the app is installed, so a pass would go on to its grants.
+        return _single_output(
+            "PACKAGE", nonce, ["package:/data/app/panel/base.apk"], 0
+        ).decode()
     return None
 
 
