@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 Each section is what Home Assistant shows in its update dialog: a short, friendly summary, a few highlights and a link to the full notes on [panel-assistant.io](https://panel-assistant.io/go/release-notes). The full notes, including every pre-release, are kept on the website. From 1.0.0 onward; earlier sections are the full notes as they were released.
 
+## 1.0.4 - 2026-11-14
+
+Panel Assistant 1.0.4 has no user-facing features. It makes the changes asked for in the review of our submission to the HACS default list. Panels keep the 1.0.3 Android app.
+
+[Full release notes](https://panel-assistant.io/go/release-notes?v=1.0.4)
+
 ## 1.0.3 - 2026-11-13
 
 Panel Assistant 1.0.3 makes panels on a separate network, such as a VLAN or an IoT network, easier to add and keep working, and includes the 1.0.3 Android app.
