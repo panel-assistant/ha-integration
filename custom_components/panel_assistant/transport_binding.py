@@ -1,10 +1,13 @@
 """Which Home Assistant account may hold a panel's session.
 
-A new panel is bound to the first live account it signs in as, so neither
-install route asks the owner anything (maintainer, 2026-10-15: home networks
-are trusted, and the question only slowed the first install). Another account
-asking for a panel that is already bound goes to an administrator, through the
-Repairs issue that ``hello`` raises.
+An entry not yet bound to an account is bound by the first ``hello`` for its
+panel's identity from a live account that is not one of Home Assistant's own,
+so an install never stops to ask. A panel that says ``hello`` before its entry
+exists has that account remembered for up to ``BINDING_REQUEST_TTL``; the entry
+the add-panel flow then creates is bound to it if it still exists, is active and
+is not one of Home Assistant's own. Every other account's ``hello`` is refused;
+one from another live account raises a Repairs issue, and only an administrator
+confirming it moves the panel to that account.
 """
 
 from __future__ import annotations
