@@ -73,7 +73,7 @@ Once a panel is running, point it at the dashboard you want on the wall. The fou
 
 ## New, and moving fast
 
-Panel Assistant 1.0 is a release candidate: the direction is settled, and the internals are still changing. A panel that is already installed is updated from its update entity in Home Assistant. Getting every Android wall panel worth mounting onto the supported list takes real hardware in real houses, which is where you come in.
+Panel Assistant 1.0 is the stable release line, and it is still moving quickly. A panel that is already installed is updated from its update entity in Home Assistant. Getting every Android wall panel worth mounting onto the supported list takes real hardware in real houses, which is where you come in.
 
 - **Star this repository.** The simplest way to tell other Home Assistant users this exists.
 - **Report your panel.** Model name and what worked, in the [issues](https://github.com/panel-assistant/ha-integration/issues).

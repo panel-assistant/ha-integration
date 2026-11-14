@@ -504,14 +504,20 @@ async def _async_fetch_bounded(
                     if content_length is not None and content_length > maximum_bytes:
                         raise ReleaseTooLargeError(maximum_bytes, content_length)
 
-                    body = bytearray()
+                    chunks: list[bytes] = []
+                    size = 0
                     async for chunk in response.content.iter_chunked(maximum_bytes + 1):
                         if not isinstance(chunk, bytes):
                             raise ReleaseResolutionError
-                        body.extend(chunk)
-                        if len(body) > maximum_bytes:
+                        chunks.append(chunk)
+                        size += len(chunk)
+                        if size > maximum_bytes:
                             raise ReleaseTooLargeError(maximum_bytes)
-                    return bytes(body)
+                    # Joined in the executor: bytes.join releases the GIL for a
+                    # large body, so an APK-sized download never stalls the loop.
+                    return await asyncio.get_running_loop().run_in_executor(
+                        None, b"".join, chunks
+                    )
     except ReleaseResolutionError:
         raise
     except (ClientError, TimeoutError) as err:

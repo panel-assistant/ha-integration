@@ -290,16 +290,18 @@ async def receive(request: web.Request, transfer: _Transfer) -> web.Response:
     received = transfer.received
     if received is None:
         return _not_found()
-    body = bytearray()
+    chunks: list[bytes] = []
+    size = 0
     # Hashed a chunk at a time as it arrives, never the whole body at once.
     digest = hashlib.sha256()
     try:
         # Read in chunks: request.read() is capped by the server's own
         # request size limit, which a panel backup can exceed.
         async for chunk in request.content.iter_chunked(_CHUNK_BYTES):
-            body.extend(chunk)
+            chunks.append(chunk)
             digest.update(chunk)
-            if len(body) > transfer.max_bytes:
+            size += len(chunk)
+            if size > transfer.max_bytes:
                 raise BlobTransferError("too large")
     except BlobTransferError as err:
         if not received.done():
@@ -309,7 +311,10 @@ async def receive(request: web.Request, transfer: _Transfer) -> web.Response:
         if not received.done():
             received.set_exception(BlobTransferError("upload interrupted"))
         raise web.HTTPBadRequest from err
-    data = bytes(body)
+    # Joined in the executor: bytes.join releases the GIL for a large body, so
+    # assembling up to the browser upload limit never stalls the event loop.
+    data = await asyncio.get_running_loop().run_in_executor(None, b"".join, chunks)
+    del chunks
     if received.cancelled():
         # Its caller gave up while the bytes arrived.
         return _not_found()

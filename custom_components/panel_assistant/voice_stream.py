@@ -97,6 +97,13 @@ MAX_PCM_BYTES: Final = 16 * 1024 * 1024
 PREPARATION_TIMEOUT: Final = 15.0
 
 
+def _join_and_decode(
+    clips: Iterable[list[bytes]], deadline: float | None = None
+) -> tuple[bytes, int]:
+    """Assemble each downloaded clip from its chunks, then decode them. Blocking."""
+    return decode_clips([b"".join(chunks) for chunks in clips], deadline)
+
+
 def decode_clips(
     clips: Iterable[bytes], deadline: float | None = None
 ) -> tuple[bytes, int]:
@@ -557,24 +564,23 @@ class VoiceStream:
         """Fetch and decode, chime and speech back to back in one run."""
         session = async_get_clientsession(self._hass)
         deadline = monotonic() + PREPARATION_TIMEOUT
-        clips = []
+        clips: list[list[bytes]] = []
         total = 0
         async with asyncio.timeout(PREPARATION_TIMEOUT):
             for url in urls:
                 async with session.get(url) as response:
                     response.raise_for_status()
-                    body = bytearray()
+                    chunks: list[bytes] = []
                     async for chunk in response.content.iter_chunked(64 * 1024):
                         total += len(chunk)
                         if total > MAX_ENCODED_BYTES:
                             raise ValueError(
                                 "speech download exceeds preparation limit"
                             )
-                        body.extend(chunk)
-                    clips.append(bytes(body))
-                    del body
+                        chunks.append(chunk)
+                    clips.append(chunks)
             return await self._hass.async_add_executor_job(
-                decode_clips, clips, deadline
+                _join_and_decode, clips, deadline
             )
 
     async def _async_start(
