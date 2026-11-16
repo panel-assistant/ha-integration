@@ -21,12 +21,12 @@
 
 Panel Assistant turns an Android wall panel into a fast, dependable home for your Home Assistant dashboards. Add a panel from **Settings** like any other device, then update and look after it from Home Assistant too.
 
-It runs on almost any Android wall panel with Android 8.0 or newer, and has tuned support for the [Sonoff NSPanel Pro](https://panel-assistant.io/hardware/panels/sonoff/), [Shelly Wall Display](https://panel-assistant.io/hardware/panels/shelly/), [Meta Portal](https://panel-assistant.io/hardware/panels/meta/) and panels from Smatek, Tuya and [others](https://panel-assistant.io/install/supported-panels/), so their buttons, relays, LEDs and sensors work too.
+It runs on almost any Android wall panel with Android 8.0 or newer, and has tuned support for the [Sonoff NSPanel Pro](https://panel-assistant.io/hardware/panels/sonoff/), [Shelly Wall Display](https://panel-assistant.io/hardware/panels/shelly/), [Meta Portal](https://panel-assistant.io/hardware/panels/meta/) and panels from Smatek, Tuya and [others](https://panel-assistant.io/install/supported-panels/), so their screen, sensors, buttons, relays and LEDs work too.
 
 - **Fast dashboards.** Each panel receives only the entities its dashboard uses, so it responds the moment you touch it.
 - **Set up in minutes.** Enter the panel's address, or plug it into your computer and install from your browser.
 - **Every panel, one system.** Every make and model looks and behaves the same in Home Assistant.
-- **Hardware and voice included.** Screen, buttons, LEDs and sensors appear as entities, and a panel with a microphone becomes an Assist voice satellite.
+- **Hardware and voice in Home Assistant.** What the panel has appears as entities, and a panel with a microphone becomes an Assist voice satellite.
 - **Safe to install.** You are right to be cautious about sideloading an app onto a panel. The installer is thoroughly tested never to brick a panel, even if it is interrupted, and every update starts with a backup.
 - **Open and local.** Free and open source under Apache 2.0, working with your own Home Assistant on your own network.
 
