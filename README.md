@@ -19,9 +19,9 @@
   <img src="https://img.shields.io/badge/Home%20Assistant-2026.8.3%2B-18BCF2.svg" alt="Home Assistant 2026.8.3 or newer">
 </p>
 
-Panel Assistant turns an Android wall panel into a fast, dependable home for your Home Assistant dashboards. Add a panel from **Settings** like any other device, then update and look after it from Home Assistant too.
+Panel Assistant turns an Android wall panel into a fast, dependable home for your Home Assistant dashboards. Add a panel from **Settings** like any other device, then update and look after it from Home Assistant too. We recognise that other projects make grander claims on features but we take security and openness seriously which is why we publish our entire codebase with full build instructions. If we don't have a feature yet then it is likely because we are still looking for a secure way to implement it but if you want it just ask and we can have an open conversation about the compromises.
 
-It runs on almost any Android wall panel with Android 8.0 or newer, and has tuned support for the [Sonoff NSPanel Pro](https://panel-assistant.io/hardware/panels/sonoff/), [Shelly Wall Display](https://panel-assistant.io/hardware/panels/shelly/), [Meta Portal](https://panel-assistant.io/hardware/panels/meta/) and panels from Smatek, Tuya and [others](https://panel-assistant.io/install/supported-panels/), so their screen, sensors, buttons, relays and LEDs work too.
+Panel Assistant runs on almost any Android wall panel with Android 8.0 or newer, and has tuned support for the [Sonoff NSPanel Pro](https://panel-assistant.io/hardware/panels/sonoff/), [Shelly Wall Display](https://panel-assistant.io/hardware/panels/shelly/), [Meta Portal](https://panel-assistant.io/hardware/panels/meta/) and panels from Smatek, Lenova, Amazon, Tuya and [others](https://panel-assistant.io/install/supported-panels/), so their screen, sensors, buttons, relays and LEDs work too.
 
 - **Fast dashboards.** Each panel receives only the entities its dashboard uses, so it responds the moment you touch it.
 - **Set up in minutes.** Enter the panel's address, or plug it into your computer and install from your browser.
