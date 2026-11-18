@@ -2124,7 +2124,7 @@ var fe = class extends HTMLElement {
 		for (let [t, n] of [["add", j], ["settings", ee]]) {
 			let r = e.querySelector(`#${t}`);
 			r.setAttribute("href", n), r.addEventListener("click", (e) => {
-				this.#D(!1), !(e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) && (e.preventDefault(), M(n));
+				this.#D(!1), e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || (e.preventDefault(), M(n));
 			});
 		}
 		e.querySelector("#panels").addEventListener("change", (e) => {
