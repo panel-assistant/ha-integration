@@ -14,7 +14,7 @@
   <a href="https://panel-assistant.io/go/discord"><img src="https://img.shields.io/badge/Discord-join-5865F2.svg" alt="Panel Assistant on Discord"></a>
 </p>
 <p align="center">
-  <a href="https://my.home-assistant.io/redirect/marketplace_repository/?owner=panel-assistant&repository=ha-integration&category=integration"><img src="https://img.shields.io/badge/Marketplace-Custom-41BDF5.svg" alt="Marketplace custom repository"></a>
+  <a href="https://my.home-assistant.io/redirect/marketplace_repository/?owner=panel-assistant&repository=ha-integration&category=integration"><img src="https://img.shields.io/badge/Marketplace-Default-41BDF5.svg" alt="Listed in Marketplace"></a>
   <a href="https://github.com/panel-assistant/ha-integration/actions/workflows/hacs.yml"><img src="https://img.shields.io/github/actions/workflow/status/panel-assistant/ha-integration/hacs.yml?branch=main&label=HACS%20validation" alt="HACS validation"></a>
   <img src="https://img.shields.io/badge/Home%20Assistant-2026.8.3%2B-18BCF2.svg" alt="Home Assistant 2026.8.3 or newer">
 </p>
@@ -34,7 +34,7 @@ Panel Assistant runs on almost any Android wall panel with Android 8.0 or newer,
 
 [![Open your Home Assistant instance and open a repository inside the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=panel-assistant&repository=ha-integration&category=integration)
 
-1. Open Panel Assistant with the button above and download it. On Home Assistant before 2026.11, add `https://github.com/panel-assistant/ha-integration` to [HACS](https://hacs.xyz/) as a custom repository.
+1. Open Panel Assistant with the button above, or search for it in Marketplace ([HACS](https://hacs.xyz/) before Home Assistant 2026.11), and download it.
 2. Add the integration from **Settings**, **Devices and services**.
 3. Add your first panel over USB, or over the network once its debugging switch is on ([how](https://panel-assistant.io/go/panel-access)). [Getting started](https://panel-assistant.io/start/getting-started/) walks you through it.
 
