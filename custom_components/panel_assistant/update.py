@@ -36,7 +36,12 @@ from .build_feed import (
     parse_build_request,
 )
 from .client import HaPaneldError, UpdateRejectedError, _version_key
-from .const import CONF_TRANSPORT_USER_ID, DOMAIN, update_unique_id
+from .const import (
+    CONF_DEVICE_SETUP_OWED,
+    CONF_TRANSPORT_USER_ID,
+    DOMAIN,
+    update_unique_id,
+)
 from .coordinator import (
     HaPaneldDataUpdateCoordinator,
     PanelCoordinatorEntity,
@@ -907,6 +912,11 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         self._progress.begin(self.hass, self.installed_version, self.latest_version)
         self._delivery.session = route == ROUTE_SESSION
         self.async_write_ha_state()
+        # Recorded before delivery: the panel may install the build before it
+        # reports it, so a restart in between still leaves the Repair. A
+        # delivery that fails while Home Assistant runs takes it back.
+        owed_by_delivery = self._record_setup_owed()
+        delivered = False
         try:
             if feed is not None:
                 if route == ROUTE_ADB:
@@ -935,9 +945,10 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                 else:
                     assert release is not None
                     await self._delivery.async_deliver_build(self.hass, release)
-            # The app is delivered: what it owes the panel is recorded before
-            # the WebView step, so a restart or unload during that step still
-            # leaves the Repair.
+            # The app is delivered: the pass it owes starts when the install
+            # ends, and stays recorded through the WebView step, so a restart
+            # or unload during that step still leaves the Repair.
+            delivered = True
             self._mark_setup_owed()
             reason = await async_update_webview(
                 self.hass, self._entry_id, allow_legacy=True
@@ -951,6 +962,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
                     f"The app is installed; its WebView update is unfinished: {reason}",
                 )
         except UpdateRejectedError as refusal:
+            if not delivered:
+                self._withdraw_setup_owed(owed_by_delivery)
             error = refusal_error(self._panel_name(), refusal)
             await async_record_update_failure(
                 self.hass,
@@ -963,6 +976,8 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
             )
             raise error from None
         except Exception as err:
+            if not delivered:
+                self._withdraw_setup_owed(owed_by_delivery)
             await async_record_update_failure(
                 self.hass,
                 self._entry_id,
@@ -1025,22 +1040,37 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         )
         raise error
 
-    def _mark_setup_owed(self) -> None:
-        """Record that this update owes the panel the device setup pass."""
+    def _record_setup_owed(self) -> bool:
+        """Record the pass on the entry; True when this update added the record."""
         from .device_setup import OWED_UPDATE, async_mark_owed
 
         owner = self.hass.config_entries.async_get_entry(self._entry_id)
         if owner is None:
-            return
+            return False
+        added = CONF_DEVICE_SETUP_OWED not in owner.data
         async_mark_owed(self.hass, owner, OWED_UPDATE)
-        self._setup_owed = True
+        return added
+
+    def _withdraw_setup_owed(self, added: bool) -> None:
+        """Take back a record this update added for a build it never delivered."""
+        from .device_setup import OWED_UPDATE, async_withdraw_owed
+
+        owner = self.hass.config_entries.async_get_entry(self._entry_id)
+        if added and owner is not None:
+            async_withdraw_owed(self.hass, owner, OWED_UPDATE)
+
+    def _mark_setup_owed(self) -> None:
+        """Record that this update owes the panel the device setup pass."""
+        self._record_setup_owed()
+        if self.hass.config_entries.async_get_entry(self._entry_id) is not None:
+            self._setup_owed = True
 
     def _schedule_permission_repair(
         self, route: str, repair_artifact: ReleaseArtifact | None
     ) -> None:
         """Restore the panel's permissions after an app delivery succeeded.
 
-        The device setup pass this update owes was recorded on delivery
+        The device setup pass this update owes was recorded before delivery
         (``_mark_setup_owed``) and starts when the install ends
         (``_start_owed_setup``). Over ADB the launch has already repaired the
         grants.

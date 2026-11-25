@@ -113,6 +113,17 @@ def async_mark_owed(hass: HomeAssistant, entry: ConfigEntry, reason: str) -> Non
 
 
 @callback
+def async_withdraw_owed(hass: HomeAssistant, entry: ConfigEntry, reason: str) -> None:
+    """An operation that recorded the pass and then changed nothing takes it back."""
+    if entry.data.get(CONF_DEVICE_SETUP_OWED) != reason:
+        return
+    hass.config_entries.async_update_entry(
+        entry,
+        data={k: v for k, v in entry.data.items() if k != CONF_DEVICE_SETUP_OWED},
+    )
+
+
+@callback
 def async_start(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Run the pass an operation recorded as owed, once, with a bounded wait."""
     if CONF_DEVICE_SETUP_OWED not in entry.data or _running(hass, entry.entry_id):
