@@ -413,7 +413,7 @@ async def test_opening_the_wizard_tells_the_panel_where_home_assistant_is(hass):
         )
         assert opened["type"] is FlowResultType.FORM
 
-    hand_over.assert_awaited_once_with("http://192.0.2.5:8123")
+    hand_over.assert_awaited_once_with("http://192.0.2.5:8123", [])
 
 
 async def test_opening_the_wizard_on_an_older_panel_sends_it_no_key_it_would_refuse(

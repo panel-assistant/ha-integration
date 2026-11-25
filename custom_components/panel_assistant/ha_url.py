@@ -52,6 +52,7 @@ from ipaddress import ip_address
 
 from aiohttp import web
 from homeassistant.auth.models import User
+from homeassistant.components import network
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import instance_id
 from homeassistant.helpers.http import HomeAssistantView
@@ -63,6 +64,11 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 DATA_INSTANCE_ID = "ha_instance_id"
+# The panel probes every alternate at once, so the count does not lengthen the
+# handover; this bounds the form and the panel's parallel probes. A host with a
+# LAN, a container bridge and a VPN, each with IPv4 plus global and ULA IPv6,
+# offers about ten. The panel's admission enforces the same number.
+MAX_HANDOVER_ALTERNATES = 16
 
 
 def async_panel_facing_url(hass: HomeAssistant) -> str | None:
@@ -123,12 +129,62 @@ async def async_offer_ha_url(hass: HomeAssistant, client: HaPaneldClient) -> str
     if not state.accepts_handover:
         return "handover_unsupported"
     ha_url = async_panel_facing_url(hass)
+    alternates = (
+        await async_panel_alternate_urls(hass, ha_url)
+        if state.accepts_alternates
+        else []
+    )
     try:
-        await client.async_hand_over_ha_url(ha_url)
+        await client.async_hand_over_ha_url(ha_url, alternates)
     except HaPaneldError:
         _LOGGER.debug("Panel did not accept the Home Assistant address %s", ha_url)
         return "handover_refused"
     return "handed_over" if ha_url is not None else "handed_over_without_url"
+
+
+async def async_panel_alternate_urls(
+    hass: HomeAssistant, primary: str | None
+) -> list[str]:
+    """Every other plain-HTTP address of this Home Assistant, for the panel to try.
+
+    Home Assistant can only see its own side of the network: inside a container
+    its detected address is the container's, and a ``.local`` name does not
+    resolve on Android before 13 (measured on Android 8.1, where every Sonoff
+    panel sits). The panel is the one party that can tell which address answers
+    from where it sits, so it is handed all of them and tests each itself.
+
+    Only the configured internal URL and each interface address are offered,
+    in that order with the default interface first and IPv4 before IPv6. Never
+    the external or cloud URL, for the reasons in this module's docstring, and
+    nothing when Core terminates TLS, because an IP address fails the
+    certificate's host check. Link-local and loopback addresses are left out.
+    """
+    api = hass.config.api
+    if api is None or api.use_ssl:
+        return []
+    candidates: list[str] = []
+    if hass.config.internal_url:
+        candidates.append(hass.config.internal_url)
+    adapters = await network.async_get_adapters(hass)
+    ordered = sorted(adapters, key=lambda adapter: not adapter.get("default"))
+    for family in ("ipv4", "ipv6"):
+        for adapter in ordered:
+            for entry in adapter.get(family, []):
+                with suppress(KeyError, ValueError):
+                    address = ip_address(str(entry["address"]).split("%")[0])
+                    if address.is_loopback or address.is_link_local:
+                        continue
+                    candidates.append(
+                        str(URL.build(scheme="http", host=str(address), port=api.port))
+                    )
+    result: list[str] = []
+    seen = {_connection_origin(primary)} if primary else set()
+    for value in candidates:
+        origin = _connection_origin(value)
+        if origin is not None and origin not in seen:
+            seen.add(origin)
+            result.append(origin)
+    return result[:MAX_HANDOVER_ALTERNATES]
 
 
 async def async_setup_connection_info(hass: HomeAssistant) -> None:

@@ -2836,7 +2836,7 @@ async def test_adopting_a_panel_mid_setup_tells_it_where_home_assistant_is(
         assert result["step_id"] == "panel_setup"
         assert result["description_placeholders"]["setup_url"].startswith("http")
         assert not hass.config_entries.async_entries(DOMAIN)
-        assert hand_over.await_args.args == ("http://192.0.2.5:8123",)
+        assert hand_over.await_args.args == ("http://192.0.2.5:8123", [])
 
         with patch(
             "custom_components.panel_assistant.client.HaPaneldClient.async_get_setup_complete",

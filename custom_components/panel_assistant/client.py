@@ -626,6 +626,9 @@ class PanelSetupState:
     complete: bool
     needs_user: bool | None = None
     accepts_handover: bool = False
+    # Whether the panel also takes every other address to try, as
+    # ``ha_url_handover_alternates``; older panels refuse the unknown key.
+    accepts_alternates: bool = False
     handover_url: str | None = None
     handover_reason: str | None = None
 
@@ -972,11 +975,15 @@ class HaPaneldClient:
             complete=complete,
             needs_user=needs_user,
             accepts_handover=handover.get("supported") is True,
+            accepts_alternates=handover.get("supported") is True
+            and handover.get("alternates") is True,
             handover_url=_optional_string(handover.get("url")),
             handover_reason=_optional_string(handover.get("reason")),
         )
 
-    async def async_hand_over_ha_url(self, ha_url: str | None) -> None:
+    async def async_hand_over_ha_url(
+        self, ha_url: str | None, alternates: list[str] | None = None
+    ) -> None:
         """Tell the panel Home Assistant set it up, and where Home Assistant is.
 
         The panel decides whether the address answers from its own network; this
@@ -992,6 +999,10 @@ class HaPaneldClient:
         form = {"ha_setup_handover": "true"}
         if ha_url is not None:
             form["ha_url_handover"] = ha_url
+        # Only sent with a primary address and only to a panel that advertised
+        # it: the panel tries them all and keeps the first that answers.
+        if ha_url is not None and alternates:
+            form["ha_url_handover_alternates"] = " ".join(alternates)
         status, _ = await self._async_post_bounded(
             self.address.base_url.with_path(CONFIG_PATH),
             form,

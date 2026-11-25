@@ -107,7 +107,9 @@ def _patched(panel: _Panel) -> Any:
     async def _state(self: HaPaneldClient) -> PanelSetupState:
         return await get_state(self)
 
-    async def _hand(self: HaPaneldClient, ha_url: str | None) -> None:
+    async def _hand(
+        self: HaPaneldClient, ha_url: str | None, alternates: Any = None
+    ) -> None:
         await hand_over(self, ha_url)
 
     return (

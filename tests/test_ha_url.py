@@ -16,6 +16,7 @@ from custom_components.panel_assistant.client import (
 )
 from custom_components.panel_assistant.ha_url import (
     async_offer_ha_url,
+    async_panel_alternate_urls,
     async_panel_facing_url,
 )
 
@@ -26,6 +27,7 @@ class _FakePanel:
     def __init__(self, state: PanelSetupState | Exception) -> None:
         self._state = state
         self.handed_over: list[str | None] = []
+        self.alternates: list[list[str]] = []
         self.hand_over_error: Exception | None = None
         self.state_reads = 0
 
@@ -35,10 +37,13 @@ class _FakePanel:
             raise self._state
         return self._state
 
-    async def async_hand_over_ha_url(self, ha_url: str | None) -> None:
+    async def async_hand_over_ha_url(
+        self, ha_url: str | None, alternates: list[str] | None = None
+    ) -> None:
         if self.hand_over_error is not None:
             raise self.hand_over_error
         self.handed_over.append(ha_url)
+        self.alternates.append(list(alternates or []))
 
 
 async def _set_urls(
@@ -390,6 +395,158 @@ async def test_a_panel_that_rejects_the_write_is_reported_as_unreachable(
 
 
 # --------------------------------------------------------------------------
+# Every other address, for the panel to try
+# --------------------------------------------------------------------------
+
+_ADAPTERS = [
+    {
+        "name": "docker0",
+        "default": False,
+        "ipv4": [{"address": "172.17.0.1", "network_prefix": 16}],
+        "ipv6": [],
+    },
+    {
+        "name": "eth0",
+        "default": True,
+        "ipv4": [
+            {"address": "192.168.1.10", "network_prefix": 24},
+            {"address": "169.254.7.7", "network_prefix": 16},
+        ],
+        "ipv6": [
+            {"address": "fd00::10", "network_prefix": 64},
+            {"address": "fe80::10%eth0", "network_prefix": 64},
+        ],
+    },
+    {
+        "name": "lo",
+        "default": False,
+        "ipv4": [{"address": "127.0.0.1", "network_prefix": 8}],
+        "ipv6": [],
+    },
+]
+
+
+@pytest.fixture
+def adapters(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+    adapters = [dict(adapter) for adapter in _ADAPTERS]
+    monkeypatch.setattr(
+        "custom_components.panel_assistant.ha_url.network.async_get_adapters",
+        AsyncMock(return_value=adapters),
+    )
+    return adapters
+
+
+async def test_every_interface_address_is_offered_default_first_ipv4_first(
+    hass: HomeAssistant, adapters: list[dict[str, Any]]
+) -> None:
+    """A `.local` internal URL leads, and each reachable-looking address follows.
+
+    Android before 13 cannot resolve `.local`, and a container's own address is
+    not on the panel's LAN; only the panel can tell which answers, so it gets
+    all of them. Link-local and loopback addresses are never offered.
+    """
+    await _set_urls(hass, internal="http://homeassistant.local:8123", external=None)
+    hass.config.api = _core_api(local_ip="172.17.0.2", use_ssl=False)
+
+    primary = async_panel_facing_url(hass)
+    assert primary == "http://homeassistant.local:8123"
+    assert await async_panel_alternate_urls(hass, primary) == [
+        "http://192.168.1.10:8123",
+        "http://172.17.0.1:8123",
+        "http://[fd00::10]:8123",
+    ]
+
+
+async def test_the_detected_address_heads_the_list_when_no_internal_url_is_set(
+    hass: HomeAssistant, adapters: list[dict[str, Any]]
+) -> None:
+    await _set_urls(hass, internal=None, external="https://ha.example.com")
+    hass.config.api = _core_api(local_ip="192.168.1.10", use_ssl=False)
+
+    primary = async_panel_facing_url(hass)
+    assert primary == "http://192.168.1.10:8123"
+    alternates = await async_panel_alternate_urls(hass, primary)
+    assert "http://192.168.1.10:8123" not in alternates
+    assert "https://ha.example.com" not in alternates
+
+
+async def test_tls_core_offers_no_addresses_its_certificate_cannot_cover(
+    hass: HomeAssistant, adapters: list[dict[str, Any]]
+) -> None:
+    await _set_urls(hass, internal="https://ha.home.example:8123", external=None)
+    hass.config.api = _core_api(local_ip="192.168.1.10", use_ssl=True)
+
+    assert await async_panel_alternate_urls(hass, async_panel_facing_url(hass)) == []
+
+
+async def test_the_list_is_bounded(
+    hass: HomeAssistant, adapters: list[dict[str, Any]]
+) -> None:
+    from custom_components.panel_assistant.ha_url import MAX_HANDOVER_ALTERNATES
+
+    adapters[0]["ipv4"] = [
+        {"address": f"10.0.{n}.1", "network_prefix": 24} for n in range(40)
+    ]
+    await _set_urls(hass, internal=None, external=None)
+    hass.config.api = _core_api(local_ip="192.168.1.10", use_ssl=False)
+
+    alternates = await async_panel_alternate_urls(hass, async_panel_facing_url(hass))
+    assert len(alternates) == MAX_HANDOVER_ALTERNATES
+
+
+async def test_a_panel_that_takes_alternates_is_handed_every_address(
+    hass: HomeAssistant, adapters: list[dict[str, Any]]
+) -> None:
+    await _set_urls(hass, internal="http://homeassistant.local:8123", external=None)
+    hass.config.api = _core_api(local_ip="172.17.0.2", use_ssl=False)
+    panel = _FakePanel(
+        PanelSetupState(complete=False, accepts_handover=True, accepts_alternates=True)
+    )
+
+    assert await async_offer_ha_url(hass, panel) == "handed_over"  # type: ignore[arg-type]
+    assert panel.handed_over == ["http://homeassistant.local:8123"]
+    assert panel.alternates[0][0] == "http://192.168.1.10:8123"
+
+
+async def test_a_panel_without_alternates_support_gets_only_the_address(
+    hass: HomeAssistant, adapters: list[dict[str, Any]]
+) -> None:
+    """Its config admission refuses an unknown key, and with it the whole POST."""
+    await _set_urls(hass, internal="http://homeassistant.local:8123", external=None)
+    panel = _FakePanel(PanelSetupState(complete=False, accepts_handover=True))
+
+    assert await async_offer_ha_url(hass, panel) == "handed_over"  # type: ignore[arg-type]
+    assert panel.alternates == [[]]
+
+
+async def test_alternates_ride_the_same_post_space_separated(
+    hass: HomeAssistant,
+) -> None:
+    from custom_components.panel_assistant.client import HaPaneldClient
+
+    client = HaPaneldClient(Mock(), PanelAddress(host="panel.local", port=8888))
+    posted: dict[str, Any] = {}
+
+    async def _fake_post(
+        url: Any, form: dict[str, str], *_args: Any, **_kwargs: Any
+    ) -> tuple[int, bytes]:
+        posted["form"] = form
+        return 200, b"{}"
+
+    client._async_post_bounded = _fake_post  # type: ignore[assignment,method-assign]
+    await client.async_hand_over_ha_url(
+        "http://homeassistant.local:8123",
+        ["http://192.168.1.10:8123", "http://[fd00::10]:8123"],
+    )
+
+    assert posted["form"] == {
+        "ha_setup_handover": "true",
+        "ha_url_handover": "http://homeassistant.local:8123",
+        "ha_url_handover_alternates": "http://192.168.1.10:8123 http://[fd00::10]:8123",
+    }
+
+
+# --------------------------------------------------------------------------
 # Reading the panel's setup state
 # --------------------------------------------------------------------------
 
@@ -419,6 +576,21 @@ async def test_a_current_panel_advertises_that_it_accepts_a_handover() -> None:
     assert state.accepts_handover is True
     assert state.handover_url is None
     assert state.handover_reason is None
+
+
+async def test_alternates_support_is_a_literal_true_beside_supported() -> None:
+    """An older panel omits `alternates`; posting the key would 400 the form."""
+    for body, expected in (
+        (b'{"complete":false,"handover":{"supported":true,"alternates":true}}', True),
+        (b'{"complete":false,"handover":{"supported":true}}', False),
+        (
+            b'{"complete":false,"handover":{"supported":true,"alternates":"true"}}',
+            False,
+        ),
+        (b'{"complete":false,"handover":{"supported":false,"alternates":true}}', False),
+    ):
+        state = await _client_returning(body).async_get_setup_state()
+        assert state.accepts_alternates is expected, body
 
 
 async def test_a_failed_handover_is_reported_with_its_address_and_reason() -> None:
