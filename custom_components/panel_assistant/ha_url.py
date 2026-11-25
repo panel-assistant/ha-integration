@@ -167,15 +167,15 @@ async def async_panel_alternate_urls(
     if hass.config.internal_url:
         candidates.append(hass.config.internal_url)
     adapters = await network.async_get_adapters(hass)
-    ordered = sorted(adapters, key=lambda adapter: not adapter.get("default"))
-    for family in ("ipv4", "ipv6"):
-        for adapter in ordered:
-            for entry in adapter.get(family, []):
-                with suppress(KeyError, ValueError):
-                    address = ip_address(str(entry["address"]).split("%")[0])
-                    candidates.append(
-                        str(URL.build(scheme="http", host=str(address), port=api.port))
-                    )
+    ordered = sorted(adapters, key=lambda adapter: not adapter["default"])
+    addresses = [entry["address"] for adapter in ordered for entry in adapter["ipv4"]]
+    addresses += [entry["address"] for adapter in ordered for entry in adapter["ipv6"]]
+    for raw in addresses:
+        with suppress(ValueError):
+            address = ip_address(str(raw).split("%")[0])
+            candidates.append(
+                str(URL.build(scheme="http", host=str(address), port=api.port))
+            )
     result: list[str] = []
     seen = {_connection_origin(primary)} if primary else set()
     for value in candidates:
