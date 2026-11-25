@@ -302,9 +302,15 @@ async def async_admin_claim(
     return lines[0] == "active", lines[1].removeprefix("home:")
 
 
-def _not_finished(entry: ConfigEntry, reason: str) -> None:
+# Why each entry's latest try did not finish, for the Repair's answer to Submit.
+_LAST_REASON: dict[str, str] = {}
+
+
+def _not_finished(entry: ConfigEntry, reason: str) -> dict[str, Any] | None:
     """Say why one try of the pass did not finish; the caller decides what next."""
     _LOGGER.info("Device setup on %s did not finish: %s", entry.title, reason)
+    _LAST_REASON[entry.entry_id] = reason
+    return None
 
 
 async def async_attempt(
@@ -375,8 +381,8 @@ async def async_attempt(
         if not claim_panel_operation(hass, entry.entry_id)
         else None
     )
-    if waiting is not None:
-        return _not_finished(entry, waiting)
+    if waiting is not None or health is None:
+        return _not_finished(entry, waiting or "the panel did not answer")
     package = health.package
     assert package is not None
     address = entry.data[CONF_ADDRESS]
@@ -528,13 +534,16 @@ class DeviceSetupFlow(RepairsFlow):
                 description_placeholders={"learn_more_url": _learn_more_url()},
             )
         errors: dict[str, str] = {}
+        reason = ""
         if user_input is not None:
             coordinator = _coordinator(entry)
             if _running(self.hass, self._entry_id) is not None:
                 errors["base"] = "panel_busy"
             elif coordinator is None:
                 errors["base"] = "panel_not_ready"
+                reason = "the panel is not loaded in Home Assistant"
             else:
+                _LAST_REASON.pop(entry.entry_id, None)
                 # The owner asked: a panel that wants approval on its screen
                 # for each shell is waited on.
                 record = await async_attempt(
@@ -552,12 +561,14 @@ class DeviceSetupFlow(RepairsFlow):
                         _async_finished(self.hass, entry, record, True)
                     return self.async_create_entry(data={})
                 errors["base"] = "panel_not_ready"
+                reason = _LAST_REASON.pop(entry.entry_id, "not recorded")
         return self.async_show_form(
             step_id="confirm_setup",
             data_schema=vol.Schema({}),
             description_placeholders={
                 "panel": panel_display_name(self.hass, entry),
                 "learn_more_url": _learn_more_url(),
+                "reason": reason,
             },
             errors=errors,
             last_step=True,

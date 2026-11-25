@@ -500,6 +500,11 @@ async def test_the_repair_runs_the_pass_on_confirm_and_says_when_not_ready(
     else:
         assert result["type"] == "form"
         assert result["errors"] == {"base": "panel_not_ready"}
+        # The owner is told which check stopped it, so a report can name it.
+        assert (
+            result["description_placeholders"]["reason"]
+            == "the panel's own setup is not finished"
+        )
         assert sent == []
         assert _owed(panel.entry) == device_setup.OWED_INSTALL
 

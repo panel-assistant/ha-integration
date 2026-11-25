@@ -2020,7 +2020,7 @@
           }
         },
         "error": {
-          "panel_not_ready": "{panel} is still not ready: it did not answer, its own setup is not finished, or its request to become the home screen has not finished. Check that the panel is on and its setup is finished, then select Submit again.",
+          "panel_not_ready": "{panel} is still not ready: it did not answer, its own setup is not finished, or its request to become the home screen has not finished. Check that the panel is on and its setup is finished, then select Submit again.\n\nWhat the check found: {reason}",
           "panel_busy": "Another operation is using {panel}. Select Submit again when it has finished."
         },
         "abort": {
