@@ -302,6 +302,11 @@ async def async_admin_claim(
     return lines[0] == "active", lines[1].removeprefix("home:")
 
 
+def _not_finished(entry: ConfigEntry, reason: str) -> None:
+    """Say why one try of the pass did not finish; the caller decides what next."""
+    _LOGGER.info("Device setup on %s did not finish: %s", entry.title, reason)
+
+
 async def async_attempt(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -351,19 +356,27 @@ async def async_attempt(
         await coordinator.async_refresh()
     snapshot = coordinator.data
     health = None if snapshot is None else snapshot.health
-    if (
-        health is None
-        or not coordinator.last_update_success
-        or not health.setup_complete
-        or not coordinator.available
-        or not health.discovery_id
+    waiting = (
+        "the panel did not answer"
+        if health is None or not coordinator.last_update_success
+        else "the panel's own setup is not finished"
+        if not health.setup_complete
+        else "the panel is unavailable"
+        if not coordinator.available
+        else "the panel reports a different identity"
+        if not health.discovery_id
         or health.discovery_id != entry.unique_id
-        or health.package not in LAUNCH_COMPONENTS
         or coordinator.identity_mismatch
-        or hass.is_stopping
-        or not claim_panel_operation(hass, entry.entry_id)
-    ):
-        return None
+        else "the panel runs an app Panel Assistant does not manage"
+        if health.package not in LAUNCH_COMPONENTS
+        else "Home Assistant is stopping"
+        if hass.is_stopping
+        else "another operation is changing the panel"
+        if not claim_panel_operation(hass, entry.entry_id)
+        else None
+    )
+    if waiting is not None:
+        return _not_finished(entry, waiting)
     package = health.package
     assert package is not None
     address = entry.data[CONF_ADDRESS]
@@ -384,15 +397,17 @@ async def async_attempt(
                     hass, coordinator.client.address, health, entry.unique_id
                 )
                 if pinned is None:
-                    return None
+                    return _not_finished(entry, "network ADB: no proved address")
                 if await manager.async_find_active(address, pinned.pinned.stored_value):
-                    return None
+                    return _not_finished(entry, "an install is running on the panel")
                 probe = await async_probe_install_target(
                     pinned.pinned, credential.signer
                 )
                 target = probe.adb_target(pinned.pinned)
                 if probe.state is not InstallTargetState.INSTALLED or target is None:
-                    return None
+                    return _not_finished(
+                        entry, f"network ADB: the panel answered {probe.state.value}"
+                    )
                 await async_revalidate_install_target(hass, pinned)
                 if (
                     hass.config_entries.async_get_entry(entry.entry_id) is not entry
@@ -402,19 +417,19 @@ async def async_attempt(
                         address, pinned.pinned.stored_value
                     )
                 ):
-                    return None
+                    return _not_finished(entry, "the panel changed while checked")
                 signer = credential.signer
             elif any(
                 not receipt.is_terminal
                 and address in (receipt.target.address, receipt.target.pinned_address)
                 for receipt in await manager.async_list()
             ):
-                return None
+                return _not_finished(entry, "an install of the panel is not finished")
             if (
                 hass.config_entries.async_get_entry(entry.entry_id) is not entry
                 or entry.data[CONF_ADDRESS] != address
             ):
-                return None
+                return _not_finished(entry, "the panel changed while checked")
             device = await adb._async_connect(target, signer, authorize=False)
             root = await _async_identity_root(device, target) in (
                 adb.AdbRootMode.ROOT_ADBD,
@@ -455,16 +470,17 @@ async def async_attempt(
         TimeoutError,
     ) as err:
         # Admin readback alone cannot finish a pass whose vendor I/O failed.
-        _LOGGER.debug("The device setup pass could not finish on %s", entry.title)
         if not approval and local_adb.approval_pending(err):
             raise SetupApprovalPending from err
-        return None
+        return _not_finished(entry, f"{type(err).__name__}: {err}")
     finally:
         try:
             await adb._async_close(device)
         finally:
             release_panel_operation(hass, entry.entry_id)
-    if not admin or hass.config_entries.async_get_entry(entry.entry_id) is not entry:
+    if not admin:
+        return _not_finished(entry, "Android did not read the device admin back")
+    if hass.config_entries.async_get_entry(entry.entry_id) is not entry:
         return None
     # A home-screen request still pending after the claim is not finished.
     await coordinator.async_refresh()
@@ -473,9 +489,12 @@ async def async_attempt(
         fresh is None
         or not coordinator.last_update_success
         or fresh.health.discovery_id != health.discovery_id
-        or fresh.health.home_pending
     ):
-        return None
+        return _not_finished(entry, "the panel did not answer after the claim")
+    if fresh.health.home_pending:
+        return _not_finished(
+            entry, "the panel still reports its home-screen request pending"
+        )
     return {
         "did": health.discovery_id,
         "package": package,
