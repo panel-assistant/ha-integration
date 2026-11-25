@@ -480,8 +480,11 @@ async def test_the_repair_runs_the_pass_on_confirm_and_says_when_not_ready(
     flow.issue_id = issue_id
     flow.handler = DOMAIN
     flow.flow_id = "fix"
-    form = await flow.async_step_init()
-    # Opening the Repair sends nothing.
+    menu = await flow.async_step_init()
+    # Opening the Repair sends nothing and offers both choices.
+    assert menu["type"] == "menu"
+    assert menu["menu_options"] == ["confirm_setup", "stop_asking"]
+    form = await flow.async_step_confirm_setup()
     assert form["step_id"] == "confirm_setup"
     assert sent == []
     if not ready:
@@ -507,6 +510,42 @@ async def test_the_repair_runs_the_pass_on_confirm_and_says_when_not_ready(
         )
         assert sent == []
         assert _owed(panel.entry) == device_setup.OWED_INSTALL
+
+
+async def test_stop_asking_clears_the_repair_and_changes_nothing_on_the_panel(
+    hass: HomeAssistant,
+    panel: Any,  # noqa: F811
+    sent: list[str],
+) -> None:
+    """A Repair whose Submit cannot succeed can be dismissed without a retry."""
+    _prepare(panel, "no_record")
+    hass.config_entries.async_update_entry(
+        panel.entry,
+        data={**panel.entry.data, CONF_DEVICE_SETUP_OWED: device_setup.OWED_UPDATE},
+    )
+    panel.entry.runtime_data = SimpleNamespace(coordinator=panel.coordinator)
+    await panel.coordinator.async_refresh()
+    device_setup.async_raise_issue(hass, panel.entry)
+    issue_id = device_setup.device_setup_issue_id(panel.entry.entry_id)
+    flow = await async_create_fix_flow(
+        hass, issue_id, {"entry_id": panel.entry.entry_id}
+    )
+    flow.hass = hass
+    flow.issue_id = issue_id
+    flow.handler = DOMAIN
+    flow.flow_id = "fix"
+    await flow.async_step_init()
+    before = {k: v for k, v in panel.entry.data.items() if k != CONF_DEVICE_SETUP_OWED}
+    result = await flow.async_step_stop_asking()
+    assert result["type"] == "create_entry"
+    assert sent == []
+    assert _owed(panel.entry) is None
+    assert _issue(hass, panel.entry) is None
+    assert dict(panel.entry.data) == before
+    # Nothing owed is left, so the entry's next setup raises no Repair again.
+    device_setup.async_reconcile(hass, panel.entry)
+    assert _issue(hass, panel.entry) is None
+    assert sent == []
 
 
 async def test_an_update_pass_includes_the_vendor_setup(

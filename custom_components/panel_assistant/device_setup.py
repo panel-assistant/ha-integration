@@ -124,6 +124,22 @@ def async_withdraw_owed(hass: HomeAssistant, entry: ConfigEntry, reason: str) ->
 
 
 @callback
+def async_stop_asking(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """The owner chose to leave the panel as it is: forget what is owed.
+
+    Nothing is sent to the panel and nothing is retried; the next install or
+    update the owner starts owes the pass again. A pass already running sees
+    nothing owed at its next try and stops.
+    """
+    if CONF_DEVICE_SETUP_OWED in entry.data:
+        hass.config_entries.async_update_entry(
+            entry,
+            data={k: v for k, v in entry.data.items() if k != CONF_DEVICE_SETUP_OWED},
+        )
+    ir.async_delete_issue(hass, DOMAIN, device_setup_issue_id(entry.entry_id))
+
+
+@callback
 def async_start(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Run the pass an operation recorded as owed, once, with a bounded wait."""
     if CONF_DEVICE_SETUP_OWED not in entry.data or _running(hass, entry.entry_id):
@@ -518,8 +534,30 @@ class DeviceSetupFlow(RepairsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> RepairsFlowResult:
-        # Core passes issue metadata here; only the next step accepts consent.
-        return await self.async_step_confirm_setup()
+        # Core passes issue metadata here; only a chosen option acts.
+        from .device import panel_display_name
+
+        entry = self.hass.config_entries.async_get_entry(self._entry_id)
+        if entry is None or entry.domain != DOMAIN:
+            return await self.async_step_confirm_setup()
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=["confirm_setup", "stop_asking"],
+            description_placeholders={
+                "panel": panel_display_name(self.hass, entry),
+                "learn_more_url": _learn_more_url(),
+            },
+        )
+
+    async def async_step_stop_asking(
+        self, user_input: dict[str, Any] | None = None
+    ) -> RepairsFlowResult:
+        """Leave the panel as it is; nothing is sent to it."""
+        entry = self.hass.config_entries.async_get_entry(self._entry_id)
+        if entry is None or entry.domain != DOMAIN:
+            return await self.async_step_confirm_setup()
+        async_stop_asking(self.hass, entry)
+        return self.async_create_entry(data={})
 
     async def async_step_confirm_setup(
         self, user_input: dict[str, Any] | None = None

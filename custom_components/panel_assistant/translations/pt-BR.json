@@ -2014,9 +2014,17 @@
       "title": "Finish setting up {panel}",
       "fix_flow": {
         "step": {
+          "init": {
+            "title": "Finish setting up the panel",
+            "description": "The install or update of {panel} could not finish its last step on the panel. That step makes Panel Assistant the home screen if the panel's own setup asked for it, lets it lock the screen as the panel's device administrator, and applies the panel model's own setup. Nothing more is changed on {panel} until you choose.\n\nTo fix:\n1. Read [the Repairs help]({learn_more_url}).\n2. Select **Finish the setup now** to run the step, or **Stop asking** to leave {panel} as it is. Stop asking changes nothing on the panel; your next install or update of {panel} runs the step again.\n\n[Learn more]({learn_more_url})",
+            "menu_options": {
+              "confirm_setup": "Finish the setup now",
+              "stop_asking": "Stop asking"
+            }
+          },
           "confirm_setup": {
             "title": "Finish setting up {panel}",
-            "description": "The install or update of {panel} could not finish its last step on the panel. That step makes Panel Assistant the home screen if the panel's own setup asked for it, lets it lock the screen as the panel's device administrator, and applies the panel model's own setup. Nothing more is changed on {panel} until you confirm.\n\nTo fix:\n1. Read [the Repairs help]({learn_more_url}).\n2. Make sure {panel} is switched on and connected.\n3. Select Submit to run the step now. If {panel} asks on its screen to allow Home Assistant, allow it there.\n\n[Learn more]({learn_more_url})"
+            "description": "This runs the last step of the install or update on {panel} now.\n\nTo fix:\n1. Read [the Repairs help]({learn_more_url}).\n2. Make sure {panel} is switched on and connected.\n3. Select Submit to run the step now. If {panel} asks on its screen to allow Home Assistant, allow it there.\n\n[Learn more]({learn_more_url})"
           }
         },
         "error": {
