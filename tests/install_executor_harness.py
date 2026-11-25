@@ -347,7 +347,9 @@ class Harness:
                 harness.events.append("setup_state")
                 return harness.setup_state
 
-            async def async_hand_over_ha_url(self, ha_url: str) -> None:
+            async def async_hand_over_ha_url(
+                self, ha_url: str, alternates: list[str] | None = None
+            ) -> None:
                 harness.handed_over_urls.append(ha_url)
 
         self.monkeypatch.setattr(install_executor, "HaPaneldClient", FakeClient)

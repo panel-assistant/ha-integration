@@ -513,6 +513,7 @@ async def test_a_panel_without_alternates_support_gets_only_the_address(
 ) -> None:
     """Its config admission refuses an unknown key, and with it the whole POST."""
     await _set_urls(hass, internal="http://homeassistant.local:8123", external=None)
+    hass.config.api = _core_api(local_ip="172.17.0.2", use_ssl=False)
     panel = _FakePanel(PanelSetupState(complete=False, accepts_handover=True))
 
     assert await async_offer_ha_url(hass, panel) == "handed_over"  # type: ignore[arg-type]

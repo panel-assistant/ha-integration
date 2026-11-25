@@ -157,7 +157,8 @@ async def async_panel_alternate_urls(
     in that order with the default interface first and IPv4 before IPv6. Never
     the external or cloud URL, for the reasons in this module's docstring, and
     nothing when Core terminates TLS, because an IP address fails the
-    certificate's host check. Link-local and loopback addresses are left out.
+    certificate's host check. Link-local and loopback addresses are dropped by
+    the same origin filter the post-sign-in route list uses.
     """
     api = hass.config.api
     if api is None or api.use_ssl:
@@ -172,8 +173,6 @@ async def async_panel_alternate_urls(
             for entry in adapter.get(family, []):
                 with suppress(KeyError, ValueError):
                     address = ip_address(str(entry["address"]).split("%")[0])
-                    if address.is_loopback or address.is_link_local:
-                        continue
                     candidates.append(
                         str(URL.build(scheme="http", host=str(address), port=api.port))
                     )

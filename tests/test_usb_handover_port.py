@@ -60,7 +60,9 @@ async def test_usb_relay_creates_entry_on_the_health_verified_listener(
         contacted.append(client.address.stored_value)
         return PanelSetupState(complete=complete, accepts_handover=True)
 
-    async def handover(client: HaPaneldClient, ha_url: str | None) -> None:
+    async def handover(
+        client: HaPaneldClient, ha_url: str | None, alternates: Any = None
+    ) -> None:
         nonlocal complete
         handed.append((client.address.stored_value, ha_url))
         complete = True
