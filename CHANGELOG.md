@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 Each section is what Home Assistant shows in its update dialog: a short, friendly summary, a few highlights and a link to the full notes on [panel-assistant.io](https://panel-assistant.io/go/release-notes). The full notes, including every pre-release, are kept on the website. From 1.0.0 onward; earlier sections are the full notes as they were released.
 
+## 1.0.5 - 2026-11-25
+
+Panel Assistant 1.0.5 improves the Finish setting up Repair, keeps a panel's entities steady while it reconnects, and includes the 1.0.5 Android app with support for more panel hardware.
+
+- **Finish setting up, or stop asking.** The Repair now offers Stop asking, and when the setup cannot finish it says which check stopped it (#38).
+- **No flashes of unavailable.** A panel that reconnects within a minute keeps its entities available (#25).
+- **More panel hardware.** The NSPanel Pro Gen2 has its own profile, so its two relays appear in Home Assistant, and the Electron SMT97T's two relays and the light strip on some Electron WF1589T panels are now supported. Thank you to @cyraxx, who worked out the Gen2 relay settings and tested them on their own panel (panel-assistant/android#215), and to @GrisuBerlin, who supplied the SMT97T and WF1589T details (#37, #42).
+- **Wake word straight after a reply.** Saying the wake word again right after a reply now starts a new question. Thank you to @Ste05 for the report (panel-assistant/android#221).
+- **Restarts no longer skip setup.** An update interrupted by a Home Assistant restart now leaves the Finish setting up Repair, so its last step can still run.
+
+[Full release notes](https://panel-assistant.io/go/release-notes?v=1.0.5)
+
 ## 1.0.4 - 2026-11-14
 
 Panel Assistant 1.0.4 has no user-facing features. It makes the changes asked for in the review of our submission to the HACS default list. Panels keep the 1.0.3 Android app.
