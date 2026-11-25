@@ -394,9 +394,19 @@ class TransportSessions:
 
     @callback
     def close_user(self, user_id: str, reason: str) -> None:
-        """End every session signed in as one user."""
-        for session in [s for s in self._by_entry.values() if s.user_id == user_id]:
-            self.close(session, reason, hold=False)
+        """End the user's live sessions and discard its held state."""
+        # Core can revoke the socket before firing the user-removed event.
+        changed = set()
+        for entry_id, held in tuple(self._held.items()):
+            if held.user_id == user_id:
+                self._release(entry_id)
+                changed.add(entry_id)
+        for session in tuple(self._by_entry.values()):
+            if session.user_id == user_id:
+                self.close(session, reason, announce=False, hold=False)
+                changed.add(session.entry_id)
+        for entry_id in changed:
+            self._changed(entry_id)
 
     @callback
     def mark_changed(self, session: PanelSession) -> None:

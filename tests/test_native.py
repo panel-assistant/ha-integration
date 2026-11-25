@@ -43,6 +43,7 @@ from .test_transport import (
     WsClientFactory,
     _registry_digest,
     _send,
+    forced_socket_cleanup,  # noqa: F401
 )
 from .test_transport_contract import CHANNEL_DESCRIPTORS
 
@@ -636,23 +637,35 @@ async def test_a_panel_that_does_not_return_is_unavailable_after_the_grace(
         assert hass.states.get(STATUS_ENTITY).state == STATE_UNAVAILABLE
 
 
+@pytest.mark.usefixtures("forced_socket_cleanup")
+@pytest.mark.parametrize("socket_closed", [False, True])
 async def test_a_removed_panel_user_ends_the_entities_at_once(
     hass: HomeAssistant,
     native: MockConfigEntry,
     hass_ws_client: WsClientFactory,
     hass_read_only_access_token: str,
     hass_read_only_user: Any,
+    socket_closed: bool,
 ) -> None:
-    """A panel whose account is gone is not reconnecting, so nothing is held."""
+    """Revoke the removed user's entities even during reconnect grace."""
     client = await hass_ws_client(hass, hass_read_only_access_token)
     token = await _session(client)
     await _sync(hass, client, token)
     relay = _native_entries(hass, native.entry_id)[f"{DID}_relay1"].entity_id
     assert hass.states.get(relay).state == "on"
 
+    if socket_closed:
+        await client.close()
+        await hass.async_block_till_done()
+        assert hass.states.get(relay).state == "on"
+
+        other = await hass.auth.async_create_user("Another user")
+        await hass.auth.async_remove_user(other)
+        await hass.async_block_till_done()
+        assert hass.states.get(relay).state == "on"
+
     await hass.auth.async_remove_user(hass_read_only_user)
     await hass.async_block_till_done()
-
     assert hass.states.get(relay).state == STATE_UNAVAILABLE
 
 

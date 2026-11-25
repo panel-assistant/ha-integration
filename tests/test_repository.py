@@ -184,6 +184,7 @@ def test_manifest_and_hacs_versions_match_repository_policy() -> None:
         "dependencies": [
             "http",
             "media_source",
+            "network",
             "panel_custom",
             "stream",
             "websocket_api",
