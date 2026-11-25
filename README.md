@@ -19,40 +19,53 @@
   <img src="https://img.shields.io/badge/Home%20Assistant-2026.8.3%2B-18BCF2.svg" alt="Home Assistant 2026.8.3 or newer">
 </p>
 
-Panel Assistant turns an Android wall panel into a fast, dependable home for your Home Assistant dashboards. Add a panel from **Settings** like any other device, then update and look after it from Home Assistant too. We recognise that other projects make grander claims on features but we take security and openness seriously which is why we publish our entire codebase with full build instructions. If we don't have a feature yet then it is likely because we are still looking for a secure way to implement it but if you want it just ask and we can have an open conversation about the compromises.
 
-Panel Assistant runs on almost any Android wall panel with Android 8.0 or newer, and has tuned support for the [Sonoff NSPanel Pro](https://panel-assistant.io/hardware/panels/sonoff/), [Shelly Wall Display](https://panel-assistant.io/hardware/panels/shelly/), [Meta Portal](https://panel-assistant.io/hardware/panels/meta/) and panels from Smatek, Lenova, Amazon, Tuya and [others](https://panel-assistant.io/install/supported-panels/), so their screen, sensors, buttons, relays and LEDs work too.
+Panel Assistant transforms a clunky Android wall panel into a fast, dependable home for your Home Assistant dashboards. Add a panel from **Settings** like any other device, then update and look after it from Home Assistant too.
 
-- **Fast dashboards.** Each panel receives only the entities its dashboard uses, so it responds the moment you touch it.
-- **Set up in minutes.** Enter the panel's address, or plug it into your computer and install from your browser.
-- **Every panel, one system.** Every make and model looks and behaves the same in Home Assistant.
-- **Hardware and voice in Home Assistant.** What the panel has appears as entities, and a panel with a microphone becomes an Assist voice satellite.
-- **Safe to install.** You are right to be cautious about sideloading an app onto a panel. The installer is thoroughly tested never to brick a panel, even if it is interrupted, and every update starts with a backup.
-- **Open and local.** Free and open source under Apache 2.0, working with your own Home Assistant on your own network.
+It is two halves designed together: this Home Assistant integration and a purpose-built Android app, [ha-paneld](https://github.com/panel-assistant/android), which the integration installs and keeps up to date for you. They talk over a connection made for panels, so every feature is built for a screen on the wall, not squeezed into a protocol designed for sensors.
 
-## Get started
+Other panel apps have longer feature lists, but reliability is what turns a panel into an appliance that works every time you touch it. That is why reliability, security and openness come first, and why we publish the whole codebase with full build instructions. If a feature you want is missing, it is usually because we are still finding a secure way to build it: ask, and we will talk through the trade-offs in the open.
+
+Panel Assistant runs on almost any Android wall panel with Android 8.0 or newer, and has tuned support for the [Sonoff NSPanel Pro](https://panel-assistant.io/hardware/panels/sonoff/), [Shelly Wall Display](https://panel-assistant.io/hardware/panels/shelly/), [Meta Portal](https://panel-assistant.io/hardware/panels/meta/) and panels from Smatek, Lenovo, Tuya, Amazon and [others](https://panel-assistant.io/install/supported-panels/), so their screen, sensors, buttons, relays and LEDs work too.
+
+## Everything happens in Home Assistant
+
+- **Install, update and repair from Home Assistant.** Add a panel from **Settings**, update it from its update entity, and put problems right from Repairs that name the panel and say what to do.
+- **Nothing to install on your computer.** No Android developer tools and no command line: install over WiFi or USB direct from Home Assistant in your browser.
+- **Safe to install.** You are right to be cautious about sideloading an app onto a panel. The installer is thoroughly tested never to brick a panel, even if it is interrupted, and every update starts with a restore point.
+
+## What you get
+
+- **Fast dashboards.** Panel Assistant learns which entities each dashboard really uses and keeps the rest of your home's chatter away from the panel, so it responds the moment you touch it. Built-in tools show exactly what is slowing a dashboard down.
+- **The panel's hardware in Home Assistant.** Its screen, sensors, buttons, relays, LEDs, camera, speaker and microphone all work in Home Assistant, set up automatically.
+- **Every panel from one page.** However many panels you own, of whatever make, you run them all from one page in the Home Assistant sidebar, where they look and behave the same: no addresses to remember, no browser tab for each panel, and settings kept consistent across them.
+- **A voice assistant on the wall.** A panel with a microphone becomes an Assist satellite with several wake words, even one of your own, and sends no audio until it hears one.
+- **Panel and house, working together.** The panel knows which room it is in and uses that room's sensors to wake and dim its screen, with no scripts to write.
+- **Open and local.** Free and open source under Apache 2.0, working securely with your own Home Assistant on your own network. Read [our approach to security](https://panel-assistant.io/start/research-and-interoperability/).
+
+## Install the integration
 
 [![Open your Home Assistant instance and open a repository inside the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=panel-assistant&repository=ha-integration&category=integration)
 
 1. Open Panel Assistant with the button above, or search for it in Marketplace ([HACS](https://hacs.xyz/) before Home Assistant 2026.11), and download it.
 2. Add the integration from **Settings**, **Devices and services**.
-3. Add your first panel over USB, or over the network once its debugging switch is on ([how](https://panel-assistant.io/go/panel-access)). [Getting started](https://panel-assistant.io/start/getting-started/) walks you through it.
 
-## Learn more
+## Add a panel
 
-Everything else lives at [panel-assistant.io](https://panel-assistant.io):
+**Over the network.** Switch on network debugging in the panel's own Settings ([how](https://panel-assistant.io/go/panel-access)) and enter its address. A panel that already runs ha-paneld is connected, not reinstalled.
 
-- [Choose a panel](https://panel-assistant.io/install/supported-panels/) for what each model can do.
-- [Add a panel](https://panel-assistant.io/install/installing-ha-paneld/) for both install routes, and [what setup changes](https://panel-assistant.io/install/installing-ha-paneld/#what-setup-changes) on a panel, including the accessibility service, the device administrator and, on a Meta Portal, its package verifier.
-- [How it works](https://panel-assistant.io/start/what-it-is/) and [our approach to security](https://panel-assistant.io/start/research-and-interoperability/).
+**Over USB.** Choose **Add panel** on the Panel Assistant sidebar page, pick **Install using USB on this computer**, and follow the wizard in Chrome or Edge with the panel plugged into that computer.
 
-This repository is the Home Assistant integration; the panel app it installs is [ha-paneld](https://github.com/panel-assistant/android).
+[Getting started](https://panel-assistant.io/start/getting-started/) takes you from a bare panel to your dashboard. [What setup changes](https://panel-assistant.io/install/installing-ha-paneld/#what-setup-changes) lists everything an install changes on a panel. Updates and recovery are built in, and [Updates and recovery](https://panel-assistant.io/manage/updates-and-recovery/) explains how they work.
 
-## Join in
+## New, and moving fast
+
+Panel Assistant is stable and still moving quickly. Bringing every Android wall panel worth mounting in your home onto the supported list takes real hardware in real houses, which is where you come in.
 
 - **Star this repository** to help other Home Assistant users find it.
 - **Report your panel**, with its model and what worked, in the [issues](https://github.com/panel-assistant/ha-integration/issues).
 - **Chat on [Discord](https://panel-assistant.io/go/discord)** about panels, tips and what to build next.
+- **Try new versions first** by turning on **Pre-release** for Panel Assistant in the Marketplace.
 
 ## Licence
 
