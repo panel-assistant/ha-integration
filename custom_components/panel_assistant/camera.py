@@ -55,9 +55,17 @@ class NativeCamera(NativeEntity, Camera):
 
     @property
     def available(self) -> bool:
-        """Do not admit media while Core removes the entity."""
+        """Admit media only from a live, synced session, never while Core removes it.
+
+        Unlike the other native entities, the camera does not stay available
+        on the last session while the panel reconnects: a connection loss
+        revokes its media, and a new session admits it only after its full sync.
+        """
+        session = self.session
         return (
             self._platform_state is not EntityPlatformState.REMOVED
+            and session is not None
+            and session.full_sync_complete
             and super().available
         )
 

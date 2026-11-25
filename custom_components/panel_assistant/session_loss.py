@@ -9,20 +9,15 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_call_later
 from homeassistant.util import dt as dt_util
 
-from .transport_sessions import async_get_sessions
+from .transport_sessions import SESSION_LOST_GRACE, async_get_sessions
 
 _LOGGER = logging.getLogger(f"{__package__}.coordinator")
-
-# How long a panel's session may stay ended before the loss is logged: the
-# app's reconnect backoff ceiling (`PanelAssistantTransportOwner.backoffMaxMs`),
-# by which time a panel whose path works has reconnected.
-SESSION_LOST_GRACE = timedelta(seconds=60)
 
 
 class SessionLossLog:

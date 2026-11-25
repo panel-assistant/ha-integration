@@ -539,3 +539,26 @@ async def test_unknown_camera_shapes_render_nothing_and_preserve_old_registry_ro
         await client.close()
         await hass.async_block_till_done()
         assert registry.async_get(legacy.entity_id) == expected
+
+
+async def test_a_superseding_session_admits_no_media_before_its_full_sync(
+    hass: HomeAssistant,
+    native: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """The last session keeps other entities shown, never the camera's media."""
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    camera, token = await _camera(hass, native, client)
+    await _on(hass, client, token, True)
+    assert camera.available
+
+    replacement = await hass_ws_client(hass, hass_read_only_access_token)
+    replacement_token = await _session(replacement, [CAMERA])
+    await hass.async_block_till_done()
+    assert not camera.available
+    assert await camera.async_create_stream() is None
+
+    await _sync(hass, replacement, replacement_token, [CAMERA])
+    await _on(hass, replacement, replacement_token, True)
+    assert camera.available

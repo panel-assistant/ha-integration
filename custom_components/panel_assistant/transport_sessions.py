@@ -15,15 +15,16 @@ import secrets
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Final
 
 from homeassistant.components.websocket_api.connection import ActiveConnection
 from homeassistant.components.websocket_api.messages import event_message
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.event import async_call_later
 from homeassistant.util import dt as dt_util
 
 from .app_identity import PACKAGE_ID
@@ -60,6 +61,13 @@ DATA_TRANSPORT: Final = "transport"
 
 # A session the panel's connection ended, rather than Home Assistant.
 REASON_CONNECTION_CLOSED: Final = "connection_closed"
+
+# How long a panel's session may stay ended before the panel is treated as
+# gone: the app's reconnect backoff ceiling
+# (`PanelAssistantTransportOwner.backoffMaxMs`), by which time a panel whose
+# path works has reconnected. Until then its entities keep showing the last
+# synced session, and only then is the loss logged (session_loss.py).
+SESSION_LOST_GRACE: Final = timedelta(seconds=60)
 
 
 def signal_session_changed(entry_id: str) -> str:
@@ -237,6 +245,11 @@ class TransportSessions:
         self._by_entry: dict[str, PanelSession] = {}
         self._by_token: dict[str, PanelSession] = {}
         self._last_by_entry: dict[str, PanelSession] = {}
+        # Each entry's last synced session, held after it ends until a newer
+        # session completes its full sync or SESSION_LOST_GRACE passes, so a
+        # reconnect never shows the panel's entities as unavailable.
+        self._held: dict[str, PanelSession] = {}
+        self._held_timers: dict[str, CALLBACK_TYPE] = {}
         self._restart: dict[str, RestartNotice] = {}
         self._restart_timers: dict[str, asyncio.TimerHandle] = {}
 
@@ -296,10 +309,24 @@ class TransportSessions:
         """Return the entry's live session, else the last one that ended."""
         return self._by_entry.get(entry_id) or self._last_by_entry.get(entry_id)
 
+    def rendered(self, entry_id: str) -> PanelSession | None:
+        """Return the session whose reports the entry's entities show.
+
+        That is the live session once its full sync is complete. While the
+        panel reconnects (its session ended, or a newer one has not finished
+        its full sync), it is the last synced session, for SESSION_LOST_GRACE
+        after that one ended. Otherwise the live session, if any.
+        """
+        live = self._by_entry.get(entry_id)
+        if live is not None and live.full_sync_complete:
+            return live
+        return self._held.get(entry_id) or live
+
     @callback
     def forget_entry(self, entry_id: str) -> None:
         """Drop a removed entry's ended session."""
         self._last_by_entry.pop(entry_id, None)
+        self._release(entry_id)
         self.clear_restart_notice(entry_id)
 
     def for_request(
@@ -334,10 +361,19 @@ class TransportSessions:
 
     @callback
     def close(
-        self, session: PanelSession, reason: str, *, announce: bool = True
+        self,
+        session: PanelSession,
+        reason: str,
+        *,
+        announce: bool = True,
+        hold: bool = True,
     ) -> None:
-        """End a session from this side and tell the panel why."""
-        if not self._forget(session, reason):
+        """End a session from this side and tell the panel why.
+
+        ``hold`` is false when the panel is not expected back on this entry,
+        so its entities show the loss at once.
+        """
+        if not self._forget(session, reason, hold=hold):
             return
         connection = session.connection
         connection.subscriptions.pop(session.subscription_id, None)
@@ -351,20 +387,24 @@ class TransportSessions:
 
     @callback
     def close_entry(self, entry_id: str, reason: str) -> None:
-        """End an entry's session, if it has one."""
+        """End an entry's session, if it has one; the entry is going away."""
         if (session := self._by_entry.get(entry_id)) is not None:
-            self.close(session, reason)
+            self.close(session, reason, hold=False)
+        self._release(entry_id)
 
     @callback
     def close_user(self, user_id: str, reason: str) -> None:
         """End every session signed in as one user."""
         for session in [s for s in self._by_entry.values() if s.user_id == user_id]:
-            self.close(session, reason)
+            self.close(session, reason, hold=False)
 
     @callback
     def mark_changed(self, session: PanelSession) -> None:
         """Announce a change of a live session's availability."""
         if self._by_entry.get(session.entry_id) is session:
+            if session.full_sync_complete:
+                # The new session now shows its own reports.
+                self._release(session.entry_id)
             self._changed(session.entry_id)
 
     def _teardown_callback(self, session: PanelSession) -> Callable[[], None]:
@@ -377,10 +417,12 @@ class TransportSessions:
 
         return _teardown
 
-    def _forget(self, session: PanelSession, reason: str) -> bool:
+    def _forget(self, session: PanelSession, reason: str, *, hold: bool = True) -> bool:
         if self._by_entry.get(session.entry_id) is not session:
             return False
         del self._by_entry[session.entry_id]
+        if hold and session.full_sync_complete:
+            self._hold(session)
         self._by_token.pop(session.token, None)
         session.closed_at = dt_util.utcnow()
         session.close_reason = reason
@@ -406,6 +448,26 @@ class TransportSessions:
         ):
             voice_stream.detach(session.token)
         return True
+
+    def _hold(self, session: PanelSession) -> None:
+        entry_id = session.entry_id
+        self._release(entry_id)
+        self._held[entry_id] = session
+
+        @callback
+        def _expire(_now: datetime) -> None:
+            self._held_timers.pop(entry_id, None)
+            if self._held.pop(entry_id, None) is not None:
+                self._changed(entry_id)
+
+        self._held_timers[entry_id] = async_call_later(
+            self._hass, SESSION_LOST_GRACE, _expire
+        )
+
+    def _release(self, entry_id: str) -> None:
+        self._held.pop(entry_id, None)
+        if (timer := self._held_timers.pop(entry_id, None)) is not None:
+            timer()
 
     @callback
     def _changed(self, entry_id: str) -> None:
@@ -443,8 +505,12 @@ def async_get_sessions(hass: HomeAssistant) -> TransportSessions:
 
 
 def session_available(hass: HomeAssistant, entry_id: str) -> bool:
-    """Return whether an entry holds a session with a completed full sync."""
-    session = async_get_sessions(hass).get(entry_id)
+    """Return whether an entry's entities have a synced session to show.
+
+    A live session with a completed full sync, or, while the panel reconnects,
+    its last synced session within SESSION_LOST_GRACE of ending.
+    """
+    session = async_get_sessions(hass).rendered(entry_id)
     return session is not None and session.full_sync_complete
 
 

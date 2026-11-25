@@ -25,7 +25,11 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.setup import async_setup_component
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
 
 from custom_components.panel_assistant.app_identity import PACKAGE_ID
 from custom_components.panel_assistant.client import CannotConnectError, PanelHealth
@@ -33,6 +37,7 @@ from custom_components.panel_assistant.const import CONF_TRANSPORT_USER_ID, DOMA
 from custom_components.panel_assistant.diagnostics import (
     async_get_config_entry_diagnostics,
 )
+from custom_components.panel_assistant.session_loss import SESSION_LOST_GRACE
 from custom_components.panel_assistant.status import PanelStatus
 from custom_components.panel_assistant.transport_binding import (
     BINDING_REQUEST_TTL,
@@ -464,8 +469,15 @@ async def test_connection_close_marks_the_panel_gone(
     await hass.async_block_till_done()
 
     assert async_get_sessions(hass).get(entry.entry_id) is None
+    # The panel may be reconnecting: its last synced session is still shown.
+    assert session_available(hass, entry.entry_id)
+    assert changes == [False, True, True]
+    async_fire_time_changed(
+        hass, dt_util.utcnow() + SESSION_LOST_GRACE + timedelta(seconds=1)
+    )
+    await hass.async_block_till_done()
     assert not session_available(hass, entry.entry_id)
-    assert changes == [False, True, False]
+    assert changes == [False, True, True, False]
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
     transport = diagnostics["transport"]
     assert transport["connected"] is False

@@ -81,7 +81,7 @@ class NativeMediaPlayer(NativeEntity, MediaPlayerEntity):
     @property
     def volume_level(self) -> float | None:
         """Return the volume channel's reported value as a fraction."""
-        session = self.session
+        session = self.shown
         if session is None:
             return None
         observation = session.observations.get(VOLUME_CHANNEL)

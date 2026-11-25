@@ -6,6 +6,7 @@ from collections.abc import AsyncGenerator, Iterator
 from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import replace
+from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -13,13 +14,18 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import CONF_ADDRESS, STATE_UNAVAILABLE
-from homeassistant.core import HomeAssistant
+from homeassistant.const import CONF_ADDRESS, EVENT_STATE_CHANGED, STATE_UNAVAILABLE
+from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
 
+from custom_components.panel_assistant.client import CannotConnectError, HaPaneldClient
 from custom_components.panel_assistant.const import (
     CONF_TRANSPORT_USER_ID,
     DOMAIN,
@@ -28,6 +34,7 @@ from custom_components.panel_assistant.contract import catalogue_entry
 from custom_components.panel_assistant.diagnostics import (
     async_get_config_entry_diagnostics,
 )
+from custom_components.panel_assistant.session_loss import SESSION_LOST_GRACE
 
 from .test_transport import (
     DID,
@@ -122,6 +129,18 @@ async def _sync(
         assert response["success"], response
         assert response["result"]["rejected"] == []
     await hass.async_block_till_done()
+
+
+async def _past_reconnect_grace(hass: HomeAssistant) -> None:
+    """Let the grace a reconnecting panel's entities are held for run out.
+
+    The polls that come due meanwhile are answered locally.
+    """
+    with panel_patches():
+        async_fire_time_changed(
+            hass, dt_util.utcnow() + SESSION_LOST_GRACE + timedelta(seconds=1)
+        )
+        await hass.async_block_till_done()
 
 
 @contextmanager
@@ -394,6 +413,9 @@ async def test_availability_follows_the_session_and_the_description(
 
     await client.close()
     await hass.async_block_till_done()
+    # A reconnect keeps showing the last synced session for the grace.
+    assert hass.states.get(relay).state == "on"
+    await _past_reconnect_grace(hass)
     assert hass.states.get(relay).state == STATE_UNAVAILABLE
 
     reload = _native_entries(hass, native.entry_id)[f"{DID}_reload"].entity_id
@@ -482,6 +504,158 @@ USB_DEBUGGING_DESCRIPTOR = {
 }
 
 
+STATUS_ENTITY = "sensor.alpha_status"
+
+
+@contextmanager
+def _unreachable_panel() -> Iterator[None]:
+    """Home Assistant cannot open a connection to the panel at any address.
+
+    The panel's own session to Home Assistant is all that carries it, as on a
+    network that lets the panel call Home Assistant and nothing back.
+    """
+    with patch.object(
+        HaPaneldClient,
+        "async_get_health",
+        AsyncMock(side_effect=CannotConnectError("blocked")),
+    ):
+        yield
+
+
+def _record_lost(hass: HomeAssistant, entry_id: str) -> list[str]:
+    """Record each of this entry's available entities written unavailable."""
+    available = {
+        item.entity_id
+        for item in er.async_entries_for_config_entry(er.async_get(hass), entry_id)
+        if (state := hass.states.get(item.entity_id)) is not None
+        and state.state != STATE_UNAVAILABLE
+    }
+    # A run that starts with nothing available proves nothing.
+    assert len(available) > 10, available
+    written: list[str] = []
+
+    @callback
+    def _record(event: Event[EventStateChangedData]) -> None:
+        new_state = event.data["new_state"]
+        if (
+            new_state is not None
+            and new_state.state == STATE_UNAVAILABLE
+            and event.data["entity_id"] in available
+        ):
+            written.append(event.data["entity_id"])
+
+    hass.bus.async_listen(EVENT_STATE_CHANGED, _record)
+    return written
+
+
+@pytest.mark.parametrize("order", ["new_hello_first", "old_socket_closes_first"])
+async def test_a_reconnecting_panel_never_writes_an_unavailable_state(
+    hass: HomeAssistant,
+    native: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    order: str,
+) -> None:
+    """A panel's entities stay available across a reconnect.
+
+    Native entities follow the session alone, so every reconnect showed them
+    unavailable until the new session's full sync; ha-integration #25's panel
+    reconnected about every 80 s. Home Assistant cannot poll the panel here,
+    so the status sensor depends on the session too. Whichever end notices a
+    dead socket first, the panel's new session follows within its backoff.
+    """
+    with _unreachable_panel():
+        client = await hass_ws_client(hass, hass_read_only_access_token)
+        token = await _session(client)
+        await _sync(hass, client, token)
+        await native.runtime_data.coordinator.async_refresh()
+        await hass.async_block_till_done()
+        relay = _native_entries(hass, native.entry_id)[f"{DID}_relay1"].entity_id
+        assert hass.states.get(relay).state == "on"
+        assert hass.states.get(STATUS_ENTITY).state == "connected"
+        lost = _record_lost(hass, native.entry_id)
+
+        if order == "old_socket_closes_first":
+            await client.close()
+            await hass.async_block_till_done()
+            async_fire_time_changed(
+                hass, dt_util.utcnow() + SESSION_LOST_GRACE - timedelta(seconds=5)
+            )
+            await hass.async_block_till_done()
+        again = await hass_ws_client(hass, hass_read_only_access_token)
+        token = await _session(again)
+        await hass.async_block_till_done()
+        await _sync(hass, again, token)
+        if order == "new_hello_first":
+            await client.close()
+            await hass.async_block_till_done()
+        async_fire_time_changed(
+            hass, dt_util.utcnow() + SESSION_LOST_GRACE + timedelta(seconds=5)
+        )
+        await hass.async_block_till_done()
+
+    # The camera alone needs a live session: a connection loss revokes its
+    # media (test_native_camera), so it may go unavailable while none is open.
+    assert [item for item in lost if not item.startswith("camera.")] == []
+    assert hass.states.get(relay).state == "on"
+    assert hass.states.get(STATUS_ENTITY).state == "connected"
+
+
+async def test_a_panel_that_does_not_return_is_unavailable_after_the_grace(
+    hass: HomeAssistant,
+    native: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+) -> None:
+    """The grace is bounded: a panel that stays away is shown as gone."""
+    with _unreachable_panel():
+        client = await hass_ws_client(hass, hass_read_only_access_token)
+        token = await _session(client)
+        await _sync(hass, client, token)
+        await native.runtime_data.coordinator.async_refresh()
+        await hass.async_block_till_done()
+        relay = _native_entries(hass, native.entry_id)[f"{DID}_relay1"].entity_id
+        closed = dt_util.utcnow()
+
+        await client.close()
+        await hass.async_block_till_done()
+        async_fire_time_changed(
+            hass, closed + SESSION_LOST_GRACE - timedelta(seconds=1)
+        )
+        await hass.async_block_till_done()
+        assert hass.states.get(relay).state == "on"
+        assert hass.states.get(STATUS_ENTITY).state == "connected"
+
+        async_fire_time_changed(
+            hass, closed + SESSION_LOST_GRACE + timedelta(seconds=1)
+        )
+        await hass.async_block_till_done()
+        assert hass.states.get(relay).state == STATE_UNAVAILABLE
+        await native.runtime_data.coordinator.async_refresh()
+        await hass.async_block_till_done()
+        assert hass.states.get(STATUS_ENTITY).state == STATE_UNAVAILABLE
+
+
+async def test_a_removed_panel_user_ends_the_entities_at_once(
+    hass: HomeAssistant,
+    native: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    hass_read_only_user: Any,
+) -> None:
+    """A panel whose account is gone is not reconnecting, so nothing is held."""
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    token = await _session(client)
+    await _sync(hass, client, token)
+    relay = _native_entries(hass, native.entry_id)[f"{DID}_relay1"].entity_id
+    assert hass.states.get(relay).state == "on"
+
+    await hass.auth.async_remove_user(hass_read_only_user)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(relay).state == STATE_UNAVAILABLE
+
+
 async def test_usb_debugging_reports_observed_state_and_read_loss(
     hass: HomeAssistant,
     native: MockConfigEntry,
@@ -519,6 +693,7 @@ async def test_usb_debugging_reports_observed_state_and_read_loss(
 
     await client.close()
     await hass.async_block_till_done()
+    await _past_reconnect_grace(hass)
     assert hass.states.get(entry.entity_id).state == STATE_UNAVAILABLE
     assert f"{DID}_usb_debugging" in _native_entries(hass, native.entry_id)
 
@@ -739,6 +914,7 @@ async def test_a_new_panel_identity_never_renders_into_the_old_entities(
     old_relay = _native_entries(hass, native.entry_id)[f"{DID}_relay1"].entity_id
     await client.close()
     await hass.async_block_till_done()
+    await _past_reconnect_grace(hass)
 
     reset_did = "f" * 64
     health = replace(HEALTH, discovery_id=reset_did)

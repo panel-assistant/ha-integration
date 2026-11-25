@@ -62,6 +62,7 @@ from .transport_sessions import (
     RestartNotice,
     async_get_sessions,
     async_manage,
+    session_available,
     session_manages,
     signal_session_changed,
 )
@@ -165,8 +166,20 @@ class HaPaneldDataUpdateCoordinator(DataUpdateCoordinator[PanelSnapshot]):
 
     @property
     def available(self) -> bool:
-        """Return whether the panel is reachable outbound or connected inbound."""
-        return self.reachable or self.connected
+        """Return whether the panel is reachable outbound or connected inbound.
+
+        A panel reconnecting within the grace of its last synced session still
+        counts as connected (``session_available``), so a reconnect never
+        shows it unavailable.
+        """
+        return (
+            self.reachable
+            or self.connected
+            or (
+                self._entry_id is not None
+                and session_available(self.hass, self._entry_id)
+            )
+        )
 
     @property
     def not_signed_in(self) -> bool:

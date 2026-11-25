@@ -137,11 +137,22 @@ class NativeEntity(Entity):
     def session(self) -> PanelSession | None:
         """Return the live session, only while it describes this very entity.
 
-        A session for another panel identity on the same entry, or one that
-        describes the channel in a shape the catalogue does not know, does not
-        render into this entity.
+        Commands go to this session. A session for another panel identity on
+        the same entry, or one that describes the channel in a shape the
+        catalogue does not know, does not render into this entity.
         """
-        session = async_get_sessions(self.hass).get(self._entry_id)
+        return self._describing(async_get_sessions(self.hass).get(self._entry_id))
+
+    @property
+    def shown(self) -> PanelSession | None:
+        """Return the session whose reports this entity shows.
+
+        The live session once it is synced; while the panel reconnects, its
+        last synced session for a bounded grace (``TransportSessions.rendered``).
+        """
+        return self._describing(async_get_sessions(self.hass).rendered(self._entry_id))
+
+    def _describing(self, session: PanelSession | None) -> PanelSession | None:
         if (
             session is None
             or session.did != self._did
@@ -153,16 +164,16 @@ class NativeEntity(Entity):
 
     @property
     def descriptor(self) -> Mapping[str, Any]:
-        """Return the live session's descriptor, else the last one seen."""
-        session = self.session
+        """Return the shown session's descriptor, else the last one seen."""
+        session = self.shown
         return (
             self._descriptor if session is None else session.descriptors[self._channel]
         )
 
     @property
     def observation(self) -> Observation | None:
-        """Return the live session's latest known observation of this channel."""
-        session = self.session
+        """Return the shown session's latest known observation of this channel."""
+        session = self.shown
         if session is None:
             return None
         observation = session.observations.get(self._channel)
@@ -173,7 +184,7 @@ class NativeEntity(Entity):
     @property
     def no_reading_reason(self) -> str | None:
         """Return why the panel has no reading for this sensor, or None."""
-        session = self.session
+        session = self.shown
         if session is None or self.platform_name not in _NO_READING:
             return None
         observation = session.observations.get(self._channel)
@@ -190,7 +201,7 @@ class NativeEntity(Entity):
     @property
     def available(self) -> bool:
         """Available while a synced session describes and reports the channel."""
-        if self.session is None or not session_available(self.hass, self._entry_id):
+        if self.shown is None or not session_available(self.hass, self._entry_id):
             return False
         return (
             self.platform_name in _UNREPORTED
@@ -243,7 +254,7 @@ class NativeEntity(Entity):
 
     @callback
     def _refresh(self) -> None:
-        if (session := self.session) is not None:
+        if (session := self.shown) is not None:
             self._descriptor = session.descriptors[self._channel]
         self.async_write_ha_state()
 
