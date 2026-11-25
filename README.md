@@ -65,7 +65,7 @@ Panel Assistant is stable and still moving quickly. Bringing every Android wall 
 - **Star this repository** to help other Home Assistant users find it.
 - **Report your panel**, with its model and what worked, in the [issues](https://github.com/panel-assistant/ha-integration/issues).
 - **Chat on [Discord](https://panel-assistant.io/go/discord)** about panels, tips and what to build next.
-- **Try new versions first** by turning on **Pre-release** for Panel Assistant in the Marketplace.
+- **Try new versions first** by choosing **Include pre-releases** from Panel Assistant's menu in the Marketplace.
 
 ## Licence
 
