@@ -1843,14 +1843,35 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 return self.async_abort(reason="install_worker_stopped")  # type: ignore[unreachable]
             return await self.async_step_panel_setup()
 
-        known = (
-            self.hass.config_entries.async_entry_for_domain_unique_id(
-                DOMAIN, result.health.discovery_id
-            )
-            if result.health.discovery_id is not None
-            else None
-        )
-        if known is not None and known.source != SOURCE_IGNORE:
+        # A discovery card may use a provisional ID for a device that does not
+        # run Panel Assistant yet. Persist the identity verified by the install
+        # so the panel can connect even before a successful coordinator poll.
+        did = result.health.discovery_id
+        known = None
+        if did is not None or self.unique_id is not None:
+            known = await self.async_set_unique_id(did, raise_on_progress=False)
+        if known is not None and known.source == SOURCE_IGNORE:
+            # Core skips async_on_create_entry when replacing Ignore. Remove
+            # that entry explicitly so the normal receipt and onboarding
+            # handoff still runs for this owner-initiated install.
+            try:
+                await self.hass.config_entries.async_remove(known.entry_id)
+            except asyncio.CancelledError:
+                executor.release_finalizer(receipt.job_id, self.flow_id)
+                self._finalizer_job_id = None
+                raise
+            if self._flow_removed:
+                executor.release_finalizer(receipt.job_id, self.flow_id)  # type: ignore[unreachable]
+                self._finalizer_job_id = None
+                return self.async_abort(reason="install_worker_stopped")
+            known = await self.async_set_unique_id(did, raise_on_progress=False)
+            if known is not None and known.source == SOURCE_IGNORE:
+                executor.release_finalizer(receipt.job_id, self.flow_id)
+                self._finalizer_job_id = None
+                return self._show_install_result_retry(
+                    receipt, "install_finalization_retry"
+                )
+        if known is not None:
             # The panel was added meanwhile under another of its addresses.
             # That entry is what this install became; a second is never made.
             await executor.async_consume_finalization(
@@ -1861,12 +1882,20 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             self._owe_device_setup(known)
             return self.async_abort(reason="already_configured")
 
+        if self._address_is_configured(receipt.target.address):
+            executor.release_finalizer(receipt.job_id, self.flow_id)
+            self._finalizer_job_id = None
+            return self.async_abort(reason="already_configured")
+
+        data: dict[str, Any] = {CONF_ADDRESS: receipt.target.address}
+        if result.health.installation_identity:
+            data[CONF_INSTALL_IDENTITY] = True
         # The lease stays held through ConfigEntries' actual add.
         # async_on_create_entry hands HA's generated entry id to the executor,
         # which records it and releases the lease.
         return self.async_create_entry(
             title=result.health.panel_id,
-            data={CONF_ADDRESS: receipt.target.address},
+            data=data,
             options=(
                 {CONF_PRERELEASE_PANEL_BUILDS: True}
                 if receipt.artifact.prerelease_opt_in

@@ -8,11 +8,16 @@ test_device_setup_trigger.py run the real one).
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from homeassistant.config_entries import SOURCE_IGNORE, SOURCE_ZEROCONF
+from homeassistant.config_entries import (
+    SOURCE_IGNORE,
+    SOURCE_ZEROCONF,
+    ConfigEntryState,
+)
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -44,6 +49,13 @@ from .test_install_unfinished import (  # noqa: F401
     install_release_catalog,
     pins,
 )
+from .test_migration_targets import (  # noqa: F401
+    _add_integration_opened,
+    _companion,
+    _discovered,
+    adb_open,
+)
+from .test_transport import WsClientFactory, _hello, _send
 
 RECORD = {"did": PANEL_DID, "package": "p", "version_code": 1, "root": False}
 SETUP = "custom_components.panel_assistant.async_setup_entry"
@@ -186,3 +198,66 @@ async def test_adding_a_panel_whose_app_was_already_installed_runs_no_pass(
     passes.assert_not_awaited()
     assert CONF_DEVICE_SETUP_OWED not in entry.data
     assert CONF_DEVICE_SETUP not in entry.data
+
+
+@pytest.mark.parametrize("ignored", [False, True])
+async def test_companion_install_keeps_the_verified_identity_when_health_is_unreachable(
+    hass: HomeAssistant,
+    harness: Harness,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+    passes: AsyncMock,
+    adb_open: SimpleNamespace,  # noqa: F811
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    ignored: bool,
+) -> None:
+    """The panel can connect before Core can poll its stored install address."""
+    if ignored:
+        MockConfigEntry(
+            domain=DOMAIN, source=SOURCE_IGNORE, unique_id=PANEL_DID, data={}
+        ).add_to_hass(hass)
+    harness.expected_version = "0.1.0"
+    monkeypatch.setattr(install_executor, "async_verify_installed_target", AsyncMock())
+    handover = AsyncMock()
+    monkeypatch.setattr(f"{FLOW}.async_offer_ha_url", handover)
+    _executor_health_names_the_panel(monkeypatch)
+    receipt, manager = await seed_phase(hass, InstallPhase.HEALTHY_UNCLAIMED)
+    _companion(hass, "Wall screen", SEEDED_IP, "wall-screen")
+    adb_open.open.add(SEEDED_IP)
+    await _add_integration_opened(hass)
+    card = _discovered(hass)["Wall screen"]
+    assert card["context"]["unique_id"].startswith("migration:")
+
+    # Finalization reaches the app at the pinned IP. The first entry poll gets
+    # no answer at the name the install used, so it cannot fill in the identity.
+    with _app_answers({SEEDED_IP: PANEL_DID}):
+        menu = await hass.config_entries.flow.async_configure(card["flow_id"], {})
+        result = await _choose(hass, menu, "resume_install")
+        await hass.async_block_till_done()
+
+        assert result["type"] is FlowResultType.CREATE_ENTRY
+        (entry,) = hass.config_entries.async_entries(DOMAIN)
+        assert entry.state is ConfigEntryState.LOADED
+        assert entry.runtime_data.coordinator.data is None
+        assert (
+            await manager.async_get(receipt.job_id)
+        ).consumed_entry_id == entry.entry_id
+        (_, onboarding) = result["next_flow"]
+        assert (
+            hass.config_entries.options.async_get(onboarding)["step_id"] == "onboarding"
+        )
+        early = await hass.config_entries.options.async_configure(onboarding, {})
+        assert early["errors"] == {"base": "panel_not_connected"}
+
+        client = await hass_ws_client(hass, hass_read_only_access_token)
+        wrong = await _send(client, _hello(did="e" * 64, addresses=[SEEDED_IP]))
+        assert wrong["error"]["code"] == "unknown_panel"
+        response = await _send(client, _hello(did=PANEL_DID, addresses=[SEEDED_IP]))
+        assert response["success"], (entry.unique_id, response)
+        finished = await hass.config_entries.options.async_configure(onboarding, {})
+        assert finished["type"] is FlowResultType.ABORT
+        assert finished["reason"] == "panel_connected"
+        await client.close()
+
+    assert entry.unique_id == PANEL_DID
+    _assert_one_pass(passes, entry)
