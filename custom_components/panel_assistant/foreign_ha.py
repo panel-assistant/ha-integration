@@ -49,27 +49,32 @@ async def async_other_ha_serves(hass: HomeAssistant, configured_url: str) -> boo
         if origin is None:
             return False
         # Core's connector is shared. This short-lived session owns neither
-        # that connector nor any cookie or authenticated session state.
-        async with (
-            async_create_clientsession(
-                hass,
-                auto_cleanup=False,
-                cookie_jar=DummyCookieJar(),
-                connector_owner=False,
-            ) as session,
-            session.get(
+        # that connector nor any cookie or authenticated session state. Core
+        # replaces close() on its sessions with a usage report that closes
+        # nothing, so the session is released with detach(), never closed.
+        session = async_create_clientsession(
+            hass,
+            auto_cleanup=False,
+            cookie_jar=DummyCookieJar(),
+            connector_owner=False,
+        )
+        try:
+            async with session.get(
                 f"{origin}/api/panel_assistant/instance",
                 allow_redirects=False,
                 timeout=ClientTimeout(total=3),
-            ) as response,
-        ):
-            if response.status != 200:
-                return False
-            body = bytearray()
-            async for chunk in response.content.iter_chunked(_MAX_IDENTITY_BYTES + 1):
-                body.extend(chunk)
-                if len(body) > _MAX_IDENTITY_BYTES:
+            ) as response:
+                if response.status != 200:
                     return False
+                body = bytearray()
+                async for chunk in response.content.iter_chunked(
+                    _MAX_IDENTITY_BYTES + 1
+                ):
+                    body.extend(chunk)
+                    if len(body) > _MAX_IDENTITY_BYTES:
+                        return False
+        finally:
+            session.detach()
         document = json.loads(body, **strict_json_hooks(ValueError))
         foreign_id = document.get("instance_id") if isinstance(document, dict) else None
         return (

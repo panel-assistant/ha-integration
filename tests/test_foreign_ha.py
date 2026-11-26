@@ -18,6 +18,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_socket import socket_allow_hosts
 from yarl import URL
 
+from custom_components.panel_assistant import foreign_ha as foreign_ha_module
 from custom_components.panel_assistant.client import HaPaneldClient, PanelAddress
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.foreign_ha import (
@@ -285,9 +286,25 @@ async def test_identity_probe_sends_no_credentials_and_does_not_follow_redirects
         hass.data.setdefault(DOMAIN, {})[DATA_INSTANCE_ID] = OWN_ID
         client = HaPaneldClient(panel_session, PanelAddress(host, server.port))
 
-        for _ in range(2):
-            assert await async_connected_to_other_ha(hass, client) is not redirect
+        sessions = []
+        create = foreign_ha_module.async_create_clientsession
 
+        def recording(*args, **kwargs):
+            sessions.append(create(*args, **kwargs))
+            return sessions[-1]
+
+        with (
+            patch.object(foreign_ha_module, "async_create_clientsession", recording),
+            patch("homeassistant.helpers.frame.report_usage") as report_usage,
+        ):
+            for _ in range(2):
+                assert await async_connected_to_other_ha(hass, client) is not redirect
+
+    # Each probe releases its own session; closing one would only report a
+    # misuse to Core and leave it open ("Unclosed client session" on production).
+    assert len(sessions) == 2
+    assert all(session.closed for session in sessions)
+    report_usage.assert_not_called()
     probes = [headers for _, path, headers in seen if path.endswith("/instance")]
     assert len(probes) == 2
     config_headers = [headers for _, path, headers in seen if path.endswith("/config")]
