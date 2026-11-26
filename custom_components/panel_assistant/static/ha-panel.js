@@ -2793,10 +2793,12 @@ var Le = class extends HTMLElement {
 	#n;
 	#r;
 	#i;
-	#a = "ready";
+	#a;
 	#o;
-	#s = "loading";
-	#c = [];
+	#s = "ready";
+	#c;
+	#l = "loading";
+	#u = [];
 	constructor() {
 		super(), this.attachShadow({ mode: "open" }), this.shadowRoot.innerHTML = `<style>${v}
       :host{display:block;min-height:100%;background:var(--bg);padding:24px 16px}
@@ -2819,45 +2821,53 @@ var Le = class extends HTMLElement {
       </div></section>
     </main>`;
 		for (let e of this.shadowRoot.querySelectorAll("[data-message]")) e.textContent = this.#t[e.dataset.message];
-		this.shadowRoot.querySelector("#start").addEventListener("click", () => this.#d()), this.shadowRoot.querySelector("#cancel").addEventListener("click", () => this.#r?.cancel()), this.shadowRoot.querySelector("#retry").addEventListener("click", () => this.#l()), this.shadowRoot.querySelector("#release").addEventListener("change", () => this.#u()), this.#u();
+		this.shadowRoot.querySelector("#start").addEventListener("click", () => this.#p()), this.shadowRoot.querySelector("#cancel").addEventListener("click", () => this.#a?.cancel()), this.shadowRoot.querySelector("#retry").addEventListener("click", () => this.#d()), this.shadowRoot.querySelector("#release").addEventListener("change", () => this.#f()), this.#f();
 	}
 	set hass(e) {
 		let t = this.#e?.user?.id !== e?.user?.id || this.#e?.user?.is_admin !== e?.user?.is_admin || this.#e?.connection !== e?.connection || this.#e?.auth !== e?.auth, n = this.#e?.language !== e?.language;
 		this.#e = e;
 		let r = e?.themes?.darkMode;
-		typeof r == "boolean" && this.setAttribute?.("theme", r ? "dark" : "light"), t && (this.#r?.cancel(), this.#l()), (t || n) && this.#u();
+		typeof r == "boolean" && this.setAttribute?.("theme", r ? "dark" : "light"), t && (this.#a?.cancel(), this.#d()), (t || n) && this.#f();
 	}
 	set panel(e) {
 		let t = this.#n?.config?.installer_url !== e?.config?.installer_url;
-		t && this.#r?.cancel(), this.#n = e, t && this.#l(), this.#u();
+		t && this.#a?.cancel(), this.#n = e, t && this.#d(), this.#f();
 	}
 	connectedCallback() {
-		this.#l();
+		this.#d();
 	}
 	disconnectedCallback() {
-		this.#r?.cancel(), this.#i?.cancel(), this.#i = void 0, this.#o?.abort(), this.#o = void 0;
+		this.#a?.cancel(), this.#o?.cancel(), this.#o = void 0, this.#c?.abort(), this.#c = void 0;
 	}
-	async #l() {
-		if (this.#o?.abort(), this.#o = void 0, this.#c = [], this.#s = "loading", this.shadowRoot.querySelector("#release-choices").replaceChildren(), this.#u(), !this.isConnected || this.#e?.user?.is_admin !== !0 || !this.#n?.config?.installer_url) return;
-		let e = new AbortController();
-		this.#o = e;
+	async #d() {
+		if (this.#r = void 0, this.#i = void 0, this.#c?.abort(), this.#c = void 0, this.#u = [], this.#l = "loading", this.shadowRoot.querySelector("#release-choices").replaceChildren(), this.#f(), !this.isConnected || this.#e?.user?.is_admin !== !0 || !this.#n?.config?.installer_url) return;
+		let e = this.#n.config.installer_url;
+		this.#r = e;
+		let t = Promise.resolve(this.#e.callWS?.({ type: "panel_assistant/installer_url" }));
+		this.#i = t, t.then((e) => {
+			this.#i === t && typeof e?.url == "string" && e.url && (this.#r = e.url);
+		}, () => {}).finally(() => {
+			this.#i === t && (this.#i = void 0, this.#f());
+		});
+		let n = new AbortController();
+		this.#c = n;
 		try {
-			let t = await Ie(this.#e, { signal: e.signal });
-			if (this.#o !== e) return;
-			this.#c = t, this.#s = t.length ? "ready" : "empty";
-			let n = this.shadowRoot.querySelector("#release-choices");
-			for (let e of [null, ...t]) {
-				let t = document.createElement("option");
-				t.value = e?.tag ?? "", n.append(t);
+			let e = await Ie(this.#e, { signal: n.signal });
+			if (this.#c !== n) return;
+			this.#u = e, this.#l = e.length ? "ready" : "empty";
+			let t = this.shadowRoot.querySelector("#release-choices");
+			for (let n of [null, ...e]) {
+				let e = document.createElement("option");
+				e.value = n?.tag ?? "", t.append(e);
 			}
 		} catch {
-			if (this.#o !== e) return;
-			this.#s = "catalogError";
+			if (this.#c !== n) return;
+			this.#l = "catalogError";
 		} finally {
-			this.#o === e && (this.#o = void 0, this.#u());
+			this.#c === n && (this.#c = void 0, this.#f());
 		}
 	}
-	#u() {
+	#f() {
 		let e = this.shadowRoot, t = this.#e?.language;
 		this.isConnected && this.setAttribute?.("lang", a(t));
 		for (let t of e.querySelectorAll("[data-message]")) t.textContent = this.#t[t.dataset.message];
@@ -2867,34 +2877,34 @@ var Le = class extends HTMLElement {
 		let r = e.querySelector("#release-choices").children;
 		if (r.length) {
 			r[0].textContent = this.#t.choose;
-			for (let [e, t] of this.#c.entries()) {
+			for (let [e, t] of this.#u.entries()) {
 				let n = t.name ? this.#t.devBuild : t.prerelease ? this.#t.testing : "";
 				r[e + 1].textContent = `${t.name ?? t.tag.replace(/^v/, "")}${n ? ` (${n})` : ""}`;
 			}
 		}
-		let i = this.#e?.user?.is_admin === !0, s = typeof this.#n?.config?.installer_url == "string" && this.#n.config.installer_url.length > 0, c = this.shadowRoot.querySelector("#release-choices").value, l = c === "" ? this.#c[0] : this.#c.find((e) => e.tag === c), u = this.#a === "installed", d = e.querySelector("#selected-release");
-		d.hidden = u || !i || !s || !l, e.querySelector("#selected-release-label").textContent = c === "" ? this.#t.choose : this.#t.release, e.querySelector("#selected-release-version").textContent = l ? l.name ?? l.tag.replace(/^v/, "") : "", this.shadowRoot.querySelector("#start").hidden = u, this.shadowRoot.querySelector("#versions").hidden = u, this.shadowRoot.querySelector("#start").disabled = !i || !s || !!this.#r || !l, this.shadowRoot.querySelector("#cancel").disabled = !this.#r, this.shadowRoot.querySelector("#release").disabled = !!this.#r || this.#s !== "ready";
+		let i = this.#e?.user?.is_admin === !0, s = typeof this.#n?.config?.installer_url == "string" && this.#n.config.installer_url.length > 0, c = this.shadowRoot.querySelector("#release-choices").value, l = c === "" ? this.#u[0] : this.#u.find((e) => e.tag === c), u = this.#s === "installed", d = e.querySelector("#selected-release");
+		d.hidden = u || !i || !s || !l, e.querySelector("#selected-release-label").textContent = c === "" ? this.#t.choose : this.#t.release, e.querySelector("#selected-release-version").textContent = l ? l.name ?? l.tag.replace(/^v/, "") : "", this.shadowRoot.querySelector("#start").hidden = u, this.shadowRoot.querySelector("#versions").hidden = u, this.shadowRoot.querySelector("#start").disabled = !i || !s || !!this.#a || !l || !!this.#i, this.shadowRoot.querySelector("#cancel").disabled = !this.#a, this.shadowRoot.querySelector("#release").disabled = !!this.#a || this.#l !== "ready";
 		let f = this.shadowRoot.querySelector("#catalog-status");
-		f.textContent = i && s && this.#s !== "ready" ? this.#t[this.#s] : "", f.hidden = !f.textContent, this.shadowRoot.querySelector("#retry").hidden = !i || !s || !["catalogError", "empty"].includes(this.#s), this.shadowRoot.querySelector("#cancel").hidden = !this.#r;
-		let m = i ? s ? this.#a : "unavailable" : "admin", h = this.shadowRoot.querySelector("#status");
+		f.textContent = i && s && this.#l !== "ready" ? this.#t[this.#l] : "", f.hidden = !f.textContent, this.shadowRoot.querySelector("#retry").hidden = !i || !s || !["catalogError", "empty"].includes(this.#l), this.shadowRoot.querySelector("#cancel").hidden = !this.#a;
+		let m = i ? s ? this.#s : "unavailable" : "admin", h = this.shadowRoot.querySelector("#status");
 		h.textContent = Object.hasOwn(this.#t, m) ? this.#t[m] : this.#t.failed, h.hidden = !h.textContent;
 	}
-	#d() {
-		if (this.#r || this.#e?.user?.is_admin !== !0) return;
+	#p() {
+		if (this.#a || this.#e?.user?.is_admin !== !0) return;
 		let e = this.shadowRoot.querySelector("#release-choices").value;
-		if (!(e === "" ? this.#c[0] : this.#c.find((t) => t.tag === e)) || !this.isConnected) return;
-		this.#i?.cancel(), this.#i = void 0;
+		if (!(e === "" ? this.#u[0] : this.#u.find((t) => t.tag === e)) || !this.isConnected || this.#i) return;
+		this.#o?.cancel(), this.#o = void 0;
 		let t;
-		t = ke(this.#e, this.#n?.config?.installer_url, {
+		t = ke(this.#e, this.#r ?? this.#n?.config?.installer_url, {
 			rcTag: e || null,
 			language: a(this.#e?.language),
 			onState: (e) => {
-				t && t !== this.#r && t !== this.#i || (this.#a = e, this.#u());
+				t && t !== this.#a && t !== this.#o || (this.#s = e, this.#f());
 			}
-		}), this.#r = t, this.#u(), t.completion.then(() => {
-			this.#r === t && (this.#i = t);
+		}), this.#a = t, this.#f(), t.completion.then(() => {
+			this.#a === t && (this.#o = t);
 		}, () => {}).finally(() => {
-			this.#r === t && (this.#r = void 0), this.#u();
+			this.#a === t && (this.#a = void 0), this.#f();
 		});
 	}
 };

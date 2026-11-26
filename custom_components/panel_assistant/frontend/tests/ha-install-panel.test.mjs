@@ -38,12 +38,12 @@ const { HaPaneldUsbInstallPanel } = await import('../src/ha-install-panel.mjs');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const releases = [{ tag: 'v1.2.4-rc1', prerelease: true }, { tag: 'v1.2.3', prerelease: false },
   { tag: 'build-999', prerelease: true, name: '1.2.5 build 999' }];
-function mount(language = 'en') {
+function mount(language = 'en', extra = {}) {
   let resolve;
   const pending = new Promise(done => { resolve = done; });
   const panel = new HaPaneldUsbInstallPanel();
   panel.panel = { config: { installer_url: 'https://installer.example/', version: '9.8.7', build: 654 } };
-  const hass = { user: { id: 'admin', is_admin: true }, language, fetchWithAuth: () => pending };
+  const hass = { user: { id: 'admin', is_admin: true }, language, fetchWithAuth: () => pending, ...extra };
   panel.hass = hass;
   return { panel, hass, $: selector => panel.shadowRoot.querySelector(selector),
     answer: async value => { resolve(new Response(JSON.stringify(value), { headers: { 'Content-Type': 'application/json' } })); await tick(); } };
@@ -73,4 +73,24 @@ for (const [state, response] of [['loading', null], ['empty', { releases: [] }],
   assert.equal($('#selected-release')?.hidden, true);
   assert.equal($('#start').disabled, true);
   assert.equal($('#catalog-status').textContent, frontendMessages('haInstall', 'en')[state]);
+});
+test('Continue waits for Home Assistant to say which installer copy to open', async t => {
+  let reply;
+  const { panel, $, answer } = mount('en', { callWS: () => new Promise(done => { reply = done; }) });
+  t.after(() => panel.disconnectedCallback());
+  await answer({ releases });
+  assert.equal($('#selected-release').hidden, false);
+  assert.equal($('#start').disabled, true, 'Continue must not open a copy before the lookup answers');
+  const opened = [];
+  const previous = globalThis.window;
+  globalThis.window = { open: url => { opened.push(url); return null; }, addEventListener() {}, removeEventListener() {}, location: { origin: 'http://ha.local' } };
+  t.after(() => { globalThis.window = previous; });
+  $('#start').fire('click');
+  assert.deepEqual(opened, []);
+  reply({ url: 'https://installer.example/root/' });
+  await tick();
+  assert.equal($('#start').disabled, false);
+  $('#start').fire('click');
+  assert.equal(opened.length, 1);
+  assert.ok(opened[0].startsWith('https://installer.example/root/'), opened[0]);
 });

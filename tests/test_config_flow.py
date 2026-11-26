@@ -166,17 +166,28 @@ async def test_usb_step_registers_the_local_admin_panel_without_creating_entry(
     ids=["unpublished", "published", "unreachable"],
 )
 async def test_usb_step_opens_a_published_installer_copy(
-    hass: HomeAssistant, aioclient_mock, site: dict[str, Any], opened: str
+    hass: HomeAssistant,
+    aioclient_mock,
+    hass_ws_client,
+    site: dict[str, Any],
+    opened: str,
 ) -> None:
-    """A build numbered ahead of its release tag opens the newest copy, never a 404."""
-    from homeassistant.components import frontend
+    """A build numbered ahead of its release tag opens the newest copy, never a 404.
 
+    Showing the step asks the site nothing; the check runs when the opened
+    USB panel asks which copy to load.
+    """
     aioclient_mock.head(
         f"https://install.panel-assistant.io/{INTEGRATION_VERSION}/", **site
     )
     await _start_step(hass, "install_usb")
-    panel = hass.data[frontend.DATA_PANELS]["panel-assistant-usb"]
-    assert panel.config["installer_url"] == opened
+    assert aioclient_mock.call_count == 0
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "panel_assistant/installer_url"})
+    response = await client.receive_json()
+    assert response["success"], response
+    assert response["result"] == {"url": opened}
+    assert aioclient_mock.call_count == 1
 
 
 async def test_usb_step_button_opens_the_installer_where_the_browser_is(

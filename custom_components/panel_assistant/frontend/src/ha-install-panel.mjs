@@ -13,6 +13,9 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
   #hass;
   get #messages() { return frontendMessages('haInstall', this.#hass?.language); }
   #panel;
+  #installerUrl;
+  // Set while Home Assistant has not yet said which installer copy to open.
+  #installerLookup;
   #transfer;
   // A finished transfer keeps answering a reloaded installer window until this
   // page goes away or a new transfer starts.
@@ -77,6 +80,8 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
   connectedCallback() { this.#loadCatalog(); }
   disconnectedCallback() { this.#transfer?.cancel(); this.#served?.cancel(); this.#served = undefined; this.#catalogRequest?.abort(); this.#catalogRequest = undefined; }
   async #loadCatalog() {
+    this.#installerUrl = undefined;
+    this.#installerLookup = undefined;
     this.#catalogRequest?.abort();
     this.#catalogRequest = undefined;
     this.#releases = [];
@@ -84,6 +89,22 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
     this.shadowRoot.querySelector('#release-choices').replaceChildren();
     this.#render();
     if (!this.isConnected || this.#hass?.user?.is_admin !== true || !this.#panel?.config?.installer_url) return;
+    // Home Assistant checks which installer copy is published only once the panel is opened.
+    const configured = this.#panel.config.installer_url;
+    this.#installerUrl = configured;
+    // Continue waits for the answer: the click opens the installer at once, so
+    // it must already know whether this release's copy is published.
+    const lookup = Promise.resolve(this.#hass.callWS?.({ type: 'panel_assistant/installer_url' }));
+    this.#installerLookup = lookup;
+    lookup.then(answer => {
+      if (this.#installerLookup === lookup && typeof answer?.url === 'string' && answer.url) {
+        this.#installerUrl = answer.url;
+      }
+    }, () => {}).finally(() => {
+      if (this.#installerLookup !== lookup) return;
+      this.#installerLookup = undefined;
+      this.#render();
+    });
     const request = new AbortController();
     this.#catalogRequest = request;
     try {
@@ -135,7 +156,8 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
     root.querySelector('#selected-release-version').textContent = selected ? selected.name ?? selected.tag.replace(/^v/, '') : '';
     this.shadowRoot.querySelector('#start').hidden = installed;
     this.shadowRoot.querySelector('#versions').hidden = installed;
-    this.shadowRoot.querySelector('#start').disabled = !allowed || !configured || Boolean(this.#transfer) || !selected;
+    this.shadowRoot.querySelector('#start').disabled = !allowed || !configured || Boolean(this.#transfer) || !selected ||
+      Boolean(this.#installerLookup);
     this.shadowRoot.querySelector('#cancel').disabled = !this.#transfer;
     this.shadowRoot.querySelector('#release').disabled = Boolean(this.#transfer) || this.#catalogState !== 'ready';
     const catalog = this.shadowRoot.querySelector('#catalog-status');
@@ -152,12 +174,12 @@ export class HaPaneldUsbInstallPanel extends HTMLElement {
     if (this.#transfer || this.#hass?.user?.is_admin !== true) return;
     const selection = this.shadowRoot.querySelector('#release-choices').value;
     const release = selection === '' ? this.#releases[0] : this.#releases.find(item => item.tag === selection);
-    if (!release || !this.isConnected) return;
+    if (!release || !this.isConnected || this.#installerLookup) return;
     this.#served?.cancel();
     this.#served = undefined;
     // A replaced transfer's late handover answer must not overwrite the new one.
     let transfer;
-    transfer = startReleaseHandoff(this.#hass, this.#panel?.config?.installer_url, {
+    transfer = startReleaseHandoff(this.#hass, this.#installerUrl ?? this.#panel?.config?.installer_url, {
       rcTag: selection || null,
       language: frontendLocale(this.#hass?.language),
       onState: state => {

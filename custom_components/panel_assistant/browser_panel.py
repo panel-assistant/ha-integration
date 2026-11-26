@@ -6,11 +6,19 @@ import asyncio
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import aiohttp
-from homeassistant.components import panel_custom
+import voluptuous as vol
+from homeassistant.components import panel_custom, websocket_api
 from homeassistant.components.http.server import StaticPathConfig
-from homeassistant.core import HomeAssistant
+from homeassistant.components.websocket_api.connection import ActiveConnection
+from homeassistant.components.websocket_api.decorators import (
+    async_response,
+    require_admin,
+    websocket_command,
+)
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .build import INTEGRATION_BUILD
@@ -48,13 +56,31 @@ async def _async_installer_url(hass: HomeAssistant) -> str:
 
     A build numbered ahead of its release tag has no copy yet, and the site
     publishes one only when the tag is pushed. Only a definite 404 falls back,
-    so a check that cannot reach the site changes nothing.
+    so a check that cannot reach the site changes nothing. The USB panel asks
+    when an administrator opens it, so starting Home Assistant makes no request.
     """
     if INSTALLER_URL == DEFAULT_INSTALLER_URL and await _async_copy_missing(
         hass, INSTALLER_URL
     ):
         return PUBLISHED_INSTALLER_ROOT
     return INSTALLER_URL
+
+
+@require_admin
+@websocket_command({vol.Required("type"): "panel_assistant/installer_url"})
+@async_response
+async def ws_installer_url(
+    hass: HomeAssistant,
+    connection: ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Answer the installer copy the USB panel opens."""
+    connection.send_result(msg["id"], {"url": await _async_installer_url(hass)})
+
+
+@callback
+def _register_commands(hass: HomeAssistant) -> None:
+    websocket_api.async_register_command(hass, ws_installer_url)
 
 
 @dataclass
@@ -79,6 +105,7 @@ async def async_register_browser_panel(hass: HomeAssistant) -> None:
     async with registration.lock:
         if not registration.view_registered:
             hass.http.register_view(EmbedView(hass))
+            _register_commands(hass)
             registration.view_registered = True
         if not registration.static_registered:
             await hass.http.async_register_static_paths(
@@ -96,7 +123,8 @@ async def async_register_browser_panel(hass: HomeAssistant) -> None:
                 require_admin=True,
                 # The version caption under the brand, as in the sidebar's top menu.
                 config={
-                    "installer_url": await _async_installer_url(hass),
+                    # The panel asks for the copy to open when it is opened.
+                    "installer_url": INSTALLER_URL,
                     "version": INTEGRATION_VERSION,
                     "build": INTEGRATION_BUILD,
                 },

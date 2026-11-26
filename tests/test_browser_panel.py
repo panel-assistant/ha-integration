@@ -241,3 +241,18 @@ def test_installer_address_defaults_to_published_and_can_be_self_hosted(monkeypa
     finally:
         monkeypatch.delenv("PANEL_ASSISTANT_INSTALLER_URL")
         importlib.reload(browser_panel)
+
+
+@pytest.mark.usefixtures("panel_http")
+async def test_setup_asks_the_installer_copy_site_nothing(hass, aioclient_mock):
+    """Starting Home Assistant makes no request to the installer site."""
+    aioclient_mock.head(
+        f"https://install.panel-assistant.io/{INTEGRATION_VERSION}/", status=404
+    )
+    assert await async_setup_component(hass, "panel_assistant", {})
+    await hass.async_block_till_done()
+    assert aioclient_mock.call_count == 0
+    panel = hass.data[frontend.DATA_PANELS][browser_panel.PANEL_PATH]
+    assert panel.config["installer_url"] == (
+        f"https://install.panel-assistant.io/{INTEGRATION_VERSION}/"
+    )
