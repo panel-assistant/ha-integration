@@ -6,16 +6,13 @@ Each section is what Home Assistant shows in its update dialog: a short, friendl
 
 ## 1.0.6 - 2026-11-26
 
-Panel Assistant 1.0.6 fixes several installation, Repair and connection problems.
+Panel Assistant 1.0.6 makes its Repairs say what to check when setup or an update stops, and makes moving a panel over from the Companion app work first time.
 
-- A panel integration update asks you to restart Home Assistant once. The USB installer checks for the published copy when you open it, so Home Assistant can start without waiting for that check.
-- The Repair for an older panel app walks you through exporting your settings, installing the current app and importing your settings before signing in.
-- The permissions Repair remembers that Install packages was turned off when a later check returns only partial results.
-- Fresh installs from the Companion app save the installed panel's identity so it can connect to Home Assistant and continue setup.
-- A newly migrated panel can pick up the Area of its existing Home Assistant device. If old setup apps are still installed, a Repair opens the panel's Install page so you can review and approve removal.
-- First setup waits while you finish on the panel and advances automatically. If an app update is refused, the Repair shows the reason when available and reports progress as it retries.
-- The Finish setting up Repair tells you what to check when a panel is offline, network debugging is unreachable, Android has not confirmed device administrator access, or a home-screen request is pending.
-- A check against another Home Assistant instance closes its temporary session. A normal Home Assistant shutdown no longer warns that the panel connection was lost, and panel log messages stay on one line.
+- **Repairs that say what to check.** When setup stalls or a panel refuses an app update, the Repair now says what to check, and retrying an update shows its progress (#38). A panel still on the old ha-paneld app gets steps that work.
+- **Moving from the Companion app.** The panel keeps its identity, so it connects to Home Assistant, and setup carries on by itself once you finish the panel's own setup page.
+- **Apps from your previous setup.** A new Repair lists them and links to the panel's Install page, where you can remove them.
+
+[Full release notes](https://panel-assistant.io/go/release-notes?v=1.0.6)
 
 ## 1.0.5 - 2026-11-25
 
