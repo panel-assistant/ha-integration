@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 
 import aiohttp
-import voluptuous as vol
 from homeassistant.components import panel_custom, websocket_api
 from homeassistant.components.http.server import StaticPathConfig
 from homeassistant.components.websocket_api.connection import ActiveConnection
@@ -67,7 +66,7 @@ async def _async_installer_url(hass: HomeAssistant) -> str:
 
 
 @require_admin
-@websocket_command({vol.Required("type"): "panel_assistant/installer_url"})
+@websocket_command({"type": "panel_assistant/installer_url"})
 @async_response
 async def ws_installer_url(
     hass: HomeAssistant,

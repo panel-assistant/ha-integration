@@ -256,3 +256,17 @@ async def test_setup_asks_the_installer_copy_site_nothing(hass, aioclient_mock):
     assert panel.config["installer_url"] == (
         f"https://install.panel-assistant.io/{INTEGRATION_VERSION}/"
     )
+
+
+@pytest.mark.usefixtures("panel_http")
+async def test_only_admin_can_request_an_installer_copy(
+    hass, hass_ws_client, hass_read_only_access_token, aioclient_mock
+):
+    """A read-only websocket client cannot trigger a lookup at the installer site."""
+    await browser_panel.async_register_browser_panel(hass)
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await client.send_json_auto_id({"type": "panel_assistant/installer_url"})
+    response = await client.receive_json()
+    assert not response["success"]
+    assert response["error"]["code"] == "unauthorized"
+    assert aioclient_mock.call_count == 0
