@@ -172,7 +172,7 @@ async def test_files_are_read_only_in_the_executor(
     assert threading.main_thread() not in threads
 
 
-async def test_installing_a_new_build_shows_the_repair_within_one_second(
+async def test_installing_a_new_build_shows_the_repair_within_a_minute(
     hass: HomeAssistant,
     hass_ws_client: Any,
     tmp_path: Path,
@@ -197,7 +197,7 @@ async def test_installing_a_new_build_shows_the_repair_within_one_second(
 
     assert await visible_issues(1) == []
     _install(root, INTEGRATION_VERSION, INTEGRATION_BUILD + 1)
-    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=1))
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=60))
     await hass.async_block_till_done(wait_background_tasks=True)
 
     issues = await visible_issues(2)
@@ -208,9 +208,94 @@ async def test_installing_a_new_build_shows_the_repair_within_one_second(
     }.items() <= issues[0]["translation_placeholders"].items()
 
     _install(root, INTEGRATION_VERSION, INTEGRATION_BUILD)
-    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=2))
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=120))
     await hass.async_block_till_done(wait_background_tasks=True)
     assert await visible_issues(3) == []
+
+
+async def _setup_counting_reads(
+    hass: HomeAssistant, root: Path, monkeypatch: pytest.MonkeyPatch
+) -> list[int]:
+    """Set Panel Assistant up over root and count each read of its files."""
+    reads: list[int] = []
+    real = repairs_restart.read_installed_build
+
+    def counting(path: Path | None = None) -> Any:
+        reads.append(1)
+        return real(path)
+
+    monkeypatch.setattr(repairs_restart, "INTEGRATION_ROOT", root)
+    monkeypatch.setattr(repairs_restart, "read_installed_build", counting)
+    assert await async_setup_component(hass, "repairs", {})
+    assert await async_setup_component(hass, DOMAIN, {})
+    await hass.async_block_till_done(wait_background_tasks=True)
+    return reads
+
+
+async def test_the_files_are_not_read_every_second(
+    hass: HomeAssistant, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _install(tmp_path, INTEGRATION_VERSION, INTEGRATION_BUILD)
+    reads = await _setup_counting_reads(hass, root, monkeypatch)
+    after_setup = len(reads)
+    assert after_setup >= 1
+
+    start = dt_util.utcnow()
+    for second in range(1, 60):
+        async_fire_time_changed(hass, start + timedelta(seconds=second))
+        await hass.async_block_till_done(wait_background_tasks=True)
+    assert len(reads) == after_setup
+
+    async_fire_time_changed(hass, start + timedelta(seconds=60))
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert len(reads) == after_setup + 1
+
+
+@pytest.mark.parametrize("store_domain", ["marketplace", "hacs"])
+async def test_a_store_restart_repair_takes_over_without_waiting(
+    hass: HomeAssistant,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    store_domain: str,
+) -> None:
+    root = _install(tmp_path, INTEGRATION_VERSION, INTEGRATION_BUILD + 1)
+    await _setup_counting_reads(hass, root, monkeypatch)
+    assert _issue(hass) is not None
+
+    store_id = f"restart_required_12345_{INTEGRATION_VERSION}"
+    ir.async_create_issue(
+        hass,
+        store_domain,
+        store_id,
+        is_fixable=True,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key="restart_required",
+        issue_domain=DOMAIN,
+    )
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert _issue(hass) is None
+
+    ir.async_delete_issue(hass, store_domain, store_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert _issue(hass) is not None
+
+
+async def test_unrelated_issues_do_not_read_the_files(
+    hass: HomeAssistant, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _install(tmp_path, INTEGRATION_VERSION, INTEGRATION_BUILD)
+    reads = await _setup_counting_reads(hass, root, monkeypatch)
+    before = len(reads)
+    ir.async_create_issue(
+        hass,
+        "marketplace",
+        "other_problem",
+        is_fixable=False,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key="other_problem",
+    )
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert len(reads) == before
 
 
 async def test_the_fix_restarts_home_assistant(
@@ -242,3 +327,109 @@ async def test_the_fix_restarts_home_assistant(
     await hass.async_block_till_done()
 
     assert len(restarts) == 1
+
+
+@pytest.mark.parametrize("store_domain", ["marketplace", "hacs"])
+@pytest.mark.parametrize("pa_first", [False, True], ids=["store-first", "pa-first"])
+async def test_store_restart_repair_replaces_the_direct_copy_repair(
+    hass: HomeAssistant, tmp_path: Path, store_domain: str, pa_first: bool
+) -> None:
+    """Either arrival order leaves one Repair and the build mismatch pending."""
+    root = _install(tmp_path, "0.7.0", 270)
+    if pa_first:
+        await _check(hass, root)
+        assert _issue(hass) is not None
+    store_id = "restart_required_12345_0.7.0"
+    ir.async_create_issue(
+        hass,
+        store_domain,
+        store_id,
+        is_fixable=True,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key="restart_required",
+        issue_domain=DOMAIN,
+    )
+
+    await _check(hass, root)
+
+    assert _issue(hass) is None
+    assert ir.async_get(hass).async_get_issue(store_domain, store_id) is not None
+    assert restart_pending(hass) == {
+        "loaded_version": "0.7.0-rc1",
+        "loaded_build": 267,
+        "installed_version": "0.7.0",
+        "installed_build": 270,
+    }
+
+    # Dismissing the store's Repair must not leave a copied build without one.
+    ir.async_ignore_issue(hass, store_domain, store_id, True)
+    await _check(hass, root)
+    assert _issue(hass) is not None
+    assert restart_pending(hass) is not None
+
+    ir.async_ignore_issue(hass, store_domain, store_id, False)
+    await _check(hass, root)
+    assert _issue(hass) is None
+
+    ir.async_delete_issue(hass, store_domain, store_id)
+    await _check(hass, root)
+    assert _issue(hass) is not None
+
+    await _check(hass, _install(tmp_path, *LOADED))
+    assert _issue(hass) is None
+    assert restart_pending(hass) is None
+
+
+@pytest.mark.parametrize(
+    ("store_domain", "issue_id", "issue_domain"),
+    [
+        ("marketplace", "restart_required_12345_0.7.0", "other_integration"),
+        ("hacs", "restart_required_12345_0.7.0", None),
+        ("marketplace", "other_problem", DOMAIN),
+        ("other_store", "restart_required_12345_0.7.0", DOMAIN),
+    ],
+)
+async def test_unrelated_store_issue_keeps_the_direct_copy_repair(
+    hass: HomeAssistant,
+    tmp_path: Path,
+    store_domain: str,
+    issue_id: str,
+    issue_domain: str | None,
+) -> None:
+    ir.async_create_issue(
+        hass,
+        store_domain,
+        issue_id,
+        is_fixable=True,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key="restart_required",
+        issue_domain=issue_domain,
+    )
+    await _check(hass, _install(tmp_path, "0.7.0", 270))
+    assert _issue(hass) is not None
+    assert restart_pending(hass) is not None
+
+
+async def test_store_repair_takes_over_even_during_a_partial_copy(
+    hass: HomeAssistant, tmp_path: Path
+) -> None:
+    root = _install(tmp_path, "0.7.0", 270)
+    await _check(hass, root)
+    pending = restart_pending(hass)
+    assert pending is not None
+    assert _issue(hass) is not None
+    (root / "manifest.json").write_text("{", encoding="utf-8")
+    ir.async_create_issue(
+        hass,
+        "marketplace",
+        "restart_required_12345_0.7.0",
+        is_fixable=True,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key="restart_required",
+        issue_domain=DOMAIN,
+    )
+
+    await _check(hass, root)
+
+    assert _issue(hass) is None
+    assert restart_pending(hass) == pending

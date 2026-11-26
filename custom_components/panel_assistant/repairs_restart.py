@@ -2,7 +2,8 @@
 
 A new build is copied into Home Assistant without restarting it, so the code
 running is the build that was loaded at startup. This compares that build with
-the files on disk now and raises one Repairs issue while they differ.
+the files on disk now and raises one Repairs issue while they differ, unless
+Marketplace or HACS already has an open restart issue for Panel Assistant.
 """
 
 from __future__ import annotations
@@ -29,7 +30,12 @@ _LOGGER = logging.getLogger("custom_components.panel_assistant.restart_repair")
 
 ISSUE_RESTART_REQUIRED = "restart_required"
 DATA_RESTART_CHECK = "restart_check"
-CHECK_INTERVAL = timedelta(seconds=1)
+# A store update raises its own Repair and is noticed at once through the issue
+# registry, so the interval only covers a build copied in by hand (Samba, SSH).
+# That person restarts or opens Repairs next; 60 s shows the Repair within a
+# minute of the copy for a sixtieth of the reads a one-second poll made.
+CHECK_INTERVAL = timedelta(seconds=60)
+STORE_DOMAINS = frozenset({"marketplace", "hacs"})
 INTEGRATION_ROOT = Path(__file__).parent
 
 _BUILD = re.compile(r"^INTEGRATION_BUILD\s*=\s*(\d+)\s*$", re.MULTILINE)
@@ -41,7 +47,7 @@ def read_installed_build(root: Path | None = None) -> Build | None:
     """Return the version and build the files under root describe.
 
     None when they cannot be read, as while an update is still being copied:
-    an unknown build neither raises nor clears the issue.
+    an unknown build leaves the last build comparison unchanged.
     """
     root = root or INTEGRATION_ROOT
     try:
@@ -71,11 +77,21 @@ async def async_check_restart_needed(
 ) -> None:
     """Raise or clear the restart issue from one read of the files on disk."""
     installed = await hass.async_add_executor_job(reader or read_installed_build)
-    if installed is None:
-        return
     state = hass.data.setdefault(DOMAIN, {}).setdefault(DATA_RESTART_CHECK, {})
     registry = ir.async_get(hass)
     issue = registry.async_get_issue(DOMAIN, ISSUE_RESTART_REQUIRED)
+    store_restart = any(
+        entry.domain in STORE_DOMAINS
+        and entry.issue_id.startswith("restart_required_")
+        and entry.issue_domain == DOMAIN
+        and entry.active
+        and entry.dismissed_version is None
+        for entry in registry.issues.values()
+    )
+    if store_restart and issue is not None:
+        ir.async_delete_issue(hass, DOMAIN, ISSUE_RESTART_REQUIRED)
+    if installed is None:
+        return
     if installed == loaded:
         state["pending"] = None
         if issue is not None:
@@ -93,6 +109,10 @@ async def async_check_restart_needed(
         "installed_version": installed[0],
         "installed_build": installed[1],
     }
+    # The build comparison still drives restart_pending(), even when the store
+    # owns the visible Repair. A direct copy has no store issue to defer to.
+    if store_restart:
+        return
     if issue is not None and issue.translation_placeholders == placeholders:
         return
     _LOGGER.info(
@@ -121,7 +141,7 @@ def restart_pending(hass: HomeAssistant) -> dict[str, Any] | None:
 
 
 async def async_setup_restart_check(hass: HomeAssistant) -> None:
-    """Check now and every CHECK_INTERVAL, once per Home Assistant run."""
+    """Check now, every CHECK_INTERVAL and on store restart issues, once per run."""
     state = hass.data.setdefault(DOMAIN, {}).setdefault(DATA_RESTART_CHECK, {})
     if "cancel" in state:
         return
@@ -135,8 +155,28 @@ async def async_setup_restart_check(hass: HomeAssistant) -> None:
     state["cancel"] = cancel
 
     @callback
+    def _store_restart_changed(event_data: ir.EventIssueRegistryUpdatedData) -> bool:
+        # A removed issue is gone from the registry, so its issue_domain is
+        # unknown here; any store restart issue is a cheap reason to re-check.
+        return event_data["domain"] in STORE_DOMAINS and event_data[
+            "issue_id"
+        ].startswith("restart_required_")
+
+    async def _async_store_issue(
+        _event: Event[ir.EventIssueRegistryUpdatedData],
+    ) -> None:
+        await async_check_restart_needed(hass)
+
+    cancel_issues = hass.bus.async_listen(
+        ir.EVENT_REPAIRS_ISSUE_REGISTRY_UPDATED,
+        _async_store_issue,
+        event_filter=_store_restart_changed,
+    )
+
+    @callback
     def _async_stop(_event: Event) -> None:
         cancel()
+        cancel_issues()
 
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _async_stop)
     await async_check_restart_needed(hass)
