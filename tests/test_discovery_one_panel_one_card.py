@@ -14,8 +14,10 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant import config_entries
+from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.client import (
     CannotConnectError,
@@ -186,6 +188,79 @@ async def test_pressed_adb_card_keeps_the_panel_when_the_app_announces_in_ipv6(
     await asyncio.sleep(0)
 
     assert [flow["flow_id"] for flow in _offers(hass)] == [card["flow_id"]]
+
+
+@pytest.mark.parametrize(
+    ("installing", "known", "stands_down"),
+    [(True, False, True), (False, False, False), (True, True, False)],
+)
+async def test_the_app_restarting_during_an_install_raises_no_second_flow(
+    hass: HomeAssistant,
+    adb_open: SimpleNamespace,
+    installing: bool,
+    known: bool,
+    stands_down: bool,
+) -> None:
+    """The app announces on every start of the install a person confirmed.
+
+    Each announcement used to read the panel's health twice and then end
+    ``already_configured``, once per restart of the app being installed.
+    It now stands down before reading anything while that install runs; a
+    card whose install has ended, or a panel Home Assistant already knows,
+    takes the old path.
+    """
+    adb_open.open.add(IPV4)
+    await _adb(hass, [IPV4])
+    [card] = _offers(hass)
+
+    async def pin(*_args):
+        raise RuntimeError
+
+    with (
+        patch(HEALTH_CHECK, AsyncMock(side_effect=CannotConnectError)),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_pin_install_target",
+            side_effect=pin,
+        ),
+    ):
+        await hass.config_entries.flow.async_configure(card["flow_id"], {})
+
+    if known:
+        MockConfigEntry(
+            domain=DOMAIN,
+            unique_id=APP_HEALTH.discovery_id,
+            data={CONF_ADDRESS: "192.168.1.99"},
+        ).add_to_hass(hass)
+    receipt = SimpleNamespace(
+        is_terminal=not installing,
+        target=SimpleNamespace(address=IPV4, pinned_address=IPV4),
+    )
+    jobs = SimpleNamespace(async_list=AsyncMock(return_value=(receipt,)))
+    health = AsyncMock(return_value=APP_HEALTH)
+    for _restart in range(2):
+        with (
+            patch(HEALTH_CHECK, health),
+            patch(
+                "custom_components.panel_assistant.install_jobs."
+                "async_get_install_job_manager",
+                AsyncMock(return_value=jobs),
+            ),
+        ):
+            result = await hass.config_entries.flow.async_init(
+                DOMAIN,
+                context={"source": config_entries.SOURCE_ZEROCONF},
+                data=ZeroconfServiceInfo(
+                    ip_address=ip_address(IPV4),
+                    ip_addresses=[ip_address(IPV4)],
+                    port=8888,
+                    hostname=f"{APP_HEALTH.panel_id}.local.",
+                    type="_ha-paneld._tcp.local.",
+                    name=f"{APP_HEALTH.panel_id}._ha-paneld._tcp.local.",
+                    properties={"did": APP_HEALTH.discovery_id, "name": "Wall panel"},
+                ),
+            )
+        assert (result["reason"] == "already_in_progress") is stands_down
+    assert (health.await_count == 0) is stands_down
 
 
 async def test_a_card_from_before_the_app_closes_when_its_address_answers_as_the_panel(

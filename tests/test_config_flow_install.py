@@ -564,6 +564,7 @@ async def test_install_candidate_readiness_is_non_mutating_until_confirmation(
             "version": "0.9.7",
             "tag": "v0.9.7",
             "sha256": "a" * 64,
+            "portal_note": "",
         }
         assert not hass.config_entries.async_entries(DOMAIN)
         probe_mock.assert_awaited_once()
@@ -842,6 +843,7 @@ async def test_install_confirmation_device_facts_are_literal(
         "version": "0.9.7",
         "tag": "v0.9.7",
         "sha256": "a" * 64,
+        "portal_note": "",
     }
 
 

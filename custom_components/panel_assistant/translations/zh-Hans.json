@@ -10,7 +10,8 @@
     "webview_recovery_mismatch": "下载的 WebView 与已验证的更新不匹配。请保持面板连接，并选择重试以重新下载。如果此问题反复出现，请保存支持报告；不要安装未经验证的 APK。",
     "webview_recovery_uncertain": "无法确认安装结果。请保持面板连接，并选择重试：系统会先检查已安装的 WebView，仅在更新仍符合条件时才发起新的尝试。",
     "webview_recovery_retry": "WebView 操作已中断，或无法完成准备工作。请检查面板连接和可用存储空间，然后选择重试。如果此问题反复出现，请保存支持报告。",
-    "webview_recovery_download": "面板无法从 panel-assistant.io 下载 WebView 更新，因此未安装更新。请允许 Home Assistant 访问 {webview_site}，以便下载更新并传给面板，或者允许面板访问该网站，然后选择“重试”。Home Assistant 日志会说明下载受阻的原因。"
+    "webview_recovery_download": "面板无法从 panel-assistant.io 下载 WebView 更新，因此未安装更新。请允许 Home Assistant 访问 {webview_site}，以便下载更新并传给面板，或者允许面板访问该网站，然后选择“重试”。Home Assistant 日志会说明下载受阻的原因。",
+    "install_portal_verifier": "On a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
   },
   "config": {
     "flow_title": "{name}",
@@ -91,19 +92,19 @@
       },
       "confirm_install_candidate": {
         "title": "安装 Panel Assistant {version}？",
-        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}"
       },
       "confirm_install_rc": {
         "title": "安装 Panel Assistant {version}？",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}"
       },
       "confirm_reinstall_candidate": {
         "title": "安装 Panel Assistant {version}？",
-        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "confirm_reinstall_rc": {
         "title": "安装 Panel Assistant {version}？",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "release_preview_only": {
         "title": "无法自动安装此版本",
@@ -130,12 +131,17 @@
         "menu_options": {
           "resume_install": "继续该安装"
         }
+      },
+      "panel_setup_check": {
+        "title": "Finish the panel's setup",
+        "description": "The panel's setup page is on its own screen, or open the [setup page]({setup_url}) here from a device on the same network as the panel. Select Submit to check again; this then carries on by itself once the setup is finished."
       }
     },
     "progress": {
       "authorize_adb": "请查看位于 {address} 的面板屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。\n\n面板允许后，将自动继续。",
       "installing": "正在 {address} 上安装 Panel Assistant。请保持此对话框打开；操作会自动完成。\n\n如果关闭对话框，安装仍会继续。请再次添加同一地址以完成操作。",
-      "updating_webview": "正在更新地址为 {address} 的面板上的浏览器引擎…"
+      "updating_webview": "正在更新地址为 {address} 的面板上的浏览器引擎…",
+      "panel_setup": "Now finish setting up the panel. Its setup page is on the panel's own screen; you can also open the [setup page]({setup_url}) here, from a device on the same network as the panel.\n\nThis carries on by itself as soon as the panel's setup is finished."
     },
     "error": {
       "panel_setup_not_finished": "面板尚未完成设置。请完成设置页面，然后再次选择“提交”。",
@@ -1102,6 +1108,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
@@ -1145,6 +1152,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
@@ -1188,6 +1196,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
@@ -1231,6 +1240,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
@@ -1274,6 +1284,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
@@ -1317,6 +1328,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
@@ -1360,6 +1372,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
@@ -1403,6 +1416,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
@@ -1446,6 +1460,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
@@ -1489,6 +1504,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
@@ -1532,6 +1548,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         }
@@ -1581,6 +1598,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。",
           "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
@@ -1649,6 +1667,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。",
           "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
@@ -1717,6 +1736,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。",
           "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
           "invalid_install_address": "请只输入面板的主机名或 IP 地址。",
@@ -1778,6 +1798,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。"
         },
@@ -1864,6 +1885,7 @@
           "retry_update_unavailable": "面板的更新控制不可用。请检查连接后重试。",
           "retry_finalization": "应用已就绪，但 Home Assistant 未能完成添加面板。请重试。",
           "retry_failed": "重试失败。详细信息请查看支持报告。",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "此面板仍在进行更新或其他任务。请等待其完成后再试。如果更新成功，此修复项会自动关闭。",
           "retry_no_longer_needed": "此安装已无需重试。如果错误再次出现，请重新打开修复项。",
           "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
@@ -2108,6 +2130,11 @@
         "title": "设备所有者硬件报告",
         "description": "打开[预填的 GitHub 报告]({issue_url})，检查设备信息，并在提交前填写实际完成的测试。配置档信息默认为未知，所有测试默认为未测试。草稿仅包含缓存中无法识别设备身份的信息。在您于 GitHub 提交之前，不会发布任何内容。创建草稿不会连接或更改面板。",
         "submit": "完成"
+      },
+      "onboarding_check": {
+        "title": "Finish setting up this panel",
+        "description": "Open the [panel's setup page]({setup_url}) from a device on the same network as the panel, or use the setup page on the panel's own screen. Select Done to check again; this then carries on by itself once the panel connects.",
+        "submit": "Done"
       }
     },
     "error": {
@@ -2155,7 +2182,8 @@
       "panel_connected": "面板已设置完成，并已连接到 Home Assistant。"
     },
     "progress": {
-      "authorize_adb": "请查看 {panel} 的屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。\n\n面板允许后，将自动继续。"
+      "authorize_adb": "请查看 {panel} 的屏幕：勾选“**一律允许使用这台计算机进行调试**”，然后点按“**允许**”。Android 可能会将 Home Assistant 称为一台计算机。\n\n面板允许后，将自动继续。",
+      "onboarding": "Waiting for the panel to connect to Home Assistant. If its setup is not finished, finish it on the panel's own screen, or open the [setup page]({setup_url}) here from a device on the same network as the panel.\n\nThis carries on by itself as soon as the panel connects."
     }
   },
   "selector": {

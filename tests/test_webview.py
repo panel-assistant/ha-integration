@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -110,6 +111,60 @@ async def test_resumed_installer_never_replays_a_provider_transaction(
     )
     await async_provision_webview(client, "same-install")
     client.async_install_webview.assert_not_awaited()
+
+
+async def test_the_install_webview_step_is_logged_from_request_to_outcome(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Debug logging shows what the WebView step did and how long it took.
+
+    A first setup once logged nothing for this two-minute step,
+    even at debug (2026-11-25).
+    """
+    client = SimpleNamespace(
+        async_get_webview=AsyncMock(
+            side_effect=[observation("installing"), observation("installed")]
+        ),
+        async_install_webview=AsyncMock(return_value=observation("downloading")),
+    )
+    client.async_get_webview.side_effect = [
+        observation(),
+        observation("installing"),
+        observation("installed"),
+    ]
+    with (
+        caplog.at_level(logging.DEBUG, "custom_components.panel_assistant.webview"),
+        patch("custom_components.panel_assistant.webview.asyncio.sleep", AsyncMock()),
+    ):
+        await async_provision_webview(client, "pa-install-job")
+
+    lines = [r.getMessage() for r in caplog.records]
+    assert lines[0].startswith("WebView step pa-install-job: supported=True")
+    assert "WebView step pa-install-job: requesting the update" in lines
+    assert any(
+        line.startswith("WebView step pa-install-job: installing after")
+        for line in lines
+    )
+    assert lines[-1].startswith("WebView step pa-install-job: finished after")
+    assert "in state installed" in lines[-1]
+
+
+async def test_a_webview_step_that_runs_out_of_time_says_so(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    client = SimpleNamespace(
+        async_get_webview=AsyncMock(side_effect=TimeoutError),
+        async_install_webview=AsyncMock(),
+    )
+    with caplog.at_level(logging.DEBUG, "custom_components.panel_assistant.webview"):
+        await async_provision_webview(client, "pa-install-job")
+
+    assert (
+        caplog.records[-1]
+        .getMessage()
+        .startswith("WebView step pa-install-job: stopped waiting after")
+    )
+    assert "TimeoutError" in caplog.records[-1].getMessage()
 
 
 @pytest.mark.parametrize("attempted", [False, True, "submitted_unknown"])

@@ -618,8 +618,14 @@ def test_install_flow_copy_covers_first_time_handoffs() -> None:
 
     assert "[model-specific panel access guide]({panel_access_url})" in install
     assert "https://" not in install
-    assert "Keep this dialog open" in progress
-    assert "Add the same address again" in progress
+    # A first-time owner learns the dialog needs nothing from them, that
+    # closing it does not stop the install, how to get back to it, and that
+    # the panel itself may ask for a security check the install waits on.
+    assert "carries on by itself" in progress
+    assert "if you close this dialog, the install keeps running" in progress
+    assert "adding the same address again finishes it" in progress
+    assert '"Send app for a security check?"' in progress
+    assert "The install waits until you do" in progress
     assert "dedicated recovery workflow" not in all_errors
 
     abort = config["abort"]

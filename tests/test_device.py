@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import replace
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -15,7 +16,7 @@ from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.client import PanelHealth
-from custom_components.panel_assistant.const import DOMAIN
+from custom_components.panel_assistant.const import CONF_INSTALL_AREA_PENDING, DOMAIN
 from custom_components.panel_assistant.coordinator import PanelSnapshot
 from custom_components.panel_assistant.device import (
     async_refresh_panel_device,
@@ -317,10 +318,11 @@ async def test_existing_literal_null_assignment_is_cleared_once(
     assert registry.async_get(device.id).area_id == "unavailable_area"
 
 
-def _loaded_entry(hass: HomeAssistant) -> MockConfigEntry:
-    entry = MockConfigEntry(
-        domain=DOMAIN, title="alpha", data={CONF_ADDRESS: "panel.local"}
-    )
+def _loaded_entry(hass: HomeAssistant, installed: bool = False) -> MockConfigEntry:
+    data: dict[str, Any] = {CONF_ADDRESS: "panel.local"}
+    if installed:
+        data[CONF_INSTALL_AREA_PENDING] = True
+    entry = MockConfigEntry(domain=DOMAIN, title="alpha", data=data)
     entry.add_to_hass(hass)
     return entry
 
@@ -741,3 +743,270 @@ async def test_diagnostics_name_the_model_while_the_status_read_fails(
     assert diagnostics["status"] is None
     assert diagnostics["device"]["manufacturer"] == "Sonoff"
     assert diagnostics["device"]["model"] == "NSPanel Pro"
+
+
+def _foreign_device(
+    hass: HomeAssistant, domain: str, mac: str, area: str | None
+) -> dr.DeviceEntry:
+    """Another integration's device for the same hardware, in an Area."""
+    foreign = MockConfigEntry(domain=domain)
+    foreign.add_to_hass(hass)
+    registry = dr.async_get(hass)
+    device = registry.async_get_or_create(
+        config_entry_id=foreign.entry_id,
+        identifiers={(domain, foreign.entry_id)},
+        connections={(dr.CONNECTION_NETWORK_MAC, mac)},
+    )
+    if area is None:
+        return device
+    area_id = ar.async_get(hass).async_get_or_create(area).id
+    return registry.async_update_device(device.id, area_id=area_id)
+
+
+def _area_name(hass: HomeAssistant, device: dr.DeviceEntry) -> str | None:
+    area_id = dr.async_get(hass).async_get(device.id).area_id
+    return ar.async_get(hass).async_get_area(area_id).name if area_id else None
+
+
+MAC_STATUS = f'{{"network_macs":["{SHELLY_MAC}"]}}'
+
+
+async def test_a_migrated_card_takes_the_area_of_its_android_tv_device(
+    hass: HomeAssistant,
+) -> None:
+    _foreign_device(hass, "androidtv", "00:1A:2B:3C:4D:5E", "Bedroom")
+    entry = _loaded_entry(hass, installed=True)
+    card = await _card_after_setup(hass, entry, _status_body(MAC_STATUS))
+    assert _area_name(hass, card) == "Bedroom"
+
+
+async def test_a_chosen_or_reported_area_is_never_replaced(
+    hass: HomeAssistant,
+) -> None:
+    _foreign_device(hass, "androidtv", SHELLY_MAC, "Bedroom")
+    entry = _loaded_entry(hass, installed=True)
+    reported = parse_status_response(
+        '{"warnings":[],"capabilities":[],"panel_assistant_device":'
+        '{"name":"Alpha panel","area":"Kitchen"},'
+        f'"panel_assistant_hardware":{MAC_STATUS}}}'
+    )
+    card = await _card_after_setup(hass, entry, reported)
+    assert _area_name(hass, card) == "Kitchen"
+
+    study = ar.async_get(hass).async_get_or_create("Study")
+    dr.async_get(hass).async_update_device(card.id, area_id=study.id)
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert _area_name(hass, card) == "Study"
+
+
+@pytest.mark.parametrize("hardware", ['{"network_macs":["00:1a:2b:3c:4d:60"]}', None])
+async def test_no_shared_mac_leaves_the_area_blank(
+    hass: HomeAssistant, hardware: str | None
+) -> None:
+    _foreign_device(hass, "androidtv", SHELLY_MAC, "Bedroom")
+    entry = _loaded_entry(hass, installed=True)
+    card = await _card_after_setup(hass, entry, _status_body(hardware))
+    assert _area_name(hass, card) is None
+
+
+async def test_siblings_that_disagree_leave_the_area_blank(
+    hass: HomeAssistant,
+) -> None:
+    _foreign_device(hass, "androidtv", SHELLY_MAC, "Bedroom")
+    _foreign_device(hass, "shelly", SHELLY_MAC, "Office")
+    entry = _loaded_entry(hass, installed=True)
+    card = await _card_after_setup(hass, entry, _status_body(MAC_STATUS))
+    assert _area_name(hass, card) is None
+
+
+async def test_a_late_mac_report_fills_the_area(hass: HomeAssistant) -> None:
+    _foreign_device(hass, "androidtv", SHELLY_MAC, "Bedroom")
+    entry = _loaded_entry(hass, installed=True)
+    status = _status_body(None)
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=replace(HEALTH, version="0.9.0", version_code=1144)),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=status),
+        ) as get_status,
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        card = dr.async_get(hass).async_get_device_by_identifier(
+            (DOMAIN, entry.entry_id), entry.entry_id
+        )
+        assert _area_name(hass, card) is None
+        get_status.return_value = _status_body(MAC_STATUS)
+        await entry.runtime_data.coordinator.async_refresh()
+        await hass.async_block_till_done()
+    assert _area_name(hass, card) == "Bedroom"
+
+
+async def test_another_panels_card_is_not_a_sibling(hass: HomeAssistant) -> None:
+    _foreign_device(hass, DOMAIN, SHELLY_MAC, "Bedroom")
+    entry = _loaded_entry(hass, installed=True)
+    card = await _card_after_setup(hass, entry, _status_body(MAC_STATUS))
+    assert _area_name(hass, card) is None
+
+
+async def test_the_reported_area_wins_over_a_sibling_on_a_late_mac(
+    hass: HomeAssistant,
+) -> None:
+    _foreign_device(hass, "androidtv", SHELLY_MAC, "Bedroom")
+    entry = _loaded_entry(hass, installed=True)
+    card = await _card_after_setup(hass, entry, _status_body(None))
+    assert _area_name(hass, card) is None
+    entry.runtime_data.coordinator.async_set_updated_data(
+        replace(
+            entry.runtime_data.coordinator.data,
+            status=parse_status_response(
+                '{"warnings":[],"capabilities":[],"panel_assistant_device":'
+                '{"name":"Alpha panel","area":"Kitchen"},'
+                f'"panel_assistant_hardware":{MAC_STATUS}}}'
+            ),
+        )
+    )
+    await hass.async_block_till_done()
+    assert _area_name(hass, card) == "Kitchen"
+
+
+async def test_an_area_the_owner_clears_stays_blank(hass: HomeAssistant) -> None:
+    _foreign_device(hass, "androidtv", SHELLY_MAC, "Bedroom")
+    entry = _loaded_entry(hass, installed=True)
+    card = await _card_after_setup(hass, entry, _status_body(MAC_STATUS))
+    assert _area_name(hass, card) == "Bedroom"
+    assert CONF_INSTALL_AREA_PENDING not in entry.data
+
+    dr.async_get(hass).async_update_device(card.id, area_id=None)
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert _area_name(hass, card) is None
+
+
+async def test_a_card_not_from_an_install_never_takes_a_sibling_area(
+    hass: HomeAssistant,
+) -> None:
+    _foreign_device(hass, "androidtv", SHELLY_MAC, "Bedroom")
+    entry = _loaded_entry(hass)
+    card = await _card_after_setup(hass, entry, _status_body(MAC_STATUS))
+    assert _area_name(hass, card) is None
+
+
+async def test_an_area_cleared_before_the_first_mac_stays_blank(
+    hass: HomeAssistant,
+) -> None:
+    """The reported Area settles the install default before any MAC arrives."""
+    _foreign_device(hass, "androidtv", SHELLY_MAC, "Bedroom")
+    entry = _loaded_entry(hass, installed=True)
+    initial_status = parse_status_response(
+        '{"warnings":[],"capabilities":[],"panel_assistant_device":'
+        '{"name":"Alpha panel","area":"Kitchen"}}'
+    )
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=replace(HEALTH, version="0.9.0", version_code=1144)),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=initial_status),
+        ) as get_status,
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        registry = dr.async_get(hass)
+        card = registry.async_get_device_by_identifier(
+            (DOMAIN, entry.entry_id), entry.entry_id
+        )
+        assert _area_name(hass, card) == "Kitchen"
+        registry.async_update_device(card.id, area_id=None)
+        assert _area_name(hass, card) is None
+        get_status.return_value = _status_body(MAC_STATUS)
+        await entry.runtime_data.coordinator.async_refresh()
+        await hass.async_block_till_done()
+        assert _area_name(hass, card) is None
+
+
+async def test_an_area_set_and_cleared_before_the_first_mac_stays_blank(
+    hass: HomeAssistant,
+) -> None:
+    """An owner's Area edit settles the install default before any MAC arrives."""
+    _foreign_device(hass, "androidtv", SHELLY_MAC, "Bedroom")
+    entry = _loaded_entry(hass, installed=True)
+    initial_status = parse_status_response(
+        '{"warnings":[],"capabilities":[],"panel_assistant_device":'
+        '{"name":"Alpha panel"}}'
+    )
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=replace(HEALTH, version="0.9.0", version_code=1144)),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=initial_status),
+        ) as get_status,
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        registry = dr.async_get(hass)
+        card = registry.async_get_device_by_identifier(
+            (DOMAIN, entry.entry_id), entry.entry_id
+        )
+        assert _area_name(hass, card) is None
+        assert not card.connections
+        kitchen = ar.async_get(hass).async_get_or_create("Kitchen")
+        registry.async_update_device(card.id, area_id=kitchen.id)
+        await hass.async_block_till_done()
+        assert _area_name(hass, card) == "Kitchen"
+        registry.async_update_device(card.id, area_id=None)
+        await hass.async_block_till_done()
+        assert _area_name(hass, card) is None
+        get_status.return_value = _status_body(MAC_STATUS)
+        await entry.runtime_data.coordinator.async_refresh()
+        await hass.async_block_till_done()
+        assert _area_name(hass, card) is None
+
+
+async def test_a_reported_area_before_the_mac_wins_over_a_later_sibling(
+    hass: HomeAssistant,
+) -> None:
+    """A valid reported Area settles the install default without waiting for a MAC."""
+    _foreign_device(hass, "androidtv", SHELLY_MAC, "Bedroom")
+    entry = _loaded_entry(hass, installed=True)
+    bare = parse_status_response(
+        '{"warnings":[],"capabilities":[],"panel_assistant_device":'
+        '{"name":"Alpha panel"}}'
+    )
+    reported = parse_status_response(
+        '{"warnings":[],"capabilities":[],"panel_assistant_device":'
+        '{"name":"Alpha panel","area":"Kitchen"}}'
+    )
+    with (
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_health",
+            AsyncMock(return_value=replace(HEALTH, version="0.9.0", version_code=1144)),
+        ),
+        patch(
+            "custom_components.panel_assistant.client.HaPaneldClient.async_get_status",
+            AsyncMock(return_value=bare),
+        ) as get_status,
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        registry = dr.async_get(hass)
+        card = registry.async_get_device_by_identifier(
+            (DOMAIN, entry.entry_id), entry.entry_id
+        )
+        assert _area_name(hass, card) is None
+        seen = []
+        for status in (reported, _status_body(MAC_STATUS)):
+            get_status.return_value = status
+            await entry.runtime_data.coordinator.async_refresh()
+            await hass.async_block_till_done()
+            seen.append(_area_name(hass, card))
+        assert seen == ["Kitchen", "Kitchen"]

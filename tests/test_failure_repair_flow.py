@@ -8,6 +8,7 @@ from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
+from homeassistant.components.update import UpdateEntityFeature
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.const import __version__ as ha_version
 from homeassistant.core import HomeAssistant
@@ -362,6 +363,9 @@ async def test_update_retry_preserves_saved_feed_artifact_across_storage_reload(
         {
             "installed_version": "0.9.7-rc4 build 101",
             "latest_version": "0.9.7-rc4 build 102",
+            # A feed-backed entity installs a chosen build.
+            "supported_features": UpdateEntityFeature.INSTALL
+            | UpdateEntityFeature.SPECIFIC_VERSION,
         },
     )
     calls = []

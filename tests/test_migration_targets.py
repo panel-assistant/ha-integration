@@ -1303,7 +1303,7 @@ async def test_press_finding_the_app_after_the_panel_was_added_says_so(
 async def test_wizard_opened_from_a_card_when_the_panel_is_added_says_so(
     hass: HomeAssistant, adb_open: SimpleNamespace
 ) -> None:
-    """Any step a pressed card is running ends as already added, not vanished."""
+    """A pressed card whose panel is added by hand closes, wait and all."""
     await _by_vendor(hass, adb_open)
     [card] = _offers(hass)
     with (
@@ -1322,9 +1322,14 @@ async def test_wizard_opened_from_a_card_when_the_panel_is_added_says_so(
         entered.set()
         await release.wait()
 
-    with patch(
-        "custom_components.panel_assistant.config_flow.async_offer_ha_url",
-        side_effect=offer_url,
+    # The panel's setup is already finished here, so the step goes straight
+    # on to connecting the panel, which reads its health again.
+    with (
+        patch(HEALTH_CHECK, AsyncMock(return_value=APP_HEALTH)),
+        patch(
+            "custom_components.panel_assistant.config_flow.async_offer_ha_url",
+            side_effect=offer_url,
+        ),
     ):
         pressed = asyncio.create_task(
             hass.config_entries.flow.async_configure(
@@ -1336,8 +1341,10 @@ async def test_wizard_opened_from_a_card_when_the_panel_is_added_says_so(
         release.set()
         result = await pressed
 
-    assert result["type"] is FlowResultType.ABORT
-    assert result["reason"] == "already_configured"
+    # The card's setup step now waits in the background, so the press shows
+    # the wait at once; adding the panel by hand closes the card and its wait.
+    assert result["type"] is FlowResultType.SHOW_PROGRESS
+    await hass.async_block_till_done(wait_background_tasks=True)
     assert _offers(hass) == []
 
 

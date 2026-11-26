@@ -44,6 +44,10 @@ from custom_components.panel_assistant.client import (
 from custom_components.panel_assistant.const import DOMAIN
 from custom_components.panel_assistant.coordinator import PanelSnapshot
 from custom_components.panel_assistant.feed_coordinator import StableReleaseCoordinator
+from custom_components.panel_assistant.repairs_failure import (
+    async_support_report,
+    panel_failure_issue_id,
+)
 from custom_components.panel_assistant.repairs_update_route import (
     no_update_route_issue_id,
 )
@@ -597,6 +601,88 @@ async def test_a_refused_stage_maps_like_its_http_status(
     assert type(raised.value).__name__ == expected
     # The app the panel never fetched is not kept in memory after the refusal.
     assert not async_get_blobs(hass)._transfers
+
+
+# The app's own native replies (ControlPlaneSession.reply): a refused outcome
+# with code "failed" and the route's JSON body as the result, and no route
+# status. Stage bodies are stageInspect's {"ok":false,"error":...}; commit
+# bodies are commitApk's {"status":...}.
+@pytest.mark.parametrize(
+    ("op", "body", "reason"),
+    [
+        (
+            "install.apk",
+            {"ok": False, "error": "blob-unavailable"},
+            "it could not download the update from Home Assistant (blob-unavailable)",
+        ),
+        ("install.apk", {"ok": False, "error": "a-future-code"}, "a-future-code"),
+        (
+            "install.apk.commit",
+            {"status": "stale-or-missing", "error": "ignored"},
+            "stale-or-missing",
+        ),
+    ],
+)
+async def test_a_staging_refusal_names_the_panels_reason(
+    hass: HomeAssistant, offline: Any, op: str, body: dict[str, Any], reason: str
+) -> None:
+    """The owner reads why the panel said no, not an empty Install tab."""
+    entity, panel = offline
+
+    async def refuse(_args: dict[str, Any]) -> list[Answer]:
+        return [("refused", "failed", body)]
+
+    panel.answers[op] = refuse
+
+    error = await _refused(entity)
+
+    assert error.translation_key == "update_refused_by_panel"
+    assert error.translation_placeholders["reason"] == reason
+    report = await async_support_report(
+        hass, panel_failure_issue_id(f"update:{entity._entry_id}")
+    )
+    assert report is not None and reason in report
+
+
+@pytest.mark.parametrize("error", [None, "", 7, "x" * 121, "bad\ncode", "caf\u00e9"])
+async def test_a_staging_refusal_without_a_usable_code_stays_generic(
+    hass: HomeAssistant, offline: Any, error: object
+) -> None:
+    entity, panel = offline
+
+    async def refuse(_args: dict[str, Any]) -> list[Answer]:
+        return [("refused", "failed", {"ok": False, "error": error})]
+
+    panel.answers["install.apk"] = refuse
+
+    assert (await _refused(entity)).translation_key == "update_rejected"
+
+
+async def test_a_stage_refusal_reads_only_its_error_field(
+    hass: HomeAssistant, offline: Any
+) -> None:
+    entity, panel = offline
+
+    async def refuse(_args: dict[str, Any]) -> list[Answer]:
+        return [("refused", "failed", {"ok": False, "status": "blob-unavailable"})]
+
+    panel.answers["install.apk"] = refuse
+
+    assert (await _refused(entity)).translation_key == "update_rejected"
+
+
+async def test_a_codeless_commit_refusal_stays_generic(
+    hass: HomeAssistant, offline: Any
+) -> None:
+    """Without a named code the refusal keeps its generic text."""
+    entity, panel = offline
+
+    async def refuse(_args: dict[str, Any]) -> list[Answer]:
+        return [("refused", "failed", {"ok": False})]
+
+    panel.answers["install.apk.commit"] = refuse
+
+    assert (await _refused(entity)).translation_key == "update_rejected"
 
 
 async def test_a_build_without_the_names_is_refused_not_waited_for(

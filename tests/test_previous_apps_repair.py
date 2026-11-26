@@ -143,6 +143,20 @@ async def test_no_install_asks_nothing(
     assert _issue(hass) is None
 
 
+async def test_an_install_recorded_on_a_live_session_is_offered_without_a_reconnect(
+    hass: HomeAssistant, panel: FakePanel
+) -> None:
+    entry = _entry(hass, None)
+    previous.async_follow_previous_apps(hass, entry, panel)
+    await _session_opens(hass, panel)
+    assert panel.requests == []
+    device_setup.async_mark_owed(hass, entry, device_setup.OWED_INSTALL)
+    panel.updated()  # the next poll on the same session
+    await hass.async_block_till_done()
+    assert panel.requests == [("packages", {})]
+    assert _issue(hass) is not None
+
+
 @pytest.mark.parametrize(
     "answer",
     [_answer(LAUNCHER, available=None), _answer(LAUNCHER, available=False)],

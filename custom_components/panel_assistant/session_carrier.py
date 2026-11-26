@@ -29,6 +29,8 @@ from .client import (
     UploadDisabledError,
     parse_staged_apk,
     parse_update_start_response,
+    refusal_code,
+    staging_refusal,
 )
 from .const import (
     APK_STAGE_TIMEOUT_SECONDS,
@@ -178,7 +180,7 @@ class SessionCarrier:
             raise UpdateBusyError
         if error in ("no-root", "stopping"):
             raise StagingUnavailableError
-        raise UpdateRejectedError
+        raise staging_refusal(refusal_code(outcome.result, "error"))
 
     async def async_commit_apk(self, token: str) -> None:
         """Install the staged upload, after the panel's approval where it asks."""
@@ -190,7 +192,7 @@ class SessionCarrier:
             return
         if _refusal(outcome.result, "status") == "disabled":
             raise UploadDisabledError
-        raise UpdateRejectedError
+        raise staging_refusal(refusal_code(outcome.result, "status"))
 
     async def async_discard_apk(self, token: str) -> None:
         """Delete a staged upload that must not be installed."""

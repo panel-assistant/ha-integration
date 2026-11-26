@@ -12,7 +12,6 @@ from unittest.mock import AsyncMock, call, patch
 
 import pytest
 from homeassistant import config_entries
-from homeassistant.config_entries import FlowType
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -41,7 +40,6 @@ from custom_components.panel_assistant.client import (
     CannotConnectError,
     InvalidResponseError,
     PanelHealth,
-    PanelSetupState,
     normalize_address,
 )
 from custom_components.panel_assistant.config_flow import (
@@ -2237,11 +2235,17 @@ async def test_on_create_uses_actual_entry_id_and_never_fails_existing_entry(
     assert not executor.is_finalizer_active(receipt.job_id)
 
 
-async def test_fresh_install_continues_into_panel_setup_after_entry_creation(
+async def test_fresh_install_releases_its_lease_and_opens_no_second_dialog(
     hass: HomeAssistant,
     hass_admin_user: Any,
 ) -> None:
-    """The install lease is released before the owner signs in from a browser."""
+    """The install lease is released before the owner signs in from a browser.
+
+    Home Assistant's dialog ignored a follow-on options flow handed to it and
+    opened a fresh one on the panel's menu, while the one made here was never
+    closed. The panel binds the account itself on its first hello, so the
+    install ends with its entry and leaves no options flow behind.
+    """
     receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
     manager = _manager_for(receipt)
     executor = _finalizing_executor(hass, manager)
@@ -2252,26 +2256,22 @@ async def test_fresh_install_continues_into_panel_setup_after_entry_creation(
     entry = MockConfigEntry(domain=DOMAIN, data={CONF_ADDRESS: TARGET.address})
     entry.add_to_hass(hass)
 
-    with patch(
-        "custom_components.panel_assistant.config_flow.async_offer_ha_url",
-        new_callable=AsyncMock,
-    ) as handover:
-        returned = await flow.async_on_create_entry({"result": entry})  # type: ignore[arg-type]
+    returned = await flow.async_on_create_entry({"result": entry})  # type: ignore[arg-type]
 
     assert not executor.is_finalizer_active(receipt.job_id)
-    handover.assert_awaited_once()
-    assert returned.get("next_flow", (None,))[0] is FlowType.OPTIONS_FLOW
-    next_flow = hass.config_entries.options.async_get(returned["next_flow"][1])
-    assert next_flow["handler"] == entry.entry_id
-    assert next_flow["step_id"] == "onboarding"
-    assert next_flow["context"]["source"] == "onboarding"
+    assert "next_flow" not in returned
+    assert hass.config_entries.options.async_progress() == []
 
 
 async def test_fresh_install_finishes_once_the_panel_has_connected(
     hass: HomeAssistant,
     hass_admin_user: Any,
 ) -> None:
-    """The owner says when setup is done; the dialog closes once it connected."""
+    """The dialog waits for the panel to sign in, and closes once it has.
+
+    A form never moved on: Done showed the same words again while the panel
+    had not connected. A wait that gives up says so, and Done waits again.
+    """
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="alpha",
@@ -2280,27 +2280,45 @@ async def test_fresh_install_finishes_once_the_panel_has_connected(
     )
     entry.add_to_hass(hass)
     signed_in = await hass.auth.async_create_user("Current administrator")
-    with patch(
-        "custom_components.panel_assistant.config_flow.async_offer_ha_url",
-        new_callable=AsyncMock,
-    ) as handover:
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.async_offer_ha_url",
+            new_callable=AsyncMock,
+        ) as handover,
+        patch(
+            "custom_components.panel_assistant.config_flow._SETUP_WATCH_SECONDS", 0.05
+        ),
+        patch(
+            "custom_components.panel_assistant.config_flow._SETUP_POLL_SECONDS", 0.01
+        ),
+    ):
         opened = await hass.config_entries.options.async_init(
             entry.entry_id, context={"source": "onboarding"}
         )
-        assert opened["type"] is FlowResultType.FORM
+        assert opened["type"] is FlowResultType.SHOW_PROGRESS
         assert opened["step_id"] == "onboarding"
+        assert opened["progress_action"] == "onboarding"
         assert opened["description_placeholders"] == {
             "setup_url": "http://192.168.1.23:8888/setup"
         }
+        # The wait gives up before the panel connected.
+        await hass.async_block_till_done(wait_background_tasks=True)
+        check = await hass.config_entries.options.async_configure(opened["flow_id"])
+        # Refetching the dialog offers the address no second time.
+        handover.assert_awaited_once()
+        assert check["type"] is FlowResultType.FORM
+        assert check["step_id"] == "onboarding_check"
+        assert check["errors"] == {"base": "panel_not_connected"}
+        # Done while it still has not connected waits again.
         early = await hass.config_entries.options.async_configure(opened["flow_id"], {})
-        assert early["type"] is FlowResultType.FORM
-        assert early["errors"] == {"base": "panel_not_connected"}
+        assert early["type"] is FlowResultType.SHOW_PROGRESS
+        assert early["step_id"] == "onboarding"
+        await hass.async_block_till_done(wait_background_tasks=True)
         # The panel's own hello binds the account it signed in as.
         async_bind_user(hass, entry, signed_in.id)
         finished = await hass.config_entries.options.async_configure(
             opened["flow_id"], {}
         )
-    handover.assert_awaited_once()
     assert finished["type"] is FlowResultType.ABORT
     assert finished["reason"] == "panel_connected"
     assert entry.data.get(CONF_TRANSPORT_USER_ID) == signed_in.id
@@ -2313,7 +2331,7 @@ async def test_continue_setup_dialog_has_text_and_a_link_to_the_setup_page(
     """Home Assistant's options dialog shows an external step with no text.
 
     Driven through the REST API the Configure dialog uses: what comes back must
-    be a step the dialog renders with its title, text and the setup link.
+    be a step the dialog renders with its text and the setup link.
     """
     entry = MockConfigEntry(
         domain=DOMAIN, title="alpha", data={CONF_ADDRESS: "192.168.1.23"}
@@ -2334,41 +2352,67 @@ async def test_continue_setup_dialog_has_text_and_a_link_to_the_setup_page(
             )
         ).json()
 
-    assert step["type"] == "form"
+    assert step["type"] == "progress"
     assert step["step_id"] == "onboarding"
+    assert step["progress_action"] == "onboarding"
     assert step["description_placeholders"]["setup_url"] == (
         "http://192.168.1.23:8888/setup"
     )
+    strings = json.loads(
+        (
+            Path(__file__).parents[1]
+            / "custom_components"
+            / "panel_assistant"
+            / "strings.json"
+        ).read_text()
+    )
+    assert "{setup_url}" in strings["options"]["progress"]["onboarding"]
+    # Closing the dialog stops the wait.
+    hass.config_entries.options.async_abort(step["flow_id"])
 
 
 async def test_abandoned_fresh_install_can_resume_from_its_entry_options(
     hass: HomeAssistant,
     hass_admin_user: Any,
 ) -> None:
-    """Closing the Add dialog cannot strand an unbound panel at Repairs alone."""
+    """Closing the Add dialog cannot strand an unbound panel at Repairs alone.
+
+    Continue setup waits for the panel and closes by itself once it signs in.
+    """
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="alpha",
         data={CONF_ADDRESS: "192.168.1.23"},
     )
     entry.add_to_hass(hass)
+    signed_in = await hass.auth.async_create_user("Current administrator")
     menu = await hass.config_entries.options.async_init(entry.entry_id)
 
     assert menu["type"] is FlowResultType.MENU
     assert menu["step_id"] == "init"
     assert "onboarding" in menu["menu_options"]
-    with patch(
-        "custom_components.panel_assistant.config_flow.async_offer_ha_url",
-        new_callable=AsyncMock,
-    ) as handover:
+    with (
+        patch(
+            "custom_components.panel_assistant.config_flow.async_offer_ha_url",
+            new_callable=AsyncMock,
+        ) as handover,
+        patch("custom_components.panel_assistant.config_flow._SETUP_POLL_SECONDS", 0),
+    ):
         opened = await hass.config_entries.options.async_configure(
             menu["flow_id"], {"next_step_id": "onboarding"}
         )
-    assert opened["type"] is FlowResultType.FORM
-    assert opened["description_placeholders"] == {
-        "setup_url": "http://192.168.1.23:8888/setup"
-    }
+        assert opened["type"] is FlowResultType.SHOW_PROGRESS
+        assert opened["description_placeholders"] == {
+            "setup_url": "http://192.168.1.23:8888/setup"
+        }
+        async_bind_user(hass, entry, signed_in.id)
+        await hass.async_block_till_done(wait_background_tasks=True)
+        # The finished wait tells the dialog, which refetches the flow.
+        closed = await hass.config_entries.options.async_configure(opened["flow_id"])
     handover.assert_awaited_once()
+    assert closed["type"] is FlowResultType.ABORT
+    assert closed["reason"] == "panel_connected"
+    assert hass.config_entries.options.async_progress() == []
 
 
 async def test_no_target_state_can_fall_through_to_a_generic_refusal(
@@ -2762,112 +2806,6 @@ async def test_the_authorization_retry_also_names_every_state_it_can_see(
 
         assert result["step_id"] == "authorize_adb", state.value
         assert result["errors"] != {"base": "unknown"}, state.value
-
-
-async def test_adopting_a_panel_mid_setup_tells_it_where_home_assistant_is(
-    hass: HomeAssistant,
-) -> None:
-    """The adoption site's positive path.
-
-    "Install or adoption" means a panel discovered mid-setup is handed the
-    address too, not just one this integration installed. The shared conftest
-    stub reports setup finished, so this test overrides it — otherwise it would
-    assert against a panel with nothing left to ask.
-    """
-    await hass.config.async_update(internal_url="http://192.0.2.5:8123")
-    hand_over = AsyncMock()
-    with (
-        patch(
-            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=DISCOVERY_HEALTH),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_status",
-            AsyncMock(side_effect=CannotConnectError),
-        ),
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_setup_state",
-            AsyncMock(
-                return_value=PanelSetupState(complete=False, accepts_handover=True)
-            ),
-        ),
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_hand_over_ha_url",
-            hand_over,
-        ),
-    ):
-        form = await hass.config_entries.flow.async_init(
-            DOMAIN,
-            context={"source": config_entries.SOURCE_ZEROCONF},
-            data=_zeroconf_info(),
-        )
-        assert form["step_id"] == "confirm_discovery"
-        result = await hass.config_entries.flow.async_configure(form["flow_id"], {})
-
-        # A titled form with a link, not a bare external step (F3-02).
-        assert result["type"] is FlowResultType.FORM
-        assert result["step_id"] == "panel_setup"
-        assert result["description_placeholders"]["setup_url"].startswith("http")
-        assert not hass.config_entries.async_entries(DOMAIN)
-        assert hand_over.await_args.args == ("http://192.0.2.5:8123", [])
-
-        with patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_setup_complete",
-            AsyncMock(return_value=False),
-        ):
-            again = await hass.config_entries.flow.async_configure(
-                result["flow_id"], {}
-            )
-        assert again["type"] is FlowResultType.FORM
-        assert again["step_id"] == "panel_setup"
-        assert again["errors"] == {"base": "panel_setup_not_finished"}
-
-        with patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_setup_state",
-            AsyncMock(
-                return_value=PanelSetupState(complete=True, accepts_handover=True)
-            ),
-        ):
-            done = await hass.config_entries.flow.async_configure(result["flow_id"], {})
-    assert done["type"] is FlowResultType.CREATE_ENTRY, done
-
-
-async def test_adopting_an_older_panel_sends_it_no_key_it_would_refuse(
-    hass: HomeAssistant,
-) -> None:
-    """The version gate at the adoption site."""
-    await hass.config.async_update(internal_url="http://192.0.2.5:8123")
-    hand_over = AsyncMock()
-    with (
-        patch(
-            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_health",
-            AsyncMock(return_value=DISCOVERY_HEALTH),
-        ),
-        patch(
-            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_status",
-            AsyncMock(side_effect=CannotConnectError),
-        ),
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_get_setup_state",
-            AsyncMock(
-                return_value=PanelSetupState(complete=False, accepts_handover=False)
-            ),
-        ),
-        patch(
-            "custom_components.panel_assistant.client.HaPaneldClient.async_hand_over_ha_url",
-            hand_over,
-        ),
-    ):
-        form = await hass.config_entries.flow.async_init(
-            DOMAIN,
-            context={"source": config_entries.SOURCE_ZEROCONF},
-            data=_zeroconf_info(),
-        )
-        result = await hass.config_entries.flow.async_configure(form["flow_id"], {})
-
-    assert result["type"] is FlowResultType.FORM
-    assert not hass.config_entries.async_entries(DOMAIN)
-    hand_over.assert_not_awaited()
 
 
 @contextlib.contextmanager

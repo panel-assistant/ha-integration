@@ -20,7 +20,6 @@ from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
-    FlowType,
     OptionsFlow,
 )
 from homeassistant.const import CONF_ADDRESS
@@ -44,6 +43,7 @@ from homeassistant.helpers.selector import (
     TextSelectorConfig,
 )
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
+from homeassistant.helpers.translation import async_get_translations
 
 from . import local_adb
 from .adb_credentials import (
@@ -159,6 +159,7 @@ from .transport_binding import (
     async_discard_binding_request,
 )
 from .update_policy import prereleases_allowed
+from .webview import WEBVIEW_STEP_SECONDS
 
 # The old_app_installed text links to the same steps as its Repair.
 _OLD_APP_PLACEHOLDERS = {
@@ -213,6 +214,23 @@ _ADB_APPROVAL_SECONDS = 120.0
 _ADB_ALLOW_POLL_SECONDS = 3.0
 _HOST_PROBE_SECONDS = 3
 _SETUP_WATCH_SECONDS = 60 * 60
+# The install's phases before its browser-engine step, in order, and the
+# share of the progress ring they fill; that step fills the rest.
+_INSTALL_PROGRESS_PHASES = (
+    InstallPhase.APPROVED,
+    InstallPhase.AUTHORIZING,
+    InstallPhase.PREFLIGHT,
+    InstallPhase.DOWNLOADING,
+    InstallPhase.ARTIFACT_READY,
+    InstallPhase.REVALIDATING,
+    InstallPhase.STAGING,
+    InstallPhase.INSTALLING,
+    InstallPhase.INSTALLED,
+    InstallPhase.LAUNCHING,
+    InstallPhase.HEALTH_CHECK,
+)
+_INSTALL_APP_SHARE = 0.7
+_INSTALL_PROGRESS_SECONDS = 2
 
 
 class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -256,6 +274,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     # The address as typed, for the log when nothing was pinned from it.
     _typed_address: str | None = None
     _progress_waiter: asyncio.Task[InstallJobReceipt] | None = None
+    _progress_ticker: asyncio.Task[None] | None = None
     _progress_action = "installing"
     _authorization_task: asyncio.Task[InstallTargetProbe] | None = None
     _authorization_errors: dict[str, str] | None = None
@@ -265,6 +284,8 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
     _steps_running = 0
     _install_releases: list[dict[str, Any]] | None = None
     _setup_watch: asyncio.Task[None] | None = None
+    _setup_waiter: asyncio.Task[bool] | None = None
+    _setup_waited = False
     _release_catalog_error: str | None = None
     _migration_targets: list[MigrationTarget] | None = None
     _migration_target: MigrationTarget | None = None
@@ -819,7 +840,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         if self._pending_address is None:
             return self.async_abort(reason="unknown")
         if self.source != SOURCE_USB_INSTALL:
-            return await self._async_panel_setup_form(user_input)
+            return await self._async_panel_setup_wait()
         if user_input is not None:
             return self.async_external_step_done(
                 next_step_id=(
@@ -840,44 +861,122 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="panel_setup", url=self._found_client().setup_url
         )
 
-    async def _async_panel_setup_form(
-        self, user_input: dict[str, Any] | None
-    ) -> ConfigFlowResult:
-        """Link the panel's setup page in a titled form; Submit checks it is done.
+    def _after_panel_setup_step(self) -> str:
+        """Where a finished panel setup goes: the install's entry, or a connect."""
+        if self._pending_job_id is not None and self._pending_reinstall_entry is None:
+            return "install_result"
+        return "connect_found"
 
-        Home Assistant's dialog shows an external step with no title or text,
-        and a form never moves on by itself, so the owner says when they are
-        done, as in the onboarding step.
+    async def _async_panel_setup_wait(self) -> ConfigFlowResult:
+        """Wait, in a step that moves on by itself, for the panel's own setup.
+
+        The panel shows its setup page on its own screen; the link opens the
+        same page here. A form never moves on by itself, so the owner had to
+        say when they were done, and a dialog left open after the setup
+        finished kept showing that it had not. Each refetch of the dialog
+        runs this step again, so the wait and the address offer start once.
         """
         client = self._found_client()
-        errors: dict[str, str] = {}
+        waiter = self._setup_waiter
+        started_now = waiter is None
+        if waiter is None:
+            if self._flow_removed:
+                # Closed during the read that led here: start no wait.
+                return self.async_abort(reason="install_worker_stopped")
+            # Created before any await, so a second request sees this wait.
+            waiter = self._setup_waiter = self.hass.async_create_background_task(
+                self._async_wait_for_setup(client),
+                f"{DOMAIN} wait for panel setup {self.flow_id}",
+            )
+        if not waiter.done():
+            return self.async_show_progress(
+                step_id="panel_setup",
+                progress_action="panel_setup",
+                description_placeholders={"setup_url": client.setup_url},
+                progress_task=waiter,
+            )
+        self._setup_waiter = None
+        complete = False
+        if not waiter.cancelled():
+            try:
+                complete = waiter.result()
+            except Exception:
+                _LOGGER.exception("Waiting for the panel's setup failed")
+        next_step = self._after_panel_setup_step() if complete else "panel_setup_check"
+        if started_now:
+            # The first read answered before any progress was shown, and a
+            # flow may not open on progress done: go straight to the next step.
+            step: Callable[[], Awaitable[ConfigFlowResult]] = getattr(
+                self, f"async_step_{next_step}"
+            )
+            return await step()
+        return self.async_show_progress_done(next_step_id=next_step)
+
+    async def _async_wait_for_setup(self, client: HaPaneldClient) -> bool:
+        """Read the panel's setup until it is finished, refused or given up on.
+
+        A wait that follows an earlier one pauses before its first read, so a
+        panel whose two setup reads disagree cannot send the flow round
+        between this wait and the step after it without a pause.
+        """
+        # Only this wait's own reads say why it ended.
+        self._setup_refusal = None
+        # Inside the wait, so closing the dialog cancels the offer too.
+        await async_offer_ha_url(self.hass, client)
+        deadline = asyncio.get_running_loop().time() + _SETUP_WATCH_SECONDS
+        if self._setup_waited:
+            await asyncio.sleep(_SETUP_POLL_SECONDS)
+        self._setup_waited = True
+        while True:
+            try:
+                if await client.async_get_setup_complete():
+                    return True
+            except RequestRefusedError as err:
+                # A refusal is not "not finished yet": the form names it.
+                self._setup_refusal = err
+                return False
+            except HaPaneldError:
+                pass
+            if asyncio.get_running_loop().time() >= deadline:
+                return False
+            await asyncio.sleep(_SETUP_POLL_SECONDS)
+
+    async def async_step_panel_setup_check(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Say why the wait ended; Submit checks again, then waits again."""
+        if self._pending_address is None:
+            return self.async_abort(reason="unknown")
+        client = self._found_client()
+        errors: dict[str, str] = {"base": "panel_setup_not_finished"}
         placeholders = {"setup_url": client.setup_url}
-        refusal, self._setup_refusal = self._setup_refusal, None
-        if user_input is None:
-            await async_offer_ha_url(self.hass, client)
-        else:
+        # Kept until a new read: the dialog may fetch this form again.
+        refusal = self._setup_refusal
+        if user_input is not None:
+            refusal = None
             try:
                 complete = await client.async_get_setup_complete()
             except RequestRefusedError as err:
                 refusal, complete = err, False
             except HaPaneldError:
                 complete = False
+            self._setup_refusal = refusal
             if complete:
-                if (
-                    self._pending_job_id is not None
-                    and self._pending_reinstall_entry is None
-                ):
+                if self._after_panel_setup_step() == "install_result":
                     return await self.async_step_install_result()
                 return await self.async_step_connect_found()
-            errors["base"] = "panel_setup_not_finished"
+            if refusal is None:
+                # Not finished yet: go back to waiting, which moves on by
+                # itself, rather than showing the same words again.
+                return await self._async_panel_setup_wait()
         if refusal is not None:
-            # A refusal is not "not finished yet": Submit can never get past it
-            # unless the person and the log are told what the panel answered.
+            # Submit can never get past a refusal unless the person and the
+            # log are told what the panel answered.
             self._refusal_cause = refusal
             errors["base"] = "panel_setup_refused"
             placeholders["refusal"] = str(refusal)
         return self.async_show_form(
-            step_id="panel_setup",
+            step_id="panel_setup_check",
             data_schema=vol.Schema({}),
             description_placeholders=placeholders,
             errors=errors,
@@ -1252,7 +1351,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self._show_release_preview_only()
         if self._pending_probe_state == "adb_unauthorized":
             return await self._async_authorize_adb()
-        return self._show_install_candidate_preview()
+        return await self._async_show_install_candidate_preview()
 
     async def async_step_authorize_adb(
         self, user_input: dict[str, Any] | None = None
@@ -1300,7 +1399,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="unknown")
         if self._pending_probe is None:
             return self._show_authorize_adb(self._authorization_errors)
-        return self._show_install_candidate_preview()
+        return await self._async_show_install_candidate_preview()
 
     async def _async_authorize_adb(self) -> ConfigFlowResult:
         """Use a key the panel already trusts, or offer it and wait for Allow."""
@@ -1322,7 +1421,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         if probe.state is not InstallTargetState.ADB_UNAUTHORIZED:
             if errors := self._accept_authorized_probe(probe):
                 return self._show_authorize_adb(errors)
-            return self._show_install_candidate_preview()
+            return await self._async_show_install_candidate_preview()
 
         task = self.hass.async_create_task(
             async_wait_for_adb_allow(target.pinned, signer),
@@ -1392,7 +1491,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         if self._pending_release.descriptor is None:
             return self._show_release_preview_only()
         if user_input is None:
-            return self._show_install_candidate_preview()
+            return await self._async_show_install_candidate_preview()
 
         # A kept entry may reinstall only after the clean-package probe.
         if self._address_is_configured(self._pending_address.stored_value) and (
@@ -1415,17 +1514,17 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             probe = await async_probe_install_target(target.pinned, credential.signer)
         except InstallNetworkError as err:
             self._refusal_cause = err
-            return self._show_install_candidate_preview(
+            return await self._async_show_install_candidate_preview(
                 {"base": _install_network_error(err)}
             )
         except AdbCredentialError as err:
             self._refusal_cause = err
-            return self._show_install_candidate_preview(
+            return await self._async_show_install_candidate_preview(
                 {"base": "adb_credential_error"}
             )
         except Exception:
             _LOGGER.exception("Unexpected exception while confirming installation")
-            return self._show_install_candidate_preview({"base": "unknown"})
+            return await self._async_show_install_candidate_preview({"base": "unknown"})
 
         if not _same_install_target(self._pending_probe, probe):
             self._refusal_cause = (
@@ -1435,7 +1534,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             )
             # ADB stopped answering or no longer allows this Home Assistant:
             # the panel did not change, so name ADB as the authorize step does.
-            return self._show_install_candidate_preview(
+            return await self._async_show_install_candidate_preview(
                 {
                     "base": _ADB_LOST_ERRORS.get(
                         probe.state.value, "install_candidate_changed"
@@ -1454,7 +1553,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                     admit_installed_target=True,
                 )
                 if not observed.target_installed:
-                    return self._show_install_candidate_preview(
+                    return await self._async_show_install_candidate_preview(
                         {"base": "installed_without_health"}
                     )
                 installed_bytes = await async_installed_artifact_size(
@@ -1464,11 +1563,11 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                     expected_root_mode=observed.root_mode,
                 )
             except InstallAdbError:
-                return self._show_install_candidate_preview(
+                return await self._async_show_install_candidate_preview(
                     {"base": "installed_without_health"}
                 )
             if installed_bytes is None:
-                return self._show_install_candidate_preview(
+                return await self._async_show_install_candidate_preview(
                     {"base": "installed_artifact_mismatch"}
                 )
             probe = replace(probe, installed_artifact_size=installed_bytes)
@@ -1499,22 +1598,22 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             )
         except InstallPlanError as err:
             self._refusal_cause = err
-            return self._show_install_candidate_preview(
+            return await self._async_show_install_candidate_preview(
                 {"base": "install_plan_rejected"}
             )
         except InstallJobError as err:
             self._refusal_cause = err
-            return self._show_install_candidate_preview(
+            return await self._async_show_install_candidate_preview(
                 {"base": "install_receipt_error"}
             )
         except Exception:
             _LOGGER.exception("Unexpected exception while creating an install job")
-            return self._show_install_candidate_preview({"base": "unknown"})
+            return await self._async_show_install_candidate_preview({"base": "unknown"})
 
         self._pending_job_id = receipt.job_id
         return await self._async_show_install_progress(receipt)
 
-    def _show_install_candidate_preview(
+    async def _async_show_install_candidate_preview(
         self, errors: dict[str, str] | None = None
     ) -> ConfigFlowResult:
         """Render the complete retained target and authenticated release plan."""
@@ -1529,6 +1628,7 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 "version": self._pending_release.version,
                 "tag": self._pending_release.tag,
                 "sha256": self._pending_release.sha256,
+                "portal_note": await self._async_portal_note(),
                 **INSTALL_RECOVERY_PLACEHOLDERS,
             }
         )
@@ -1549,6 +1649,24 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             description_placeholders=placeholders,
             errors=errors,
         )
+
+    async def _async_portal_note(self) -> str:
+        """The Meta Portal verifier paragraph, for a Portal only.
+
+        Every other panel keeps its package verifier, so the paragraph would
+        only alarm its owner. Portals report the model ``Portal``, ``Portal+``,
+        ``Portal Mini`` and so on; the vendor setup itself still decides by
+        the device codename.
+        """
+        assert self._pending_probe is not None
+        model = self._pending_probe.model or ""
+        if not model.casefold().startswith("portal"):
+            return ""
+        strings = await async_get_translations(
+            self.hass, self.hass.config.language, "common", [DOMAIN]
+        )
+        note = strings.get(f"component.{DOMAIN}.common.install_portal_verifier")
+        return f"\n\n{note}" if note else ""
 
     async def async_step_confirm_install_rc(
         self, user_input: dict[str, Any] | None = None
@@ -1643,17 +1761,59 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 return await self.async_step_install_result()
             return self.async_abort(reason="install_worker_stopped")
 
+        if self._flow_removed:
+            # Closed while the worker was started: it runs on, unwatched.
+            return self.async_abort(reason="install_worker_stopped")
         self._progress_action = "installing"
         self._progress_waiter = self.hass.async_create_task(
             executor.async_wait(receipt.job_id, until_webview=True),
             f"wait for ha-paneld install {receipt.job_id}",
         )
+        if self._progress_ticker is None or self._progress_ticker.done():
+            self._progress_ticker = self.hass.async_create_background_task(
+                self._async_report_install_progress(executor, receipt.job_id),
+                f"{DOMAIN} install progress {receipt.job_id}",
+            )
         return self.async_show_progress(
             step_id="install_progress",
             progress_action="installing",
             description_placeholders={"address": receipt.target.address},
             progress_task=self._progress_waiter,
         )
+
+    async def _async_report_install_progress(
+        self, executor: InstallExecutor, job_id: str
+    ) -> None:
+        """Fill the dialog's progress ring from the install's durable phase.
+
+        A bare spinner gives no sense of how far an install has got. The app's
+        phases fill most of the ring; the browser-engine step, which the
+        executor bounds at two minutes, fills the rest over that time.
+        """
+        manager = await async_get_install_job_manager(self.hass)
+        loop = asyncio.get_running_loop()
+        webview_started: float | None = None
+        shown = 0.0
+        while True:
+            try:
+                phase = (await manager.async_get(job_id)).phase
+            except InstallJobError:
+                return
+            if phase not in _INSTALL_PROGRESS_PHASES:
+                return
+            fraction = _INSTALL_APP_SHARE * (
+                (_INSTALL_PROGRESS_PHASES.index(phase) + 1)
+                / len(_INSTALL_PROGRESS_PHASES)
+            )
+            if executor.is_updating_webview(job_id):
+                webview_started = webview_started or loop.time()
+                fraction = _INSTALL_APP_SHARE + (1 - _INSTALL_APP_SHARE) * min(
+                    (loop.time() - webview_started) / WEBVIEW_STEP_SECONDS, 0.95
+                )
+            if fraction > shown:
+                shown = fraction
+                self.async_update_progress(shown)
+            await asyncio.sleep(_INSTALL_PROGRESS_SECONDS)
 
     async def async_step_install_progress(
         self, user_input: dict[str, Any] | None = None
@@ -1698,6 +1858,9 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             except Exception:
                 _LOGGER.exception("Install progress waiter failed")
             self._progress_waiter = None
+        if self._progress_ticker is not None:
+            self._progress_ticker.cancel()
+            self._progress_ticker = None
         return self.async_show_progress_done(next_step_id="install_result")
 
     async def async_step_install_result(
@@ -1958,19 +2121,10 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
                 self.hass, client
             ) and async_raise_foreign_ha_issue(self.hass, entry):
                 result["description"] = "another_home_assistant"
-        if job_id is not None and isinstance(entry, ConfigEntry):
-            # Human sign-in must never retain the install finalizer lease. Core
-            # supports continuing into options only after adding the entry.
-            try:
-                continuation = await self.hass.config_entries.options.async_init(
-                    entry.entry_id, context={"source": "onboarding"}
-                )
-            except Exception:
-                _LOGGER.exception(
-                    "Could not open panel onboarding after entry creation"
-                )
-            else:
-                result["next_flow"] = (FlowType.OPTIONS_FLOW, continuation["flow_id"])
+        # No options flow follows: Home Assistant's dialog opens a new options
+        # flow for one, so the owner met the panel's menu, and the flow made
+        # here was never closed. The panel signs in by itself once its setup
+        # is done, which binds the account it signs in as.
         return result
 
     def async_remove(self) -> None:
@@ -1986,8 +2140,12 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
             async_reconcile_device_setup(self.hass, retained)
         if self._setup_watch is not None and not self._setup_watch.done():
             self._setup_watch.cancel()
+        if self._setup_waiter is not None and not self._setup_waiter.done():
+            self._setup_waiter.cancel()
         if self._progress_waiter is not None and not self._progress_waiter.done():
             self._progress_waiter.cancel()
+        if self._progress_ticker is not None and not self._progress_ticker.done():
+            self._progress_ticker.cancel()
         self._progress_waiter = None
         if self._finalizer_job_id is not None and self._install_executor is not None:
             self._install_executor.release_finalizer(
@@ -2501,6 +2659,7 @@ class HaPaneldOptionsFlow(OptionsFlow):
     """Complete setup, configure panel updates, authorise ADB or remove the app."""
 
     _removal_risks_url: str | None = None
+    _onboarding_waiter: asyncio.Task[None] | None = None
 
     def __init__(self) -> None:
         self._adb_authorization = AdbAuthorization()
@@ -2726,26 +2885,69 @@ class HaPaneldOptionsFlow(OptionsFlow):
     async def async_step_onboarding(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Send the owner to the panel's own setup page, then confirm it connected.
+        """Wait, in a step that moves on by itself, for the panel to sign in.
 
-        A form, not an external step: Home Assistant's options dialog shows an
-        external step with no title or text at all. A form never moves on by
-        itself, so the owner says when they are done.
+        A form never moved on: Done only showed the same words again while the
+        panel had not connected. Each refetch of the dialog runs this step
+        again, so the wait and the address offer start once.
         """
-        client = self._onboarding_client()
-        errors: dict[str, str] = {}
-        if user_input is None:
-            await async_offer_ha_url(self.hass, client)
-        elif self._onboarded():
+        if self._onboarding_waiter is None and self._onboarded():
+            # Only before the wait starts: a progress step may only end in
+            # progress done, which leads to the same answer.
             return self.async_abort(reason="panel_connected")
-        else:
-            errors["base"] = "panel_not_connected"
-        return self.async_show_form(
-            step_id="onboarding",
-            data_schema=vol.Schema({}),
-            description_placeholders={"setup_url": client.setup_url},
-            errors=errors,
+        client = self._onboarding_client()
+        waiter = self._onboarding_waiter
+        if waiter is None:
+            # Created before any await, so a second request sees this wait.
+            waiter = self._onboarding_waiter = self.hass.async_create_background_task(
+                self._async_wait_for_sign_in(client),
+                f"{DOMAIN} wait for panel sign-in {self.flow_id}",
+            )
+        if not waiter.done():
+            return self.async_show_progress(
+                step_id="onboarding",
+                progress_action="onboarding",
+                description_placeholders={"setup_url": client.setup_url},
+                progress_task=waiter,
+            )
+        self._onboarding_waiter = None
+        return self.async_show_progress_done(
+            next_step_id="onboarding_done" if self._onboarded() else "onboarding_check"
         )
+
+    async def _async_wait_for_sign_in(self, client: HaPaneldClient) -> None:
+        """Return once the panel has signed in, or the wait is given up on."""
+        # Inside the wait, so closing the dialog cancels the offer too.
+        await async_offer_ha_url(self.hass, client)
+        deadline = asyncio.get_running_loop().time() + _SETUP_WATCH_SECONDS
+        while not self._onboarded():
+            if asyncio.get_running_loop().time() >= deadline:
+                return
+            await asyncio.sleep(_SETUP_POLL_SECONDS)
+
+    async def async_step_onboarding_done(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """The panel signed in while the dialog waited."""
+        return self.async_abort(reason="panel_connected")
+
+    async def async_step_onboarding_check(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Say the wait ended; Done checks, then waits again."""
+        if user_input is not None:
+            return await self.async_step_onboarding()
+        return self.async_show_form(
+            step_id="onboarding_check",
+            data_schema=vol.Schema({}),
+            description_placeholders={"setup_url": self._onboarding_client().setup_url},
+            errors={"base": "panel_not_connected"},
+        )
+
+    def async_remove(self) -> None:
+        """Stop waiting for the panel when the dialog closes."""
+        if self._onboarding_waiter is not None and not self._onboarding_waiter.done():
+            self._onboarding_waiter.cancel()
 
     async def async_step_remove_app(
         self, user_input: dict[str, Any] | None = None

@@ -104,7 +104,13 @@ def async_follow_previous_apps(
     @callback
     def _updated() -> None:
         session = async_get_sessions(hass).get(entry.entry_id)
-        if not session_manages(session) or session is checked[0]:
+        # A session counts as asked only once the offer is due, so an install
+        # recorded while the panel is already connected is checked at once.
+        if (
+            not entry.data.get(CONF_INSTALL_APPS_PENDING)
+            or not session_manages(session)
+            or session is checked[0]
+        ):
             return
         checked[0] = session
         entry.async_create_background_task(

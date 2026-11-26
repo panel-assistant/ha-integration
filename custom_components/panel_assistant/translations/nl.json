@@ -10,7 +10,8 @@
     "webview_recovery_mismatch": "De gedownloade WebView kwam niet overeen met de geverifieerde update. Houd het paneel verbonden en selecteer Opnieuw proberen om deze opnieuw te downloaden. Sla een ondersteuningsrapport op als dit opnieuw gebeurt; installeer geen ongeverifieerde APK.",
     "webview_recovery_uncertain": "Het installatieresultaat kon niet worden bevestigd. Houd het paneel verbonden en selecteer Opnieuw proberen: eerst wordt de geïnstalleerde WebView gecontroleerd. Een nieuwe poging begint alleen als de update nog aan de voorwaarden voldoet.",
     "webview_recovery_retry": "De WebView-bewerking is onderbroken of kon de voorbereiding niet voltooien. Controleer de verbinding en de beschikbare opslagruimte van het paneel en selecteer daarna Opnieuw proberen. Sla een ondersteuningsrapport op als dit opnieuw gebeurt.",
-    "webview_recovery_download": "Het paneel kon de WebView-update niet downloaden van panel-assistant.io, dus deze is niet geïnstalleerd. Geef Home Assistant toegang tot {webview_site}, zodat het de update kan downloaden en aan het paneel kan doorgeven, of geef het paneel toegang tot die site. Selecteer daarna Opnieuw proberen. Het logboek van Home Assistant vermeldt waardoor de download is gestopt."
+    "webview_recovery_download": "Het paneel kon de WebView-update niet downloaden van panel-assistant.io, dus deze is niet geïnstalleerd. Geef Home Assistant toegang tot {webview_site}, zodat het de update kan downloaden en aan het paneel kan doorgeven, of geef het paneel toegang tot die site. Selecteer daarna Opnieuw proberen. Het logboek van Home Assistant vermeldt waardoor de download is gestopt.",
+    "install_portal_verifier": "On a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
   },
   "config": {
     "flow_title": "{name}",
@@ -91,19 +92,19 @@
       },
       "confirm_install_candidate": {
         "title": "Panel Assistant {version} installeren?",
-        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}"
       },
       "confirm_install_rc": {
         "title": "Panel Assistant {version} installeren?",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}"
       },
       "confirm_reinstall_candidate": {
         "title": "Panel Assistant {version} installeren?",
-        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "confirm_reinstall_rc": {
         "title": "Panel Assistant {version} installeren?",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "release_preview_only": {
         "title": "De release kan niet automatisch worden geïnstalleerd",
@@ -130,12 +131,17 @@
         "menu_options": {
           "resume_install": "Die installatie voortzetten"
         }
+      },
+      "panel_setup_check": {
+        "title": "Finish the panel's setup",
+        "description": "The panel's setup page is on its own screen, or open the [setup page]({setup_url}) here from a device on the same network as the panel. Select Submit to check again; this then carries on by itself once the setup is finished."
       }
     },
     "progress": {
       "authorize_adb": "Kijk naar het scherm van het paneel op {address}: vink **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**. Android kan Home Assistant een computer noemen.\n\nDit gaat vanzelf verder zodra het paneel het toestaat.",
       "installing": "Panel Assistant wordt geïnstalleerd op {address}. Houd dit dialoogvenster open; de bewerking wordt vanzelf afgerond.\n\nAls je het sluit, gaat de installatie door. Voeg hetzelfde adres opnieuw toe om af te ronden.",
-      "updating_webview": "De browserengine van het paneel op {address} wordt bijgewerkt…"
+      "updating_webview": "De browserengine van het paneel op {address} wordt bijgewerkt…",
+      "panel_setup": "Now finish setting up the panel. Its setup page is on the panel's own screen; you can also open the [setup page]({setup_url}) here, from a device on the same network as the panel.\n\nThis carries on by itself as soon as the panel's setup is finished."
     },
     "error": {
       "panel_setup_not_finished": "Het paneel is nog niet klaar met instellen. Rond de instelpagina af en selecteer daarna opnieuw Verzenden.",
@@ -1102,6 +1108,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         }
@@ -1145,6 +1152,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         }
@@ -1188,6 +1196,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         }
@@ -1231,6 +1240,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         }
@@ -1274,6 +1284,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         }
@@ -1317,6 +1328,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         }
@@ -1360,6 +1372,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         }
@@ -1403,6 +1416,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         }
@@ -1446,6 +1460,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         }
@@ -1489,6 +1504,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         }
@@ -1532,6 +1548,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         }
@@ -1581,6 +1598,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt.",
           "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig Panel Assistant-status-eindpunt.",
@@ -1649,6 +1667,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt.",
           "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig Panel Assistant-status-eindpunt.",
@@ -1717,6 +1736,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt.",
           "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig Panel Assistant-status-eindpunt.",
           "invalid_install_address": "Voer alleen de hostnaam of het IP-adres van het paneel in.",
@@ -1778,6 +1798,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt."
         },
@@ -1864,6 +1885,7 @@
           "retry_update_unavailable": "De updatebediening van het paneel is niet beschikbaar. Controleer de verbinding en probeer opnieuw.",
           "retry_finalization": "De app is klaar, maar Home Assistant kon het toevoegen van het paneel niet afronden. Probeer opnieuw.",
           "retry_failed": "Opnieuw proberen is mislukt. Het ondersteuningsrapport bevat details.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dit paneel is nog bezig met een update of een andere taak. Wacht tot die klaar is en probeer het dan opnieuw. Als een update slaagt, sluit deze reparatie vanzelf.",
           "retry_no_longer_needed": "Deze installatie hoeft niet meer opnieuw te worden geprobeerd. Open de reparatie opnieuw als de fout terugkomt.",
           "cannot_connect": "Er kan geen verbinding worden gemaakt met een geldig Panel Assistant-status-eindpunt.",
@@ -2108,6 +2130,11 @@
         "title": "Hardwarerapport van de eigenaar",
         "description": "Open een [vooraf ingevuld GitHub-rapport]({issue_url}), controleer de apparaatgegevens en vul vóór het verzenden de daadwerkelijk uitgevoerde tests in. Profielgegevens beginnen als onbekend en alle tests als niet getest. Alleen niet-identificerende gegevens uit de cache zijn opgenomen. Er wordt pas iets gepubliceerd wanneer je het rapport op GitHub indient. Deze conceptversie maakt geen verbinding met het paneel en wijzigt het niet.",
         "submit": "Gereed"
+      },
+      "onboarding_check": {
+        "title": "Finish setting up this panel",
+        "description": "Open the [panel's setup page]({setup_url}) from a device on the same network as the panel, or use the setup page on the panel's own screen. Select Done to check again; this then carries on by itself once the panel connects.",
+        "submit": "Done"
       }
     },
     "error": {
@@ -2155,7 +2182,8 @@
       "panel_connected": "Het paneel is ingesteld en verbonden met Home Assistant."
     },
     "progress": {
-      "authorize_adb": "Kijk naar het scherm van {panel}: vink **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**. Android kan Home Assistant een computer noemen.\n\nDit gaat vanzelf verder zodra het paneel het toestaat."
+      "authorize_adb": "Kijk naar het scherm van {panel}: vink **Altijd toestaan vanaf deze computer** aan en tik op **Toestaan**. Android kan Home Assistant een computer noemen.\n\nDit gaat vanzelf verder zodra het paneel het toestaat.",
+      "onboarding": "Waiting for the panel to connect to Home Assistant. If its setup is not finished, finish it on the panel's own screen, or open the [setup page]({setup_url}) here from a device on the same network as the panel.\n\nThis carries on by itself as soon as the panel connects."
     }
   },
   "selector": {

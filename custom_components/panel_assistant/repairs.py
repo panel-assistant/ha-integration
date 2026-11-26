@@ -4,20 +4,23 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from dataclasses import asdict
 from typing import Any
 
 import voluptuous as vol
 from homeassistant.components.repairs import RepairsFlow, RepairsFlowResult
 from homeassistant.components.update import DATA_COMPONENT as UPDATE_COMPONENT
+from homeassistant.components.update import UpdateEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResultType, UnknownStep
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.translation import async_get_translations
 
 from .build_feed import parse_build_request
@@ -312,6 +315,8 @@ class InstallerFailureFlow(RepairsFlow):
 
     def __init__(self) -> None:
         self._retry_task: asyncio.Task[str | None] | None = None
+        # The owner-facing message of the error that ended the latest retry.
+        self._retry_reason: str | None = None
         self._adb_authorization = AdbAuthorization()
 
     async def async_step_init(
@@ -504,11 +509,16 @@ class InstallerFailureFlow(RepairsFlow):
         if reason is None:
             await async_clear_failure(self.hass, self.issue_id)
             return self.async_create_entry(data={})
+        if reason == "retry_failed_reason" and self._retry_reason is None:
+            reason = "retry_failed"
+        placeholders = await self._async_webview_guidance()
+        if reason == "retry_failed_reason":
+            placeholders["retry_reason"] = self._retry_reason or ""
         return self.async_show_form(
             step_id="retry_error",
             data_schema=vol.Schema({}),
             errors={"base": reason},
-            description_placeholders=await self._async_webview_guidance(),
+            description_placeholders=placeholders,
         )
 
     async def async_step_retry_error(
@@ -517,6 +527,7 @@ class InstallerFailureFlow(RepairsFlow):
         return await self.async_step_init()
 
     async def _async_retry(self) -> str | None:
+        self._retry_reason = None
         events = await async_failure_events(self.hass, self.issue_id)
         previous = next(
             (
@@ -641,8 +652,34 @@ class InstallerFailureFlow(RepairsFlow):
                 ):
                     raise RetrySafetyHold("retry_release_changed")
             service_data = {"entity_id": entity_id}
-            if not current_retry and isinstance(previous.get("target_version"), str):
+            # Home Assistant refuses a version for an entity that cannot pick
+            # one; a stable-only entity installs its current offer instead.
+            if (
+                not current_retry
+                and isinstance(previous.get("target_version"), str)
+                and (
+                    state is None
+                    or UpdateEntityFeature.SPECIFIC_VERSION
+                    & state.attributes.get("supported_features", 0)
+                )
+            ):
                 service_data["version"] = previous["target_version"]
+
+            @callback
+            def _mirror_progress(event: Event[EventStateChangedData]) -> None:
+                # The spinner shows the same progress as the update itself.
+                new_state = event.data["new_state"]
+                value = (
+                    new_state.attributes.get("update_percentage")
+                    if new_state is not None
+                    else None
+                )
+                if isinstance(value, int | float):
+                    self.async_update_progress(min(max(value / 100, 0.0), 1.0))
+
+            stop_mirror = async_track_state_change_event(
+                self.hass, entity_id, _mirror_progress
+            )
             try:
                 await self.hass.services.async_call(
                     Platform.UPDATE,
@@ -660,13 +697,37 @@ class InstallerFailureFlow(RepairsFlow):
                 ):
                     return "retry_panel_busy"
                 raise
+            finally:
+                stop_mirror()
             return "_update_completed"
         except RetrySafetyHold as err:
             await async_record_retry_hold(self.hass, self.issue_id, previous, err)
             return err.reason
         except Exception as err:
             await async_record_retry_hold(self.hass, self.issue_id, previous, err)
-            return "retry_failed"
+            self._retry_reason = await _async_error_message(self.hass, err)
+            return "retry_failed_reason"
+
+
+async def _async_error_message(hass: HomeAssistant, err: Exception) -> str | None:
+    """The owner-facing text a keyed error carries, in Home Assistant's language."""
+    domain = getattr(err, "translation_domain", None)
+    key = getattr(err, "translation_key", None)
+    if not isinstance(domain, str) or not isinstance(key, str):
+        return None
+    strings = await async_get_translations(
+        hass, hass.config.language, "exceptions", [domain]
+    )
+    message = strings.get(f"component.{domain}.exceptions.{key}.message")
+    if message is None:
+        return None
+    values = getattr(err, "translation_placeholders", None) or {}
+    # One pass: braces inside a panel name or reason stay as written.
+    return re.sub(
+        r"\{(\w+)\}",
+        lambda match: str(values.get(match[1], match[0])),
+        message,
+    )
 
 
 class PanelPermissionFlow(RepairsFlow):

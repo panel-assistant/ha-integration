@@ -10,7 +10,8 @@
     "webview_recovery_mismatch": "Die heruntergeladene WebView entsprach nicht dem verifizierten Update. Lass das Panel verbunden und wähle Erneut versuchen, um es erneut herunterzuladen. Speichere einen Supportbericht, wenn dies erneut auftritt; installiere keine ungeprüfte APK.",
     "webview_recovery_uncertain": "Das Installationsergebnis konnte nicht bestätigt werden. Lass das Panel verbunden und wähle Erneut versuchen: Zuerst wird die installierte WebView geprüft. Ein neuer Versuch beginnt nur, wenn die Voraussetzungen für ein Update weiterhin erfüllt sind.",
     "webview_recovery_retry": "Der WebView-Vorgang wurde unterbrochen oder konnte seine Vorbereitung nicht abschließen. Prüfe die Verbindung und den verfügbaren Speicher des Panels und wähle dann Erneut versuchen. Speichere einen Supportbericht, wenn dies erneut auftritt.",
-    "webview_recovery_download": "Das Panel konnte sein WebView-Update nicht von panel-assistant.io herunterladen, daher wurde es nicht installiert. Erlaube Home Assistant den Zugriff auf {webview_site}, damit es das Update herunterladen und an das Panel weitergeben kann, oder erlaube dem Panel den Zugriff und wähle dann Erneut versuchen. Das Home Assistant-Protokoll nennt den Grund für den abgebrochenen Download."
+    "webview_recovery_download": "Das Panel konnte sein WebView-Update nicht von panel-assistant.io herunterladen, daher wurde es nicht installiert. Erlaube Home Assistant den Zugriff auf {webview_site}, damit es das Update herunterladen und an das Panel weitergeben kann, oder erlaube dem Panel den Zugriff und wähle dann Erneut versuchen. Das Home Assistant-Protokoll nennt den Grund für den abgebrochenen Download.",
+    "install_portal_verifier": "On a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
   },
   "config": {
     "flow_title": "{name}",
@@ -91,19 +92,19 @@
       },
       "confirm_install_candidate": {
         "title": "Panel Assistant {version} installieren?",
-        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}"
       },
       "confirm_install_rc": {
         "title": "Panel Assistant {version} installieren?",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}"
       },
       "confirm_reinstall_candidate": {
         "title": "Panel Assistant {version} installieren?",
-        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "confirm_reinstall_rc": {
         "title": "Panel Assistant {version} installieren?",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "release_preview_only": {
         "title": "Release kann nicht automatisch installiert werden",
@@ -130,12 +131,17 @@
         "menu_options": {
           "resume_install": "Diese Installation fortsetzen"
         }
+      },
+      "panel_setup_check": {
+        "title": "Finish the panel's setup",
+        "description": "The panel's setup page is on its own screen, or open the [setup page]({setup_url}) here from a device on the same network as the panel. Select Submit to check again; this then carries on by itself once the setup is finished."
       }
     },
     "progress": {
       "authorize_adb": "Sieh auf den Bildschirm des Panels unter {address}: Setze das Häkchen bei **Immer von diesem Computer aus zulassen** und tippe auf **Zulassen**. Android bezeichnet Home Assistant möglicherweise als Computer.\n\nSobald das Panel es zulässt, geht es von selbst weiter.",
       "installing": "Panel Assistant wird unter {address} installiert. Lass diesen Dialog geöffnet; der Vorgang wird von selbst abgeschlossen.\n\nWenn du ihn schließt, läuft die Installation weiter. Füge dieselbe Adresse erneut hinzu, um den Vorgang abzuschließen.",
-      "updating_webview": "Die Browser-Engine des Panels unter {address} wird aktualisiert…"
+      "updating_webview": "Die Browser-Engine des Panels unter {address} wird aktualisiert…",
+      "panel_setup": "Now finish setting up the panel. Its setup page is on the panel's own screen; you can also open the [setup page]({setup_url}) here, from a device on the same network as the panel.\n\nThis carries on by itself as soon as the panel's setup is finished."
     },
     "error": {
       "panel_setup_not_finished": "Das Panel hat seine Einrichtung noch nicht abgeschlossen. Schließe die Einrichtung auf der Einrichtungsseite ab und wähle dann erneut OK.",
@@ -1102,6 +1108,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dieses Panel ist noch mit einem Update oder einer anderen Aufgabe beschäftigt. Warte, bis es fertig ist, und versuche es dann erneut. Wenn ein Update gelingt, schließt sich diese Reparatur von selbst.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         }
@@ -1145,6 +1152,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dieses Panel ist noch mit einem Update oder einer anderen Aufgabe beschäftigt. Warte, bis es fertig ist, und versuche es dann erneut. Wenn ein Update gelingt, schließt sich diese Reparatur von selbst.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         }
@@ -1188,6 +1196,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dieses Panel ist noch mit einem Update oder einer anderen Aufgabe beschäftigt. Warte, bis es fertig ist, und versuche es dann erneut. Wenn ein Update gelingt, schließt sich diese Reparatur von selbst.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         }
@@ -1231,6 +1240,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dieses Panel ist noch mit einem Update oder einer anderen Aufgabe beschäftigt. Warte, bis es fertig ist, und versuche es dann erneut. Wenn ein Update gelingt, schließt sich diese Reparatur von selbst.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         }
@@ -1274,6 +1284,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dieses Panel ist noch mit einem Update oder einer anderen Aufgabe beschäftigt. Warte, bis es fertig ist, und versuche es dann erneut. Wenn ein Update gelingt, schließt sich diese Reparatur von selbst.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         }
@@ -1317,6 +1328,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dieses Panel ist noch mit einem Update oder einer anderen Aufgabe beschäftigt. Warte, bis es fertig ist, und versuche es dann erneut. Wenn ein Update gelingt, schließt sich diese Reparatur von selbst.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         }
@@ -1360,6 +1372,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dieses Panel ist noch mit einem Update oder einer anderen Aufgabe beschäftigt. Warte, bis es fertig ist, und versuche es dann erneut. Wenn ein Update gelingt, schließt sich diese Reparatur von selbst.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         }
@@ -1403,6 +1416,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dieses Panel ist noch mit einem Update oder einer anderen Aufgabe beschäftigt. Warte, bis es fertig ist, und versuche es dann erneut. Wenn ein Update gelingt, schließt sich diese Reparatur von selbst.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         }
@@ -1446,6 +1460,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dieses Panel ist noch mit einem Update oder einer anderen Aufgabe beschäftigt. Warte, bis es fertig ist, und versuche es dann erneut. Wenn ein Update gelingt, schließt sich diese Reparatur von selbst.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         }
@@ -1489,6 +1504,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dieses Panel ist noch mit einem Update oder einer anderen Aufgabe beschäftigt. Warte, bis es fertig ist, und versuche es dann erneut. Wenn ein Update gelingt, schließt sich diese Reparatur von selbst.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         }
@@ -1532,6 +1548,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dieses Panel ist noch mit einem Update oder einer anderen Aufgabe beschäftigt. Warte, bis es fertig ist, und versuche es dann erneut. Wenn ein Update gelingt, schließt sich diese Reparatur von selbst.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         }
@@ -1581,6 +1598,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dieses Panel ist noch mit einem Update oder einer anderen Aufgabe beschäftigt. Warte, bis es fertig ist, und versuche es dann erneut. Wenn ein Update gelingt, schließt sich diese Reparatur von selbst.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt.",
           "cannot_connect": "Es konnte keine Verbindung zu einem gültigen Funktionsstatus-Endpunkt von Panel Assistant hergestellt werden.",
@@ -1649,6 +1667,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dieses Panel ist noch mit einem Update oder einer anderen Aufgabe beschäftigt. Warte, bis es fertig ist, und versuche es dann erneut. Wenn ein Update gelingt, schließt sich diese Reparatur von selbst.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt.",
           "cannot_connect": "Es konnte keine Verbindung zu einem gültigen Funktionsstatus-Endpunkt von Panel Assistant hergestellt werden.",
@@ -1717,6 +1736,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt.",
           "cannot_connect": "Es konnte keine Verbindung zu einem gültigen Funktionsstatus-Endpunkt von Panel Assistant hergestellt werden.",
           "invalid_install_address": "Gib nur den Hostnamen oder die IP-Adresse des Panels ein.",
@@ -1778,6 +1798,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dieses Panel ist noch mit einem Update oder einer anderen Aufgabe beschäftigt. Warte, bis es fertig ist, und versuche es dann erneut. Wenn ein Update gelingt, schließt sich diese Reparatur von selbst.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt."
         },
@@ -1864,6 +1885,7 @@
           "retry_update_unavailable": "Die Update-Steuerung des Panels ist nicht verfügbar. Prüfe die Verbindung und versuche es erneut.",
           "retry_finalization": "Die App ist bereit, aber Home Assistant konnte das Hinzufügen des Panels nicht abschließen. Versuche es erneut.",
           "retry_failed": "Der erneute Versuch ist fehlgeschlagen. Einzelheiten stehen im Supportbericht.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Dieses Panel ist noch mit einem Update oder einer anderen Aufgabe beschäftigt. Warte, bis es fertig ist, und versuche es dann erneut. Wenn ein Update gelingt, schließt sich diese Reparatur von selbst.",
           "retry_no_longer_needed": "Diese Installation muss nicht mehr wiederholt werden. Öffne die Reparatur erneut, falls der Fehler zurückkehrt.",
           "cannot_connect": "Es konnte keine Verbindung zu einem gültigen Funktionsstatus-Endpunkt von Panel Assistant hergestellt werden.",
@@ -2108,6 +2130,11 @@
         "title": "Hardwarebericht des Besitzers",
         "description": "Öffne einen [vorausgefüllten GitHub-Bericht]({issue_url}), prüfe die Geräteangaben und trage vor dem Absenden die tatsächlich durchgeführten Tests ein. Profildetails sind zunächst unbekannt und alle Tests ungetestet. Enthalten sind nur nicht identifizierende, zwischengespeicherte Angaben. Erst dein Absenden auf GitHub veröffentlicht den Bericht. Dieser Entwurf kontaktiert oder verändert das Panel nicht.",
         "submit": "Fertig"
+      },
+      "onboarding_check": {
+        "title": "Finish setting up this panel",
+        "description": "Open the [panel's setup page]({setup_url}) from a device on the same network as the panel, or use the setup page on the panel's own screen. Select Done to check again; this then carries on by itself once the panel connects.",
+        "submit": "Done"
       }
     },
     "error": {
@@ -2155,7 +2182,8 @@
       "panel_connected": "Das Panel ist eingerichtet und mit Home Assistant verbunden."
     },
     "progress": {
-      "authorize_adb": "Sieh auf den Bildschirm von {panel}: Setze das Häkchen bei **Immer von diesem Computer aus zulassen** und tippe auf **Zulassen**. Android bezeichnet Home Assistant möglicherweise als Computer.\n\nSobald das Panel es zulässt, geht es von selbst weiter."
+      "authorize_adb": "Sieh auf den Bildschirm von {panel}: Setze das Häkchen bei **Immer von diesem Computer aus zulassen** und tippe auf **Zulassen**. Android bezeichnet Home Assistant möglicherweise als Computer.\n\nSobald das Panel es zulässt, geht es von selbst weiter.",
+      "onboarding": "Waiting for the panel to connect to Home Assistant. If its setup is not finished, finish it on the panel's own screen, or open the [setup page]({setup_url}) here from a device on the same network as the panel.\n\nThis carries on by itself as soon as the panel connects."
     }
   },
   "selector": {

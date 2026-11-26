@@ -19,7 +19,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
 
 from .client import PanelHealth
-from .const import DOMAIN
+from .const import CONF_INSTALL_AREA_PENDING, DOMAIN
 from .coordinator import HaPaneldDataUpdateCoordinator, PanelSnapshot
 from .transport_protocol import MANAGE_HA_AREA_REFRESH, MANAGE_SETTINGS
 from .transport_sessions import async_get_sessions, async_manage, session_manages
@@ -197,8 +197,29 @@ def async_refresh_panel_device(
             "configuration_url",
         )
     }
-    if is_literal_null_area(hass, device.area_id):
-        updates["area_id"] = None
+    area_id = device.area_id
+    if is_literal_null_area(hass, area_id):
+        updates["area_id"] = area_id = None
+    connections = fields.get("connections", device.connections)
+    entry = hass.config_entries.async_get_entry(entry_id)
+    if entry is not None and entry.data.get(CONF_INSTALL_AREA_PENDING):
+        # Once, after an install: the Area the panel reports, else the one its
+        # other devices agree on (found by MAC). A card that already has an Area,
+        # or a valid report, settles it, so a later blank Area is the owner's.
+        reported = fields.get("suggested_area")
+        if not isinstance(reported, str) or _is_null_area_name(reported):
+            reported = ""
+        valid_report = bool(reported)
+        if area_id is None and valid_report:
+            updates["area_id"] = ar.async_get(hass).async_get_or_create(reported).id
+        elif (
+            area_id is None
+            and connections
+            and (sibling := _sibling_area(hass, registry, device.id, connections))
+        ):
+            updates["area_id"] = sibling
+        if area_id is not None or valid_report or connections:
+            _settle_install_area(hass, entry)
     if reported_name:
         updates["name"] = reported_name
     # Replace, rather than merge, only a stated and changed connection set.
@@ -206,6 +227,55 @@ def async_refresh_panel_device(
     if "connections" in fields and fields["connections"] != device.connections:
         updates["new_connections"] = fields["connections"]
     registry.async_update_device(device.id, **updates)
+
+
+@callback
+def _settle_install_area(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """End the one-time install Area default for this entry."""
+    if entry.data.get(CONF_INSTALL_AREA_PENDING):
+        hass.config_entries.async_update_entry(
+            entry,
+            data={
+                k: v for k, v in entry.data.items() if k != CONF_INSTALL_AREA_PENDING
+            },
+        )
+
+
+def _sibling_area(
+    hass: HomeAssistant,
+    registry: dr.DeviceRegistry,
+    device_id: str,
+    connections: set[tuple[str, str]],
+) -> str | None:
+    """The one Area other integrations' devices for the same hardware agree on.
+
+    A migrated panel's card starts without an Area while, say, its Android TV
+    device already sits in one; two disagreeing devices leave the choice open.
+    """
+    macs = {
+        dr.format_mac(value)
+        for kind, value in connections
+        if kind == dr.CONNECTION_NETWORK_MAC
+    }
+    areas: set[str] = set()
+    for other in registry.devices.values():
+        if other.id == device_id or not other.area_id:
+            continue
+        if not any(
+            kind == dr.CONNECTION_NETWORK_MAC and dr.format_mac(value) in macs
+            for kind, value in other.connections
+        ):
+            continue
+        owners = (hass.config_entries.async_get_entry(e) for e in other.config_entries)
+        if any(owner is not None and owner.domain == DOMAIN for owner in owners):
+            continue
+        if not is_literal_null_area(hass, other.area_id):
+            areas.add(other.area_id)
+    if len(areas) == 1:
+        return areas.pop()
+    if areas:
+        _LOGGER.debug("Devices sharing the panel's MAC disagree on its Area: %s", areas)
+    return None
 
 
 @callback
@@ -238,6 +308,9 @@ def async_follow_panel_area(
             return
         device = registry.async_get(event.data["device_id"])
         if device is not None and (DOMAIN, entry.entry_id) in device.identifiers:
+            # Any Area edit settles the one-time install default: an owner who
+            # sets and then clears it before the panel's MAC is known keeps it blank.
+            _settle_install_area(hass, entry)
             hass.async_create_background_task(
                 ask(), f"{DOMAIN} area read {entry.entry_id}"
             )

@@ -10,7 +10,8 @@
     "webview_recovery_mismatch": "Il WebView scaricato non corrispondeva all’aggiornamento verificato. Mantieni il pannello connesso e seleziona Riprova per scaricarlo di nuovo. Se il problema si ripete, salva un rapporto di assistenza; non installare un APK non verificato.",
     "webview_recovery_uncertain": "Non è stato possibile confermare il risultato dell’installazione. Mantieni il pannello connesso e seleziona Riprova: viene prima verificato il WebView installato e viene avviato un nuovo tentativo solo se l’aggiornamento soddisfa ancora i requisiti.",
     "webview_recovery_retry": "L’operazione WebView è stata interrotta o non ha potuto completare la preparazione. Controlla la connessione del pannello e lo spazio di archiviazione disponibile, poi seleziona Riprova. Salva un rapporto di assistenza se il problema si ripete.",
-    "webview_recovery_download": "Il pannello non ha potuto scaricare l'aggiornamento di WebView da panel-assistant.io, quindi l'aggiornamento non è stato installato. Consenti a Home Assistant di raggiungere {webview_site}, così potrà scaricare l'aggiornamento e passarlo al pannello, oppure consenti al pannello di raggiungerlo, quindi seleziona Riprova. Il registro di Home Assistant indica cosa ha impedito il download."
+    "webview_recovery_download": "Il pannello non ha potuto scaricare l'aggiornamento di WebView da panel-assistant.io, quindi l'aggiornamento non è stato installato. Consenti a Home Assistant di raggiungere {webview_site}, così potrà scaricare l'aggiornamento e passarlo al pannello, oppure consenti al pannello di raggiungerlo, quindi seleziona Riprova. Il registro di Home Assistant indica cosa ha impedito il download.",
+    "install_portal_verifier": "On a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
   },
   "config": {
     "flow_title": "{name}",
@@ -91,19 +92,19 @@
       },
       "confirm_install_candidate": {
         "title": "Installare Panel Assistant {version}?",
-        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}"
       },
       "confirm_install_rc": {
         "title": "Installare Panel Assistant {version}?",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}"
       },
       "confirm_reinstall_candidate": {
         "title": "Installare Panel Assistant {version}?",
-        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "confirm_reinstall_rc": {
         "title": "Installare Panel Assistant {version}?",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "release_preview_only": {
         "title": "La versione non può essere installata automaticamente",
@@ -130,12 +131,17 @@
         "menu_options": {
           "resume_install": "Continua quell'installazione"
         }
+      },
+      "panel_setup_check": {
+        "title": "Finish the panel's setup",
+        "description": "The panel's setup page is on its own screen, or open the [setup page]({setup_url}) here from a device on the same network as the panel. Select Submit to check again; this then carries on by itself once the setup is finished."
       }
     },
     "progress": {
       "authorize_adb": "Guarda lo schermo del pannello all'indirizzo {address}: seleziona **Consenti sempre da questo computer**, poi tocca **Consenti**. Android potrebbe descrivere Home Assistant come un computer.\n\nL'operazione prosegue da sola quando il pannello lo consente.",
       "installing": "Installazione di Panel Assistant all’indirizzo {address}. Tieni aperta questa finestra di dialogo; l’operazione termina da sola.\n\nSe la chiudi, l’installazione continua. Aggiungi di nuovo lo stesso indirizzo per completare l’operazione.",
-      "updating_webview": "Aggiornamento del motore del browser del pannello all'indirizzo {address}…"
+      "updating_webview": "Aggiornamento del motore del browser del pannello all'indirizzo {address}…",
+      "panel_setup": "Now finish setting up the panel. Its setup page is on the panel's own screen; you can also open the [setup page]({setup_url}) here, from a device on the same network as the panel.\n\nThis carries on by itself as soon as the panel's setup is finished."
     },
     "error": {
       "panel_setup_not_finished": "Il pannello non ha ancora completato la configurazione. Completa la pagina di configurazione, poi seleziona di nuovo Invia.",
@@ -1102,6 +1108,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         }
@@ -1145,6 +1152,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         }
@@ -1188,6 +1196,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         }
@@ -1231,6 +1240,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         }
@@ -1274,6 +1284,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         }
@@ -1317,6 +1328,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         }
@@ -1360,6 +1372,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         }
@@ -1403,6 +1416,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         }
@@ -1446,6 +1460,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         }
@@ -1489,6 +1504,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         }
@@ -1532,6 +1548,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         }
@@ -1581,6 +1598,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna.",
           "cannot_connect": "Impossibile connettersi a un endpoint valido sullo stato di funzionamento di Panel Assistant.",
@@ -1649,6 +1667,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna.",
           "cannot_connect": "Impossibile connettersi a un endpoint valido sullo stato di funzionamento di Panel Assistant.",
@@ -1717,6 +1736,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna.",
           "cannot_connect": "Impossibile connettersi a un endpoint valido sullo stato di funzionamento di Panel Assistant.",
           "invalid_install_address": "Inserisci solo il nome host o l’indirizzo IP del pannello.",
@@ -1778,6 +1798,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna."
         },
@@ -1864,6 +1885,7 @@
           "retry_update_unavailable": "Il controllo degli aggiornamenti del pannello non è disponibile. Verifica la connessione e riprova.",
           "retry_finalization": "L'app è pronta, ma Home Assistant non è riuscito a completare l'aggiunta del pannello. Riprova.",
           "retry_failed": "Il nuovo tentativo non è riuscito. I dettagli sono nel rapporto di assistenza.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Questo pannello è ancora occupato da un aggiornamento o da un'altra attività. Attendi che finisca, poi riprova. Se un aggiornamento riesce, questa riparazione si chiude da sola.",
           "retry_no_longer_needed": "Questa installazione non richiede più un nuovo tentativo. Riapri la riparazione se l'errore torna.",
           "cannot_connect": "Impossibile connettersi a un endpoint valido sullo stato di funzionamento di Panel Assistant.",
@@ -2108,6 +2130,11 @@
         "title": "Rapporto hardware del proprietario",
         "description": "Apri un [rapporto GitHub precompilato]({issue_url}), controlla i dati del dispositivo e indica i test effettivamente eseguiti prima di inviarlo. Il profilo inizialmente è sconosciuto e tutti i test sono non eseguiti. Sono inclusi solo dati memorizzati che non identificano il dispositivo. Nulla viene pubblicato finché non invii il rapporto su GitHub. Creare la bozza non contatta né modifica il pannello.",
         "submit": "Fine"
+      },
+      "onboarding_check": {
+        "title": "Finish setting up this panel",
+        "description": "Open the [panel's setup page]({setup_url}) from a device on the same network as the panel, or use the setup page on the panel's own screen. Select Done to check again; this then carries on by itself once the panel connects.",
+        "submit": "Done"
       }
     },
     "error": {
@@ -2155,7 +2182,8 @@
       "panel_connected": "Il pannello è configurato e connesso a Home Assistant."
     },
     "progress": {
-      "authorize_adb": "Guarda lo schermo di {panel}: seleziona **Consenti sempre da questo computer**, poi tocca **Consenti**. Android potrebbe descrivere Home Assistant come un computer.\n\nL'operazione prosegue da sola quando il pannello lo consente."
+      "authorize_adb": "Guarda lo schermo di {panel}: seleziona **Consenti sempre da questo computer**, poi tocca **Consenti**. Android potrebbe descrivere Home Assistant come un computer.\n\nL'operazione prosegue da sola quando il pannello lo consente.",
+      "onboarding": "Waiting for the panel to connect to Home Assistant. If its setup is not finished, finish it on the panel's own screen, or open the [setup page]({setup_url}) here from a device on the same network as the panel.\n\nThis carries on by itself as soon as the panel connects."
     }
   },
   "selector": {

@@ -9,12 +9,16 @@ update compiled into it (``webview_supply``).
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 from dataclasses import asdict, dataclass
 from typing import Any
 
 from .client import HaPaneldClient, InvalidResponseError
 
+_LOGGER = logging.getLogger(__name__)
+#: How long an install waits for its browser-engine step.
+WEBVIEW_STEP_SECONDS = 120
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 ACTIVE_STATES = frozenset({"downloading", "verified", "installing"})
 ATTENTION_STATES = frozenset({"submitted_unknown", "deferred", "rejected"})
@@ -208,20 +212,35 @@ async def async_provision_webview(client: HaPaneldClient, request_id: str) -> No
     it; a failed/unknown operation waits for an explicit owner-started Repair.
     Unsupported older apps and all optional failures still permit app setup.
     """
+    loop = asyncio.get_running_loop()
+    started = loop.time()
+    state: str | None = None
     try:
-        async with asyncio.timeout(120):
+        async with asyncio.timeout(WEBVIEW_STEP_SECONDS):
             status = parse_webview(await client.async_get_webview())
+            _LOGGER.debug(
+                "WebView step %s: supported=%s eligible=%s reason=%s "
+                "candidate=%s state=%s",
+                request_id,
+                status.supported,
+                status.eligible,
+                status.reason,
+                bool(status.candidate_sha256),
+                status.transaction_state,
+            )
             if (
                 status.transaction_state is None
                 and status.supported
                 and status.eligible
                 and status.candidate_sha256
             ):
+                _LOGGER.debug("WebView step %s: requesting the update", request_id)
                 status = parse_webview(
                     await client.async_install_webview(
                         request_id, status.candidate_sha256
                     )
                 )
+            state = status.transaction_state
             while status.transaction_state in ACTIVE_STATES:
                 await asyncio.sleep(1)
                 try:
@@ -230,7 +249,29 @@ async def async_provision_webview(client: HaPaneldClient, request_id: str) -> No
                     # A known active replacement can restart the native HTTP
                     # owner. Keep reading until the existing deadline; never POST.
                     continue
-    except Exception:
+                if status.transaction_state != state:
+                    _LOGGER.debug(
+                        "WebView step %s: %s after %.0f s",
+                        request_id,
+                        status.transaction_state,
+                        loop.time() - started,
+                    )
+                    state = status.transaction_state
+    except Exception as err:
         # A timeout can follow package submission. The app's durable record, not
         # a second POST or app-job failure, owns the unknown outcome.
+        _LOGGER.debug(
+            "WebView step %s: stopped waiting after %.0f s in state %s (%s)",
+            request_id,
+            loop.time() - started,
+            state,
+            type(err).__name__,
+        )
         return
+    _LOGGER.debug(
+        "WebView step %s: finished after %.0f s in state %s (%s)",
+        request_id,
+        loop.time() - started,
+        status.transaction_state,
+        status.transaction_reason,
+    )

@@ -109,9 +109,13 @@ async def test_kept_panel_installs_into_its_original_entry(
     """A kept panel reinstalled under another account binds that account.
 
     The entry stays loaded through the keep step, as production leaves it, and
-    the reinstalled panel's own hello during setup is what binds it. The
+    the reinstalled panel's own hello during setup is what binds it. The dialog
+    waits for the panel's setup and moves on by itself once it is done. The
     reinstall then runs the device setup pass once.
     """
+    setup_done = False
+    setup_complete = AsyncMock(side_effect=lambda: setup_done)
+
     passes = _record_passes(monkeypatch)
     entry, device, entity = await _keep_loaded_panel(hass, hass_read_only_user.id)
     # Outside a reinstall, another account asking for the kept panel is still
@@ -169,6 +173,11 @@ async def test_kept_panel_installs_into_its_original_entry(
             "custom_components.panel_assistant.config_flow.async_get_durable_adb_credential",
             AsyncMock(return_value=CREDENTIAL),
         ),
+        patch(
+            "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_setup_complete",
+            setup_complete,
+        ),
+        patch("custom_components.panel_assistant.config_flow._SETUP_POLL_SECONDS", 0),
         patch.object(executor, "async_ensure_job", AsyncMock()),
         patch.object(executor, "async_wait", AsyncMock(return_value=receipt)),
         patch(
@@ -225,7 +234,7 @@ async def test_kept_panel_installs_into_its_original_entry(
                 result = await hass.config_entries.flow.async_configure(
                     progress["flow_id"]
                 )
-            assert result["type"] is FlowResultType.FORM
+            assert result["type"] is FlowResultType.SHOW_PROGRESS
             assert result["step_id"] == "panel_setup"
             assert result["description_placeholders"]["setup_url"] == (
                 "http://192.168.1.23:8888/setup"
@@ -237,9 +246,12 @@ async def test_kept_panel_installs_into_its_original_entry(
             client = await hass_ws_client(hass, hass_access_token)
             response = await _send(client, _hello(did=NEW))
             assert response["success"], response
-            result = await hass.config_entries.flow.async_configure(
-                result["flow_id"], {}
-            )
+            assert hass.config_entries.flow.async_get(result["flow_id"])
+            # The panel finishes its setup; the wait ends by itself and the
+            # dialog, told the flow moved on, fetches where it went.
+            setup_done = True
+            await hass.async_block_till_done(wait_background_tasks=True)
+            result = await hass.config_entries.flow.async_configure(result["flow_id"])
         assert result["type"] is FlowResultType.ABORT
         assert result["reason"] == "reinstall_successful"
         assert entry.data.get(CONF_TRANSPORT_USER_ID) == hass_admin_user.id
@@ -276,7 +288,7 @@ async def test_a_reinstall_closed_before_setup_finishes_leaves_the_repair(
     hass_read_only_user: Any,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Closing the setup form sends nothing; the owed pass waits for its Repair."""
+    """Closing the setup wait sends nothing; the owed pass waits for its Repair."""
     passes = _record_passes(monkeypatch)
     entry, _device, _entity = await _keep_loaded_panel(hass, hass_read_only_user.id)
     receipt = _receipt(InstallPhase.HEALTHY_UNCLAIMED)
@@ -304,6 +316,10 @@ async def test_a_reinstall_closed_before_setup_finishes_leaves_the_repair(
             f"{flow}.async_get_durable_adb_credential",
             AsyncMock(return_value=CREDENTIAL),
         ),
+        patch(
+            f"{flow}.HaPaneldClient.async_get_setup_complete",
+            AsyncMock(return_value=False),
+        ),
         patch.object(executor, "async_ensure_job", AsyncMock()),
         patch.object(executor, "async_wait", AsyncMock(return_value=receipt)),
         patch(
@@ -329,6 +345,7 @@ async def test_a_reinstall_closed_before_setup_finishes_leaves_the_repair(
                 result = await hass.config_entries.flow.async_configure(
                     progress["flow_id"]
                 )
+            assert result["type"] is FlowResultType.SHOW_PROGRESS
             assert result["step_id"] == "panel_setup"
             # The owner closes the dialog before the panel's setup is done.
             hass.config_entries.flow.async_abort(result["flow_id"])

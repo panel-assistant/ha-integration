@@ -10,7 +10,8 @@
     "webview_recovery_mismatch": "Завантажений WebView не відповідав перевіреному оновленню. Залиште панель підключеною й виберіть Спробувати ще раз, щоб завантажити його знову. Якщо це повторюється, збережіть звіт для підтримки; не встановлюйте неперевірений файл APK.",
     "webview_recovery_uncertain": "Не вдалося підтвердити результат встановлення. Залиште панель підключеною й виберіть Спробувати ще раз: спочатку перевіряється встановлений WebView, а нова спроба починається лише тоді, коли оновлення все ще відповідає необхідним умовам.",
     "webview_recovery_retry": "Операцію WebView було перервано або не вдалося завершити її підготовку. Перевірте підключення панелі та доступне місце у сховищі, а потім виберіть Спробувати ще раз. Якщо це повторюється, збережіть звіт для підтримки.",
-    "webview_recovery_download": "Панель не змогла завантажити оновлення WebView із panel-assistant.io, тому його не встановлено. Дозвольте Home Assistant доступ до {webview_site}, щоб він міг завантажити оновлення й передати його панелі, або дозвольте панелі доступ до цього сайту, а потім виберіть «Спробувати ще раз». У журналі Home Assistant зазначено, що завадило завантаженню."
+    "webview_recovery_download": "Панель не змогла завантажити оновлення WebView із panel-assistant.io, тому його не встановлено. Дозвольте Home Assistant доступ до {webview_site}, щоб він міг завантажити оновлення й передати його панелі, або дозвольте панелі доступ до цього сайту, а потім виберіть «Спробувати ще раз». У журналі Home Assistant зазначено, що завадило завантаженню.",
+    "install_portal_verifier": "On a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
   },
   "config": {
     "flow_title": "{name}",
@@ -91,19 +92,19 @@
       },
       "confirm_install_candidate": {
         "title": "Установити Panel Assistant {version}?",
-        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}"
       },
       "confirm_install_rc": {
         "title": "Установити Panel Assistant {version}?",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}"
       },
       "confirm_reinstall_candidate": {
         "title": "Установити Panel Assistant {version}?",
-        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "confirm_reinstall_rc": {
         "title": "Установити Panel Assistant {version}?",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "release_preview_only": {
         "title": "Цей випуск неможливо встановити автоматично",
@@ -130,12 +131,17 @@
         "menu_options": {
           "resume_install": "Продовжити це встановлення"
         }
+      },
+      "panel_setup_check": {
+        "title": "Finish the panel's setup",
+        "description": "The panel's setup page is on its own screen, or open the [setup page]({setup_url}) here from a device on the same network as the panel. Select Submit to check again; this then carries on by itself once the setup is finished."
       }
     },
     "progress": {
       "authorize_adb": "Подивіться на екран панелі за адресою {address}: позначте **Завжди дозволяти з цього комп’ютера**, потім торкніться **Дозволити**. Android може називати Home Assistant комп’ютером.\n\nКоли панель дозволить, процес продовжиться сам.",
       "installing": "Встановлення Panel Assistant за адресою {address}. Залиште цей діалог відкритим; операція завершиться автоматично.\n\nЯкщо ви закриєте його, встановлення триватиме. Додайте ту саму адресу ще раз, щоб завершити операцію.",
-      "updating_webview": "Оновлення рушія браузера панелі за адресою {address}…"
+      "updating_webview": "Оновлення рушія браузера панелі за адресою {address}…",
+      "panel_setup": "Now finish setting up the panel. Its setup page is on the panel's own screen; you can also open the [setup page]({setup_url}) here, from a device on the same network as the panel.\n\nThis carries on by itself as soon as the panel's setup is finished."
     },
     "error": {
       "panel_setup_not_finished": "Налаштування панелі ще не завершено. Завершіть налаштування на сторінці налаштування, а потім знову виберіть «Надіслати».",
@@ -1102,6 +1108,7 @@
           "retry_update_unavailable": "Керування оновленням панелі недоступне. Перевірте з’єднання та спробуйте знову.",
           "retry_finalization": "Застосунок готовий, але Home Assistant не завершив додавання панелі. Спробуйте знову.",
           "retry_failed": "Повторна спроба не вдалася. Подробиці є у звіті для підтримки.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ця панель ще зайнята оновленням або іншим завданням. Дочекайтеся його завершення й спробуйте ще раз. Якщо оновлення вдасться, це виправлення закриється само.",
           "retry_no_longer_needed": "Це встановлення більше не потребує повторної спроби. Відкрийте виправлення знову, якщо помилка повернеться."
         }
@@ -1145,6 +1152,7 @@
           "retry_update_unavailable": "Керування оновленням панелі недоступне. Перевірте з’єднання та спробуйте знову.",
           "retry_finalization": "Застосунок готовий, але Home Assistant не завершив додавання панелі. Спробуйте знову.",
           "retry_failed": "Повторна спроба не вдалася. Подробиці є у звіті для підтримки.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ця панель ще зайнята оновленням або іншим завданням. Дочекайтеся його завершення й спробуйте ще раз. Якщо оновлення вдасться, це виправлення закриється само.",
           "retry_no_longer_needed": "Це встановлення більше не потребує повторної спроби. Відкрийте виправлення знову, якщо помилка повернеться."
         }
@@ -1188,6 +1196,7 @@
           "retry_update_unavailable": "Керування оновленням панелі недоступне. Перевірте з’єднання та спробуйте знову.",
           "retry_finalization": "Застосунок готовий, але Home Assistant не завершив додавання панелі. Спробуйте знову.",
           "retry_failed": "Повторна спроба не вдалася. Подробиці є у звіті для підтримки.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ця панель ще зайнята оновленням або іншим завданням. Дочекайтеся його завершення й спробуйте ще раз. Якщо оновлення вдасться, це виправлення закриється само.",
           "retry_no_longer_needed": "Це встановлення більше не потребує повторної спроби. Відкрийте виправлення знову, якщо помилка повернеться."
         }
@@ -1231,6 +1240,7 @@
           "retry_update_unavailable": "Керування оновленням панелі недоступне. Перевірте з’єднання та спробуйте знову.",
           "retry_finalization": "Застосунок готовий, але Home Assistant не завершив додавання панелі. Спробуйте знову.",
           "retry_failed": "Повторна спроба не вдалася. Подробиці є у звіті для підтримки.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ця панель ще зайнята оновленням або іншим завданням. Дочекайтеся його завершення й спробуйте ще раз. Якщо оновлення вдасться, це виправлення закриється само.",
           "retry_no_longer_needed": "Це встановлення більше не потребує повторної спроби. Відкрийте виправлення знову, якщо помилка повернеться."
         }
@@ -1274,6 +1284,7 @@
           "retry_update_unavailable": "Керування оновленням панелі недоступне. Перевірте з’єднання та спробуйте знову.",
           "retry_finalization": "Застосунок готовий, але Home Assistant не завершив додавання панелі. Спробуйте знову.",
           "retry_failed": "Повторна спроба не вдалася. Подробиці є у звіті для підтримки.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ця панель ще зайнята оновленням або іншим завданням. Дочекайтеся його завершення й спробуйте ще раз. Якщо оновлення вдасться, це виправлення закриється само.",
           "retry_no_longer_needed": "Це встановлення більше не потребує повторної спроби. Відкрийте виправлення знову, якщо помилка повернеться."
         }
@@ -1317,6 +1328,7 @@
           "retry_update_unavailable": "Керування оновленням панелі недоступне. Перевірте з’єднання та спробуйте знову.",
           "retry_finalization": "Застосунок готовий, але Home Assistant не завершив додавання панелі. Спробуйте знову.",
           "retry_failed": "Повторна спроба не вдалася. Подробиці є у звіті для підтримки.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ця панель ще зайнята оновленням або іншим завданням. Дочекайтеся його завершення й спробуйте ще раз. Якщо оновлення вдасться, це виправлення закриється само.",
           "retry_no_longer_needed": "Це встановлення більше не потребує повторної спроби. Відкрийте виправлення знову, якщо помилка повернеться."
         }
@@ -1360,6 +1372,7 @@
           "retry_update_unavailable": "Керування оновленням панелі недоступне. Перевірте з’єднання та спробуйте знову.",
           "retry_finalization": "Застосунок готовий, але Home Assistant не завершив додавання панелі. Спробуйте знову.",
           "retry_failed": "Повторна спроба не вдалася. Подробиці є у звіті для підтримки.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ця панель ще зайнята оновленням або іншим завданням. Дочекайтеся його завершення й спробуйте ще раз. Якщо оновлення вдасться, це виправлення закриється само.",
           "retry_no_longer_needed": "Це встановлення більше не потребує повторної спроби. Відкрийте виправлення знову, якщо помилка повернеться."
         }
@@ -1403,6 +1416,7 @@
           "retry_update_unavailable": "Керування оновленням панелі недоступне. Перевірте з’єднання та спробуйте знову.",
           "retry_finalization": "Застосунок готовий, але Home Assistant не завершив додавання панелі. Спробуйте знову.",
           "retry_failed": "Повторна спроба не вдалася. Подробиці є у звіті для підтримки.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ця панель ще зайнята оновленням або іншим завданням. Дочекайтеся його завершення й спробуйте ще раз. Якщо оновлення вдасться, це виправлення закриється само.",
           "retry_no_longer_needed": "Це встановлення більше не потребує повторної спроби. Відкрийте виправлення знову, якщо помилка повернеться."
         }
@@ -1446,6 +1460,7 @@
           "retry_update_unavailable": "Керування оновленням панелі недоступне. Перевірте з’єднання та спробуйте знову.",
           "retry_finalization": "Застосунок готовий, але Home Assistant не завершив додавання панелі. Спробуйте знову.",
           "retry_failed": "Повторна спроба не вдалася. Подробиці є у звіті для підтримки.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ця панель ще зайнята оновленням або іншим завданням. Дочекайтеся його завершення й спробуйте ще раз. Якщо оновлення вдасться, це виправлення закриється само.",
           "retry_no_longer_needed": "Це встановлення більше не потребує повторної спроби. Відкрийте виправлення знову, якщо помилка повернеться."
         }
@@ -1489,6 +1504,7 @@
           "retry_update_unavailable": "Керування оновленням панелі недоступне. Перевірте з’єднання та спробуйте знову.",
           "retry_finalization": "Застосунок готовий, але Home Assistant не завершив додавання панелі. Спробуйте знову.",
           "retry_failed": "Повторна спроба не вдалася. Подробиці є у звіті для підтримки.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ця панель ще зайнята оновленням або іншим завданням. Дочекайтеся його завершення й спробуйте ще раз. Якщо оновлення вдасться, це виправлення закриється само.",
           "retry_no_longer_needed": "Це встановлення більше не потребує повторної спроби. Відкрийте виправлення знову, якщо помилка повернеться."
         }
@@ -1532,6 +1548,7 @@
           "retry_update_unavailable": "Керування оновленням панелі недоступне. Перевірте з’єднання та спробуйте знову.",
           "retry_finalization": "Застосунок готовий, але Home Assistant не завершив додавання панелі. Спробуйте знову.",
           "retry_failed": "Повторна спроба не вдалася. Подробиці є у звіті для підтримки.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ця панель ще зайнята оновленням або іншим завданням. Дочекайтеся його завершення й спробуйте ще раз. Якщо оновлення вдасться, це виправлення закриється само.",
           "retry_no_longer_needed": "Це встановлення більше не потребує повторної спроби. Відкрийте виправлення знову, якщо помилка повернеться."
         }
@@ -1581,6 +1598,7 @@
           "retry_update_unavailable": "Керування оновленням панелі недоступне. Перевірте з’єднання та спробуйте знову.",
           "retry_finalization": "Застосунок готовий, але Home Assistant не завершив додавання панелі. Спробуйте знову.",
           "retry_failed": "Повторна спроба не вдалася. Подробиці є у звіті для підтримки.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ця панель ще зайнята оновленням або іншим завданням. Дочекайтеся його завершення й спробуйте ще раз. Якщо оновлення вдасться, це виправлення закриється само.",
           "retry_no_longer_needed": "Це встановлення більше не потребує повторної спроби. Відкрийте виправлення знову, якщо помилка повернеться.",
           "cannot_connect": "Не вдалося встановити з'єднання з дійсною кінцевою точкою перевірки працездатності Panel Assistant.",
@@ -1649,6 +1667,7 @@
           "retry_update_unavailable": "Керування оновленням панелі недоступне. Перевірте з’єднання та спробуйте знову.",
           "retry_finalization": "Застосунок готовий, але Home Assistant не завершив додавання панелі. Спробуйте знову.",
           "retry_failed": "Повторна спроба не вдалася. Подробиці є у звіті для підтримки.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ця панель ще зайнята оновленням або іншим завданням. Дочекайтеся його завершення й спробуйте ще раз. Якщо оновлення вдасться, це виправлення закриється само.",
           "retry_no_longer_needed": "Це встановлення більше не потребує повторної спроби. Відкрийте виправлення знову, якщо помилка повернеться.",
           "cannot_connect": "Не вдалося встановити з'єднання з дійсною кінцевою точкою перевірки працездатності Panel Assistant.",
@@ -1717,6 +1736,7 @@
           "retry_update_unavailable": "Керування оновленням панелі недоступне. Перевірте з’єднання та спробуйте знову.",
           "retry_finalization": "Застосунок готовий, але Home Assistant не завершив додавання панелі. Спробуйте знову.",
           "retry_failed": "Повторна спроба не вдалася. Подробиці є у звіті для підтримки.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_no_longer_needed": "Це встановлення більше не потребує повторної спроби. Відкрийте виправлення знову, якщо помилка повернеться.",
           "cannot_connect": "Не вдалося встановити з'єднання з дійсною кінцевою точкою перевірки працездатності Panel Assistant.",
           "invalid_install_address": "Введіть лише ім’я хоста або IP-адресу панелі.",
@@ -1778,6 +1798,7 @@
           "retry_update_unavailable": "Керування оновленням панелі недоступне. Перевірте з’єднання та спробуйте знову.",
           "retry_finalization": "Застосунок готовий, але Home Assistant не завершив додавання панелі. Спробуйте знову.",
           "retry_failed": "Повторна спроба не вдалася. Подробиці є у звіті для підтримки.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ця панель ще зайнята оновленням або іншим завданням. Дочекайтеся його завершення й спробуйте ще раз. Якщо оновлення вдасться, це виправлення закриється само.",
           "retry_no_longer_needed": "Це встановлення більше не потребує повторної спроби. Відкрийте виправлення знову, якщо помилка повернеться."
         },
@@ -1864,6 +1885,7 @@
           "retry_update_unavailable": "Керування оновленням панелі недоступне. Перевірте з’єднання та спробуйте знову.",
           "retry_finalization": "Застосунок готовий, але Home Assistant не завершив додавання панелі. Спробуйте знову.",
           "retry_failed": "Повторна спроба не вдалася. Подробиці є у звіті для підтримки.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ця панель ще зайнята оновленням або іншим завданням. Дочекайтеся його завершення й спробуйте ще раз. Якщо оновлення вдасться, це виправлення закриється само.",
           "retry_no_longer_needed": "Це встановлення більше не потребує повторної спроби. Відкрийте виправлення знову, якщо помилка повернеться.",
           "cannot_connect": "Не вдалося встановити з'єднання з дійсною кінцевою точкою перевірки працездатності Panel Assistant.",
@@ -2108,6 +2130,11 @@
         "title": "Звіт власника про обладнання",
         "description": "Відкрийте [попередньо заповнений звіт GitHub]({issue_url}), перевірте дані пристрою та перед надсиланням укажіть фактично виконані тести. Дані профілю спочатку невідомі, а всі тести не виконані. Додаються лише неідентифікаційні дані з кешу. Нічого не публікується, доки ви не надішлете звіт на GitHub. Створення чернетки не з’єднується з панеллю та не змінює її.",
         "submit": "Готово"
+      },
+      "onboarding_check": {
+        "title": "Finish setting up this panel",
+        "description": "Open the [panel's setup page]({setup_url}) from a device on the same network as the panel, or use the setup page on the panel's own screen. Select Done to check again; this then carries on by itself once the panel connects.",
+        "submit": "Done"
       }
     },
     "error": {
@@ -2155,7 +2182,8 @@
       "panel_connected": "Панель налаштовано та підключено до Home Assistant."
     },
     "progress": {
-      "authorize_adb": "Подивіться на екран панелі {panel}: позначте **Завжди дозволяти з цього комп’ютера**, потім торкніться **Дозволити**. Android може називати Home Assistant комп’ютером.\n\nКоли панель дозволить, процес продовжиться сам."
+      "authorize_adb": "Подивіться на екран панелі {panel}: позначте **Завжди дозволяти з цього комп’ютера**, потім торкніться **Дозволити**. Android може називати Home Assistant комп’ютером.\n\nКоли панель дозволить, процес продовжиться сам.",
+      "onboarding": "Waiting for the panel to connect to Home Assistant. If its setup is not finished, finish it on the panel's own screen, or open the [setup page]({setup_url}) here from a device on the same network as the panel.\n\nThis carries on by itself as soon as the panel connects."
     }
   },
   "selector": {

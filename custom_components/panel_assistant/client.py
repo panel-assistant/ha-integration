@@ -665,6 +665,52 @@ async def _refusal_reason(response: ClientResponse) -> str:
     return " ".join(body.decode("utf-8", "replace").split())[:_MAX_REFUSAL_REASON_CHARS]
 
 
+# The panel's staging refusal codes an owner can act on, in plain words; any
+# other code is shown as the panel sent it.
+_STAGING_REFUSALS = {
+    "blob-unavailable": "it could not download the update from Home Assistant",
+    "blob-mismatch": "the update it downloaded did not match the signed release",
+    "insufficient-storage": "it does not have enough free storage",
+    "not-an-apk": "the file it received is not an app",
+    "upload-staging-failed": "it could not prepare storage for the update",
+}
+
+
+def refusal_code(body: object, key: str) -> str | None:
+    """The short code a refusal body names in ``key``, if usable.
+
+    Stage refusals name it as ``error``; commit refusals as ``status`` (for
+    example ``{"status": "stale-or-missing"}``). A code that is missing, long
+    or not printable ASCII is dropped, so the owner gets the generic refusal
+    rather than whatever the panel sent.
+    """
+    code = body.get(key) if isinstance(body, dict) else None
+    if (
+        isinstance(code, str)
+        and code
+        and len(code) <= _MAX_REFUSAL_REASON_CHARS
+        and all(" " <= character <= "~" for character in code)
+    ):
+        return code
+    return None
+
+
+def staging_refusal(code: str | None) -> UpdateRejectedError:
+    """A stage or commit refusal carrying the panel's code, in plain words."""
+    if code is None:
+        return UpdateRejectedError()
+    words = _STAGING_REFUSALS.get(code)
+    return UpdateRejectedError(f"{words} ({code})" if words else code)
+
+
+def _body_code(body: bytes, key: str) -> str | None:
+    """[refusal_code] for an HTTP refusal body, which may not be JSON."""
+    try:
+        return refusal_code(_load_json_object(body), key)
+    except InvalidResponseError:
+        return None
+
+
 _MAX_DISPLAY_BYTES = 16 * 1024
 # The panel verifies the address it is handed before answering, with its own
 # bounded probe, so this waits out that probe rather than the default request.
@@ -1101,9 +1147,15 @@ class HaPaneldClient:
             raise StagingUnavailableError
         if status == 409:
             raise UpdateBusyError
-        # Any other 4xx, and "no space" (507), are the panel saying no.
-        if 400 <= status < 500 or status == 507:
-            raise UpdateRejectedError
+        # Any other 4xx, and "no space" (507), are the panel saying no; so is
+        # a server error that names a staging failure.
+        code = _body_code(body, "error")
+        if (
+            400 <= status < 500
+            or status == 507
+            or (status >= 500 and code in _STAGING_REFUSALS)
+        ):
+            raise staging_refusal(code)
         raise CannotConnectError
 
     async def async_commit_apk(self, token: str) -> None:
@@ -1121,7 +1173,7 @@ class HaPaneldClient:
         if status == 403:
             raise UploadDisabledError
         if 400 <= status < 500:
-            raise UpdateRejectedError
+            raise staging_refusal(_body_code(body, "status"))
         raise CannotConnectError
 
     async def async_discard_apk(self, token: str) -> None:

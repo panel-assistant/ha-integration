@@ -281,7 +281,12 @@ async def test_found_panel_offers_its_unfinished_setup_before_connecting(hass):
 
 
 async def test_setup_wizard_opens_and_the_flow_connects_when_setup_is_done(hass):
-    """The setup page is linked in a form; Submit connects once setup is done."""
+    """The setup page is linked while the dialog waits; it connects once done.
+
+    A form that only Submit moved on kept saying setup was unfinished after
+    the panel had finished it. The dialog now waits by itself and adds the
+    panel as soon as the panel reports its setup complete.
+    """
     setup = AsyncMock(side_effect=[False, True])
     # The panel's setup state agrees with its completion once the wizard ends;
     # the entry is created only after that durable completion.
@@ -303,16 +308,23 @@ async def test_setup_wizard_opens_and_the_flow_connects_when_setup_is_done(hass)
         opened = await hass.config_entries.flow.async_configure(
             form["flow_id"], {"next_step_id": "panel_setup"}
         )
-        assert opened["type"] is FlowResultType.FORM
+        assert opened["type"] is FlowResultType.SHOW_PROGRESS
+        assert opened["step_id"] == "panel_setup"
+        assert opened["progress_action"] == "panel_setup"
         # The setup page is linked at the address the installer pinned.
-        assert opened["description_placeholders"]["setup_url"] == (
-            "http://192.168.1.23:8889/setup"
-        )
-        early = await hass.config_entries.flow.async_configure(form["flow_id"], {})
-        assert early["errors"] == {"base": "panel_setup_not_finished"}
-        done = await hass.config_entries.flow.async_configure(form["flow_id"], {})
+        assert opened["description_placeholders"] == {
+            "setup_url": "http://192.168.1.23:8889/setup"
+        }
+        # The first read said not finished; nothing is added yet.
+        assert setup.await_count == 1
+        assert not hass.config_entries.async_entries(DOMAIN)
+        # The wait ends by itself; the dialog, told the flow moved on,
+        # fetches where it went.
+        await hass.async_block_till_done(wait_background_tasks=True)
+        done = await hass.config_entries.flow.async_configure(opened["flow_id"])
     assert done["type"] is FlowResultType.CREATE_ENTRY
     assert setup.await_count == 2
+    assert len(hass.config_entries.async_entries(DOMAIN)) == 1
 
 
 async def test_a_panel_that_cannot_report_setup_is_offered_its_setup(hass):
@@ -411,7 +423,12 @@ async def test_opening_the_wizard_tells_the_panel_where_home_assistant_is(hass):
         opened = await hass.config_entries.flow.async_configure(
             form["flow_id"], {"next_step_id": "panel_setup"}
         )
-        assert opened["type"] is FlowResultType.FORM
+        assert opened["type"] is FlowResultType.SHOW_PROGRESS
+        hand_over.assert_awaited_once_with("http://192.0.2.5:8123", [])
+        # The dialog refetches a waiting step; the panel is not told again.
+        again = await hass.config_entries.flow.async_configure(opened["flow_id"])
+        assert again["type"] is FlowResultType.SHOW_PROGRESS
+        hass.config_entries.flow.async_abort(opened["flow_id"])
 
     hand_over.assert_awaited_once_with("http://192.0.2.5:8123", [])
 

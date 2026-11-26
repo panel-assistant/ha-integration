@@ -74,6 +74,11 @@ async def test_interrupted_first_setup_keeps_receipt_retryable_after_restart(
         "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_setup_state",
         setup,
     )
+    # The waiting step reads the same answer through its shorthand.
+    monkeypatch.setattr(
+        "custom_components.panel_assistant.config_flow.HaPaneldClient.async_get_setup_complete",
+        AsyncMock(side_effect=lambda: setup.return_value.complete),
+    )
     first = HaPaneldConfigFlow()
     first.hass = hass
     first.flow_id = "before_restart"
@@ -81,11 +86,16 @@ async def test_interrupted_first_setup_keeps_receipt_retryable_after_restart(
     first._install_executor = InstallExecutor(hass, manager)
     result = await first._async_finalize_healthy_install(receipt)
 
-    assert result["type"] is FlowResultType.FORM
+    # The dialog waits for the panel's own setup in a step that moves on by
+    # itself, holding neither the finalizer lease nor an entry meanwhile.
+    assert result["type"] is FlowResultType.SHOW_PROGRESS
     assert result["step_id"] == "panel_setup"
+    assert result["progress_action"] == "panel_setup"
     assert not first._install_executor.is_finalizer_active(receipt.job_id)
     assert not hass.config_entries.async_entries(DOMAIN)
     first.async_remove()
+    # Closing the dialog stops the wait: nothing is left polling the panel.
+    await asyncio.wait_for(hass.async_block_till_done(wait_background_tasks=True), 5)
     restarted = InstallJobManager(hass)
     saved = await restarted.async_get(receipt.job_id)
     assert saved.phase is InstallPhase.HEALTHY_UNCLAIMED

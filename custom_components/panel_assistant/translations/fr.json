@@ -10,7 +10,8 @@
     "webview_recovery_mismatch": "Le WebView téléchargé ne correspondait pas à la mise à jour vérifiée. Gardez le panneau connecté et sélectionnez Réessayer pour le télécharger à nouveau. Si cela se reproduit, enregistrez un rapport d’assistance ; n’installez pas de fichier APK non vérifié.",
     "webview_recovery_uncertain": "Le résultat de l’installation n’a pas pu être confirmé. Gardez le panneau connecté et sélectionnez Réessayer : le WebView installé est d’abord vérifié, et une nouvelle tentative ne commence que si la mise à jour remplit toujours les conditions requises.",
     "webview_recovery_retry": "L’opération WebView a été interrompue ou n’a pas pu terminer sa préparation. Vérifiez la connexion du panneau et l’espace de stockage disponible, puis sélectionnez Réessayer. Enregistrez un rapport d’assistance si cela se reproduit.",
-    "webview_recovery_download": "Le panneau n’a pas pu télécharger sa mise à jour WebView depuis panel-assistant.io ; elle n’a donc pas été installée. Autorisez Home Assistant à accéder à {webview_site} pour télécharger la mise à jour et la transmettre au panneau, ou autorisez le panneau à y accéder, puis sélectionnez Réessayer. Le journal Home Assistant indique ce qui a empêché le téléchargement."
+    "webview_recovery_download": "Le panneau n’a pas pu télécharger sa mise à jour WebView depuis panel-assistant.io ; elle n’a donc pas été installée. Autorisez Home Assistant à accéder à {webview_site} pour télécharger la mise à jour et la transmettre au panneau, ou autorisez le panneau à y accéder, puis sélectionnez Réessayer. Le journal Home Assistant indique ce qui a empêché le téléchargement.",
+    "install_portal_verifier": "On a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
   },
   "config": {
     "flow_title": "{name}",
@@ -91,19 +92,19 @@
       },
       "confirm_install_candidate": {
         "title": "Installer Panel Assistant {version} ?",
-        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}"
       },
       "confirm_install_rc": {
         "title": "Installer Panel Assistant {version} ?",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}"
       },
       "confirm_reinstall_candidate": {
         "title": "Installer Panel Assistant {version} ?",
-        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "confirm_reinstall_rc": {
         "title": "Installer Panel Assistant {version} ?",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "release_preview_only": {
         "title": "La version ne peut pas être installée automatiquement",
@@ -130,12 +131,17 @@
         "menu_options": {
           "resume_install": "Poursuivre cette installation"
         }
+      },
+      "panel_setup_check": {
+        "title": "Finish the panel's setup",
+        "description": "The panel's setup page is on its own screen, or open the [setup page]({setup_url}) here from a device on the same network as the panel. Select Submit to check again; this then carries on by itself once the setup is finished."
       }
     },
     "progress": {
       "authorize_adb": "Regardez l'écran du panneau à l'adresse {address} : cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**. Android peut décrire Home Assistant comme un ordinateur.\n\nL'opération se poursuivra d'elle-même dès que le panneau l'aura autorisé.",
       "installing": "Installation de Panel Assistant à l’adresse {address}. Gardez cette boîte de dialogue ouverte ; l’opération se termine automatiquement.\n\nSi vous la fermez, l’installation continue. Ajoutez à nouveau la même adresse pour terminer.",
-      "updating_webview": "Mise à jour du moteur de navigateur du panneau à l’adresse {address}…"
+      "updating_webview": "Mise à jour du moteur de navigateur du panneau à l’adresse {address}…",
+      "panel_setup": "Now finish setting up the panel. Its setup page is on the panel's own screen; you can also open the [setup page]({setup_url}) here, from a device on the same network as the panel.\n\nThis carries on by itself as soon as the panel's setup is finished."
     },
     "error": {
       "panel_setup_not_finished": "Le panneau n’a pas encore terminé sa configuration. Complétez la page de configuration, puis sélectionnez à nouveau Valider.",
@@ -1102,6 +1108,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         }
@@ -1145,6 +1152,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         }
@@ -1188,6 +1196,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         }
@@ -1231,6 +1240,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         }
@@ -1274,6 +1284,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         }
@@ -1317,6 +1328,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         }
@@ -1360,6 +1372,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         }
@@ -1403,6 +1416,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         }
@@ -1446,6 +1460,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         }
@@ -1489,6 +1504,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         }
@@ -1532,6 +1548,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         }
@@ -1581,6 +1598,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient.",
           "cannot_connect": "Impossible de se connecter à un point de terminaison d'état Panel Assistant valide.",
@@ -1649,6 +1667,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient.",
           "cannot_connect": "Impossible de se connecter à un point de terminaison d'état Panel Assistant valide.",
@@ -1717,6 +1736,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient.",
           "cannot_connect": "Impossible de se connecter à un point de terminaison d'état Panel Assistant valide.",
           "invalid_install_address": "Saisissez uniquement le nom d’hôte ou l’adresse IP du panneau.",
@@ -1778,6 +1798,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient."
         },
@@ -1864,6 +1885,7 @@
           "retry_update_unavailable": "La commande de mise à jour du panneau est indisponible. Vérifiez sa connexion et réessayez.",
           "retry_finalization": "L'application est prête, mais Home Assistant n'a pas pu terminer l'ajout du panneau. Réessayez.",
           "retry_failed": "La nouvelle tentative a échoué. Le rapport d'assistance contient les détails.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Ce panneau est encore occupé par une mise à jour ou une autre tâche. Attendez qu'elle se termine, puis réessayez. Si une mise à jour réussit, cette réparation se ferme d'elle-même.",
           "retry_no_longer_needed": "Cette installation n'a plus besoin d'une nouvelle tentative. Rouvrez la réparation si l'erreur revient.",
           "cannot_connect": "Impossible de se connecter à un point de terminaison d'état Panel Assistant valide.",
@@ -2108,6 +2130,11 @@
         "title": "Rapport matériel du propriétaire",
         "description": "Ouvrez un [rapport GitHub prérempli]({issue_url}), vérifiez les informations de l’appareil et indiquez les tests réellement effectués avant de l’envoyer. Le profil est initialement inconnu et tous les tests sont non effectués. Seules des informations en cache non identifiantes sont incluses. Rien n’est publié avant votre envoi sur GitHub. Créer ce brouillon ne contacte ni ne modifie le panneau.",
         "submit": "Terminé"
+      },
+      "onboarding_check": {
+        "title": "Finish setting up this panel",
+        "description": "Open the [panel's setup page]({setup_url}) from a device on the same network as the panel, or use the setup page on the panel's own screen. Select Done to check again; this then carries on by itself once the panel connects.",
+        "submit": "Done"
       }
     },
     "error": {
@@ -2155,7 +2182,8 @@
       "panel_connected": "Le panneau est configuré et connecté à Home Assistant."
     },
     "progress": {
-      "authorize_adb": "Regardez l’écran de {panel} : cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**. Android peut décrire Home Assistant comme un ordinateur.\n\nL'opération se poursuivra d'elle-même dès que le panneau l'aura autorisé."
+      "authorize_adb": "Regardez l’écran de {panel} : cochez **Toujours autoriser sur cet ordinateur**, puis touchez **Autoriser**. Android peut décrire Home Assistant comme un ordinateur.\n\nL'opération se poursuivra d'elle-même dès que le panneau l'aura autorisé.",
+      "onboarding": "Waiting for the panel to connect to Home Assistant. If its setup is not finished, finish it on the panel's own screen, or open the [setup page]({setup_url}) here from a device on the same network as the panel.\n\nThis carries on by itself as soon as the panel connects."
     }
   },
   "selector": {

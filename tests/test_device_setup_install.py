@@ -30,6 +30,7 @@ from custom_components.panel_assistant.const import (
     CONF_DEVICE_SETUP_OWED,
     CONF_INSTALL_APPS_PENDING,
     CONF_INSTALL_AREA_PENDING,
+    CONF_TRANSPORT_USER_ID,
     DOMAIN,
     SOURCE_USB_INSTALL,
 )
@@ -250,19 +251,21 @@ async def test_companion_install_keeps_the_verified_identity_when_health_is_unre
         assert (
             await manager.async_get(receipt.job_id)
         ).consumed_entry_id == entry.entry_id
-        (_, onboarding) = result["next_flow"]
-        assert (
-            hass.config_entries.options.async_get(onboarding)["step_id"] == "onboarding"
-        )
-        early = await hass.config_entries.options.async_configure(onboarding, {})
-        assert early["errors"] == {"base": "panel_not_connected"}
+        # The install ends at its entry; no options flow is left open behind it.
+        assert "next_flow" not in result
+        assert hass.config_entries.options.async_progress() == []
+        assert CONF_TRANSPORT_USER_ID not in entry.data
 
         client = await hass_ws_client(hass, hass_read_only_access_token)
         wrong = await _send(client, _hello(did="e" * 64, addresses=[SEEDED_IP]))
         assert wrong["error"]["code"] == "unknown_panel"
         response = await _send(client, _hello(did=PANEL_DID, addresses=[SEEDED_IP]))
         assert response["success"], (entry.unique_id, response)
-        finished = await hass.config_entries.options.async_configure(onboarding, {})
+        # The panel's own hello binds it; Continue setup has nothing left to do.
+        assert CONF_TRANSPORT_USER_ID in entry.data
+        finished = await hass.config_entries.options.async_init(
+            entry.entry_id, context={"source": "onboarding"}
+        )
         assert finished["type"] is FlowResultType.ABORT
         assert finished["reason"] == "panel_connected"
         await client.close()

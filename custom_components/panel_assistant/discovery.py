@@ -462,6 +462,43 @@ def offer_blocked(
     )
 
 
+async def _async_installing_from_a_card(
+    flow: HaPaneldConfigFlow, discovery_id: str, address: str, hosts: frozenset[str]
+) -> bool:
+    """Whether a card a person confirmed is installing the panel at this address.
+
+    Only for a panel Home Assistant does not know yet: an announcement of a
+    known panel still re-adopts it or moves its address as before.
+    """
+    hass = flow.hass
+    if any(
+        entry.unique_id == discovery_id or entry.data.get(CONF_ADDRESS) == address
+        for entry in hass.config_entries.async_entries(DOMAIN)
+    ):
+        return False
+    wanted = _wanted(address, hosts)
+    if not any(
+        other["flow_id"] != flow.flow_id
+        and CONFIRMED in other["context"].get("title_placeholders", {})
+        and wanted & _card_hosts(hass, other)
+        for other in hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    ):
+        return False
+    from .install_jobs import async_get_install_job_manager
+    from .install_receipt import InstallJobError
+
+    try:
+        receipts = await (await async_get_install_job_manager(hass)).async_list()
+    except InstallJobError:
+        return False
+    return any(
+        not receipt.is_terminal
+        and wanted
+        & {_host_of(receipt.target.address), _host_of(receipt.target.pinned_address)}
+        for receipt in receipts
+    )
+
+
 @callback
 def close_offers(
     hass: HomeAssistant,
@@ -814,6 +851,12 @@ async def _async_discovered_app(
     flow._pending_friendly_name = _presentation_safe_name(advertised_name)
     flow._discovery_addresses = dict.fromkeys(addresses, hosts)
     if flow.hass.config_entries.flow.async_has_matching_flow(flow):
+        return flow.async_abort(reason="already_in_progress")
+    if await _async_installing_from_a_card(
+        flow, discovery_id, address.stored_value, hosts
+    ):
+        # A person is installing this panel from its card. The app announces
+        # itself each time it starts during that install; the card adds it.
         return flow.async_abort(reason="already_in_progress")
     await flow.async_set_unique_id(discovery_id)
     for existing in flow.hass.config_entries.async_entries(DOMAIN):

@@ -989,6 +989,83 @@ async def test_upload_disabled_is_reported(
     assert entity.in_progress is False
 
 
+@pytest.mark.parametrize(
+    ("stage", "commit", "reason"),
+    [
+        (
+            (507, b'{"ok":false,"error":"insufficient-storage"}'),
+            None,
+            "it does not have enough free storage (insufficient-storage)",
+        ),
+        (
+            (500, b'{"ok":false,"error":"upload-staging-failed"}'),
+            None,
+            "it could not prepare storage for the update (upload-staging-failed)",
+        ),
+        ((400, b"not json"), None, None),
+        (
+            None,
+            (409, b'{"error":"ignored","status":"stale-or-missing"}'),
+            "stale-or-missing",
+        ),
+    ],
+)
+async def test_http_staging_refusal_names_the_panels_reason(
+    hass: HomeAssistant,
+    delivery: SimpleNamespace,
+    stage: tuple[int, bytes] | None,
+    commit: tuple[int, bytes] | None,
+    reason: str | None,
+) -> None:
+    """The HTTP route passes the panel's refusal code on as the session does."""
+    entity, client = _entity(hass)
+    entity._title = "Example panel"
+    http = HaPaneldClient(MagicMock(), normalize_address("panel.local"))
+    if stage is not None:
+        http._async_post_bounded = AsyncMock(return_value=stage)  # type: ignore[method-assign]
+        client.async_stage_apk = http.async_stage_apk
+    else:
+        assert commit is not None
+        http._async_post_bounded = AsyncMock(return_value=commit)  # type: ignore[method-assign]
+        client.async_commit_apk = http.async_commit_apk
+
+    with pytest.raises(ServiceValidationError) as error:
+        await entity.async_install(None, False)
+
+    if reason is None:
+        _assert_translated(error.value, "update_rejected")
+    else:
+        _assert_translated(error.value, "update_refused_by_panel")
+        assert error.value.translation_placeholders == {
+            "panel": "Example panel",
+            "reason": reason,
+        }
+
+
+@pytest.mark.parametrize(
+    ("status", "body"),
+    [
+        (500, b""),
+        (500, b'{"ok":false,"error":"a-future-code"}'),
+        (502, b'{"ok":false,"status":"upload-staging-failed"}'),
+        (307, b'{"ok":false,"error":"upload-staging-failed"}'),
+    ],
+)
+async def test_http_stage_server_error_without_a_staging_code_is_unreachable(
+    hass: HomeAssistant, delivery: SimpleNamespace, status: int, body: bytes
+) -> None:
+    """Only a 5xx naming a staging failure in its error field is a refusal."""
+    entity, client = _entity(hass)
+    http = HaPaneldClient(MagicMock(), normalize_address("panel.local"))
+    http._async_post_bounded = AsyncMock(return_value=(status, body))  # type: ignore[method-assign]
+    client.async_stage_apk = http.async_stage_apk
+
+    with pytest.raises(HomeAssistantError) as error:
+        await entity.async_install(None, False)
+
+    assert error.value.translation_key == "update_not_accepted"
+
+
 async def test_stage_503_refusal_reports_one_named_actionable_error(
     hass: HomeAssistant,
     delivery: SimpleNamespace,

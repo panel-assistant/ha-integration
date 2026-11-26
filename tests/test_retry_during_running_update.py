@@ -56,14 +56,14 @@ async def _panel(
     platforms: list[EntityPlatform],
     *,
     transport: bool = False,
+    feed: bool = True,
+    title: str = "Kitchen",
 ) -> tuple[Any, Any, asyncio.Event, asyncio.Event]:
     """Attach the real update entity to Home Assistant's update component."""
     data = {CONF_ADDRESS: "kitchen.local"}
     if transport:
         data[CONF_TRANSPORT_USER_ID] = "transport-user"
-    entry = MockConfigEntry(
-        domain=DOMAIN, entry_id="entry-id", title="Kitchen", data=data
-    )
+    entry = MockConfigEntry(domain=DOMAIN, entry_id="entry-id", title=title, data=data)
     entry.add_to_hass(hass)
     monkeypatch.setattr(
         panel_update, "async_update_webview", AsyncMock(return_value=None)
@@ -72,7 +72,7 @@ async def _panel(
     monkeypatch.setattr(update_progress, "_ANDROID_PACKAGE_INSTALL_MAX_SECONDS", 0)
     monkeypatch.setattr(update_progress, "_RESTART_HEALTH_GRACE_SECONDS", 0.05)
     monkeypatch.setattr(update_progress, "_UPDATE_RECHECK_SECONDS", 0.001)
-    entity, client = _entity(hass, feed=True)
+    entity, client = _entity(hass, feed=feed)
     del entity.async_write_ha_state
     staging = asyncio.Event()
     release = asyncio.Event()

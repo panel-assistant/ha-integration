@@ -10,7 +10,8 @@
     "webview_recovery_mismatch": "Stažené WebView neodpovídalo ověřené aktualizaci. Nechte panel připojený a vyberte Zkusit znovu pro nové stažení. Pokud se to opakuje, uložte si zprávu pro podporu; neinstalujte neověřený soubor APK.",
     "webview_recovery_uncertain": "Výsledek instalace se nepodařilo potvrdit. Nechte panel připojený a vyberte Zkusit znovu: nejprve se zkontroluje nainstalované WebView a nový pokus začne, pouze pokud aktualizace stále splňuje podmínky.",
     "webview_recovery_retry": "Operace WebView byla přerušena nebo nemohla dokončit přípravu. Zkontrolujte připojení panelu a volné úložiště a poté vyberte Zkusit znovu. Pokud se to opakuje, uložte si zprávu pro podporu.",
-    "webview_recovery_download": "Panel nemohl stáhnout aktualizaci WebView z panel-assistant.io, proto nebyla nainstalována. Povolte Home Assistant přístup k {webview_site}, aby mohl aktualizaci stáhnout a předat panelu, nebo povolte přístup panelu a pak vyberte Zkusit znovu. Protokol Home Assistant uvádí, co stahování zastavilo."
+    "webview_recovery_download": "Panel nemohl stáhnout aktualizaci WebView z panel-assistant.io, proto nebyla nainstalována. Povolte Home Assistant přístup k {webview_site}, aby mohl aktualizaci stáhnout a předat panelu, nebo povolte přístup panelu a pak vyberte Zkusit znovu. Protokol Home Assistant uvádí, co stahování zastavilo.",
+    "install_portal_verifier": "On a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
   },
   "config": {
     "flow_title": "{name}",
@@ -91,19 +92,19 @@
       },
       "confirm_install_candidate": {
         "title": "Nainstalovat Panel Assistant {version}?",
-        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}"
       },
       "confirm_install_rc": {
         "title": "Nainstalovat Panel Assistant {version}?",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}"
       },
       "confirm_reinstall_candidate": {
         "title": "Nainstalovat Panel Assistant {version}?",
-        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "Ready to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "confirm_reinstall_rc": {
         "title": "Nainstalovat Panel Assistant {version}?",
-        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.\n\nOn a Meta Portal, Panel Assistant turns off Android's package verifier so that its app can update itself: the Portal then stops checking that new apps were signed by Meta before installing them. Removing Panel Assistant from the panel turns the verifier back on.\n\nThis panel rejoins {entry_title} and keeps its entities and history."
+        "description": "Testing only: Panel Assistant {version} is a release candidate, not a stable release, and may contain bugs.\n\nReady to install on the panel at {address}.\n\nYour other apps are not touched.{portal_note}\n\nThis panel rejoins {entry_title} and keeps its entities and history."
       },
       "release_preview_only": {
         "title": "Vydání nelze nainstalovat automaticky",
@@ -130,12 +131,17 @@
         "menu_options": {
           "resume_install": "Pokračovat v této instalaci"
         }
+      },
+      "panel_setup_check": {
+        "title": "Finish the panel's setup",
+        "description": "The panel's setup page is on its own screen, or open the [setup page]({setup_url}) here from a device on the same network as the panel. Select Submit to check again; this then carries on by itself once the setup is finished."
       }
     },
     "progress": {
       "authorize_adb": "Podívejte se na obrazovku panelu na adrese {address}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač.\n\nJakmile to panel povolí, bude se pokračovat samo.",
       "installing": "Instalace Panel Assistant na adrese {address}. Nechte tento dialog otevřený; operace se dokončí sama.\n\nPokud ho zavřete, instalace bude pokračovat. Pro dokončení přidejte stejnou adresu znovu.",
-      "updating_webview": "Aktualizuje se jádro prohlížeče panelu na adrese {address}…"
+      "updating_webview": "Aktualizuje se jádro prohlížeče panelu na adrese {address}…",
+      "panel_setup": "Now finish setting up the panel. Its setup page is on the panel's own screen; you can also open the [setup page]({setup_url}) here, from a device on the same network as the panel.\n\nThis carries on by itself as soon as the panel's setup is finished."
     },
     "error": {
       "panel_setup_not_finished": "Panel ještě nedokončil nastavení. Dokončete stránku nastavení a poté znovu vyberte Odeslat.",
@@ -1102,6 +1108,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         }
@@ -1145,6 +1152,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         }
@@ -1188,6 +1196,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         }
@@ -1231,6 +1240,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         }
@@ -1274,6 +1284,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         }
@@ -1317,6 +1328,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         }
@@ -1360,6 +1372,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         }
@@ -1403,6 +1416,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         }
@@ -1446,6 +1460,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         }
@@ -1489,6 +1504,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         }
@@ -1532,6 +1548,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         }
@@ -1581,6 +1598,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu.",
           "cannot_connect": "Nelze se připojit k platnému koncovému bodu kontroly funkčnosti Panel Assistant.",
@@ -1649,6 +1667,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu.",
           "cannot_connect": "Nelze se připojit k platnému koncovému bodu kontroly funkčnosti Panel Assistant.",
@@ -1717,6 +1736,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu.",
           "cannot_connect": "Nelze se připojit k platnému koncovému bodu kontroly funkčnosti Panel Assistant.",
           "invalid_install_address": "Zadejte pouze název hostitele nebo IP adresu panelu.",
@@ -1778,6 +1798,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu."
         },
@@ -1864,6 +1885,7 @@
           "retry_update_unavailable": "Ovládání aktualizací panelu není dostupné. Zkontrolujte jeho připojení a zkuste to znovu.",
           "retry_finalization": "Aplikace je připravená, ale systém Home Assistant nemohl dokončit přidání panelu. Zkuste to znovu.",
           "retry_failed": "Opakovaný pokus selhal. Podrobnosti najdete ve zprávě pro podporu.",
+          "retry_failed_reason": "{retry_reason} If trying again cannot help, select Submit, then Clear error.",
           "retry_panel_busy": "Tento panel je stále zaneprázdněn aktualizací nebo jinou úlohou. Počkejte, až skončí, a zkuste to znovu. Pokud aktualizace uspěje, tato oprava se zavře sama.",
           "retry_no_longer_needed": "Tato instalace už nepotřebuje opakovaný pokus. Pokud se chyba vrátí, znovu otevřete opravu.",
           "cannot_connect": "Nelze se připojit k platnému koncovému bodu kontroly funkčnosti Panel Assistant.",
@@ -2108,6 +2130,11 @@
         "title": "Hlášení vlastníka o hardwaru",
         "description": "Otevřete [předvyplněné hlášení na GitHubu]({issue_url}), zkontrolujte údaje o zařízení a před odesláním upravte výsledky skutečně provedených testů. Údaje o profilu začínají jako neznámé a všechny testy jako neprovedené. Návrh obsahuje pouze neidentifikující údaje z mezipaměti. Nic se nezveřejní, dokud hlášení neodešlete na GitHubu. Vytvoření návrhu panel nekontaktuje ani nemění.",
         "submit": "Hotovo"
+      },
+      "onboarding_check": {
+        "title": "Finish setting up this panel",
+        "description": "Open the [panel's setup page]({setup_url}) from a device on the same network as the panel, or use the setup page on the panel's own screen. Select Done to check again; this then carries on by itself once the panel connects.",
+        "submit": "Done"
       }
     },
     "error": {
@@ -2155,7 +2182,8 @@
       "panel_connected": "Panel je nastaven a připojen k Home Assistant."
     },
     "progress": {
-      "authorize_adb": "Podívejte se na obrazovku panelu {panel}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač.\n\nJakmile to panel povolí, bude se pokračovat samo."
+      "authorize_adb": "Podívejte se na obrazovku panelu {panel}: zaškrtněte **Vždy povolit z tohoto počítače** a klepněte na **Povolit**. Android může Home Assistant označovat jako počítač.\n\nJakmile to panel povolí, bude se pokračovat samo.",
+      "onboarding": "Waiting for the panel to connect to Home Assistant. If its setup is not finished, finish it on the panel's own screen, or open the [setup page]({setup_url}) here from a device on the same network as the panel.\n\nThis carries on by itself as soon as the panel connects."
     }
   },
   "selector": {
