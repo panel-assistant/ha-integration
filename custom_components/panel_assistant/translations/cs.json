@@ -140,7 +140,7 @@
     "error": {
       "panel_setup_not_finished": "Panel ještě nedokončil nastavení. Dokončete stránku nastavení a poté znovu vyberte Odeslat.",
       "panel_setup_refused": "Panel odmítl sdělit, zda je jeho nastavení dokončeno. Odpověděl: {refusal}. Vyberte Odeslat a zkuste to znovu.",
-      "old_app_installed": "Na tomto panelu stále běží stará aplikace ha-paneld. Panel Assistant 1.0 ji nemůže převést na novou aplikaci a nic vedle ní nenainstaluje. Postupujte podle [kroků bezpečné obnovy]({old_app_help_url}) a dokončete přechod pomocí Panel Assistant 0.9.0. Pokud už na některém panelu běží aplikace verze 1.0 nebo nemáte zálohu z doby před aktualizací, požádejte před změnou verzí o pomoc.",
+      "old_app_installed": "Na tomto panelu stále běží stará aplikace ha-paneld. Postupujte podle [kroků bezpečné obnovy]({old_app_help_url}): exportujte její nastavení, odinstalujte starou aplikaci, odstraňte její stávající záznam v Panel Assistant, pokud existuje, a poté panel přidejte pomocí aktuálního Panel Assistant. Dokončete nastavení panelu a v Home Assistant vyberte Odeslat, importujte nastavení a poté se znovu přihlaste k Home Assistant. Zkontrolujte náhled importu; nastavení MQTT se nepřenáší.",
       "cannot_connect": "Nelze se připojit k platnému koncovému bodu kontroly stavu Panel Assistant.",
       "invalid_address": "Zadejte název hostitele nebo IP adresu bez schématu URL či cesty.",
       "invalid_install_address": "Zadejte pouze název hostitele nebo IP adresu panelu.",
@@ -175,7 +175,7 @@
       "release_selection_required": "Vyberte verzi ze seznamu."
     },
     "abort": {
-      "old_app_installed": "Na tomto panelu stále běží stará aplikace ha-paneld. Panel Assistant 1.0 ji nemůže převést na novou aplikaci a nic vedle ní nenainstaluje. Postupujte podle [kroků bezpečné obnovy]({old_app_help_url}) a dokončete přechod pomocí Panel Assistant 0.9.0. Pokud už na některém panelu běží aplikace verze 1.0 nebo nemáte zálohu z doby před aktualizací, požádejte před změnou verzí o pomoc.",
+      "old_app_installed": "Na tomto panelu stále běží stará aplikace ha-paneld. Postupujte podle [kroků bezpečné obnovy]({old_app_help_url}): exportujte její nastavení, odinstalujte starou aplikaci, odstraňte její stávající záznam v Panel Assistant, pokud existuje, a poté panel přidejte pomocí aktuálního Panel Assistant. Dokončete nastavení panelu a v Home Assistant vyberte Odeslat, importujte nastavení a poté se znovu přihlaste k Home Assistant. Zkontrolujte náhled importu; nastavení MQTT se nepřenáší.",
       "already_configured": "Tento panel je již nastavený.",
       "reinstall_successful": "Aplikace byla znovu nainstalována. Tento panel si zachovává svou historii a nastavení v Home Assistant.",
       "usb_installed": "Panel Assistant je nainstalován a panel byl přidán do Home Assistant. Dokončete nastavení panelu v okně, které jste otevřeli pro instalaci.",
@@ -845,7 +845,7 @@
   },
   "exceptions": {
     "old_app_needs_090": {
-      "message": "Na tomto panelu stále běží stará aplikace: nejprve nainstalujte Panel Assistant 0.9.0, jak vysvětluje jeho oprava"
+      "message": "Na tomto panelu stále běží stará aplikace: podle pokynů v její opravě exportujte nastavení, odinstalujte starou aplikaci, znovu přidejte panel, importujte nastavení a znovu se přihlaste"
     },
     "mqtt_panel_needs_090": {
       "message": "{panel} nebyl přesunut z MQTT: nejprve nainstalujte Panel Assistant 0.9.0, jak vysvětluje jeho oprava"
@@ -970,7 +970,7 @@
     },
     "old_app_needs_090": {
       "title": "Na {panel} stále běží stará aplikace",
-      "description": "Panel Assistant nemůže na panelu {panel} instalovat ani aktualizovat aplikaci, dokud na něm běží stará aplikace ha-paneld.\n\nPostup opravy:\n1. Podle [postupu bezpečné obnovy]({recovery_url}) dokončete přechod pomocí Panel Assistant 0.9.0.\n2. Pokud na kterémkoli panelu již běží aplikace 1.0 nebo nemáte zálohu z doby před aktualizací, požádejte před změnou verzí o pomoc.\n3. Dokončete všechny přechody ve verzi 0.9.0 a poté aktualizujte integraci na 1.0."
+      "description": "Panel Assistant nemůže na panelu {panel} instalovat ani aktualizovat aplikaci, dokud na něm běží stará aplikace ha-paneld.\n\nPostup opravy:\n1. Postupujte podle [kroků bezpečné obnovy]({recovery_url}): exportujte nastavení ze stránky Instalace ve staré aplikaci, odinstalujte starou aplikaci (io.github.maxlyth.hapaneld) a poté odstraňte stávající záznam tohoto panelu v Panel Assistant, pokud existuje.\n2. Přidejte panel pomocí aktuálního Panel Assistant. Dokončete stránku nastavení panelu a poté v Home Assistant vyberte Odeslat.\n3. Importujte nastavení na stránce Instalace v nové aplikaci a před použitím zkontrolujte změny. Poté se znovu přihlaste k Home Assistant: na stránce Konfigurace v části Připojení k Home Assistant vyberte Znovu připojit vedle Přihlášení v prohlížeči.\n\nPokud jste starou aplikaci použili k potlačení aplikací výrobce, před odinstalací vyberte Obnovit domovskou obrazovku na její stránce Instalace. Pro novou instalaci ponechte povolené síťové ADB na portu 5555. Nastavení MQTT se nepřenáší. Staré výchozí hodnoty mohou nahradit nové; poté na stránce Konfigurace zkontrolujte hlasového asistenta a filtr entit."
     },
     "mqtt_panel_needs_090": {
       "title": "{panel} nebyl přesunut z MQTT",

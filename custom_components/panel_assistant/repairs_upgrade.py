@@ -13,9 +13,10 @@ history, so setup refuses it and says to install 0.9.0 first
 (``mqtt_panel_needs_090``).
 
 A panel still on the old ha-paneld app id is refused the same way: this
-release installs nothing beside the old app and moves no panel off it, which
-0.9.0 was the last release to do. Setup and the update entity refuse it, and an
-existing entry is told to install 0.9.0 first (``old_app_needs_090``).
+release installs nothing beside the old app and moves no panel off it. Setup
+and the update entity refuse it; an existing entry gets the manual export,
+uninstall, add and import route (``old_app_needs_090``), with sign-in repeated
+after the import.
 """
 
 from __future__ import annotations
@@ -75,7 +76,7 @@ def needs_090_issue_id(entry_id: str) -> str:
 
 
 def old_app_issue_id(entry_id: str) -> str:
-    """Return the Repair saying this entry's panel must move with 0.9.0 first."""
+    """Return the Repair explaining the manual route off the old app."""
     return f"{ISSUE_OLD_APP_NEEDS_090}_{entry_id}"
 
 

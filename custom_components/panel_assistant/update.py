@@ -818,8 +818,9 @@ class HaPaneldUpdateEntity(PanelCoordinatorEntity, UpdateEntity):
         ):
             raise _update_error(
                 "old_app_needs_090",
-                "This panel still runs the old app: install Panel Assistant 0.9.0 "
-                "first, as its Repair explains",
+                "This panel still runs the old app: follow its Repair to export "
+                "settings, uninstall the old app, add the panel again, import "
+                "settings and sign in again",
             )
         if version in (None, self.latest_version) and self._webview_only_offer(
             self._app_latest_version()

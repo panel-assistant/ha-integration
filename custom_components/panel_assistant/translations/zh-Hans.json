@@ -140,7 +140,7 @@
     "error": {
       "panel_setup_not_finished": "面板尚未完成设置。请完成设置页面，然后再次选择“提交”。",
       "panel_setup_refused": "面板拒绝说明其设置是否已完成。它的回复是：{refusal}。请选择“提交”以重试。",
-      "old_app_installed": "此面板仍在运行旧版 ha-paneld 应用。Panel Assistant 1.0 无法将其迁移到新应用，也不会与其并存安装任何内容。请按照[安全恢复步骤]({old_app_help_url})，使用 Panel Assistant 0.9.0 完成迁移。如果任何面板已在运行 1.0 应用，或者您没有升级前的备份，请在更改版本之前寻求帮助。",
+      "old_app_installed": "此面板仍在运行旧版 ha-paneld 应用。请按照[安全恢复步骤]({old_app_help_url})操作：导出其设置，卸载旧应用，移除其现有的 Panel Assistant 条目（如有），然后使用当前版本的 Panel Assistant 重新添加面板。完成面板设置并在 Home Assistant 中选择“提交”，导入设置，然后重新登录 Home Assistant。请检查导入预览；MQTT 设置不会迁移。",
       "cannot_connect": "无法连接到有效的 Panel Assistant 健康检查端点。",
       "invalid_address": "请输入不含 URL 方案或路径的主机名或 IP 地址。",
       "invalid_install_address": "请只输入面板的主机名或 IP 地址。",
@@ -175,7 +175,7 @@
       "release_selection_required": "请从列表中选择一个版本。"
     },
     "abort": {
-      "old_app_installed": "此面板仍在运行旧版 ha-paneld 应用。Panel Assistant 1.0 无法将其迁移到新应用，也不会在旧应用之外另行安装任何内容。请按照[安全恢复步骤]({old_app_help_url})，使用 Panel Assistant 0.9.0 完成迁移。如果任何面板已在运行 1.0 应用，或者您没有升级前的备份，请在更改版本之前寻求帮助。",
+      "old_app_installed": "此面板仍在运行旧版 ha-paneld 应用。请按照[安全恢复步骤]({old_app_help_url})操作：导出其设置，卸载旧应用，移除其现有的 Panel Assistant 条目（如有），然后使用当前版本的 Panel Assistant 重新添加面板。完成面板设置并在 Home Assistant 中选择“提交”，导入设置，然后重新登录 Home Assistant。请检查导入预览；MQTT 设置不会迁移。",
       "already_configured": "此面板已配置。",
       "reinstall_successful": "应用已重新安装。此面板在 Home Assistant 中的历史记录和设置会保留。",
       "usb_installed": "Panel Assistant 已安装，面板已添加到 Home Assistant。请在为安装而打开的窗口中完成面板设置。",
@@ -845,7 +845,7 @@
   },
   "exceptions": {
     "old_app_needs_090": {
-      "message": "此面板仍在运行旧应用：请先安装 Panel Assistant 0.9.0，如其修复所述"
+      "message": "此面板仍在运行旧应用：请按照对应修复项的说明导出设置、卸载旧应用、重新添加面板、导入设置并重新登录"
     },
     "mqtt_panel_needs_090": {
       "message": "{panel} 尚未从 MQTT 迁移：请先安装 Panel Assistant 0.9.0，如其修复所述"
@@ -970,7 +970,7 @@
     },
     "old_app_needs_090": {
       "title": "{panel} 仍在运行旧应用",
-      "description": "{panel} 仍在运行旧版 ha-paneld 应用，Panel Assistant 无法为其安装或更新应用。\n\n解决方法：\n1. 按照[安全恢复步骤]({recovery_url})，使用 Panel Assistant 0.9.0 完成迁移。\n2. 如果已有任何面板运行 1.0 版应用，或没有升级前的备份，请先寻求帮助，再更改版本。\n3. 在 0.9.0 中完成所有迁移后，再将集成更新到 1.0。"
+      "description": "只要 {panel} 仍在运行旧版 ha-paneld 应用，Panel Assistant 就无法为其安装或更新应用。\n\n解决方法：\n1. 按照[安全恢复步骤]({recovery_url})操作：在旧应用的“安装”页面导出设置，卸载旧应用（io.github.maxlyth.hapaneld），然后移除此面板现有的 Panel Assistant 条目（如有）。\n2. 使用当前版本的 Panel Assistant 添加面板。完成面板上的设置页面，然后在 Home Assistant 中选择“提交”。\n3. 在新应用的“安装”页面导入设置，应用前先检查更改。然后重新登录 Home Assistant：在“配置”页面的“Home Assistant 连接”下，选择“浏览器登录”旁的“重新连接”。\n\n如果曾使用旧应用抑制厂商应用，请在卸载前选择旧应用“安装”页面上的“恢复主屏幕”。请保持端口 5555 上的网络 ADB 开启，以便安装新应用。MQTT 设置不会迁移。旧的默认设置可能会覆盖新的默认设置；之后请在“配置”页面检查语音助手和实体过滤器。"
     },
     "mqtt_panel_needs_090": {
       "title": "{panel} 尚未从 MQTT 迁移",

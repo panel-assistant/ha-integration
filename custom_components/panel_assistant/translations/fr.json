@@ -140,7 +140,7 @@
     "error": {
       "panel_setup_not_finished": "Le panneau n’a pas encore terminé sa configuration. Complétez la page de configuration, puis sélectionnez à nouveau Valider.",
       "panel_setup_refused": "Le panneau a refusé d’indiquer si sa configuration est terminée. Il a répondu : {refusal}. Sélectionnez Envoyer pour réessayer.",
-      "old_app_installed": "Ce panneau utilise encore l’ancienne application ha-paneld. Panel Assistant 1.0 ne peut pas le faire passer à la nouvelle application et n’installe rien à côté. Suivez les [étapes de récupération sécurisée]({old_app_help_url}) pour terminer la migration avec Panel Assistant 0.9.0. Si un panneau utilise déjà l’application 1.0, ou si vous n’avez aucune sauvegarde datant d’avant la mise à niveau, demandez de l’aide avant de changer de version.",
+      "old_app_installed": "Ce panneau utilise encore l’ancienne application ha-paneld. Suivez les [étapes de récupération sécurisée]({old_app_help_url}) : exportez ses paramètres, désinstallez l’ancienne application, supprimez son entrée Panel Assistant si elle existe, puis ajoutez-le avec la version actuelle de Panel Assistant. Terminez la configuration du panneau et sélectionnez Valider dans Home Assistant, importez les paramètres, puis reconnectez-vous à Home Assistant. Vérifiez l’aperçu de l’importation ; les paramètres MQTT ne sont pas transférés.",
       "cannot_connect": "Impossible de se connecter à un point de terminaison d'état Panel Assistant valide.",
       "invalid_address": "Saisissez un nom d'hôte ou une adresse IP sans schéma d'URL ni chemin.",
       "invalid_install_address": "Saisissez uniquement le nom d’hôte ou l’adresse IP du panneau.",
@@ -175,7 +175,7 @@
       "release_selection_required": "Choisissez une version dans la liste."
     },
     "abort": {
-      "old_app_installed": "Ce panneau utilise encore l’ancienne application ha-paneld. Panel Assistant 1.0 ne peut pas le faire passer à la nouvelle application et n’installe rien à côté. Suivez les [étapes de récupération sûres]({old_app_help_url}) pour terminer la migration avec Panel Assistant 0.9.0. Si un panneau utilise déjà l’application 1.0, ou si vous n’avez aucune sauvegarde datant d’avant la mise à niveau, demandez de l’aide avant de changer de version.",
+      "old_app_installed": "Ce panneau utilise encore l’ancienne application ha-paneld. Suivez les [étapes de récupération sécurisée]({old_app_help_url}) : exportez ses paramètres, désinstallez l’ancienne application, supprimez son entrée Panel Assistant si elle existe, puis ajoutez-le avec la version actuelle de Panel Assistant. Terminez la configuration du panneau et sélectionnez Valider dans Home Assistant, importez les paramètres, puis reconnectez-vous à Home Assistant. Vérifiez l’aperçu de l’importation ; les paramètres MQTT ne sont pas transférés.",
       "already_configured": "Ce panneau est déjà configuré.",
       "reinstall_successful": "L’application a été réinstallée. Ce panneau conserve son historique et ses paramètres dans Home Assistant.",
       "usb_installed": "Panel Assistant est installé et le panneau a été ajouté à Home Assistant. Terminez la configuration du panneau dans la fenêtre que vous avez ouverte pour l’installation.",
@@ -845,7 +845,7 @@
   },
   "exceptions": {
     "old_app_needs_090": {
-      "message": "Ce panneau exécute encore l'ancienne app : installez d'abord Panel Assistant 0.9.0, comme l'explique sa réparation"
+      "message": "Ce panneau utilise encore l’ancienne application : suivez sa réparation pour exporter les paramètres, désinstaller l’ancienne application, ajouter à nouveau le panneau, importer les paramètres et vous reconnecter"
     },
     "mqtt_panel_needs_090": {
       "message": "{panel} n'a jamais quitté MQTT : installez d'abord Panel Assistant 0.9.0, comme l'explique sa réparation"
@@ -970,7 +970,7 @@
     },
     "old_app_needs_090": {
       "title": "{panel} exécute encore l'ancienne app",
-      "description": "Panel Assistant ne peut ni installer ni mettre à jour {panel} tant que le panneau utilise encore l’ancienne application ha-paneld.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération sécurisée]({recovery_url}) pour terminer la migration avec Panel Assistant 0.9.0.\n2. Si un panneau utilise déjà l’application 1.0 ou si vous n’avez aucune sauvegarde datant d’avant la mise à niveau, demandez de l’aide avant de changer de version.\n3. Terminez toutes les migrations dans 0.9.0, puis mettez l’intégration à jour vers 1.0."
+      "description": "Panel Assistant ne peut ni installer ni mettre à jour {panel} tant qu’il utilise encore l’ancienne application ha-paneld.\n\nPour corriger le problème :\n1. Suivez les [étapes de récupération sécurisée]({recovery_url}) : exportez les paramètres depuis la page Installer de l’ancienne application, désinstallez l’ancienne application (io.github.maxlyth.hapaneld), puis supprimez l’entrée Panel Assistant de ce panneau si elle existe.\n2. Ajoutez le panneau avec la version actuelle de Panel Assistant. Terminez la page de configuration du panneau, puis sélectionnez Valider dans Home Assistant.\n3. Importez les paramètres sur la page Installer de la nouvelle application, en examinant les modifications avant de les appliquer. Puis reconnectez-vous à Home Assistant : dans Configurer, sous Connexion à Home Assistant, sélectionnez Reconnecter à côté de Connexion dans le navigateur.\n\nAvant de désinstaller, sélectionnez Restaurer l’écran d’accueil sur la page Installer de l’ancienne application si vous l’avez utilisée pour neutraliser les applications du fabricant. Laissez ADB réseau activé sur le port 5555 pour la nouvelle installation. Les paramètres MQTT ne sont pas transférés. Les anciennes valeurs par défaut peuvent remplacer les nouvelles ; vérifiez ensuite l’assistant vocal et le filtre d’entités dans Configurer."
     },
     "mqtt_panel_needs_090": {
       "title": "{panel} n'a jamais quitté MQTT",

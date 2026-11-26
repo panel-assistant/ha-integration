@@ -353,7 +353,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
     if satellite_known(hass, entry):
         await async_load_voice(hass, entry, platforms)
     runtime_data.voice_setup = async_follow_voice(hass, entry, platforms)
-    # A panel still on the old app id is told to install 0.9.0 first.
+    # A panel still on the old app id gets the manual-route Repair.
     async_evaluate_old_app(hass, entry)
     entry.async_on_unload(
         coordinator.async_add_listener(lambda: async_evaluate_old_app(hass, entry))

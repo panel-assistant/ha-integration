@@ -140,7 +140,7 @@
     "error": {
       "panel_setup_not_finished": "Il pannello non ha ancora completato la configurazione. Completa la pagina di configurazione, poi seleziona di nuovo Invia.",
       "panel_setup_refused": "Il pannello ha rifiutato di indicare se la configurazione è terminata. Ha risposto: {refusal}. Seleziona Invia per riprovare.",
-      "old_app_installed": "Questo pannello esegue ancora la vecchia app ha-paneld. Panel Assistant 1.0 non può migrarlo alla nuova app e non installa nulla accanto a quella vecchia. Segui i [passaggi di ripristino sicuro]({old_app_help_url}) per completare la migrazione con Panel Assistant 0.9.0. Se un qualsiasi pannello esegue già l'app 1.0, o non hai un backup precedente all'aggiornamento, chiedi aiuto prima di cambiare versione.",
+      "old_app_installed": "Questo pannello esegue ancora la vecchia app ha-paneld. Segui i [passaggi per un ripristino sicuro]({old_app_help_url}): esporta le impostazioni, disinstalla la vecchia app, rimuovi la voce Panel Assistant esistente, se presente, poi aggiungi il pannello con la versione attuale di Panel Assistant. Completa la configurazione del pannello e seleziona Invia in Home Assistant, importa le impostazioni, poi accedi nuovamente a Home Assistant. Controlla l'anteprima dell'importazione; le impostazioni MQTT non vengono trasferite.",
       "cannot_connect": "Impossibile connettersi a un endpoint valido sullo stato di funzionamento di Panel Assistant.",
       "invalid_address": "Inserisci un nome host o un indirizzo IP senza schema URL né percorso.",
       "invalid_install_address": "Inserisci solo il nome host o l’indirizzo IP del pannello.",
@@ -175,7 +175,7 @@
       "release_selection_required": "Scegli una versione dall'elenco."
     },
     "abort": {
-      "old_app_installed": "Questo pannello esegue ancora la vecchia app ha-paneld. Panel Assistant 1.0 non può effettuare il passaggio alla nuova app e non installa nulla accanto a quella vecchia. Segui i [passaggi per un ripristino sicuro]({old_app_help_url}) per completare il passaggio con Panel Assistant 0.9.0. Se anche un solo pannello esegue già l'app 1.0, o non hai un backup precedente all'aggiornamento, chiedi aiuto prima di cambiare versione.",
+      "old_app_installed": "Questo pannello esegue ancora la vecchia app ha-paneld. Segui i [passaggi per un ripristino sicuro]({old_app_help_url}): esporta le impostazioni, disinstalla la vecchia app, rimuovi la voce Panel Assistant esistente, se presente, poi aggiungi il pannello con la versione attuale di Panel Assistant. Completa la configurazione del pannello e seleziona Invia in Home Assistant, importa le impostazioni, poi accedi nuovamente a Home Assistant. Controlla l'anteprima dell'importazione; le impostazioni MQTT non vengono trasferite.",
       "already_configured": "Questo pannello è già configurato.",
       "reinstall_successful": "L’app è stata reinstallata. Questo pannello conserva la cronologia e le impostazioni in Home Assistant.",
       "usb_installed": "Panel Assistant è installato e il pannello è stato aggiunto a Home Assistant. Completa la configurazione del pannello nella finestra che hai aperto per l'installazione.",
@@ -845,7 +845,7 @@
   },
   "exceptions": {
     "old_app_needs_090": {
-      "message": "Questo pannello esegue ancora la vecchia app: installa prima Panel Assistant 0.9.0, come spiega la sua riparazione"
+      "message": "Questo pannello esegue ancora la vecchia app: segui la relativa riparazione per esportare le impostazioni, disinstallare la vecchia app, aggiungere nuovamente il pannello, importare le impostazioni e accedere di nuovo"
     },
     "mqtt_panel_needs_090": {
       "message": "{panel} non è mai stato spostato da MQTT: installa prima Panel Assistant 0.9.0, come spiega la sua riparazione"
@@ -970,7 +970,7 @@
     },
     "old_app_needs_090": {
       "title": "{panel} esegue ancora la vecchia app",
-      "description": "Panel Assistant non può installare né aggiornare {panel} finché esegue ancora la vecchia app ha-paneld.\n\nPer risolvere:\n1. Segui i [passaggi per il ripristino sicuro]({recovery_url}) per completare lo spostamento con Panel Assistant 0.9.0.\n2. Se un qualsiasi pannello esegue già l'app 1.0, o non hai un backup precedente all'aggiornamento, chiedi aiuto prima di cambiare versione.\n3. Completa tutti gli spostamenti in 0.9.0, poi aggiorna l'integrazione a 1.0."
+      "description": "Panel Assistant non può installare né aggiornare {panel} finché esegue ancora la vecchia app ha-paneld.\n\nPer risolvere:\n1. Segui i [passaggi per un ripristino sicuro]({recovery_url}): esporta le impostazioni dalla pagina Installa della vecchia app, disinstalla la vecchia app (io.github.maxlyth.hapaneld), poi rimuovi la voce Panel Assistant esistente per questo pannello, se presente.\n2. Aggiungi il pannello con la versione attuale di Panel Assistant. Completa la pagina di configurazione del pannello, poi seleziona Invia in Home Assistant.\n3. Importa le impostazioni dalla pagina Installa della nuova app, controllando le modifiche prima di applicarle. Poi accedi nuovamente a Home Assistant: in Configura, sotto Connessione a Home Assistant, seleziona Riconnetti accanto ad Accesso tramite browser.\n\nPrima della disinstallazione, seleziona Ripristina la schermata Home nella pagina Installa della vecchia app se l'hai usata per limitare le app del produttore. Mantieni attivo ADB di rete sulla porta 5555 per la nuova installazione. Le impostazioni MQTT non vengono trasferite. I vecchi valori predefiniti possono sostituire quelli nuovi; controlla poi l'assistente vocale e il filtro delle entità in Configura."
     },
     "mqtt_panel_needs_090": {
       "title": "{panel} non è mai stato spostato da MQTT",

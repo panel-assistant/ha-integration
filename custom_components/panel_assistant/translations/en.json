@@ -140,7 +140,7 @@
     "error": {
       "panel_setup_not_finished": "The panel has not finished its setup yet. Finish the setup page, then select Submit again.",
       "panel_setup_refused": "The panel refused to say whether its setup is finished. It answered: {refusal}. Select Submit to try again.",
-      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
+      "old_app_installed": "This panel still runs the old ha-paneld app. Follow the [safe recovery steps]({old_app_help_url}): export its settings, uninstall the old app, remove its existing Panel Assistant entry if present, then add it with the current Panel Assistant. Finish the panel's setup and select Submit in Home Assistant, import the settings, then sign in to Home Assistant again. Check the import preview; MQTT settings do not carry across.",
       "cannot_connect": "Unable to connect to a valid Panel Assistant health endpoint.",
       "invalid_address": "Enter a hostname or IP address without a URL scheme or path.",
       "invalid_install_address": "Enter only the panel hostname or IP address.",
@@ -175,7 +175,7 @@
       "release_selection_required": "Choose a version from the list."
     },
     "abort": {
-      "old_app_installed": "This panel still runs the old ha-paneld app. Panel Assistant 1.0 cannot move it to the new app, and installs nothing beside it. Follow the [safe recovery steps]({old_app_help_url}) to finish the move with Panel Assistant 0.9.0. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.",
+      "old_app_installed": "This panel still runs the old ha-paneld app. Follow the [safe recovery steps]({old_app_help_url}): export its settings, uninstall the old app, remove its existing Panel Assistant entry if present, then add it with the current Panel Assistant. Finish the panel's setup and select Submit in Home Assistant, import the settings, then sign in to Home Assistant again. Check the import preview; MQTT settings do not carry across.",
       "already_configured": "This panel is already configured.",
       "reinstall_successful": "The app was installed again. This panel keeps its Home Assistant history and settings.",
       "usb_installed": "Panel Assistant is installed and the panel has been added to Home Assistant. Finish setting up the panel in the window you opened for the install.",
@@ -845,7 +845,7 @@
   },
   "exceptions": {
     "old_app_needs_090": {
-      "message": "This panel still runs the old app: install Panel Assistant 0.9.0 first, as its Repair explains"
+      "message": "This panel still runs the old app: follow its Repair to export settings, uninstall the old app, add the panel again, import settings and sign in again"
     },
     "mqtt_panel_needs_090": {
       "message": "{panel} was never moved off MQTT: install Panel Assistant 0.9.0 first, as its Repair explains"
@@ -970,7 +970,7 @@
     },
     "old_app_needs_090": {
       "title": "{panel} still runs the old app",
-      "description": "Panel Assistant cannot install or update {panel} while it still runs the old ha-paneld app.\n\nTo fix:\n1. Follow the [safe recovery steps]({recovery_url}) to finish the move with Panel Assistant 0.9.0.\n2. If any panel already runs the 1.0 app, or you have no backup from before the upgrade, ask for help before changing versions.\n3. Finish all moves in 0.9.0, then update the integration to 1.0."
+      "description": "Panel Assistant cannot install or update {panel} while it still runs the old ha-paneld app.\n\nTo fix:\n1. Follow the [safe recovery steps]({recovery_url}): export settings from the old app's Install page, uninstall the old app (io.github.maxlyth.hapaneld), then remove this panel's existing Panel Assistant entry if present.\n2. Add the panel with the current Panel Assistant. Finish the panel's setup page, then select Submit in Home Assistant.\n3. Import settings on the new app's Install page, reviewing the changes before applying them. Then sign in to Home Assistant again: on Configure, under Home Assistant connection, select Reconnect next to Browser sign-in.\n\nBefore uninstalling, select Restore the home screen on the old app's Install page if you used it to quieten vendor apps. Keep network ADB on port 5555 enabled for the new install. MQTT settings do not carry across. Old defaults can replace new defaults; check the voice assistant and entity filter on Configure afterwards."
     },
     "mqtt_panel_needs_090": {
       "title": "{panel} was never moved off MQTT",

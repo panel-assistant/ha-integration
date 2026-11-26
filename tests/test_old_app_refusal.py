@@ -1,8 +1,7 @@
 """Panel Assistant 1.0 refuses a panel still on the old app id.
 
-Only Panel Assistant 0.9.0 and earlier can move a panel from the old app to the
-new one. This release says so at setup, in a Repair and on an update, and
-installs nothing on the panel.
+Setup, Repair and update direct the owner to manual recovery while the old
+app remains installed.
 """
 
 import json
@@ -19,6 +18,7 @@ from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.translation import async_get_translations
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant.app_identity import LEGACY_PACKAGE_ID
@@ -85,7 +85,7 @@ async def test_setup_refuses_an_answering_old_app(
 async def test_a_configured_old_app_panel_gets_the_refusal_not_the_move(
     hass: HomeAssistant, hass_read_only_user: Any, package: str | None
 ) -> None:
-    """Its Repair says to move it with 0.9.0, and goes once the new app answers."""
+    """Its manual recovery Repair clears once the new app answers."""
     entry = _entry(hass, hass_read_only_user.id)
 
     await _set_up(hass, entry, replace(CURRENT, package=package))
@@ -97,6 +97,15 @@ async def test_a_configured_old_app_panel_gets_the_refusal_not_the_move(
     assert not refusal.is_fixable
     assert refusal.translation_key == "old_app_needs_090"
     assert _issues(hass, entry.entry_id) == {f"old_app_needs_090_{entry.entry_id}"}
+
+    translations = await async_get_translations(hass, "en", "issues", {DOMAIN})
+    guidance = translations[
+        f"component.{DOMAIN}.issues.{refusal.translation_key}.description"
+    ].format(**(refusal.translation_placeholders or {}))
+    assert guidance.index("export settings") < guidance.index("uninstall the old app")
+    assert guidance.index("Import settings") < guidance.index(
+        "sign in to Home Assistant again"
+    )
 
     with _panel(CURRENT):
         await entry.runtime_data.coordinator.async_refresh()
@@ -129,6 +138,7 @@ async def test_updating_an_old_app_panel_installs_nothing(
         await entity.async_install(None, False)
 
     assert raised.value.translation_key == "old_app_needs_090"
+    assert "export settings, uninstall the old app" in str(raised.value)
     route.assert_not_awaited()
 
 
@@ -191,23 +201,21 @@ _TRANSLATIONS = (
 )
 
 
-def _old_app_texts(path: Path) -> list[str]:
-    strings = json.loads(path.read_text())
-    return [
-        strings["config"][section]["old_app_installed"]
-        for section in ("abort", "error")
-        if "old_app_installed" in strings["config"].get(section, {})
-    ]
-
-
 def test_old_app_advice_points_at_the_safe_recovery_steps() -> None:
-    """Every locale gives the Repair's advice, never a bare 'Redownload 0.9.0'."""
-    english = _old_app_texts(_TRANSLATIONS / "en.json")
-    assert len(english) == 2
+    """Every locale points the setup and Repair guidance to manual recovery."""
     for path in sorted(_TRANSLATIONS.glob("*.json")):
-        for text in _old_app_texts(path):
+        strings = json.loads(path.read_text())
+        for section in ("abort", "error"):
+            text = strings["config"][section]["old_app_installed"]
             assert "{old_app_help_url}" in text, path.name
-            assert "Redownload" not in text, path.name
+            assert "0.9.0" not in text, path.name
+        description = strings["issues"]["old_app_needs_090"]["description"]
+        assert "{recovery_url}" in description, path.name
+        assert LEGACY_PACKAGE_ID in description, path.name
+        assert "0.9.0" not in description, path.name
+        assert "0.9.0" not in strings["exceptions"]["old_app_needs_090"]["message"], (
+            path.name
+        )
 
 
 @OLD_APP_HEALTHS
