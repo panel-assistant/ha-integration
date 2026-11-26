@@ -24,6 +24,7 @@ from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.panel_assistant import device_setup, install_executor
+from custom_components.panel_assistant.client import PanelSetupState
 from custom_components.panel_assistant.const import (
     CONF_DEVICE_SETUP,
     CONF_DEVICE_SETUP_OWED,
@@ -261,3 +262,48 @@ async def test_companion_install_keeps_the_verified_identity_when_health_is_unre
 
     assert entry.unique_id == PANEL_DID
     _assert_one_pass(passes, entry)
+
+
+async def test_aborted_companion_install_preserves_the_ignored_panel(
+    hass: HomeAssistant,
+    harness: Harness,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+    passes: AsyncMock,
+    adb_open: SimpleNamespace,  # noqa: F811
+) -> None:
+    """A different entry can claim the install address during setup verification."""
+    ignored = MockConfigEntry(
+        domain=DOMAIN, source=SOURCE_IGNORE, unique_id=PANEL_DID, data={}
+    )
+    ignored.add_to_hass(hass)
+    competing = MockConfigEntry(
+        domain=DOMAIN, unique_id="e" * 64, data={CONF_ADDRESS: SEEDED.address}
+    )
+
+    async def setup_state(_client: object) -> PanelSetupState:
+        competing.add_to_hass(hass)
+        return PanelSetupState(complete=True)
+
+    harness.expected_version = "0.1.0"
+    monkeypatch.setattr(install_executor, "async_verify_installed_target", AsyncMock())
+    monkeypatch.setattr(f"{FLOW}.HaPaneldClient.async_get_setup_state", setup_state)
+    _executor_health_names_the_panel(monkeypatch)
+    receipt, manager = await seed_phase(hass, InstallPhase.HEALTHY_UNCLAIMED)
+    _companion(hass, "Wall screen", SEEDED_IP, "wall-screen")
+    adb_open.open.add(SEEDED_IP)
+    await _add_integration_opened(hass)
+    card = _discovered(hass)["Wall screen"]
+
+    with _app_answers({SEEDED_IP: PANEL_DID}):
+        menu = await hass.config_entries.flow.async_configure(card["flow_id"], {})
+        result = await _choose(hass, menu, "resume_install")
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert hass.config_entries.async_get_entry(ignored.entry_id) is ignored
+    assert hass.config_entries.async_get_entry(competing.entry_id) is competing
+    persisted = await manager.async_get(receipt.job_id)
+    assert persisted.phase is InstallPhase.HEALTHY_UNCLAIMED
+    executor = await install_executor.async_get_install_executor(hass)
+    assert not executor.is_finalizer_active(receipt.job_id)
+    passes.assert_not_awaited()

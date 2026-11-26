@@ -1851,6 +1851,11 @@ class HaPaneldConfigFlow(ConfigFlow, domain=DOMAIN):
         if did is not None or self.unique_id is not None:
             known = await self.async_set_unique_id(did, raise_on_progress=False)
         if known is not None and known.source == SOURCE_IGNORE:
+            # Another entry may have claimed this address during setup verification.
+            if self._address_is_configured(receipt.target.address):
+                executor.release_finalizer(receipt.job_id, self.flow_id)
+                self._finalizer_job_id = None
+                return self.async_abort(reason="already_configured")
             # Core skips async_on_create_entry when replacing Ignore. Remove
             # that entry explicitly so the normal receipt and onboarding
             # handoff still runs for this owner-initiated install.
