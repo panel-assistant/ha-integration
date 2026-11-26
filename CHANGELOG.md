@@ -8,9 +8,9 @@ Each section is what Home Assistant shows in its update dialog: a short, friendl
 
 Panel Assistant 1.0.6 fixes several installation, Repair and connection problems.
 
-- A panel integration update asks you to restart Home Assistant once. The USB installer checks whether the app needs copying without delaying startup.
+- A panel integration update asks you to restart Home Assistant once. The USB installer checks for the published copy when you open it, so Home Assistant can start without waiting for that check.
 - The Repair for an older panel app walks you through exporting your settings, installing the current app and importing your settings before signing in.
-- The Repair for a disabled panel integration keeps the downloaded install packages for the next attempt.
+- The permissions Repair remembers that Install packages was turned off when a later check returns only partial results.
 - Fresh installs from the Companion app save the installed panel's identity so it can connect to Home Assistant and continue setup.
 - Probing another Home Assistant instance releases the response cleanly. A normal Home Assistant shutdown no longer warns that the panel connection was lost, and panel log messages stay on one line.
 
