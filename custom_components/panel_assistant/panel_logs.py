@@ -251,8 +251,10 @@ class PanelLogRouter:
                 level,
                 __file__,
                 0,
-                f"[{name}] {item['timestamp']} {item['source']} "
-                f"{item['tag']}({item['pid']}): {item['message']}",
+                _one_line(
+                    f"[{name}] {item['timestamp']} {item['source']} "
+                    f"{item['tag']}({item['pid']}): {item['message']}"
+                ),
                 (),
                 None,
                 extra={
@@ -324,17 +326,20 @@ class PanelLogRouter:
                     await writer.wait_closed()
 
 
+def _one_line(text: str) -> str:
+    """Keep a panel record on one log line."""
+    if "\n" in text or "\r" in text:
+        return text.replace("\\", "\\\\").replace("\r", "\\r").replace("\n", "\\n")
+    return text
+
+
 def _forward_message(item: dict[str, Any]) -> str:
     letter = {2: "V", 3: "D", 4: "I", 5: "W", 6: "E", 7: "F"}[item["priority"]]
     return f"{item['source']} {letter}/{item['tag']}({item['pid']}): {item['message']}"
 
 
 def _syslog(session: PanelSession, item: dict[str, Any]) -> str:
-    message = _forward_message(item)
-    if "\n" in message or "\r" in message:
-        message = (
-            message.replace("\\", "\\\\").replace("\r", "\\r").replace("\n", "\\n")
-        )
+    message = _one_line(_forward_message(item))
     package = (
         session.app_package.replace("\\", "\\\\")
         .replace('"', '\\"')

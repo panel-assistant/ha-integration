@@ -369,3 +369,24 @@ async def test_drop_notice_reaches_the_selected_ha_logger(
     assert len(records) == 1
     assert records[0].levelno == logging.WARNING
     assert "17 log records" in records[0].getMessage()
+
+
+async def test_panel_message_stays_on_one_ha_log_line(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    grant = await _logs(client)
+    response = await _send(
+        client,
+        _batch(grant["result"]["session"], {**RECORD, "message": "first\r\nsecond"}),
+    )
+    assert response["result"] == {"accepted": 1, "dropped": 0}
+    records = [
+        record for record in caplog.records if record.name.endswith(f".panel.{DID}")
+    ]
+    [record] = records
+    assert record.getMessage().endswith(r"first\r\nsecond")
