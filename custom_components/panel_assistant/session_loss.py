@@ -36,6 +36,7 @@ class SessionLossLog:
         self._panel_name = panel_name
         self._restarting = restarting
         self._timer: Callable[[], None] | None = None
+        self._closed_during_core_stop = False
         # Whether the current loss was logged, so its end is logged too.
         self._logged = False
 
@@ -45,6 +46,7 @@ class SessionLossLog:
         sessions = async_get_sessions(self._hass)
         if sessions.get(self._entry_id) is not None:
             self.close()
+            self._closed_during_core_stop = False
             if self._logged:
                 self._logged = False
                 _LOGGER.info(
@@ -57,8 +59,11 @@ class SessionLossLog:
             or latest.closed_at is None
             or self._timer is not None
             or self._logged
+            or self._closed_during_core_stop
         ):
             return
+        # Core can advance to another shutdown phase before the grace expires.
+        self._closed_during_core_stop = not self._hass.is_running
         self._timer = async_call_later(self._hass, SESSION_LOST_GRACE, self._lost)
 
     @callback
@@ -71,6 +76,8 @@ class SessionLossLog:
     @callback
     def _lost(self, _now: datetime) -> None:
         self._timer = None
+        if self._closed_during_core_stop:
+            return
         sessions = async_get_sessions(self._hass)
         notice = sessions.restart_notice(self._entry_id)
         if notice is not None or self._restarting():

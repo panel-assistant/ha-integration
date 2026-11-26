@@ -5,8 +5,10 @@ from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from aiohttp import WSMsgType
 from freezegun.api import FrozenDateTimeFactory
-from homeassistant.core import HomeAssistant
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP
+from homeassistant.core import CoreState, HomeAssistant
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     async_fire_time_changed,
@@ -23,6 +25,7 @@ from .test_transport import (
     _open,
     _send,
     entry,  # noqa: F401
+    forced_socket_cleanup,  # noqa: F401
 )
 
 
@@ -84,6 +87,51 @@ async def test_a_lost_session_is_warned_after_the_grace_and_its_return_noted(
     [_, back] = _lost(caplog)
     assert back.levelno == logging.INFO
     assert "alpha" in back.getMessage()
+
+
+@pytest.mark.usefixtures("forced_socket_cleanup")
+@pytest.mark.parametrize("core_closes_socket", [True, False])
+async def test_only_session_loss_before_core_stop_warns(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,  # noqa: F811
+    freezer: FrozenDateTimeFactory,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    caplog: pytest.LogCaptureFixture,
+    core_closes_socket: bool,
+) -> None:
+    """A peer loss still warns when the grace ends after Core changes phase."""
+    initial_state = hass.state
+    hass.set_state(CoreState.running)
+    try:
+        client = await hass_ws_client(hass, hass_read_only_access_token)
+        await _open(client)
+        await hass.async_block_till_done()
+        sessions = async_get_sessions(hass)
+        assert sessions.get(entry.entry_id) is not None
+
+        if not core_closes_socket:
+            await client.close()
+            await hass.async_block_till_done()
+            assert sessions.get(entry.entry_id) is None
+
+        hass.set_state(CoreState.stopping)
+        hass.bus.async_fire_internal(EVENT_HOMEASSISTANT_STOP)
+        if core_closes_socket:
+            assert (await client.receive(timeout=2)).type is WSMsgType.CLOSE
+        await hass.async_block_till_done()
+        assert sessions.get(entry.entry_id) is None
+        assert _lost(caplog) == []
+
+        hass.set_state(CoreState.not_running)
+        freezer.tick(timedelta(seconds=75))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+        assert [record.levelno for record in _lost(caplog)] == (
+            [] if core_closes_socket else [logging.WARNING]
+        )
+    finally:
+        hass.set_state(initial_state)
 
 
 async def test_a_session_that_returns_inside_the_grace_logs_nothing(
