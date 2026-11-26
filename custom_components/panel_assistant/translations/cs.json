@@ -2043,6 +2043,10 @@
     "cannot_reach_home_assistant": {
       "title": "{panel} nemůže kontaktovat Home Assistant",
       "description": "{panel} je přihlášen a pokouší se připojit k Home Assistant na adrese {home_assistant}, ale žádné jeho připojení nedorazilo, proto chybí jeho ovládací prvky a stránka v postranním panelu. Opětovné přihlášení nepomůže.\n\nPostup opravy:\n1. Povolte panelu přístup k {host} na portu TCP {port}: firewall nebo izolovaná síť musí panelu umožňovat navazovat spojení s Home Assistant. [Stránka protokolů]({panel_logs}) panelu zobrazuje každý pokus.\n2. Pokud {home_assistant} není adresa tohoto Home Assistant, [změňte ji na panelu]({panel_connection}).\n3. Počkejte, až se panel připojí; tato oprava pak zmizí."
+    },
+    "remove_previous_apps": {
+      "title": "Remove apps from {panel}'s previous setup",
+      "description": "{panel} still has apps from the setup it used before Panel Assistant: {apps}. Everything they did can now be set up from Home Assistant.\n\nTo remove:\n1. Open the panel's [Install page]({panel_install}) and uninstall each app there; the panel asks you to confirm each one. Panel Assistant stays installed.\n2. This Repair goes away the next time the panel connects to Home Assistant.\n\nTo keep the apps, select Ignore."
     }
   },
   "options": {

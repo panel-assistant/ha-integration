@@ -69,6 +69,7 @@ from .repairs_not_signed_in import (
     async_delete_not_signed_in_issue,
     async_evaluate_not_signed_in,
 )
+from .repairs_previous_apps import async_follow_previous_apps
 from .repairs_removal import async_dismiss_removal_notification
 from .repairs_restart import async_setup_restart_check
 from .repairs_restore import async_reconcile_restore_issue
@@ -297,6 +298,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaPaneldConfigEntry) -> 
         )
     )
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
+    entry.async_on_unload(async_follow_previous_apps(hass, entry, coordinator))
 
     def card() -> DeviceInfo:
         # When the sidebar can only say the panel is unreachable, the link

@@ -2043,6 +2043,10 @@
     "cannot_reach_home_assistant": {
       "title": "{panel} не може зв’язатися з Home Assistant",
       "description": "{panel} виконала вхід і намагається підключитися до Home Assistant за адресою {home_assistant}, але з’єднання від неї не надійшло, тому її елементи керування та сторінка на бічній панелі відсутні. Повторний вхід не допоможе.\n\nЩоб виправити:\n1. Дозвольте панелі доступ до {host} на TCP-порту {port}: брандмауер або ізольована мережа мають дозволяти панелі відкривати з’єднання з Home Assistant. На [сторінці журналів]({panel_logs}) панелі показано кожну спробу.\n2. Якщо {home_assistant} — не адреса цього Home Assistant, [змініть її на панелі]({panel_connection}).\n3. Дочекайтеся підключення панелі; тоді це виправлення зникне."
+    },
+    "remove_previous_apps": {
+      "title": "Remove apps from {panel}'s previous setup",
+      "description": "{panel} still has apps from the setup it used before Panel Assistant: {apps}. Everything they did can now be set up from Home Assistant.\n\nTo remove:\n1. Open the panel's [Install page]({panel_install}) and uninstall each app there; the panel asks you to confirm each one. Panel Assistant stays installed.\n2. This Repair goes away the next time the panel connects to Home Assistant.\n\nTo keep the apps, select Ignore."
     }
   },
   "options": {

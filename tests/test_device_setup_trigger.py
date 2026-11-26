@@ -11,6 +11,7 @@ same recorder sees the commands in both directions.
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 from dataclasses import replace
 from types import SimpleNamespace
@@ -28,9 +29,11 @@ from custom_components.panel_assistant import (
     adb_protocol,
     device_setup,
     local_adb,
+    provisioning,
 )
 from custom_components.panel_assistant.adb_credentials import AdbCredentialError
 from custom_components.panel_assistant.adb_protocol import AdbInstallTarget
+from custom_components.panel_assistant.client import HaPaneldError
 from custom_components.panel_assistant.const import (
     CONF_DEVICE_SETUP,
     CONF_DEVICE_SETUP_OWED,
@@ -455,12 +458,202 @@ async def test_an_update_asking_while_a_pass_runs_gets_a_pass_of_its_own(
     assert panel.entry.data[CONF_DEVICE_SETUP] == RECORDED
 
 
-@pytest.mark.parametrize("ready", [True, False], ids=["ready", "not_ready"])
-async def test_the_repair_runs_the_pass_on_confirm_and_says_when_not_ready(
+async def _open_setup_repair(hass: HomeAssistant, entry: Any) -> Any:
+    device_setup.async_raise_issue(hass, entry)
+    issue_id = device_setup.device_setup_issue_id(entry.entry_id)
+    flow = await async_create_fix_flow(hass, issue_id, {"entry_id": entry.entry_id})
+    flow.hass = hass
+    flow.issue_id = issue_id
+    flow.handler = DOMAIN
+    flow.flow_id = "fix"
+    return flow
+
+
+ADB_GUIDANCE = (
+    "Home Assistant could not open an ADB connection to the panel. "
+    "Check that network debugging is on, then select Submit."
+)
+LOCAL_GUIDANCE = (
+    "The panel's local setup connection was not ready. "
+    "Check for an approval prompt on the panel, then select Submit."
+)
+
+
+@pytest.mark.parametrize(
+    ("bootstrap", "guidance"),
+    [
+        pytest.param(False, LOCAL_GUIDANCE, id="local_refused"),
+        pytest.param(True, ADB_GUIDANCE, id="tcp_bootstrap"),
+    ],
+)
+async def test_the_repair_explains_failure_to_open_a_setup_connection(
+    hass: HomeAssistant,
+    hass_ws_client: WsClientFactory,
+    hass_read_only_access_token: str,
+    panel: Any,  # noqa: F811
+    sent: list[str],
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    bootstrap: bool,
+    guidance: str,
+) -> None:
+    _prepare(panel, "no_record")
+    panel.state.health = replace(panel.state.health, panel_id="alpha")
+    await _set_up(hass, panel.entry)
+    hass.config_entries.async_update_entry(
+        panel.entry,
+        data={**panel.entry.data, CONF_DEVICE_SETUP_OWED: device_setup.OWED_INSTALL},
+    )
+    connected = await _connect(
+        hass, hass_ws_client, hass_read_only_access_token, [*MANAGED, "local_adb"]
+    )
+    flow = await _open_setup_repair(hass, panel.entry)
+    await flow.async_step_init()
+
+    if bootstrap:
+        # The panel fixture reports an installed target during the pinned probe.
+        # The subsequent real bootstrap fails when it opens that target.
+        async def refuse_tcp_connection(_device: Any, **_kwargs: Any) -> bool:
+            panel.state.connections += 1
+            raise ConnectionRefusedError
+
+        monkeypatch.setattr(
+            adb_protocol.AdbDeviceAsync, "connect", refuse_tcp_connection
+        )
+
+    async def answer_local_setup() -> None:
+        while True:
+            event = (await _receive(connected.client))["event"]
+            if event.get("kind") != "manage":
+                continue
+            if event["op"] == "snapshot":
+                health = SESSION_HEALTH.format(vc=1, pending=0)
+                await connected.answer(
+                    event, "applied", result={"health": health, "status": STATUS_BODY}
+                )
+                continue
+            if not bootstrap:
+                assert event["op"] == "adb.ready"
+                await connected.answer(event, "refused", code="unknown_command")
+                return
+            if event["op"] == "adb.ready":
+                await connected.answer(
+                    event,
+                    "applied",
+                    result={
+                        "ready": False,
+                        "managed": True,
+                        "recovery_hold": False,
+                        "build_id": None,
+                    },
+                )
+                continue
+            assert event["op"] == "adb.prepare"
+            sha = "a" * 64
+            await connected.answer(
+                event,
+                "applied",
+                result={
+                    "path": f"/data/user/0/{PACKAGE}/cache/adb-recovery/helper-{sha}",
+                    "sha256": sha,
+                    "build_id": "b" * 64,
+                },
+            )
+            return
+
+    async with asyncio.timeout(10), asyncio.TaskGroup() as tasks:
+        tasks.create_task(answer_local_setup())
+        with caplog.at_level(logging.INFO, logger=device_setup.__name__):
+            result = await flow.async_step_confirm_setup({})
+    assert result["type"] == "form"
+    assert result["errors"] == {"base": "panel_not_ready"}
+    assert panel.state.connections == int(bootstrap)
+    assert panel.state.closes == int(bootstrap)
+    assert result["description_placeholders"]["reason"] == guidance
+    assert any(
+        record.name == device_setup.__name__
+        and record.levelno == logging.INFO
+        and "InstallAdbError: target_unreachable" in record.getMessage()
+        for record in caplog.records
+    )
+    assert sent == []
+    assert _owed(panel.entry) == device_setup.OWED_INSTALL
+    assert _issue(hass, panel.entry) is not None
+    await hass.config_entries.async_unload(panel.entry.entry_id)
+
+
+VENDOR_TIMEOUT_GUIDANCE = (
+    "Setup could not finish. Check the panel for a setup or approval prompt, "
+    "then select Submit."
+)
+
+
+@pytest.mark.parametrize(
+    ("failure", "guidance", "log_reason"),
+    [
+        pytest.param(None, None, None, id="ready"),
+        pytest.param(
+            "setup_incomplete",
+            "the panel's own setup is not finished",
+            "the panel's own setup is not finished",
+            id="setup_incomplete",
+        ),
+        pytest.param(
+            "adb_connect",
+            ADB_GUIDANCE,
+            "InstallAdbError: target_unreachable",
+            id="adb_connect",
+        ),
+        pytest.param(
+            "adb_probe",
+            ADB_GUIDANCE,
+            "network ADB: the panel answered adb_unreachable",
+            id="adb_probe",
+        ),
+        pytest.param(
+            "admin",
+            "Android did not confirm the device administrator. "
+            "Allow the request on the panel if it appears, then select Submit.",
+            "Android did not read the device admin back",
+            id="admin",
+        ),
+        pytest.param(
+            "health",
+            "The panel did not answer. Check that it is on and connected, "
+            "then select Submit.",
+            "the panel did not answer",
+            id="health",
+        ),
+        pytest.param(
+            "home_pending",
+            "The home-screen request is still pending. "
+            "Finish the request on the panel, then select Submit.",
+            "the panel still reports its home-screen request pending",
+            id="home_pending",
+        ),
+        pytest.param(
+            "vendor_timeout",
+            VENDOR_TIMEOUT_GUIDANCE,
+            "TimeoutError:",
+            id="vendor_timeout",
+        ),
+        pytest.param(
+            "vendor_timeout",
+            VENDOR_TIMEOUT_GUIDANCE,
+            None,
+            id="vendor_timeout_warning_logging",
+        ),
+    ],
+)
+async def test_the_repair_runs_the_pass_on_confirm_and_explains_failures(
     hass: HomeAssistant,
     panel: Any,  # noqa: F811
     sent: list[str],
-    ready: bool,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    failure: str | None,
+    guidance: str | None,
+    log_reason: str | None,
 ) -> None:
     _prepare(panel, "no_record")
     (panel.directory / "home").write_text(f"{PACKAGE}/.DashboardActivity\n")
@@ -471,15 +664,7 @@ async def test_the_repair_runs_the_pass_on_confirm_and_says_when_not_ready(
     panel.entry.runtime_data = SimpleNamespace(coordinator=panel.coordinator)
     # Entry setup has read the panel once, as it does before any operation.
     await panel.coordinator.async_refresh()
-    device_setup.async_raise_issue(hass, panel.entry)
-    issue_id = device_setup.device_setup_issue_id(panel.entry.entry_id)
-    flow = await async_create_fix_flow(
-        hass, issue_id, {"entry_id": panel.entry.entry_id}
-    )
-    flow.hass = hass
-    flow.issue_id = issue_id
-    flow.handler = DOMAIN
-    flow.flow_id = "fix"
+    flow = await _open_setup_repair(hass, panel.entry)
     menu = await flow.async_step_init()
     # Opening the Repair sends nothing and offers both choices.
     assert menu["type"] == "menu"
@@ -487,10 +672,40 @@ async def test_the_repair_runs_the_pass_on_confirm_and_says_when_not_ready(
     form = await flow.async_step_confirm_setup()
     assert form["step_id"] == "confirm_setup"
     assert sent == []
-    if not ready:
+    if failure == "setup_incomplete":
         panel.state.health = replace(panel.state.health, setup_complete=False)
-    result = await flow.async_step_confirm_setup({})
-    if ready:
+    elif failure == "adb_connect":
+        monkeypatch.setattr(
+            adb_protocol.AdbDeviceAsync, "connect", AsyncMock(return_value=False)
+        )
+    elif failure == "adb_probe":
+        monkeypatch.setattr(
+            provisioning,
+            "async_probe_install_target",
+            AsyncMock(
+                return_value=provisioning.InstallTargetProbe(
+                    provisioning.InstallTargetState.ADB_UNREACHABLE
+                )
+            ),
+        )
+    elif failure == "admin":
+        panel.state.refused = True
+    elif failure == "health":
+        monkeypatch.setattr(
+            panel.coordinator.client,
+            "async_get_health",
+            AsyncMock(side_effect=HaPaneldError("panel offline")),
+        )
+    elif failure == "home_pending":
+        panel.state.health = replace(panel.state.health, home_pending=True)
+        (panel.directory / "home").write_text("com.vendor.launcher/.Home\n")
+        (panel.directory / "incomplete.setup").touch()
+    elif failure == "vendor_timeout":
+        panel.state.vendor_drop = True
+    log_level = logging.INFO if log_reason is not None else logging.WARNING
+    with caplog.at_level(log_level, logger=device_setup.__name__):
+        result = await flow.async_step_confirm_setup({})
+    if failure is None:
         assert result["type"] == "create_entry"
         assert _changing(sent) != []
         assert (panel.directory / "calls").read_text().splitlines() == [
@@ -503,13 +718,20 @@ async def test_the_repair_runs_the_pass_on_confirm_and_says_when_not_ready(
     else:
         assert result["type"] == "form"
         assert result["errors"] == {"base": "panel_not_ready"}
-        # The owner is told which check stopped it, so a report can name it.
-        assert (
-            result["description_placeholders"]["reason"]
-            == "the panel's own setup is not finished"
-        )
-        assert sent == []
+        assert result["description_placeholders"]["reason"] == guidance
+        diagnostics = [
+            record.getMessage()
+            for record in caplog.records
+            if record.name == device_setup.__name__ and record.levelno == logging.INFO
+        ]
+        if log_reason is not None:
+            assert any(log_reason in message for message in diagnostics)
+        else:
+            assert diagnostics == []
+        if failure in {"setup_incomplete", "health", "adb_connect", "adb_probe"}:
+            assert sent == []
         assert _owed(panel.entry) == device_setup.OWED_INSTALL
+        assert _issue(hass, panel.entry) is not None
 
 
 async def test_stop_asking_clears_the_repair_and_changes_nothing_on_the_panel(

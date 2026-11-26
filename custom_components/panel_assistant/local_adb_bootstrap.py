@@ -141,7 +141,8 @@ async def async_bootstrap(
         if status != 0 or lines != ["launched"]:
             raise adb.InstallAdbError(adb.InstallAdbErrorCode.TARGET_RESPONSE_INVALID)
         return True
-    except adb.InstallAdbError:
+    except adb.InstallAdbError as err:
+        err.via_network_adb = True
         raise
     except (
         TimeoutError,
@@ -152,7 +153,8 @@ async def async_bootstrap(
         raise adb.InstallAdbError(
             adb.InstallAdbErrorCode.INSTALL_AMBIGUOUS
             if mutation_started
-            else adb.InstallAdbErrorCode.TARGET_UNREACHABLE
+            else adb.InstallAdbErrorCode.TARGET_UNREACHABLE,
+            via_network_adb=True,
         ) from None
     finally:
         await adb._async_close(device)

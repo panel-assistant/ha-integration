@@ -28,6 +28,8 @@ from custom_components.panel_assistant.client import PanelSetupState
 from custom_components.panel_assistant.const import (
     CONF_DEVICE_SETUP,
     CONF_DEVICE_SETUP_OWED,
+    CONF_INSTALL_APPS_PENDING,
+    CONF_INSTALL_AREA_PENDING,
     DOMAIN,
     SOURCE_USB_INSTALL,
 )
@@ -78,6 +80,9 @@ def _assert_one_pass(passes: AsyncMock, entry: Any) -> None:
     assert passes.await_args.kwargs == {}
     assert entry.data[CONF_DEVICE_SETUP] == RECORD
     assert CONF_DEVICE_SETUP_OWED not in entry.data
+    # The install, not its pass, owes the previous setup's defaults.
+    assert entry.data[CONF_INSTALL_AREA_PENDING] is True
+    assert entry.data[CONF_INSTALL_APPS_PENDING] is True
 
 
 async def test_finishing_an_install_runs_the_pass_once_and_records_it(
@@ -199,6 +204,8 @@ async def test_adding_a_panel_whose_app_was_already_installed_runs_no_pass(
     passes.assert_not_awaited()
     assert CONF_DEVICE_SETUP_OWED not in entry.data
     assert CONF_DEVICE_SETUP not in entry.data
+    assert CONF_INSTALL_AREA_PENDING not in entry.data
+    assert CONF_INSTALL_APPS_PENDING not in entry.data
 
 
 @pytest.mark.parametrize("ignored", [False, True])

@@ -116,6 +116,8 @@ async def test_every_issue_has_a_repair_map_entry(hass: HomeAssistant) -> None:
     # uses the generic /go/repair destination until its dedicated page is added.
     fault_issues = issues - {
         "remove_from_panel",
+        # An owner offer, not a fault: it has no repair page.
+        "remove_previous_apps",
         "installer_failure_update_webview",
         "installer_failure_update_slow_transfer",
         # An unreachable panel shares the health check's page.
@@ -149,7 +151,8 @@ async def test_repair_descriptions_have_short_linked_fix_steps(
     for key, text in bodies.items():
         steps = re.findall(r"^\d\. (.+)$", text, re.MULTILINE)
         # An owner-started action is a confirmation, rather than a panel fault.
-        heading = "To remove" if ".issues.remove_from_panel." in key else "To fix"
+        removal = (".issues.remove_from_panel.", ".issues.remove_previous_apps.")
+        heading = "To remove" if any(part in key for part in removal) else "To fix"
         assert f"\n\n{heading}:\n" in text and 1 <= len(steps) <= 3, key
         assert re.search(r"\[[^]]+\]\([^)]+\)", steps[0]), key
         if ".fix_flow." in key:

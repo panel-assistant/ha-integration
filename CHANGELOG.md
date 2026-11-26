@@ -12,6 +12,8 @@ Panel Assistant 1.0.6 fixes several installation, Repair and connection problems
 - The Repair for an older panel app walks you through exporting your settings, installing the current app and importing your settings before signing in.
 - The permissions Repair remembers that Install packages was turned off when a later check returns only partial results.
 - Fresh installs from the Companion app save the installed panel's identity so it can connect to Home Assistant and continue setup.
+- When a fresh migration finds apps left from the previous setup, a Repair opens the panel's Install page so you can review and approve removal.
+- The Finish setting up Repair tells you what to check when a panel is offline, network debugging is unreachable, Android has not confirmed device administrator access, or a home-screen request is pending.
 - A check against another Home Assistant instance closes its temporary session. A normal Home Assistant shutdown no longer warns that the panel connection was lost, and panel log messages stay on one line.
 
 ## 1.0.5 - 2026-11-25

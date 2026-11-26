@@ -2043,6 +2043,10 @@
     "cannot_reach_home_assistant": {
       "title": "{panel} ne peut pas accéder à Home Assistant",
       "description": "{panel} est connecté à un compte et tente de se connecter à Home Assistant à l’adresse {home_assistant}, mais aucune connexion de sa part n’est arrivée ; ses commandes et sa page dans la barre latérale sont donc absentes. Se reconnecter au compte ne résoudra pas le problème.\n\nPour résoudre le problème :\n1. Autorisez le panneau à accéder à {host} sur le port TCP {port} : le pare-feu ou le réseau isolé doit permettre au panneau d’ouvrir des connexions vers Home Assistant. La [page des journaux]({panel_logs}) du panneau montre chaque tentative.\n2. Si {home_assistant} n’est pas l’adresse de ce Home Assistant, [modifiez-la sur le panneau]({panel_connection}).\n3. Attendez que le panneau se connecte ; cette réparation disparaîtra alors."
+    },
+    "remove_previous_apps": {
+      "title": "Remove apps from {panel}'s previous setup",
+      "description": "{panel} still has apps from the setup it used before Panel Assistant: {apps}. Everything they did can now be set up from Home Assistant.\n\nTo remove:\n1. Open the panel's [Install page]({panel_install}) and uninstall each app there; the panel asks you to confirm each one. Panel Assistant stays installed.\n2. This Repair goes away the next time the panel connects to Home Assistant.\n\nTo keep the apps, select Ignore."
     }
   },
   "options": {

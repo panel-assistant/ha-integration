@@ -23,6 +23,8 @@ from custom_components.panel_assistant import device_setup, update
 from custom_components.panel_assistant.const import (
     CONF_DEVICE_SETUP,
     CONF_DEVICE_SETUP_OWED,
+    CONF_INSTALL_APPS_PENDING,
+    CONF_INSTALL_AREA_PENDING,
     DOMAIN,
 )
 
@@ -53,6 +55,8 @@ async def test_an_adb_update_runs_the_pass_once(
     assert attempt.await_args.kwargs == {}
     assert entry.data[CONF_DEVICE_SETUP] == RECORD
     assert CONF_DEVICE_SETUP_OWED not in entry.data
+    assert CONF_INSTALL_AREA_PENDING not in entry.data
+    assert CONF_INSTALL_APPS_PENDING not in entry.data
 
 
 async def test_a_refused_update_owes_no_pass(

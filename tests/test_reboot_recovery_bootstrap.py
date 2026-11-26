@@ -30,7 +30,10 @@ from custom_components.panel_assistant import adb_protocol as adb
 from custom_components.panel_assistant import coordinator as coordinator_module
 from custom_components.panel_assistant.adb_credentials import AdbCredential
 from custom_components.panel_assistant.client import HaPaneldClient
-from custom_components.panel_assistant.const import CONF_DEVICE_SETUP
+from custom_components.panel_assistant.const import (
+    CONF_DEVICE_SETUP,
+    CONF_INSTALL_APPS_PENDING,
+)
 from custom_components.panel_assistant.transport_sessions import async_get_sessions
 
 from .install_adb_fakes import _identity_root_output, _identity_sections, _section
@@ -254,6 +257,11 @@ async def _rebooted_panel(
     await asyncio.wait_for(entry.runtime_data.coordinator.async_refresh(), 5)
     monkeypatch.setattr(device_setup, "SETUP_RETRY_SECONDS", 0)
     device_setup.async_request(hass, entry, device_setup.OWED_INSTALL)
+    # This fake panel answers one request at a time; the app list is not tested here.
+    hass.config_entries.async_update_entry(
+        entry,
+        data={k: v for k, v in entry.data.items() if k != CONF_INSTALL_APPS_PENDING},
+    )
     await asyncio.wait_for(hass.async_block_till_done(wait_background_tasks=True), 10)
     assert entry.data[CONF_DEVICE_SETUP]["root"] is (route != "rootless")
     assert before.bootstraps == []

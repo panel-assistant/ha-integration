@@ -2043,6 +2043,10 @@
     "cannot_reach_home_assistant": {
       "title": "{panel} 无法访问 Home Assistant",
       "description": "{panel} 已登录，正在尝试连接到 {home_assistant} 上的 Home Assistant，但尚未收到它发起的连接，因此其控件和侧边栏页面未显示。重新登录无济于事。\n\n解决方法：\n1. 允许面板通过 TCP 端口 {port} 访问 {host}：防火墙或隔离网络必须允许面板向 Home Assistant 发起连接。面板的[日志页面]({panel_logs})会显示每次尝试。\n2. 如果 {home_assistant} 不是此 Home Assistant 的地址，请[在面板上更改它]({panel_connection})。\n3. 等待面板连接；连接后，此修复项会自动消失。"
+    },
+    "remove_previous_apps": {
+      "title": "Remove apps from {panel}'s previous setup",
+      "description": "{panel} still has apps from the setup it used before Panel Assistant: {apps}. Everything they did can now be set up from Home Assistant.\n\nTo remove:\n1. Open the panel's [Install page]({panel_install}) and uninstall each app there; the panel asks you to confirm each one. Panel Assistant stays installed.\n2. This Repair goes away the next time the panel connects to Home Assistant.\n\nTo keep the apps, select Ignore."
     }
   },
   "options": {

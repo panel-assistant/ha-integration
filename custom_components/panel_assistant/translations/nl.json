@@ -2043,6 +2043,10 @@
     "cannot_reach_home_assistant": {
       "title": "{panel} kan Home Assistant niet bereiken",
       "description": "{panel} is aangemeld en probeert verbinding te maken met Home Assistant op {home_assistant}, maar er is geen verbinding van het paneel binnengekomen. Daardoor ontbreken de bediening en de pagina in de zijbalk. Opnieuw aanmelden helpt niet.\n\nZo los je dit op:\n1. Geef het paneel toegang tot {host} op TCP-poort {port}: een firewall of een geïsoleerd netwerk moet toestaan dat het paneel verbindingen opent naar Home Assistant. De [logboekpagina]({panel_logs}) van het paneel toont elke poging.\n2. Als {home_assistant} niet het adres van deze Home Assistant is, [wijzig het dan op het paneel]({panel_connection}).\n3. Wacht tot het paneel verbinding maakt; deze melding in Reparaties verdwijnt dan."
+    },
+    "remove_previous_apps": {
+      "title": "Remove apps from {panel}'s previous setup",
+      "description": "{panel} still has apps from the setup it used before Panel Assistant: {apps}. Everything they did can now be set up from Home Assistant.\n\nTo remove:\n1. Open the panel's [Install page]({panel_install}) and uninstall each app there; the panel asks you to confirm each one. Panel Assistant stays installed.\n2. This Repair goes away the next time the panel connects to Home Assistant.\n\nTo keep the apps, select Ignore."
     }
   },
   "options": {

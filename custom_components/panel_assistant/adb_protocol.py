@@ -185,8 +185,11 @@ class InstallAdbErrorCode(StrEnum):
 class InstallAdbError(Exception):
     """An ADB install failure which never includes peer or filesystem text."""
 
-    def __init__(self, code: InstallAdbErrorCode) -> None:
+    def __init__(
+        self, code: InstallAdbErrorCode, *, via_network_adb: bool = False
+    ) -> None:
         self.code = code
+        self.via_network_adb = via_network_adb
         super().__init__(code.value)
 
 

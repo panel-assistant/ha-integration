@@ -113,6 +113,11 @@ DEVICE_SETUP_ADOPT = "adopt"
 # update ("update"), and removed when its device setup pass finishes. An entry
 # without it never gets the pass unless the owner confirms its Repair.
 CONF_DEVICE_SETUP_OWED = "device_setup_owed"
+# Set together, only when an install Panel Assistant ran succeeds, and each
+# cleared once its default from the panel's previous setup is applied: the
+# card's Area and the offer of left-over apps. Updates and skips never set them.
+CONF_INSTALL_AREA_PENDING = "install_area_pending"
+CONF_INSTALL_APPS_PENDING = "install_apps_pending"
 
 
 def update_unique_id(entry_id: str) -> str:

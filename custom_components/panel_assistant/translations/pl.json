@@ -2043,6 +2043,10 @@
     "cannot_reach_home_assistant": {
       "title": "{panel} nie może połączyć się z Home Assistant",
       "description": "{panel} jest zalogowany i próbuje połączyć się z Home Assistant pod adresem {home_assistant}, ale nie odebrano od niego żadnego połączenia, więc brakuje jego elementów sterujących i strony na pasku bocznym. Ponowne logowanie nie pomoże.\n\nAby rozwiązać problem:\n1. Zezwól panelowi na dostęp do {host} na porcie TCP {port}: zapora lub odizolowana sieć musi pozwalać panelowi na otwieranie połączeń z Home Assistant. [Strona dzienników]({panel_logs}) panelu pokazuje każdą próbę.\n2. Jeśli {home_assistant} nie jest adresem tego Home Assistant, [zmień go na panelu]({panel_connection}).\n3. Poczekaj, aż panel się połączy; to zgłoszenie w Problemach wtedy zniknie."
+    },
+    "remove_previous_apps": {
+      "title": "Remove apps from {panel}'s previous setup",
+      "description": "{panel} still has apps from the setup it used before Panel Assistant: {apps}. Everything they did can now be set up from Home Assistant.\n\nTo remove:\n1. Open the panel's [Install page]({panel_install}) and uninstall each app there; the panel asks you to confirm each one. Panel Assistant stays installed.\n2. This Repair goes away the next time the panel connects to Home Assistant.\n\nTo keep the apps, select Ignore."
     }
   },
   "options": {
