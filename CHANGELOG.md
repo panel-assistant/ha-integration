@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 Each section is what Home Assistant shows in its update dialog: a short, friendly summary, a few highlights and a link to the full notes on [panel-assistant.io](https://panel-assistant.io/go/release-notes). The full notes, including every pre-release, are kept on the website. From 1.0.0 onward; earlier sections are the full notes as they were released.
 
+## 1.0.6 - 2026-11-26
+
+Panel Assistant 1.0.6 fixes several installation, Repair and connection problems.
+
+- A panel integration update asks you to restart Home Assistant once. The USB installer checks whether the app needs copying without delaying startup.
+- The Repair for an older panel app walks you through exporting your settings, installing the current app and importing your settings before signing in.
+- The Repair for a disabled panel integration keeps the downloaded install packages for the next attempt.
+- Probing another Home Assistant instance releases the response cleanly. A normal Home Assistant shutdown no longer warns that the panel connection was lost, and panel log messages stay on one line.
+
 ## 1.0.5 - 2026-11-25
 
 Panel Assistant 1.0.5 improves the Finish setting up Repair, keeps a panel's entities steady while it reconnects, and includes the 1.0.5 Android app with support for more panel hardware.
