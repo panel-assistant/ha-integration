@@ -20,6 +20,8 @@ _TURNED_OFF_PERMISSIONS = {
     "camera": "camera",
     "microphone": "microphone",
     "notifications": "notifications",
+    # Not in the status: kept only so a later partial reading still names it.
+    "install packages": "install_packages",
 }
 
 

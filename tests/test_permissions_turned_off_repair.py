@@ -248,3 +248,29 @@ async def test_each_choice_an_owner_can_turn_off_is_never_asked_back(
         ir.async_get(hass).async_get_issue(DOMAIN, permission_issue_id(entry.entry_id))
         is None
     )
+
+
+async def test_a_partial_reading_keeps_install_packages_turned_off(
+    hass: HomeAssistant,
+) -> None:
+    """Install packages is named again after a later reading could not see it."""
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="Test display", data={CONF_ADDRESS: "192.168.1.30"}
+    )
+    entry.add_to_hass(hass)
+    registry = ir.async_get(hass)
+    issue_id = turned_off_issue_id(entry.entry_id)
+
+    async_reconcile_turned_off_issue(
+        hass, entry.entry_id, OwnerDenials(("install packages",), complete=True)
+    )
+    async_reconcile_turned_off_issue(
+        hass, entry.entry_id, OwnerDenials(("microphone",), complete=False)
+    )
+
+    issue = registry.async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_placeholders is not None
+    assert (
+        issue.translation_placeholders["features"] == "microphone and install packages"
+    )
